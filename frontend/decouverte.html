@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Autour de moi — Agora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <style>
+    body { padding: 0 0 40px; }
+    .entete-decouverte {
+      background: linear-gradient(135deg, var(--eau), var(--eauM)); color: #fff;
+      padding: 24px 18px; text-align: center;
+    }
+    .entete-decouverte h1 { font-size: 24px; margin: 0 0 4px; }
+    .entete-decouverte p { font-size: 13px; opacity: .9; margin: 0; }
+    .zone-controles { padding: 16px 18px; max-width: 480px; margin: 0 auto; }
+    .lignes-rayon { display: flex; gap: 8px; margin: 10px 0; }
+    .lignes-rayon button {
+      flex: 1; padding: 8px; border-radius: 100px; border: 1.5px solid var(--eauL);
+      background: #fff; color: var(--roseau); font-size: 13px; font-weight: 600;
+    }
+    .lignes-rayon button.active { background: var(--eau); color: #fff; border-color: var(--eau); }
+    #carte-decouverte { height: 280px; border-radius: 14px; margin: 10px 0; }
+    .zone-liste { max-width: 480px; margin: 0 auto; padding: 0 18px; }
+    .badge-commune-origine {
+      display: inline-block; font-size: 10.5px; font-weight: 700; color: var(--eau);
+      background: var(--eauXL); padding: 2px 8px; border-radius: 100px; margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="entete-decouverte">
+    <h1>🗺️ Autour de moi</h1>
+    <p>Ce qui se passe près de chez vous, dans les communes partenaires d'Agora</p>
+  </div>
+
+  <div class="zone-controles">
+    <button type="button" id="btn-localiser" class="bouton-ouvrir-modale">📍 Utiliser ma position</button>
+    <div class="lignes-rayon">
+      <button type="button" data-rayon="10">10 km</button>
+      <button type="button" data-rayon="20" class="active">20 km</button>
+      <button type="button" data-rayon="50">50 km</button>
+    </div>
+    <div id="carte-decouverte"></div>
+    <p id="message-decouverte" style="font-size:12.5px;color:var(--roseau);text-align:center;"></p>
+  </div>
+
+  <div class="zone-liste" id="liste-decouverte"></div>
+
+  <script>
+    window.API_BASE = 'https://agora-worker.juicy-agency-formation.workers.dev';
+  </script>
+  <script src="js/utils.js"></script>
+  <script>
+    let carte;
+    let rayonActuel = 20;
+    let positionActuelle = null;
+
+    document.querySelectorAll('.lignes-rayon button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lignes-rayon button').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        rayonActuel = parseInt(btn.dataset.rayon, 10);
+        if (positionActuelle) chargerEvenements();
+      });
+    });
+
+    document.getElementById('btn-localiser').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        document.getElementById('message-decouverte').textContent = 'Géolocalisation indisponible sur cet appareil.';
+        return;
+      }
+      document.getElementById('message-decouverte').textContent = 'Localisation en cours…';
+      navigator.geolocation.getCurrentPosition((position) => {
+        positionActuelle = { lat: position.coords.latitude, lng: position.coords.longitude };
+        initCarte();
+        chargerEvenements();
+      }, () => {
+        document.getElementById('message-decouverte').textContent = 'Impossible de récupérer ta position. Autorise la géolocalisation puis réessaie.';
+      }, { enableHighAccuracy: true, timeout: 10000 });
+    });
+
+    function initCarte() {
+      if (carte) { carte.setView([positionActuelle.lat, positionActuelle.lng], 10); return; }
+      carte = L.map('carte-decouverte').setView([positionActuelle.lat, positionActuelle.lng], 10);
+      L.tileLayer(
+        'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+        { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+      ).addTo(carte);
+      L.circleMarker([positionActuelle.lat, positionActuelle.lng], { radius: 8, color: '#2C5F6E', fillColor: '#2C5F6E', fillOpacity: 1 })
+        .addTo(carte).bindPopup('Vous êtes ici');
+    }
+
+    async function chargerEvenements() {
+      const zoneMessage = document.getElementById('message-decouverte');
+      const zoneListe = document.getElementById('liste-decouverte');
+      zoneMessage.textContent = 'Recherche en cours…';
+
+      try {
+        const url = `${window.API_BASE}/decouverte/evenements?lat=${positionActuelle.lat}&lng=${positionActuelle.lng}&rayon=${rayonActuel}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (carte) {
+          carte.eachLayer((c) => { if (c instanceof L.Marker) carte.removeLayer(c); });
+          L.circleMarker([positionActuelle.lat, positionActuelle.lng], { radius: 8, color: '#2C5F6E', fillColor: '#2C5F6E', fillOpacity: 1 })
+            .addTo(carte).bindPopup('Vous êtes ici');
+        }
+
+        if (!data.evenements.length) {
+          zoneMessage.textContent = data.communes_participantes
+            ? `${data.communes_participantes} commune(s) partenaire(s) à moins de ${rayonActuel} km, mais aucun événement à venir pour l'instant.`
+            : `Aucune commune partenaire dans un rayon de ${rayonActuel} km pour l'instant.`;
+          zoneListe.innerHTML = '';
+          return;
+        }
+
+        zoneMessage.textContent = `${data.evenements.length} événement(s) trouvé(s) dans ${data.communes_participantes} commune(s)`;
+        zoneListe.innerHTML = '';
+        data.evenements.forEach((e) => {
+          if (e.lat && e.lng && carte) {
+            L.marker([e.lat, e.lng]).addTo(carte).bindPopup(`<strong>${escapeAttr(e.titre)}</strong><br>${escapeAttr(e.commune_nom)}`);
+          }
+          const el = document.createElement('article');
+          el.className = 'carte-article-compacte';
+          const dateAffichee = new Date(e.date_debut).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+          const badgeOrigine = e.commune_nationale
+            ? `🇫🇷 ${escapeAttr(e.commune_nom)} · National`
+            : `📍 ${escapeAttr(e.commune_nom)} · ${e.commune_distance_km} km`;
+          el.innerHTML = `
+            <div style="padding:12px;">
+              <span class="badge-commune-origine">${badgeOrigine}</span>
+              <h3 class="titre-article-compact">${escapeAttr(e.titre)}</h3>
+              <p class="extrait-article-compact">${dateAffichee}${e.lieu ? ' · ' + escapeAttr(e.lieu) : ''}</p>
+              ${e.description ? `<p style="font-size:13px;color:var(--boue);margin-top:6px;">${escapeAttr(e.description)}</p>` : ''}
+            </div>
+          `;
+          zoneListe.appendChild(el);
+        });
+      } catch {
+        zoneMessage.textContent = 'Erreur lors de la recherche.';
+      }
+    }
+  </script>
+</body>
+</html>

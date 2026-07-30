@@ -1,0 +1,3 @@
+-- db/migrations/004_communes_coords.sql
+ALTER TABLE communes ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE communes ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;

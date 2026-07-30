@@ -1,0 +1,149 @@
+/* frontend/css/base.css */
+:root {
+  --eau: #2C5F6E; --eauM: #4A8FA0; --eauL: #C8DDE4; --eauXL: #EAF4F7;
+  --calc: #F5F0E8; --roseau: #8B7355; --boue: #3D3530; --aube: #E2C97E;
+  --blanc: #FAFAF8; --prairie: #5C7A4E; --rouge: #C0392B; --or: #D4AF37;
+  --admin: #6B35A0;
+  --sidebar: 240px; --topbar: 58px; --bnav: 64px; --r: 14px;
+}
+
+* { box-sizing: border-box; }
+html { height: 100%; }
+body {
+  margin: 0; min-height: 100%;
+  background: var(--blanc);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--boue);
+  padding-bottom: calc(var(--bnav) + 12px);
+}
+h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0 0 8px; color: var(--eau); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--calc); }
+::-webkit-scrollbar-thumb { background: var(--eauL); border-radius: 3px; }
+
+/* ─── Barre du haut ─── */
+.entete-app {
+  position: sticky; top: 0; z-index: 100;
+  height: var(--topbar);
+  background: linear-gradient(135deg, var(--eau), var(--eauM));
+  color: #fff;
+  display: flex; align-items: center; padding: 0 18px;
+}
+.entete-app h1 { color: #fff; font-size: 19px; margin: 0; }
+.entete-app h1 em { font-style: italic; font-weight: 400; color: var(--aube); }
+
+/* ─── Sidebar desktop ─── */
+.sidebar-nav {
+  display: none;
+  position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar);
+  background: var(--calc); border-right: 1px solid var(--eauL);
+  padding: calc(var(--topbar) + 16px) 10px 16px;
+  flex-direction: column; gap: 2px;
+  z-index: 90;
+}
+.sidebar-nav button {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border: none; background: none; border-radius: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--roseau);
+  cursor: pointer; text-align: left;
+}
+.sidebar-nav button:hover { background: var(--eauXL); color: var(--eau); }
+.sidebar-nav button.active { background: var(--eau); color: #fff; font-weight: 600; }
+.sidebar-nav button .ic { font-size: 16px; }
+
+/* ─── Barre du bas mobile ─── */
+.barre-onglets {
+  position: fixed; bottom: 0; left: 0; right: 0; height: var(--bnav);
+  display: flex; overflow-x: auto; background: #fff;
+  border-top: 1px solid var(--eauL); z-index: 100;
+}
+.barre-onglets button {
+  flex: 1; min-width: 62px; padding: 8px 4px; border: none; background: none;
+  font-family: 'DM Sans', sans-serif; font-size: 10.5px; color: var(--roseau);
+  white-space: nowrap; display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.barre-onglets button .ic { font-size: 18px; }
+.barre-onglets button.active { color: var(--eau); font-weight: 600; }
+
+/* ─── Layout responsive ─── */
+@media (min-width: 900px) {
+  body { padding-bottom: 0; }
+  .sidebar-nav { display: flex; }
+  .barre-onglets { display: none; }
+  main { margin-left: var(--sidebar); }
+}
+
+.onglet-contenu { padding: 16px; max-width: 720px; margin: 0 auto; }
+
+/* ─── Cartes ─── */
+.carte-article, .carte-post, .carte-event, .carte-annonce, .carte-chasse, .carte-sondage {
+  background: #fff; border: 1px solid var(--eauL); border-radius: var(--r);
+  padding: 14px; margin-bottom: 12px;
+}
+.carte-article h3, .carte-post h3, .carte-event h3, .carte-chasse h3 { font-size: 17px; }
+
+.actions-admin { margin-top: 10px; display: flex; gap: 8px; }
+.actions-admin button {
+  padding: 6px 12px; border: 1.5px solid var(--eauL); border-radius: 100px;
+  background: #fff; color: var(--roseau); font-family: 'DM Sans', sans-serif; font-size: 12px;
+}
+
+.badge-type, .badge-categorie, .badge-statut {
+  display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 10.5px;
+  margin-right: 4px; background: var(--eauXL); color: var(--eau); font-weight: 600;
+}
+.annonce-offre .badge-type { background: rgba(92,122,78,.15); color: var(--prairie); }
+.annonce-demande .badge-type { background: rgba(226,201,126,.25); color: #8B6A2A; }
+.badge-ouverte { background: rgba(192,57,43,.12); color: var(--rouge); }
+.badge-en_cours { background: rgba(226,201,126,.25); color: #8B6A2A; }
+.badge-resolue { background: rgba(92,122,78,.15); color: var(--prairie); }
+
+/* ─── Éditeur riche ─── */
+.toolbar-editeur { display: flex; gap: 4px; margin-bottom: 6px; }
+.toolbar-editeur button {
+  padding: 5px 10px; border: 1.5px solid var(--eauL); border-radius: 8px;
+  background: #fff; color: var(--eau); font-family: 'DM Mono', monospace; font-size: 12px;
+}
+.zone-edition {
+  border: 1.5px solid var(--eauL); border-radius: var(--r); padding: 10px;
+  min-height: 90px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+}
+
+.btn-reaction {
+  padding: 5px 12px; border-radius: 100px; border: 1.5px solid var(--eauL);
+  background: #fff; margin-right: 6px; font-size: 13px;
+}
+.btn-reaction.active { background: var(--eauXL); border-color: var(--eau); }
+.commentaire { font-size: 13px; color: var(--roseau); margin: 3px 0; }
+
+.ligne-toggle-onglet {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 4px; border-bottom: 1px solid var(--eauL);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+}
+
+form input, form textarea, form select {
+  display: block; width: 100%; margin-bottom: 10px; padding: 10px;
+  border: 1.5px solid var(--eauL); border-radius: 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--boue);
+}
+form input:focus, form textarea:focus, form select:focus { outline: none; border-color: var(--eau); }
+form button {
+  padding: 10px 18px; border-radius: 100px; border: none;
+  background: var(--eau); color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
+form button:hover { background: var(--eauM); }
+
+.question-sondage, .sondage-question { font-weight: 600; margin-bottom: 8px; }
+
+/* ─── Formulaires réservés aux admins/superadmins ─── */
+.form-admin-only { display: none; }
+body.est-admin .form-admin-only { display: block; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--eauL); }
+.roles-gestionnaire-only { display: none; }
+body.est-gestionnaire-roles .roles-gestionnaire-only { display: block; }
+.ligne-etape-chasse input, .ligne-etape-chasse textarea { margin-bottom: 6px; }
+.ligne-etape-chasse .btn-position-etape, .ligne-etape-chasse .btn-supprimer-etape {
+  padding: 6px 10px; border: 1.5px solid var(--eauL); background: #fff; border-radius: 8px; font-size: 12px; color: var(--roseau);
+}

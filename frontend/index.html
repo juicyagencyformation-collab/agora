@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Agora</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2C5F6E">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/lightbox.css">
+  <link rel="stylesheet" href="css/thermometre.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+  <div id="banniere-onboarding-pwa" hidden></div>
+
+  <header class="entete-app">
+    <h1 id="nom-commune">Ag<em>o</em>ra</h1>
+  </header>
+
+  <nav class="sidebar-nav">
+    <button class="active" data-onglet="accueil"><span class="ic">🏠</span><span>Accueil</span></button>
+    <button data-onglet="actualites"><span class="ic">📰</span><span>Actualités</span></button>
+    <button data-onglet="alertes"><span class="ic">🔔</span><span>Alertes</span></button>
+    <button data-onglet="thermometre"><span class="ic">🌡️</span><span>Thermomètre</span></button>
+    <button data-onglet="mur"><span class="ic">💬</span><span>Mur des voisins</span></button>
+    <button data-onglet="agenda"><span class="ic">📅</span><span>Agenda</span></button>
+    <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Coup de main</span></button>
+    <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse au trésor</span></button>
+    <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
+    <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
+    <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
+    <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo du jour</span></button>
+    <button data-onglet="profil"><span class="ic">⭐</span><span>Mon profil</span></button>
+    <button data-onglet="moderation"><span class="ic">👑</span><span>Modération</span></button>
+  </nav>
+
+  <main>
+    <section id="onglet-accueil" class="onglet-contenu">
+      <div id="carte-mini-xp" style="margin-bottom:12px;"></div>
+
+      <div id="carte-photo-vedette" class="carte-photo-vedette" hidden></div>
+
+      <div id="carte-meteo" class="carte-dashboard carte-meteo"></div>
+
+      <div id="carte-dechets" class="carte-dashboard"></div>
+
+      <h3 style="font-size:15px;margin-top:18px;">Dernière actualité</h3>
+      <div id="carte-derniere-actu" class="carte-dashboard"></div>
+
+      <h3 style="font-size:15px;margin-top:18px;">En un coup d'œil</h3>
+      <div id="bandeau-resumes" class="bandeau-resumes"></div>
+    </section>
+
+    <section id="onglet-actualites" class="onglet-contenu" hidden>
+      <div class="form-admin-only">
+        <button type="button" id="btn-ouvrir-creation-article" class="bouton-ouvrir-modale">+ Publier un article</button>
+      </div>
+      <div id="filtres-categorie-articles" class="filtres-categorie-articles"></div>
+      <div id="liste-articles"></div>
+    </section>
+
+    <section id="onglet-alertes" class="onglet-contenu" hidden>
+      <div class="carte-urgences">
+        <h4>📞 Numéros utiles en cas d'urgence</h4>
+        <div class="grille-urgences">
+          <a href="tel:112" class="ligne-urgence"><strong>112</strong><span>Urgence européenne</span></a>
+          <a href="tel:15" class="ligne-urgence"><strong>15</strong><span>SAMU</span></a>
+          <a href="tel:17" class="ligne-urgence"><strong>17</strong><span>Police / Gendarmerie</span></a>
+          <a href="tel:18" class="ligne-urgence"><strong>18</strong><span>Pompiers</span></a>
+          <a href="tel:3919" class="ligne-urgence ligne-urgence-sensible"><strong>3919</strong><span>Violences femmes info · 24h/24</span></a>
+          <a href="tel:119" class="ligne-urgence ligne-urgence-sensible"><strong>119</strong><span>Allô enfance en danger · 24h/24</span></a>
+        </div>
+      </div>
+
+      <button type="button" id="btn-ouvrir-creation-alerte" class="bouton-ouvrir-modale" style="background:var(--rouge);">🚨 Signaler un problème</button>
+
+      <h3 style="margin-top:22px;">Carte des signalements</h3>
+      <div id="carte-alertes" style="height:320px;border-radius:14px;overflow:hidden;"></div>
+
+      <h3 style="margin-top:18px;">Liste des signalements</h3>
+      <div id="liste-alertes"></div>
+    </section>
+
+    <section id="onglet-thermometre" class="onglet-contenu" hidden>
+      <div class="form-admin-only">
+        <button type="button" id="btn-ouvrir-creation-sondage" class="bouton-ouvrir-modale">+ Créer un sondage</button>
+      </div>
+      <div id="liste-sondages"></div>
+    </section>
+
+    <section id="onglet-mur" class="onglet-contenu" hidden>
+      <h3>Le mur des voisins</h3>
+      <p style="font-size:12.5px;color:var(--roseau);">Exprimez-vous librement, dans le respect de chacun 🙂 · Les messages disparaissent après 24-48h.</p>
+      <button type="button" id="btn-ouvrir-creation-mur" class="bouton-ouvrir-modale">+ Écrire un message</button>
+      <div id="liste-posts"></div>
+    </section>
+
+    <section id="onglet-agenda" class="onglet-contenu" hidden>
+      <div class="sous-onglets-chasse" style="margin-bottom:10px;">
+        <button type="button" class="sous-onglet-agenda-btn active" data-sousonglet="local">📅 Mes événements</button>
+        <button type="button" class="sous-onglet-agenda-btn" data-sousonglet="autour">🌍 Autour de moi</button>
+      </div>
+
+      <div id="sous-contenu-agenda-local">
+        <button type="button" id="btn-ouvrir-creation-agenda" class="bouton-ouvrir-modale">+ Proposer un événement</button>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button type="button" id="btn-toggle-historique-agenda" style="background:transparent;color:var(--roseau);border:1.5px solid var(--eauL);flex:1;">🕰️ Événements passés</button>
+          <button type="button" id="btn-toggle-carte-agenda" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);flex:1;">🗺️ Voir sur la carte</button>
+        </div>
+        <div id="carte-agenda" style="height:300px;border-radius:14px;overflow:hidden;margin-bottom:12px;" hidden></div>
+        <div id="liste-events"></div>
+      </div>
+
+      <div id="sous-contenu-agenda-autour" hidden>
+        <p style="font-size:12.5px;color:var(--roseau);">Événements officiels des communes partenaires proches de la vôtre.</p>
+        <div id="lignes-rayon-autour" style="display:flex;gap:8px;margin-bottom:10px;">
+          <button type="button" class="filtre-categorie-btn" data-rayon="10">10 km</button>
+          <button type="button" class="filtre-categorie-btn active" data-rayon="20">20 km</button>
+          <button type="button" class="filtre-categorie-btn" data-rayon="50">50 km</button>
+        </div>
+        <p id="message-autour-de-moi" style="font-size:12.5px;color:var(--roseau);"></p>
+        <div id="liste-autour-de-moi"></div>
+      </div>
+    </section>
+
+    <section id="onglet-coups-de-main" class="onglet-contenu" hidden>
+      <button type="button" id="btn-ouvrir-creation-coup-de-main" class="bouton-ouvrir-modale">+ Publier une annonce</button>
+      <div id="liste-annonces"></div>
+    </section>
+
+    <section id="onglet-chasse-tresor" class="onglet-contenu" hidden>
+      <div class="sous-onglets-chasse">
+        <button type="button" class="sous-onglet-btn active" data-sousonglet="chasses">🗺️ Chasses officielles</button>
+        <button type="button" class="sous-onglet-btn" data-sousonglet="enigmes">🧭 Trouve la photo</button>
+      </div>
+      <button type="button" id="btn-classement-exploration" style="width:100%;margin:10px 0;background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">🏆 Classement Exploration</button>
+      <div id="zone-classement-exploration" hidden></div>
+
+      <div id="sous-contenu-chasses">
+        <div id="vue-liste-chasses">
+          <div class="form-admin-only">
+            <button type="button" id="btn-ouvrir-creation-chasse" class="bouton-ouvrir-modale">+ Créer une chasse au trésor</button>
+          </div>
+          <div id="liste-chasses"></div>
+        </div>
+        <div id="vue-detail-chasse" hidden></div>
+      </div>
+
+      <div id="sous-contenu-enigmes" hidden>
+        <div id="vue-liste-enigmes">
+          <p style="font-size:12.5px;color:var(--roseau);">Prends une photo à un endroit précis du village. Les autres doivent deviner où, en s'y rendant physiquement !</p>
+          <button type="button" id="btn-ouvrir-creation-enigme" class="bouton-ouvrir-modale">+ Publier une énigme</button>
+          <div id="liste-enigmes"></div>
+        </div>
+        <div id="vue-detail-enigme" hidden></div>
+      </div>
+    </section>
+
+    <section id="onglet-conseil" class="onglet-contenu" hidden>
+      <div class="form-admin-only">
+        <button type="button" id="btn-ouvrir-creation-deliberation" class="bouton-ouvrir-modale">+ Créer une délibération</button>
+      </div>
+      <div id="liste-deliberations"></div>
+
+      <h3 style="margin-top:24px;">Comptes-rendus de séance</h3>
+      <div class="form-admin-only">
+        <button type="button" id="btn-ouvrir-creation-pv" class="bouton-ouvrir-modale">+ Rédiger un compte-rendu</button>
+      </div>
+      <div id="liste-pv"></div>
+    </section>
+
+    <section id="onglet-annuaire" class="onglet-contenu" hidden>
+      <button type="button" id="btn-ouvrir-creation-annuaire" class="bouton-ouvrir-modale">+ Créer ma fiche</button>
+      <h3 style="margin-top:22px;">Annuaire</h3>
+      <div id="liste-annuaire"></div>
+    </section>
+
+    <section id="onglet-bulletin" class="onglet-contenu" hidden>
+      <div class="form-admin-only">
+        <button type="button" id="btn-ouvrir-creation-bulletin" class="bouton-ouvrir-modale">+ Rédiger un bulletin</button>
+        <p style="font-size:12px;color:var(--roseau);">Un brouillon doit être validé par un élu ou le superadmin avant d'être visible par les citoyens.</p>
+      </div>
+      <div id="liste-bulletin"></div>
+    </section>
+
+    <section id="onglet-photo-du-jour" class="onglet-contenu" hidden>
+      <h3>Photo du jour</h3>
+      <p style="font-size:12.5px;color:var(--roseau);">Une photo par jour. La galerie est remise à zéro chaque lundi. Les photos des autres sont floues jusqu'à ce que la communauté les valide.</p>
+      <button type="button" id="btn-ouvrir-creation-photo-jour" class="bouton-ouvrir-modale">+ Publier ma photo du jour</button>
+      <p id="compteur-publications-jour" style="font-size:12px;color:var(--roseau);"></p>
+
+      <div id="grille-photos-jour" class="grille-photos-jour"></div>
+    </section>
+
+    <section id="onglet-profil" class="onglet-contenu" hidden>
+      <div id="contenu-profil"></div>
+      <div id="reglages-notifications-profil"></div>
+      <div id="reglages-rgpd-profil"></div>
+    </section>
+
+    <section id="onglet-moderation" class="onglet-contenu" hidden>
+      <h3>Onglets actifs</h3>
+      <div id="panneau-onglets"></div>
+
+      <h3 style="margin-top:22px;">Calendrier des déchets</h3>
+      <form id="form-dechets">
+        <select id="type-dechet">
+          <option value="ordures_menageres">Ordures ménagères</option>
+          <option value="tri_selectif">Tri sélectif</option>
+          <option value="verre">Verre</option>
+          <option value="encombrants">Encombrants</option>
+          <option value="dechets_verts">Déchets verts</option>
+        </select>
+        <select id="jour-dechet">
+          <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
+          <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option>
+          <option value="7">Dimanche</option>
+        </select>
+        <select id="frequence-dechet">
+          <option value="chaque_semaine">Chaque semaine</option>
+          <option value="semaines_paires">Semaines paires</option>
+          <option value="semaines_impaires">Semaines impaires</option>
+        </select>
+        <label style="font-size:12.5px;color:var(--roseau);">Couleur</label>
+        <input type="color" id="couleur-dechet" value="#8B7355">
+        <button type="submit">Ajouter / mettre à jour</button>
+      </form>
+      <div id="liste-dechets-config"></div>
+
+      <h3 style="margin-top:22px;">Photos signalées en attente de revue</h3>
+      <div id="liste-photos-attente"></div>
+
+      <h3 style="margin-top:22px;">Énigmes signalées en attente de revue</h3>
+      <div id="liste-enigmes-attente"></div>
+
+      <h3 style="margin-top:22px;">Messages du Mur signalés en attente de revue</h3>
+      <div id="liste-mur-attente"></div>
+
+      <div class="volet-reglage">
+        <button type="button" id="toggle-volet-photo" class="volet-entete">
+          <span>⚙️ Réglage — Photo du jour</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-photo-contenu" class="volet-contenu">
+          <form id="form-seuil-photo">
+            <label style="font-size:13px;color:var(--roseau);">Validations nécessaires pour devenir totalement nette</label>
+            <input type="number" id="seuil-photo-input" min="1" max="30" value="6">
+            <label style="font-size:13px;color:var(--roseau);">Nombre de photos autorisées par personne et par jour</label>
+            <input type="number" id="max-photo-input" min="1" max="10" value="1">
+            <label style="font-size:13px;color:var(--roseau);">Durée de vie des photos avant suppression automatique</label>
+            <select id="duree-photo-input">
+              <option value="jour">1 jour</option>
+              <option value="semaine">1 semaine</option>
+              <option value="mois">1 mois</option>
+            </select>
+            <button type="submit">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="volet-reglage">
+        <button type="button" id="toggle-volet-couleurs" class="volet-entete">
+          <span>🎨 Couleurs de l'application</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-couleurs-contenu" class="volet-contenu">
+          <form id="form-couleurs">
+            <label style="font-size:13px;color:var(--roseau);">Couleur principale</label>
+            <input type="color" id="couleur-theme-input" value="#2C5F6E">
+            <label style="font-size:13px;color:var(--roseau);">Couleur d'accent</label>
+            <input type="color" id="couleur-accent-input" value="#E2C97E">
+            <button type="submit">Appliquer</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="volet-reglage">
+        <button type="button" id="toggle-volet-enigme" class="volet-entete">
+          <span>🧭 Réglage — Trouve la photo</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-enigme-contenu" class="volet-contenu">
+          <form id="form-rayon-enigme">
+            <label style="font-size:13px;color:var(--roseau);">Distance tolérée pour valider une énigme (mètres)</label>
+            <input type="number" id="rayon-enigme-input" min="5" max="500" value="40">
+            <label style="font-size:13px;color:var(--roseau);">Durée de vie d'une énigme avant suppression automatique</label>
+            <select id="duree-enigme-input">
+              <option value="48h">48 heures</option>
+              <option value="semaine">1 semaine</option>
+              <option value="mois">1 mois</option>
+              <option value="6mois">6 mois</option>
+              <option value="an">1 an</option>
+            </select>
+            <button type="submit">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="volet-reglage">
+        <button type="button" id="toggle-volet-mur" class="volet-entete">
+          <span>💬 Réglage — Mur des voisins</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-mur-contenu" class="volet-contenu">
+          <form id="form-duree-mur">
+            <label style="font-size:13px;color:var(--roseau);">Durée de vie d'un message avant suppression automatique</label>
+            <select id="duree-mur-input">
+              <option value="24h">24 heures</option>
+              <option value="48h">48 heures</option>
+            </select>
+            <button type="submit">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="volet-reglage">
+        <button type="button" id="toggle-volet-rgpd" class="volet-entete">
+          <span>🔒 Réglage — Contact RGPD</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-rgpd-contenu" class="volet-contenu">
+          <form id="form-contact-rgpd">
+            <label style="font-size:13px;color:var(--roseau);">Email de contact pour l'exercice des droits RGPD des citoyens (affiché sur la politique de confidentialité)</label>
+            <input type="email" id="contact-rgpd-input" placeholder="mairie@macommune.fr">
+            <button type="submit">Enregistrer</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="volet-reglage">
+        <button type="button" id="toggle-volet-regional" class="volet-entete">
+          <span>🗺️ Réglage — Découverte régionale</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-regional-contenu" class="volet-contenu">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--roseau);margin-bottom:10px;">
+            <input type="checkbox" id="partage-regional-input" style="width:auto;margin:0;">
+            Partager les événements officiels de ma commune sur la page publique "Autour de moi"
+          </label>
+          <p style="font-size:11.5px;color:var(--roseau);">Seuls les événements marqués "🏛️ Officiel" sont partagés, jamais le contenu créé par les citoyens. Cette page est visible sans connexion, par n'importe qui à proximité.</p>
+          <button type="button" id="btn-enregistrer-regional">Enregistrer</button>
+        </div>
+      </div>
+
+      <div class="roles-gestionnaire-only">
+        <h3 style="margin-top:22px;">Gestion des rôles</h3>
+        <div id="liste-utilisateurs"></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="barre-onglets">
+    <button class="active" data-onglet="accueil"><span class="ic">🏠</span><span>Accueil</span></button>
+    <button data-onglet="actualites"><span class="ic">📰</span><span>Actus</span></button>
+    <button data-onglet="alertes"><span class="ic">🔔</span><span>Alertes</span></button>
+    <button data-onglet="thermometre"><span class="ic">🌡️</span><span>Thermo</span></button>
+    <button data-onglet="mur"><span class="ic">💬</span><span>Voisins</span></button>
+    <button data-onglet="agenda"><span class="ic">📅</span><span>Agenda</span></button>
+    <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Entraide</span></button>
+    <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse</span></button>
+    <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
+    <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
+    <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
+    <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo</span></button>
+    <button data-onglet="profil"><span class="ic">⭐</span><span>Profil</span></button>
+    <button data-onglet="moderation"><span class="ic">👑</span><span>Modération</span></button>
+  </nav>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/editeur-riche.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/articles.js"></script>
+  <script src="js/alertes.js"></script>
+  <script src="js/thermometre.js"></script>
+  <script src="js/mur.js"></script>
+  <script src="js/agenda.js"></script>
+  <script src="js/coups-de-main.js"></script>
+  <script src="js/coups-de-main-form.js"></script>
+  <script src="js/chasse-tresor.js"></script>
+  <script src="js/conseil.js"></script>
+  <script src="js/annuaire.js"></script>
+  <script src="js/bulletin.js"></script>
+  <script src="js/photo-du-jour.js"></script>
+  <script src="js/enigmes.js"></script>
+  <script src="js/profil.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/moderation.js"></script>
+  <script src="js/navigation.js"></script>
+</body>
+</html>

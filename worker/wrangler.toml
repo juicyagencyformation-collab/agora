@@ -1,0 +1,15 @@
+name = "agora-worker"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[vars]
+R2_PUBLIC_BASE = "https://pub-5c0f5a71b091421086656f471ed44251.r2.dev"
+FRONTEND_URL = "https://newappcitoyenne.pages.dev"
+EMAIL_FROM = "Agora <contact@plateforme-agora.fr>"
+
+[[r2_buckets]]
+binding = "BUCKET_R2"
+bucket_name = "newappcitoyenne-uploads"
+
+[triggers]
+crons = ["0 3 1 * *", "0 4 * * *"]

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connexion — Agora</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2C5F6E">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px 0; background: linear-gradient(135deg, var(--eau), var(--eauM)); }
+    .carte-connexion { background: #fff; padding: 28px 24px; border-radius: 18px; width: 90%; max-width: 340px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+    .carte-connexion h2 { text-align: center; font-size: 26px; margin-bottom: 18px; }
+    .carte-connexion h2 em { font-style: italic; font-weight: 400; color: var(--aube); }
+    #erreur-connexion, #erreur-inscription { color: var(--rouge); font-size: 13px; min-height: 18px; }
+    form button { width: 100%; }
+    .bascule-mode { text-align: center; margin-top: 14px; font-size: 13px; color: var(--roseau); }
+    .bascule-mode a { color: var(--eau); font-weight: 600; cursor: pointer; }
+    .case-rgpd { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--roseau); margin: 10px 0; line-height: 1.4; }
+    .case-rgpd input { width: auto; margin: 2px 0 0; }
+    .lien-confidentialite { display: block; text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.85); text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="carte-connexion">
+    <h2>Ag<em>o</em>ra</h2>
+
+    <form id="form-connexion">
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Mot de passe" required>
+      <p id="erreur-connexion"></p>
+      <button type="submit">Se connecter</button>
+    </form>
+    <p class="bascule-mode" id="ligne-mdp-oublie"><a id="vers-mdp-oublie">Mot de passe oublié ?</a></p>
+    <p class="bascule-mode" id="vers-inscription">Pas encore de compte ? <a>Créer un compte</a></p>
+
+    <form id="form-mdp-oublie" hidden>
+      <input type="email" name="email" placeholder="Ton email" required>
+      <p id="message-mdp-oublie" style="font-size:12.5px;color:var(--roseau);"></p>
+      <button type="submit">Envoyer le lien de réinitialisation</button>
+    </form>
+    <p class="bascule-mode" id="vers-connexion-depuis-oubli" hidden><a>← Retour à la connexion</a></p>
+
+    <form id="form-inscription" hidden>
+      <input type="text" name="site_web" id="piege-bot" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
+      <input type="text" name="prenom" placeholder="Prénom" required>
+      <input type="text" name="nom" placeholder="Nom" required>
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" minlength="6" required>
+      <label class="case-rgpd">
+        <input type="checkbox" name="consentement_rgpd" required>
+        J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
+      </label>
+      <p id="erreur-inscription"></p>
+      <button type="submit">Créer mon compte</button>
+    </form>
+    <p class="bascule-mode" id="vers-connexion" hidden>Déjà un compte ? <a>Se connecter</a></p>
+  </div>
+
+  <a href="confidentialite.html" class="lien-confidentialite">Politique de confidentialité (RGPD)</a>
+  <a href="mentions-legales.html" class="lien-confidentialite">Mentions légales</a>
+
+  <script src="js/config.js"></script>
+  <script>
+    const formConnexion = document.getElementById('form-connexion');
+    const formInscription = document.getElementById('form-inscription');
+    const formMdpOublie = document.getElementById('form-mdp-oublie');
+
+    document.getElementById('vers-mdp-oublie').addEventListener('click', () => {
+      formConnexion.hidden = true;
+      document.getElementById('vers-inscription').hidden = true;
+      document.getElementById('ligne-mdp-oublie').hidden = true;
+      formMdpOublie.hidden = false;
+      document.getElementById('vers-connexion-depuis-oubli').hidden = false;
+    });
+    document.getElementById('vers-connexion-depuis-oubli').addEventListener('click', () => {
+      formMdpOublie.hidden = true;
+      document.getElementById('vers-connexion-depuis-oubli').hidden = true;
+      formConnexion.hidden = false;
+      document.getElementById('vers-inscription').hidden = false;
+      document.getElementById('ligne-mdp-oublie').hidden = false;
+    });
+
+    formMdpOublie.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const donnees = Object.fromEntries(new FormData(e.target));
+      const zoneMessage = document.getElementById('message-mdp-oublie');
+      zoneMessage.textContent = 'Envoi en cours…';
+      try {
+        const res = await fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/auth/mot-de-passe-oublie`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(donnees),
+        });
+        const data = await res.json();
+        zoneMessage.textContent = data.message || 'Si un compte existe avec cet email, un lien a été envoyé.';
+      } catch {
+        zoneMessage.textContent = 'Serveur inaccessible.';
+      }
+    });
+
+    document.getElementById('vers-inscription').addEventListener('click', () => {
+      formConnexion.hidden = true;
+      document.getElementById('vers-inscription').hidden = true;
+      formInscription.hidden = false;
+      document.getElementById('vers-connexion').hidden = false;
+    });
+    document.getElementById('vers-connexion').addEventListener('click', () => {
+      formInscription.hidden = true;
+      document.getElementById('vers-connexion').hidden = true;
+      formConnexion.hidden = false;
+      document.getElementById('vers-inscription').hidden = false;
+    });
+
+    formConnexion.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const donnees = Object.fromEntries(new FormData(e.target));
+      const zoneErreur = document.getElementById('erreur-connexion');
+      zoneErreur.textContent = '';
+
+      try {
+        const res = await fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(donnees),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          zoneErreur.textContent = data.erreur || 'Connexion impossible';
+          return;
+        }
+        document.location.href = 'index.html';
+      } catch {
+        zoneErreur.textContent = 'Serveur inaccessible — vérifie API_BASE dans config.js';
+      }
+    });
+
+    formInscription.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const donnees = Object.fromEntries(new FormData(e.target));
+      donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
+      const zoneErreur = document.getElementById('erreur-inscription');
+      zoneErreur.textContent = '';
+
+      try {
+        const res = await fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(donnees),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          zoneErreur.textContent = data.erreur ? (typeof data.erreur === 'string' ? data.erreur : 'Vérifie les champs saisis') : 'Inscription impossible';
+          return;
+        }
+        document.location.href = 'index.html';
+      } catch {
+        zoneErreur.textContent = 'Serveur inaccessible — vérifie API_BASE dans config.js';
+      }
+    });
+  </script>
+</body>
+</html>

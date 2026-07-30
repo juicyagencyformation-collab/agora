@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Politique de confidentialité — Agora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <style>
+    body { padding: 24px 18px 60px; max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; color: var(--eau); margin-top: 28px; }
+    p, li { font-size: 14px; line-height: 1.6; color: var(--boue); }
+    .encart-avis {
+      background: rgba(226,201,126,.2); border: 1px solid var(--aube); border-radius: 10px;
+      padding: 12px 14px; font-size: 12.5px; color: var(--boue); margin: 16px 0;
+    }
+    a { color: var(--eau); }
+    .retour { display: inline-block; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Politique de confidentialité</h1>
+  <p id="nom-commune-rgpd" style="color:var(--roseau);"></p>
+
+  <div class="encart-avis">
+    ℹ️ Ce texte est un modèle de base couvrant les traitements standards de l'application Agora.
+    Il doit être relu et complété par la commune (notamment le contact ci-dessous), et le cas
+    échéant vérifié par un professionnel du droit avant toute mise en ligne publique définitive.
+  </div>
+
+  <h2>Responsable du traitement</h2>
+  <p>Le responsable du traitement des données est la mairie de <strong id="nom-commune-texte">votre commune</strong>, éditrice de cette application citoyenne.</p>
+
+  <h2>Données collectées</h2>
+  <ul>
+    <li>Données de compte : nom, prénom, email, mot de passe (jamais stocké en clair)</li>
+    <li>Contenus que vous publiez : messages, articles, photos, votes, signalements</li>
+    <li>Localisation ponctuelle, uniquement lorsque vous l'autorisez (signalements, chasse au trésor, énigmes photo)</li>
+    <li>Coordonnées optionnelles laissées lors d'une inscription à un événement</li>
+    <li>Abonnement aux notifications (si activées), lié à votre navigateur</li>
+  </ul>
+
+  <h2>Finalités</h2>
+  <p>Ces données sont utilisées uniquement pour faire fonctionner les services de l'application (fil d'actualités, mur des voisins, agenda, alertes, jeux citoyens) et pour vous permettre d'être identifié auprès des autres habitants dans le cadre de la vie communale.</p>
+
+  <h2>Base légale</h2>
+  <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune.</p>
+
+  <h2>Hébergement et sous-traitants</h2>
+  <p>L'application est hébergée sur l'infrastructure de <strong>Cloudflare</strong> (Workers, Pages, R2) et <strong>Supabase</strong> (base de données). Ces prestataires agissent en tant que sous-traitants techniques et n'utilisent pas vos données à d'autres fins.</p>
+
+  <h2>Durée de conservation</h2>
+  <p>Certains contenus sont éphémères par nature et supprimés automatiquement (messages du Mur des voisins après 24-48h, photos de la galerie "Photo du jour" et "Trouve la photo" selon la durée définie par la mairie). Les autres données sont conservées tant que votre compte est actif.</p>
+
+  <h2>Vos droits</h2>
+  <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Vous pouvez exercer directement certains de ces droits depuis l'application, dans <strong>Mon profil</strong> :</p>
+  <ul>
+    <li><strong>Télécharger mes données</strong> — export complet au format JSON</li>
+    <li><strong>Supprimer mon compte</strong> — anonymisation immédiate et irréversible de vos données personnelles</li>
+  </ul>
+  <p>Pour toute autre demande, vous pouvez contacter la mairie : <a id="lien-contact-rgpd" href="#">contact non renseigné pour le moment</a>. Vous disposez également du droit d'introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank">www.cnil.fr</a>).</p>
+
+  <h2>Sécurité</h2>
+  <p>L'accès à vos données est protégé par authentification, et l'isolation entre communes est strictement appliquée : aucune commune ne peut accéder aux données d'une autre.</p>
+
+  <a class="retour" href="connexion.html">← Retour à la connexion</a>
+
+  <script src="js/config.js"></script>
+  <script>
+    fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data?.commune) return;
+        document.getElementById('nom-commune-rgpd').textContent = `Commune de ${data.commune.nom}`;
+        document.getElementById('nom-commune-texte').textContent = data.commune.nom;
+        const lien = document.getElementById('lien-contact-rgpd');
+        if (data.commune.contact_email) {
+          lien.href = `mailto:${data.commune.contact_email}`;
+          lien.textContent = data.commune.contact_email;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+.lightbox-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.9);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; cursor: zoom-out;
+}
+.lightbox-image { max-width: 95vw; max-height: 95vh; object-fit: contain; }
+.miniature-article { max-width: 200px; max-height: 200px; cursor: zoom-in; border-radius: 4px; margin: 4px; display: block; }

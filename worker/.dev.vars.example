@@ -1,0 +1,3 @@
+JWT_SECRET=remplace-par-une-longue-chaine-aleatoire
+SUPABASE_URL=https://TON-PROJET.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=colle-ta-cle-service-role-ici

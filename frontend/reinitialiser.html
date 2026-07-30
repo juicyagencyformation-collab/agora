@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Réinitialiser mon mot de passe — Agora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; height: 100vh; padding-bottom: 0; background: linear-gradient(135deg, var(--eau), var(--eauM)); }
+    .carte-connexion { background: #fff; padding: 28px 24px; border-radius: 18px; width: 90%; max-width: 340px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+    .carte-connexion h2 { text-align: center; font-size: 22px; margin-bottom: 18px; }
+    #message-reset { font-size: 13px; min-height: 18px; }
+    form button { width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="carte-connexion">
+    <h2>Nouveau mot de passe</h2>
+    <form id="form-reset">
+      <input type="password" id="nouveau-mdp" placeholder="Nouveau mot de passe (6 caractères min.)" minlength="6" required>
+      <input type="password" id="confirmation-mdp" placeholder="Confirmer le mot de passe" minlength="6" required>
+      <p id="message-reset"></p>
+      <button type="submit">Réinitialiser</button>
+    </form>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (params.get('slug')) window.COMMUNE_SLUG = params.get('slug');
+
+    document.getElementById('form-reset').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const zoneMessage = document.getElementById('message-reset');
+      const nouveauMdp = document.getElementById('nouveau-mdp').value;
+      const confirmation = document.getElementById('confirmation-mdp').value;
+
+      if (!token) { zoneMessage.style.color = 'var(--rouge)'; zoneMessage.textContent = 'Lien invalide.'; return; }
+      if (nouveauMdp !== confirmation) { zoneMessage.style.color = 'var(--rouge)'; zoneMessage.textContent = 'Les mots de passe ne correspondent pas.'; return; }
+
+      zoneMessage.style.color = 'var(--roseau)';
+      zoneMessage.textContent = 'Enregistrement…';
+
+      try {
+        const res = await fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/auth/reinitialiser-mot-de-passe`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, nouveau_mot_de_passe: nouveauMdp }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          zoneMessage.style.color = 'var(--rouge)';
+          zoneMessage.textContent = data.erreur || 'Erreur, réessaie.';
+          return;
+        }
+        zoneMessage.style.color = 'var(--prairie)';
+        zoneMessage.textContent = 'Mot de passe mis à jour ! Redirection…';
+        setTimeout(() => { window.location.href = 'connexion.html'; }, 1500);
+      } catch {
+        zoneMessage.style.color = 'var(--rouge)';
+        zoneMessage.textContent = 'Serveur inaccessible.';
+      }
+    });
+  </script>
+</body>
+</html>

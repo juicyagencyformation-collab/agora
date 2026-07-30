@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mentions légales — Agora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <style>
+    body { padding: 24px 18px 60px; max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; color: var(--eau); margin-top: 24px; }
+    p, li { font-size: 14px; line-height: 1.6; color: var(--boue); }
+    .encart-avis {
+      background: rgba(226,201,126,.2); border: 1px solid var(--aube); border-radius: 10px;
+      padding: 12px 14px; font-size: 12.5px; color: var(--boue); margin: 16px 0;
+    }
+    a { color: var(--eau); }
+    .retour { display: inline-block; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Mentions légales</h1>
+  <p id="nom-commune-mentions" style="color:var(--roseau);"></p>
+
+  <div class="encart-avis">
+    ℹ️ Modèle de base à compléter par la commune (identité exacte de l'éditeur, directeur
+    de publication) avant mise en ligne publique définitive, conformément à la loi n°2004-575
+    du 21 juin 2004 pour la confiance dans l'économie numérique (LCEN).
+  </div>
+
+  <h2>Éditeur du site</h2>
+  <p>Cette application est éditée par la mairie de <strong id="nom-commune-texte-mentions">votre commune</strong>, dans le cadre de ses missions de service public et d'information des habitants.</p>
+  <p>Directeur de la publication : le maire de la commune, ou son représentant désigné.</p>
+
+  <h2>Hébergement</h2>
+  <p>
+    Application web (frontend) hébergée par <strong>Cloudflare, Inc.</strong> — 101 Townsend St, San Francisco, CA 94107, États-Unis.<br>
+    Traitement applicatif (backend) hébergé par <strong>Cloudflare Workers</strong>.<br>
+    Base de données hébergée par <strong>Supabase Inc.</strong>
+  </p>
+
+  <h2>Contact</h2>
+  <p>Pour toute question relative au site ou à son contenu : <a id="lien-contact-mentions" href="#">contact non renseigné pour le moment</a>.</p>
+
+  <h2>Propriété intellectuelle</h2>
+  <p>Les contenus publiés par les habitants (messages, photos, articles) restent la propriété de leurs auteurs respectifs. La structure et le code de l'application sont la propriété de la commune éditrice.</p>
+
+  <h2>Protection des données personnelles</h2>
+  <p>Voir la <a href="confidentialite.html">politique de confidentialité</a> pour le détail du traitement de vos données personnelles.</p>
+
+  <a class="retour" href="connexion.html">← Retour à la connexion</a>
+
+  <script src="js/config.js"></script>
+  <script>
+    fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data?.commune) return;
+        document.getElementById('nom-commune-mentions').textContent = `Commune de ${data.commune.nom}`;
+        document.getElementById('nom-commune-texte-mentions').textContent = data.commune.nom;
+        const lien = document.getElementById('lien-contact-mentions');
+        if (data.commune.contact_email) {
+          lien.href = `mailto:${data.commune.contact_email}`;
+          lien.textContent = data.commune.contact_email;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>
