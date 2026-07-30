@@ -308,8 +308,12 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .entete-article-compact {
   display: flex; gap: 10px; width: 100%; padding: 10px; border: none; background: none;
-  text-align: left; cursor: pointer; align-items: flex-start;
+  text-align: left; cursor: pointer; align-items: stretch;
 }
+.entete-article-compact .miniature-liste-article {
+  width: 84px; height: auto; align-self: stretch; flex-shrink: 0; min-height: 84px;
+}
+.entete-article-compact .miniature-vide { min-height: 84px; }
 .miniature-liste-article {
   width: 56px; height: 56px; border-radius: 10px; object-fit: cover; flex-shrink: 0;
 }
