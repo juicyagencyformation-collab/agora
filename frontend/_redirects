@@ -1,3 +1,2 @@
 /:slug              /index.html  200
-/:slug/             /index.html  200
 /:slug/*            /:splat      200
