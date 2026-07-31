@@ -1,12 +1,10 @@
 // frontend/functions/[[path]].js
 //
-// Remplace le fichier _redirects, qui se comportait de façon incohérente sur le domaine
-// personnalisé plateforme-agora.fr (une règle aussi simple que "/:slug/*" y interceptait à
-// tort les vrais fichiers statiques comme /css/base.css, alors que la même règle fonctionnait
-// normalement sur l'adresse .pages.dev — comportement confirmé par test direct).
-//
-// Ici, le contrôle est total et explicite, sans dépendre du système de règles opaque de
-// Cloudflare : on ne réécrit QUE ce qui ressemble vraiment à un slug de commune.
+// Routage par commune, sans dépendre de _redirects (comportement incohérent constaté sur
+// le domaine personnalisé). Point important : on reconstruit toujours la réponse nous-mêmes
+// avec un statut 200 explicite, pour ne jamais laisser une éventuelle redirection interne de
+// Cloudflare (ex: nettoyage automatique des extensions .html) remonter jusqu'au navigateur —
+// c'est ce qui causait le renvoi vers /connexion au lieu de /eaucourt/connexion.html.
 
 const DOSSIERS_STATIQUES = ['css', 'js', 'icons', 'functions'];
 
@@ -20,20 +18,20 @@ export async function onRequest(context) {
 
   const premier = segments[0];
 
-  // Sous un dossier statique connu (css/js/icons) ou un fichier réel isolé à la racine
-  // (ex: /manifest.json, /sw.js, /decouverte.html) : jamais interprété comme un slug.
+  // Sous un dossier statique connu, ou un fichier réel isolé à la racine : jamais touché.
   if (DOSSIERS_STATIQUES.includes(premier) || (segments.length === 1 && premier.includes('.'))) {
     return context.env.ASSETS.fetch(context.request);
   }
 
-  // Le dernier segment ressemble à un vrai fichier (ex: /eaucourt/connexion.html) :
-  // on sert précisément ce fichier, peu importe le préfixe de commune devant.
   const dernier = segments[segments.length - 1];
-  if (dernier.includes('.')) {
-    return context.env.ASSETS.fetch(new URL(`/${dernier}`, url.origin));
-  }
+  const cheminReel = dernier.includes('.') ? `/${dernier}` : '/index.html';
 
-  // Sinon (ex: /eaucourt, /eaucourt/) : un slug de commune — sert l'accueil, en gardant
-  // l'URL affichée intacte pour que la détection de commune côté JS (config.js) fonctionne.
-  return context.env.ASSETS.fetch(new URL('/', url.origin));
+  const reponseAsset = await context.env.ASSETS.fetch(new URL(cheminReel, url.origin));
+
+  // Réponse reconstruite à la main, statut 200 forcé : garantit que l'URL affichée dans
+  // le navigateur ne bouge jamais, quoi que Cloudflare ait fait en interne.
+  return new Response(reponseAsset.body, {
+    status: 200,
+    headers: reponseAsset.headers,
+  });
 }
