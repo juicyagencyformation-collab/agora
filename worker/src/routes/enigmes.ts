@@ -7,19 +7,13 @@ import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '
 import { uploaderFichier, deleteObject } from '../storage';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur, gererStreakExploration } from '../lib/gamification';
 import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/push';
+import { distanceMetres } from '../lib/geo';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
 
 // Distance à vol d'oiseau entre deux points GPS (formule de Haversine), en mètres.
-function distanceMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+// Distance à vol d'oiseau importée depuis lib/geo.ts (voir plus haut)
 
 // GET / — IMPORTANT : lat/lng ne sont JAMAIS renvoyées tant que l'énigme n'est pas résolue par
 // la personne qui consulte (ni pour les autres joueurs). Les envoyer permettrait de lire la

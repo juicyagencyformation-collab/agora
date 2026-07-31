@@ -24,7 +24,7 @@ export function xpRequisPourNiveau(niveau: number): number {
   return 50 * niveau * (niveau + 1) / 2;
 }
 
-function niveauDepuisXp(xp: number): number {
+export function niveauDepuisXp(xp: number): number {
   let n = 1;
   while (xp >= xpRequisPourNiveau(n)) n++;
   return n;

@@ -97,11 +97,11 @@ function chargerLune() {
     <div style="display:flex;align-items:center;gap:12px;">
       <div style="font-size:34px;">${icone}</div>
       <div>
-        <div style="font-weight:600;color:var(--boue);font-size:14px;">🌙 ${nom}</div>
-        <div style="font-size:11.5px;color:var(--roseau);">${illumination}% illuminée</div>
+        <div style="font-weight:600;color:#fff;font-size:14px;">🌙 ${nom}</div>
+        <div style="font-size:11.5px;color:rgba(255,255,255,.8);">${illumination}% illuminée</div>
       </div>
     </div>
-    <p style="font-size:12px;color:var(--roseau);margin-top:8px;">${conseil}</p>
+    <p style="font-size:12px;color:rgba(255,255,255,.85);margin-top:8px;">${conseil}</p>
   `;
 }
 
