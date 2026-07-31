@@ -33,7 +33,7 @@ app.use('*', cors({
   origin: (origin) => {
     if (!origin) return '';
     if (origin.endsWith('.pages.dev')) return origin;
-    if (origin.endsWith('.plateforme-agora.fr')) return origin;
+    if (origin === 'https://plateforme-agora.fr' || origin.endsWith('.plateforme-agora.fr')) return origin;
     if (origin.includes('192.168.') || origin.includes('localhost')) return origin;
     return '';
   },
