@@ -32,6 +32,49 @@ h1, h2, h3, h4, p, span, a, button {
   background: #fff; color: var(--eau); font-size: 12.5px; font-family: 'DM Sans', sans-serif;
 }
 
+/* ─── Accueil redessiné : salut, bandeau héros, lune, pastilles ─── */
+.salut-utilisateur {
+  font-family: 'Playfair Display', serif; font-size: 22px; color: var(--boue);
+  margin: 4px 0 14px;
+}
+
+.bandeau-hero { display: flex; gap: 10px; margin-bottom: 12px; }
+.carte-meteo-hero, .carte-xp-hero {
+  flex: 1; background: linear-gradient(135deg, var(--eau), var(--eauM));
+  border-radius: var(--r); padding: 16px 14px; color: #fff; min-height: 110px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.meteo-icone-hero { font-size: 30px; line-height: 1; }
+.meteo-temp-hero { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; margin-top: 2px; }
+.meteo-label-hero { font-size: 11.5px; opacity: .9; }
+.meteo-minmax-hero { font-family: 'DM Mono', monospace; font-size: 10.5px; opacity: .8; margin-top: 4px; }
+
+.carte-xp-hero-bouton {
+  background: none; border: none; padding: 0; width: 100%; height: 100%;
+  display: flex; align-items: center; gap: 10px; color: #fff; cursor: pointer;
+}
+.xp-hero-cercle {
+  width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 15px; line-height: 1.1; flex-shrink: 0;
+}
+.carte-xp-hero-bouton .jauge { background: rgba(255,255,255,.3); }
+.carte-xp-hero-bouton .jauge-remplie { background: var(--aube); }
+
+.carte-lune { background: linear-gradient(135deg, #2E2A4A, #4A3F6B); color: #fff; }
+.carte-lune p { color: rgba(255,255,255,.85) !important; }
+
+.bandeau-resumes-pastilles { display: flex; flex-wrap: wrap; gap: 8px; }
+.pastille-resume {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 100px;
+  border: none; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+}
+.pastille-icone { font-size: 14px; }
+.pastille-rouge { background: rgba(192,57,43,.12); color: #C0392B; }
+.pastille-aube { background: rgba(226,201,126,.25); color: #8B6A2A; }
+.pastille-eau { background: var(--eauXL); color: var(--eau); }
+.pastille-prairie { background: rgba(92,122,78,.15); color: var(--prairie); }
+
 .bandeau-resumes { display: flex; flex-direction: column; gap: 8px; }
 .mini-carte-resume {
   display: flex; align-items: center; gap: 10px; text-align: left;

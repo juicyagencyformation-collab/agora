@@ -1,4 +1,12 @@
 // frontend/js/utils.js
+// Extrait le texte brut d'un contenu HTML — corrige les entités (&nbsp; etc.) que les
+// simples regex .replace(/<[^>]+>/g, '') laissent affichées telles quelles.
+function texteBrutDepuisHtml(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || '';
+}
+
 function escapeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

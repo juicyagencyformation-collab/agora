@@ -61,7 +61,7 @@ function renderArticle(article) {
   el.className = 'carte-article-compacte';
   el.dataset.articleId = article.id;
 
-  const extraitBrut = article.contenu_html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const extraitBrut = texteBrutDepuisHtml(article.contenu_html).replace(/\s+/g, ' ').trim();
   const extrait = extraitBrut.slice(0, 110);
   const miniature = article.images?.[0]?.url;
   const dateAffichee = new Date(article.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });

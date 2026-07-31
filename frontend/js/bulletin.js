@@ -15,7 +15,7 @@ function renderBulletin(bulletin) {
   const el = document.createElement('article');
   el.className = 'carte-article-compacte';
   const estBrouillon = bulletin.statut === 'brouillon';
-  const extraitBrut = bulletin.contenu_html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const extraitBrut = texteBrutDepuisHtml(bulletin.contenu_html).replace(/\s+/g, ' ').trim();
   const extrait = extraitBrut.slice(0, 110);
 
   el.innerHTML = `

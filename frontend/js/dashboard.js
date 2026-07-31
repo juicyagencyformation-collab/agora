@@ -42,12 +42,67 @@ async function chargerDashboard() {
   if (derniereActu) derniereActu.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
   if (resumes) resumes.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
 
+  afficherSalut();
   chargerMeteo();
+  chargerLune();
   chargerDechetsDashboard();
   chargerDerniereActu();
   chargerResumes();
   chargerMiniXp();
   chargerPhotoVedette();
+}
+
+function afficherSalut() {
+  const zone = document.getElementById('salut-utilisateur');
+  if (!zone) return;
+  const heure = new Date().getHours();
+  let salut = 'Bonsoir';
+  if (heure < 5) salut = 'Bonne nuit';
+  else if (heure < 12) salut = 'Bonjour';
+  else if (heure < 18) salut = 'Bon après-midi';
+  zone.textContent = `${salut} 👋`;
+}
+
+// Phase de la lune — calculée localement, aucune API nécessaire. Basé sur la phase
+// (nouvelle → pleine → nouvelle), pas le calendrier lunaire biodynamique complet
+// (lune montante/descendante + zodiaque), qui est un système distinct et plus complexe.
+function calculerPhaseLune(date = new Date()) {
+  const nouvelleLuneRef = Date.UTC(2000, 0, 6, 18, 14, 0);
+  const cycle = 29.53058868;
+  const joursDepuisRef = (date.getTime() - nouvelleLuneRef) / 86400000;
+  const position = ((joursDepuisRef % cycle) + cycle) % cycle;
+  const fraction = position / cycle;
+  const illumination = Math.round((1 - Math.cos(fraction * 2 * Math.PI)) / 2 * 100);
+
+  const phases = [
+    { max: 0.03, nom: 'Nouvelle lune', icone: '🌑', conseil: 'Repos de la terre — bon moment pour préparer le sol et désherber, selon la tradition.' },
+    { max: 0.22, nom: 'Premier croissant', icone: '🌒', conseil: 'Favorable aux semis des plantes qui poussent en hauteur (fleurs, fruits), selon la tradition.' },
+    { max: 0.28, nom: 'Premier quartier', icone: '🌓', conseil: 'Bon moment pour planter et greffer, selon la tradition.' },
+    { max: 0.47, nom: 'Lune gibbeuse croissante', icone: '🌔', conseil: 'Favorable à l\'arrosage et à la fertilisation, selon la tradition.' },
+    { max: 0.53, nom: 'Pleine lune', icone: '🌕', conseil: 'Moment traditionnel de récolte des fruits et légumes.' },
+    { max: 0.72, nom: 'Lune gibbeuse décroissante', icone: '🌖', conseil: 'Bon moment pour tailler et récolter les racines, selon la tradition.' },
+    { max: 0.78, nom: 'Dernier quartier', icone: '🌗', conseil: 'Favorable au désherbage et à l\'entretien du jardin.' },
+    { max: 0.97, nom: 'Dernier croissant', icone: '🌘', conseil: 'Bon moment pour planter racines et bulbes, selon la tradition.' },
+    { max: 1.01, nom: 'Nouvelle lune', icone: '🌑', conseil: 'Repos de la terre — bon moment pour préparer le sol et désherber, selon la tradition.' },
+  ];
+  const phase = phases.find((p) => fraction <= p.max) ?? phases[0];
+  return { ...phase, illumination };
+}
+
+function chargerLune() {
+  const zone = document.getElementById('carte-lune');
+  if (!zone) return;
+  const { nom, icone, conseil, illumination } = calculerPhaseLune();
+  zone.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="font-size:34px;">${icone}</div>
+      <div>
+        <div style="font-weight:600;color:var(--boue);font-size:14px;">🌙 ${nom}</div>
+        <div style="font-size:11.5px;color:var(--roseau);">${illumination}% illuminée</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--roseau);margin-top:8px;">${conseil}</p>
+  `;
 }
 
 async function chargerPhotoVedette() {
@@ -67,22 +122,29 @@ async function chargerPhotoVedette() {
 }
 
 async function chargerMiniXp() {
-  const zone = document.getElementById('carte-mini-xp');
-  if (!zone) return;
+  const zoneXp = document.getElementById('carte-mini-xp');
+  const zoneSalut = document.getElementById('salut-utilisateur');
+  if (!zoneXp) return;
   const res = await appelApi(`/${window.COMMUNE_SLUG}/profil`);
-  if (!res.ok) { zone.innerHTML = ''; return; }
+  if (!res.ok) { zoneXp.innerHTML = ''; return; }
   const data = await res.json();
+
+  if (zoneSalut && data.prenom) {
+    zoneSalut.textContent = zoneSalut.textContent.replace('👋', `${data.prenom} 👋`);
+  }
+
   const xpDansNiveau = data.xp - data.xp_niveau_actuel;
   const xpPourNiveau = data.xp_niveau_suivant - data.xp_niveau_actuel;
   const pct = xpPourNiveau > 0 ? Math.round((xpDansNiveau / xpPourNiveau) * 100) : 100;
 
-  zone.innerHTML = `
-    <button class="mini-carte-resume" id="btn-vers-profil" style="width:100%;">
-      <span>⭐</span>
-      <span style="flex:1;">
-        Niveau ${data.niveau} — ${xpDansNiveau}/${xpPourNiveau} XP
+  zoneXp.innerHTML = `
+    <button class="carte-xp-hero-bouton" id="btn-vers-profil">
+      <div class="xp-hero-cercle">⭐<br><span style="font-size:15px;">${data.niveau}</span></div>
+      <div style="flex:1;text-align:left;">
+        <div style="font-size:12.5px;font-weight:600;">Niveau ${data.niveau}</div>
         <div class="jauge" style="margin-top:4px;"><div class="jauge-remplie" style="width:${pct}%"></div></div>
-      </span>
+        <div style="font-size:10.5px;color:var(--roseau);margin-top:2px;">${xpDansNiveau}/${xpPourNiveau} XP</div>
+      </div>
     </button>
   `;
   document.getElementById('btn-vers-profil').addEventListener('click', () => activerOnglet('profil'));
@@ -102,15 +164,13 @@ async function chargerMeteo() {
     const infos = CODES_METEO[code] ?? { label: 'Météo indisponible', icone: '🌡️' };
 
     zone.innerHTML = `
-      <div class="meteo-icone">${infos.icone}</div>
-      <div>
-        <div class="meteo-temp">${Math.round(data.current.temperature_2m)}°C</div>
-        <div class="meteo-label">${infos.label}</div>
-        <div class="meteo-minmax">↓ ${Math.round(data.daily.temperature_2m_min[0])}° · ↑ ${Math.round(data.daily.temperature_2m_max[0])}°</div>
-      </div>
+      <div class="meteo-icone-hero">${infos.icone}</div>
+      <div class="meteo-temp-hero">${Math.round(data.current.temperature_2m)}°</div>
+      <div class="meteo-label-hero">${infos.label}</div>
+      <div class="meteo-minmax-hero">↓ ${Math.round(data.daily.temperature_2m_min[0])}° · ↑ ${Math.round(data.daily.temperature_2m_max[0])}°</div>
     `;
   } catch {
-    zone.innerHTML = `<p class="meteo-erreur">Météo indisponible pour le moment.</p>`;
+    zone.innerHTML = `<p class="meteo-erreur">Météo indisponible.</p>`;
   }
 }
 
@@ -161,11 +221,19 @@ async function chargerDerniereActu() {
     return;
   }
   const a = articles[0];
-  const extrait = a.contenu_html.replace(/<[^>]+>/g, '').slice(0, 140);
+  const extraitBrut = texteBrutDepuisHtml(a.contenu_html).replace(/\s+/g, ' ').trim();
+  const extrait = extraitBrut.slice(0, 140);
+  const miniature = a.images?.[0]?.url;
+
   zone.innerHTML = `
-    <h4>${escapeAttr(a.titre)}</h4>
-    <p class="extrait-actu">${escapeAttr(extrait)}${extrait.length >= 140 ? '…' : ''}</p>
-    <button id="btn-voir-actu">Voir toutes les actualités</button>
+    <div style="display:flex;gap:10px;align-items:flex-start;">
+      ${miniature ? `<img src="${miniature}" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;">` : ''}
+      <div style="flex:1;min-width:0;">
+        <h4 style="margin:0 0 4px;">${escapeAttr(a.titre)}</h4>
+        <p class="extrait-actu">${escapeAttr(extrait)}${extraitBrut.length > 140 ? '…' : ''}</p>
+      </div>
+    </div>
+    <button id="btn-voir-actu" style="margin-top:10px;">Voir toutes les actualités</button>
   `;
   zone.querySelector('#btn-voir-actu').addEventListener('click', () => activerOnglet('actualites'));
 }
@@ -186,29 +254,29 @@ async function chargerResumes() {
 
   if (alertesRes.ok) {
     const { alertes } = await alertesRes.json();
-    items.push({ cle: 'alertes', icone: '🔔', texte: `${alertes.length} alerte(s) ouverte(s)` });
+    items.push({ cle: 'alertes', icone: '🔔', texte: `${alertes.length} alerte(s)`, couleur: 'rouge' });
   }
   if (agendaRes.ok) {
     const { events } = await agendaRes.json();
     if (events.length) {
       const d = new Date(events[0].date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-      items.push({ cle: 'agenda', icone: '📅', texte: `Prochain : ${events[0].titre} (${d})` });
+      items.push({ cle: 'agenda', icone: '📅', texte: `${escapeAttr(events[0].titre)} (${d})`, couleur: 'aube' });
     }
   }
   if (sondagesRes.ok) {
     const { sondages } = await sondagesRes.json();
-    if (sondages.length) items.push({ cle: 'thermometre', icone: '🌡️', texte: `${sondages.length} sondage(s) en cours` });
+    if (sondages.length) items.push({ cle: 'thermometre', icone: '🌡️', texte: `${sondages.length} sondage(s)`, couleur: 'eau' });
   }
   if (cdmRes.ok) {
     const { annonces } = await cdmRes.json();
-    items.push({ cle: 'coups-de-main', icone: '🤲', texte: `${annonces.length} annonce(s) d'entraide` });
+    items.push({ cle: 'coups-de-main', icone: '🤲', texte: `${annonces.length} entraide(s)`, couleur: 'prairie' });
   }
 
   items.forEach((item) => {
-    const carte = document.createElement('button');
-    carte.className = 'mini-carte-resume';
-    carte.innerHTML = `<span>${item.icone}</span><span>${escapeAttr(item.texte)}</span>`;
-    carte.addEventListener('click', () => activerOnglet(item.cle));
-    zone.appendChild(carte);
+    const pastille = document.createElement('button');
+    pastille.className = `pastille-resume pastille-${item.couleur}`;
+    pastille.innerHTML = `<span class="pastille-icone">${item.icone}</span><span>${item.texte}</span>`;
+    pastille.addEventListener('click', () => activerOnglet(item.cle));
+    zone.appendChild(pastille);
   });
 }

@@ -160,7 +160,7 @@ async function chargerPv() {
 function renderPv(a) {
   const el = document.createElement('article');
   el.className = 'carte-article-compacte';
-  const extraitBrut = a.contenu_html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const extraitBrut = texteBrutDepuisHtml(a.contenu_html).replace(/\s+/g, ' ').trim();
   const extrait = extraitBrut.slice(0, 110);
   const dateAffichee = new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
 
