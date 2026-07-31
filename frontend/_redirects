@@ -1,1 +1,1 @@
-# temporairement vide pour diagnostic
+/:slug/*            /:splat      200
