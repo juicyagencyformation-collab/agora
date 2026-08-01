@@ -1,9 +1,9 @@
 // frontend/functions/[[path]].js
 //
-// Routage par commune : /eaucourt/... sert l'app normalement, en gardant l'URL affichée
-// intacte pour que la détection de commune côté JS (config.js) fonctionne. Toute
-// redirection interne éventuelle de Cloudflare est suivie nous-mêmes, pour ne jamais
-// laisser une adresse inattendue remonter jusqu'au navigateur.
+// Routage par commune : /eaucourt/... sert l'app normalement, URL affichée intacte.
+// Cas particulier : /eaucourt/manifest.json est régénéré à la volée avec le bon start_url,
+// pour que l'icône installée sur l'écran d'accueil revienne toujours à la bonne commune,
+// même après une déconnexion ou un changement d'appareil.
 
 const DOSSIERS_STATIQUES = ['css', 'js', 'icons', 'functions'];
 
@@ -34,8 +34,27 @@ export async function onRequest(context) {
   }
 
   const dernier = segments[segments.length - 1];
-  const cheminReel = dernier.includes('.') ? `/${dernier}` : '/index.html';
 
+  // Manifest propre à la commune : start_url et scope pointent vers /<slug>/, pour que
+  // l'icône installée sur l'écran d'accueil revienne toujours à la bonne commune.
+  if (dernier === 'manifest.json' && segments.length > 1) {
+    const manifestReel = await recupererAssetSansRedirection(context.env, new URL('/manifest.json', url.origin));
+    if (manifestReel) {
+      try {
+        const manifestJson = await manifestReel.json();
+        manifestJson.start_url = `/${premier}/index.html`;
+        manifestJson.scope = `/${premier}/`;
+        return new Response(JSON.stringify(manifestJson), {
+          status: 200,
+          headers: { 'Content-Type': 'application/manifest+json' },
+        });
+      } catch {
+        // En cas de souci de lecture, on retombe sur le manifest générique plutôt que casser.
+      }
+    }
+  }
+
+  const cheminReel = dernier.includes('.') ? `/${dernier}` : '/index.html';
   const reponseAsset = await recupererAssetSansRedirection(context.env, new URL(cheminReel, url.origin));
   if (!reponseAsset) return context.env.ASSETS.fetch(context.request);
 
