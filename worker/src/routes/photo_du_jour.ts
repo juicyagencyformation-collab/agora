@@ -177,6 +177,29 @@ app.post('/', async (c) => {
   return c.json({ photo_id: photo.id }, 201);
 });
 
+// Le propriétaire peut changer le statut "libre de droit" de sa propre photo à tout moment
+// (ex: il ne voulait pas au départ qu'elle soit éligible à la mise en avant, et change d'avis).
+app.patch('/:id/libre-de-droit', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const id = c.req.param('id');
+
+  const body = z.object({ libre_de_droit: z.boolean() }).safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [photo] = await supabaseSelect(c.env, 'photos_du_jour', {
+    select: 'id,user_id', id: `eq.${id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!photo) return c.json({ erreur: 'Photo introuvable' }, 404);
+  if (photo.user_id !== user_id) return c.json({ erreur: 'Vous ne pouvez modifier que vos propres photos' }, 403);
+
+  await supabaseUpdate(c.env, 'photos_du_jour', { libre_de_droit: body.data.libre_de_droit }, {
+    id: `eq.${id}`, commune_id: `eq.${commune_id}`,
+  });
+
+  return c.json({ ok: true });
+});
+
 app.post('/:id/valider', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');

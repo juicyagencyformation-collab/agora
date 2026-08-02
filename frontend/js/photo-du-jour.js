@@ -46,12 +46,18 @@ function renderPhotoDuJour(p, medaille) {
     ${medaille ? `<span class="medaille-photo">${medaille}</span>` : ''}
     <div class="overlay-photo-jour">
       <button class="btn-like-photo ${p.deja_like ? 'like-actif' : ''}">❤️ ${p.total_likes}</button>
-      ${p.est_moi ? '<span class="badge-ma-photo">Votre photo — personne (vous y compris) ne peut la valider</span>' : `
+      ${p.est_moi ? `
+        <label class="toggle-libre-droit">
+          <input type="checkbox" class="case-libre-droit" ${p.libre_de_droit ? 'checked' : ''}>
+          Libre de droit
+        </label>
+      ` : `
         <button class="btn-valider-photo" ${p.deja_valide ? 'disabled' : ''}>${p.deja_valide ? '✓ Validée' : `👍 ${p.total_validations}/${p.seuil_validations}`}</button>
         <button class="btn-signaler-photo" ${p.deja_signale ? 'disabled' : ''}>${p.deja_signale ? 'Signalée' : '🚩'}</button>
         ${estGestionnairePhoto && flou > 0 ? '<button class="btn-deflouter-photo">👁️ Déflouter</button>' : ''}
       `}
     </div>
+    ${p.est_moi ? '<span class="pastille-ma-photo" title="Personne, vous y compris, ne peut valider votre propre photo">ℹ️ Votre photo</span>' : ''}
   `;
 
   el.querySelector('img').addEventListener('click', () => ouvrirLightbox(p.url, `blur(${flou}px)`));
@@ -59,6 +65,16 @@ function renderPhotoDuJour(p, medaille) {
   el.querySelector('.btn-like-photo').addEventListener('click', async () => {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour/${p.id}/liker`, { method: 'POST' });
     if (!res.ok) { const d = await res.json(); alert(d.erreur || 'Erreur'); return; }
+    chargerPhotoDuJour();
+  });
+
+  el.querySelector('.case-libre-droit')?.addEventListener('change', async (e) => {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour/${p.id}/libre-de-droit`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ libre_de_droit: e.target.checked }),
+    });
+    if (!res.ok) { e.target.checked = !e.target.checked; afficherToastMessage('Erreur lors de la mise à jour.', 'erreur'); return; }
     chargerPhotoDuJour();
   });
 
