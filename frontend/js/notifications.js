@@ -2,6 +2,21 @@
 let evenementInstallDiffere = null;
 let enregistrementSW = null;
 
+// Capté au tout premier niveau du script, avant toute autre initialisation — pour ne
+// manquer l'invite d'installation de Chrome sous aucun prétexte si elle se déclenche tôt.
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  evenementInstallDiffere = e;
+
+  // Si une interface d'installation est déjà affichée à l'écran au moment où l'événement
+  // arrive, on la redessine pour transformer le message de secours en vrai bouton actif.
+  const banniere = document.getElementById('banniere-onboarding-pwa');
+  if (banniere && !banniere.hidden) afficherBanniereOnboarding();
+
+  const sectionProfil = document.getElementById('section-installation-profil');
+  if (sectionProfil?.innerHTML.trim()) initSectionInstallationProfil();
+});
+
 function estIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 }
@@ -151,12 +166,6 @@ function initSectionInstallationProfil() {
 const TROIS_JOURS_MS = 3 * 24 * 3600 * 1000;
 
 function initOnboardingPwa() {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    evenementInstallDiffere = e;
-    afficherBanniereOnboarding();
-  });
-
   if (estDejaInstallee()) {
     // Déjà installée : plus besoin de rappel d'installation, jamais.
     if (Notification?.permission === 'default') afficherBanniereOnboarding();
