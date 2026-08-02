@@ -31,6 +31,7 @@
     <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Coup de main</span></button>
     <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse au trésor</span></button>
     <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
+    <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
     <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
     <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
     <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo du jour</span></button>
@@ -176,6 +177,14 @@
         <button type="button" id="btn-ouvrir-creation-pv" class="bouton-ouvrir-modale">+ Rédiger un compte-rendu</button>
       </div>
       <div id="liste-pv"></div>
+    </section>
+
+    <section id="onglet-lois" class="onglet-contenu" hidden>
+      <p style="font-size:12.5px;color:var(--roseau);">Textes de loi français et européens, sélectionnés par votre mairie. Donnez votre avis et échangez avec vos voisins — un exercice citoyen, pas un vote officiel.</p>
+      <div class="form-admin-only">
+        <button type="button" id="btn-ouvrir-creation-loi" class="bouton-ouvrir-modale">+ Ajouter un texte</button>
+      </div>
+      <div id="liste-lois"></div>
     </section>
 
     <section id="onglet-annuaire" class="onglet-contenu" hidden>
@@ -368,6 +377,7 @@
     <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Entraide</span></button>
     <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse</span></button>
     <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
+    <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
     <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
     <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
     <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo</span></button>
@@ -398,6 +408,7 @@
   <script src="/js/enigmes.js"></script>
   <script src="/js/profil.js"></script>
   <script src="/js/notifications.js"></script>
+  <script src="/js/lois.js"></script>
   <script src="/js/moderation.js"></script>
   <script src="/js/navigation.js"></script>
 </body>

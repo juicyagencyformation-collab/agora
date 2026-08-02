@@ -10,7 +10,7 @@ app.use('*', jwtMiddleware);
 
 const ONGLETS_VALIDES = [
   'actualites', 'alertes', 'thermometre', 'mur', 'agenda',
-  'coups_de_main', 'chasse_tresor', 'conseil', 'profil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes',
+  'coups_de_main', 'chasse_tresor', 'conseil', 'profil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes', 'lois',
 ] as const;
 
 app.get('/onglets', async (c) => {

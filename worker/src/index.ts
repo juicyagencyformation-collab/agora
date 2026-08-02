@@ -25,6 +25,7 @@ import annuaire from './routes/annuaire';
 import bulletin from './routes/bulletin';
 import photoDuJour from './routes/photo_du_jour';
 import decouverte from './routes/decouverte';
+import lois from './routes/lois';
 
 const app = new Hono();
 
@@ -95,6 +96,10 @@ app.route('/:slug/enigmes', enigmes);
 // Conseil municipal (délibérations) — les comptes-rendus utilisent /actus?section=conseil
 app.use('/:slug/deliberations/*', jwtMiddleware, requireOngletActif('conseil'));
 app.route('/:slug/deliberations', deliberations);
+
+// Lois & Projets de loi (national/européen, ajout manuel par la mairie)
+app.use('/:slug/lois/*', jwtMiddleware, requireOngletActif('lois'));
+app.route('/:slug/lois', lois);
 
 // Annuaire citoyen
 app.use('/:slug/annuaire/*', jwtMiddleware, requireOngletActif('annuaire'));
