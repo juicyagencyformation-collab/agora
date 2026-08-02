@@ -85,7 +85,70 @@ async function gererLienDirectNotification(params) {
   }
 }
 
-// ── Bannière d'installation + notifications, affichée une fois après la 1ère connexion ──
+// ── Section "Installer l'application" — toujours visible dans Mon profil, jamais
+// masquée définitivement. Instructions volontairement très simples et illustrées,
+// pensées pour un public non technophile. ──
+
+function initSectionInstallationProfil() {
+  const zone = document.getElementById('section-installation-profil');
+  if (!zone) return;
+
+  if (estDejaInstallee()) {
+    zone.innerHTML = `
+      <h3 style="margin-top:22px;">📲 Application installée</h3>
+      <p style="font-size:13px;color:var(--prairie);">✅ L'application est déjà installée sur cet appareil, comme une vraie application.</p>
+    `;
+    return;
+  }
+
+  const instructions = estIOS()
+    ? `
+      <div class="etape-installation-profil">
+        <span class="numero-etape">1</span>
+        <p>En bas de l'écran, appuie sur le bouton <strong>Partager</strong> <span style="font-size:20px;">⬆️</span></p>
+      </div>
+      <div class="etape-installation-profil">
+        <span class="numero-etape">2</span>
+        <p>Fais défiler la liste et appuie sur <strong>"Sur l'écran d'accueil"</strong> <span style="font-size:20px;">➕</span></p>
+      </div>
+      <div class="etape-installation-profil">
+        <span class="numero-etape">3</span>
+        <p>Appuie sur <strong>"Ajouter"</strong> en haut à droite. C'est fait !</p>
+      </div>
+    `
+    : `
+      <div class="etape-installation-profil">
+        <span class="numero-etape">1</span>
+        <p>Appuie sur le grand bouton bleu ci-dessous</p>
+      </div>
+      <div class="etape-installation-profil">
+        <span class="numero-etape">2</span>
+        <p>Confirme en appuyant sur <strong>"Installer"</strong></p>
+      </div>
+      <button type="button" id="btn-installer-pwa-profil" style="width:100%;font-size:15px;padding:14px;margin-top:8px;">📲 Installer l'application</button>
+    `;
+
+  zone.innerHTML = `
+    <h3 style="margin-top:22px;">📲 Installer l'application</h3>
+    <p style="font-size:13px;color:var(--roseau);">Pour un accès rapide, comme une vraie application, directement depuis l'écran d'accueil de ton téléphone.</p>
+    ${instructions}
+  `;
+
+  zone.querySelector('#btn-installer-pwa-profil')?.addEventListener('click', async () => {
+    if (!evenementInstallDiffere) {
+      afficherToastMessage('Utilise le menu ⋮ de ton navigateur, puis "Installer l\'application" ou "Ajouter à l\'écran d\'accueil".', 'info');
+      return;
+    }
+    evenementInstallDiffere.prompt();
+    await evenementInstallDiffere.userChoice;
+    evenementInstallDiffere = null;
+  });
+}
+
+// ── Bannière d'installation + notifications — rappel tous les 3 jours tant que l'app
+// n'est pas installée, pour ne jamais laisser quelqu'un sans moyen de la retrouver ──
+
+const TROIS_JOURS_MS = 3 * 24 * 3600 * 1000;
 
 function initOnboardingPwa() {
   window.addEventListener('beforeinstallprompt', (e) => {
@@ -95,20 +158,20 @@ function initOnboardingPwa() {
   });
 
   if (estDejaInstallee()) {
-    // Déjà installée : on ne propose plus que les notifications si pas encore activées.
+    // Déjà installée : plus besoin de rappel d'installation, jamais.
     if (Notification?.permission === 'default') afficherBanniereOnboarding();
     return;
   }
 
-  if (estIOS() && !localStorage.getItem('agora_onboarding_vu')) {
-    // Sur iOS il n'existe aucun événement équivalent à beforeinstallprompt : on affiche
-    // directement les instructions manuelles.
+  // Pas encore installée : on affiche (ou réaffiche) tant que 3 jours se sont écoulés
+  // depuis la dernière fois — jamais fermée "pour toujours".
+  const dernierRappel = parseInt(localStorage.getItem('agora_dernier_rappel_install') || '0', 10);
+  if (Date.now() - dernierRappel >= TROIS_JOURS_MS) {
     afficherBanniereOnboarding();
   }
 }
 
 function afficherBanniereOnboarding() {
-  if (localStorage.getItem('agora_onboarding_ferme')) return;
   const zone = document.getElementById('banniere-onboarding-pwa');
   if (!zone) return;
 
@@ -137,13 +200,14 @@ function afficherBanniereOnboarding() {
         <p>Sois prévenu(e) des nouveaux articles, chasses au trésor et énigmes.</p>
         <button type="button" id="btn-activer-notifs-onboarding" class="bouton-ouvrir-modale" style="margin:8px 0 0;background:var(--aube);color:var(--boue);">🔔 Activer les notifications</button>
       </div>
+      ${estDejaInstallee() ? '' : '<p style="font-size:10.5px;color:var(--roseau);margin-top:10px;">Tu peux aussi retrouver ces instructions à tout moment dans "Mon profil".</p>'}
     </div>
   `;
   zone.hidden = false;
 
   zone.querySelector('.btn-fermer-onboarding').addEventListener('click', () => {
     zone.hidden = true;
-    localStorage.setItem('agora_onboarding_ferme', 'true');
+    localStorage.setItem('agora_dernier_rappel_install', Date.now().toString());
   });
 
   zone.querySelector('#btn-installer-pwa')?.addEventListener('click', async () => {
@@ -157,13 +221,14 @@ function afficherBanniereOnboarding() {
     const ok = await activerNotifications();
     if (ok) {
       zone.hidden = true;
-      localStorage.setItem('agora_onboarding_ferme', 'true');
+      localStorage.setItem('agora_dernier_rappel_install', Date.now().toString());
       afficherToastMessage('Notifications activées ! 🔔', 'succes');
     }
   });
 
-  localStorage.setItem('agora_onboarding_vu', 'true');
+  localStorage.setItem('agora_dernier_rappel_install', Date.now().toString());
 }
+
 
 // ── Activation / désactivation des notifications (réutilisé par l'onboarding et Mon profil) ──
 

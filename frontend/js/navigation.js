@@ -87,7 +87,7 @@ const CHARGEURS = {
   annuaire: () => chargerAnnuaire(),
   bulletin: () => chargerBulletin(),
   'photo-du-jour': () => chargerPhotoDuJour(),
-  profil: () => { chargerProfil(); initReglagesNotificationsProfil(); },
+  profil: () => { chargerProfil(); initReglagesNotificationsProfil(); initSectionInstallationProfil(); },
   lois: () => chargerLois(),
   moderation: () => chargerPanneauModeration(),
 };
