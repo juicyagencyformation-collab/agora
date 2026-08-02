@@ -211,7 +211,10 @@ function afficherBanniereOnboarding() {
   });
 
   zone.querySelector('#btn-installer-pwa')?.addEventListener('click', async () => {
-    if (!evenementInstallDiffere) return;
+    if (!evenementInstallDiffere) {
+      afficherToastMessage('Utilise le menu ⋮ de ton navigateur, puis "Installer l\'application".', 'info');
+      return;
+    }
     evenementInstallDiffere.prompt();
     await evenementInstallDiffere.userChoice;
     evenementInstallDiffere = null;
@@ -238,7 +241,10 @@ async function activerNotifications() {
     return false;
   }
   if (!enregistrementSW) await initServiceWorker();
-  if (!enregistrementSW) return false;
+  if (!enregistrementSW) {
+    afficherToastMessage('Impossible de préparer les notifications — réessaie dans quelques secondes.', 'erreur');
+    return false;
+  }
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
