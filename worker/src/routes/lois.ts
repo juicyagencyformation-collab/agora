@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { synchroniserLoisAssembleeNationale } from '../lib/sync-lois';
+import { attribuerXp, XP_ACTIONS } from '../lib/gamification';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -105,8 +106,28 @@ app.post('/:id/voter', async (c) => {
     await supabaseUpdate(c.env, 'lois_votes', { position: body.data.position }, { id: `eq.${existant.id}` });
   } else {
     await supabaseInsert(c.env, 'lois_votes', { loi_id, commune_id, user_id, position: body.data.position });
+    // XP uniquement au tout premier vote sur ce texte — changer d'avis ensuite ne rapporte rien,
+    // pour ne jamais laisser quiconque farmer de l'XP en votant/revotant en boucle.
+    await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.voter_loi);
   }
   return c.json({ ok: true });
+});
+
+// Marque une loi comme lue — 1 XP, une seule fois par texte et par citoyen.
+app.post('/:id/lu', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const loi_id = c.req.param('id');
+
+  const [dejaLu] = await supabaseSelect(c.env, 'lois_lues_par_utilisateur', {
+    select: 'id', commune_id: `eq.${commune_id}`, loi_id: `eq.${loi_id}`, user_id: `eq.${user_id}`,
+  });
+  if (dejaLu) return c.json({ ok: true, deja_lu: true });
+
+  await supabaseInsert(c.env, 'lois_lues_par_utilisateur', { commune_id, loi_id, user_id });
+  const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.lire_loi);
+
+  return c.json({ ok: true, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges });
 });
 
 // Commentaires — isolés par commune, avec signalement (masquage immédiat, revue mairie).

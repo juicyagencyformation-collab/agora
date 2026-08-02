@@ -16,6 +16,8 @@ export const XP_ACTIONS = {
   signalement_confirme: 15,
   trouver_enigme: 15,
   lire_article: 1,
+  lire_loi: 1,
+  voter_loi: 5,
   evenement_succes: 15,
 };
 

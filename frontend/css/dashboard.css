@@ -92,6 +92,7 @@ h1, h2, h3, h4, p, span, a, button {
   background: #fff; color: var(--roseau); font-size: 12px; font-weight: 600;
 }
 .btn-vote-loi.vote-actif { background: var(--eau); color: #fff; border-color: var(--eau); }
+.badge-nouveau-loi { background: var(--aube) !important; color: var(--boue) !important; font-weight: 700; }
 .commentaire-loi {
   background: var(--eauXL); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px;
 }

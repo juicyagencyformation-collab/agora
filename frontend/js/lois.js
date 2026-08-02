@@ -29,6 +29,7 @@ function renderLoi(l) {
   const el = document.createElement('article');
   el.className = 'carte-article-compacte';
   const dateAffichee = new Date(l.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const estNouveau = (Date.now() - new Date(l.created_at).getTime()) < 48 * 3600 * 1000;
   const total = l.opinion_commune.pour + l.opinion_commune.contre + l.opinion_commune.mitige;
   const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0;
 
@@ -37,6 +38,7 @@ function renderLoi(l) {
       <div class="miniature-liste-article miniature-vide">⚖️</div>
       <div class="texte-entete-article">
         <div class="badges-event-compact">
+          ${estNouveau ? '<span class="badge-categorie-article badge-nouveau-loi">🆕 Nouveau</span>' : ''}
           <span class="badge-categorie-article">${LABELS_SOURCE[l.source]}</span>
           <span class="badge-categorie-article">${LABELS_STATUT[l.statut]}</span>
         </div>
@@ -55,6 +57,10 @@ function renderLoi(l) {
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
       remplirDetailLoi(zoneDepliee, l, total, pct);
       zoneDepliee.dataset.rempli = 'true';
+      appelApi(`/${window.COMMUNE_SLUG}/lois/${l.id}/lu`, { method: 'POST' })
+        .then((res) => res.ok && res.json())
+        .then((data) => { if (data && !data.deja_lu) traiterRecompense?.(data); })
+        .catch(() => {});
     }
   });
 
