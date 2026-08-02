@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
-import { synchroniserLoisAssembleeNationale } from '../lib/sync-lois';
+import { synchroniserToutesLesLois } from '../lib/sync-lois';
 import { attribuerXp, XP_ACTIONS } from '../lib/gamification';
 
 const app = new Hono();
@@ -192,7 +192,7 @@ app.post('/sync-manuel', async (c) => {
   const role = c.get('role');
   if (role !== 'superadmin') return c.json({ erreur: 'Réservé au superadmin' }, 403);
 
-  const resultat = await synchroniserLoisAssembleeNationale(c.env);
+  const resultat = await synchroniserToutesLesLois(c.env);
   return c.json(resultat);
 });
 

@@ -83,9 +83,14 @@ function initVoletSyncLois() {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/lois/sync-manuel`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) { zoneResultat.textContent = `Erreur : ${data.erreur}`; return; }
-    zoneResultat.textContent = `${data.trouves} texte(s) de loi trouvé(s) dans le flux, ${data.ajoutes} nouveau(x) ajouté(s).`;
-    if (data.erreurs.length) zoneResultat.textContent += ` ⚠️ ${data.erreurs.join(' / ')}`;
-    if (data.ajoutes > 0) chargerLois?.();
+
+    const total = data.an.ajoutes + data.ue.ajoutes;
+    zoneResultat.innerHTML = `
+      🏛️ Assemblée nationale : ${data.an.trouves} trouvé(s), ${data.an.ajoutes} nouveau(x)<br>
+      🇪🇺 Parlement européen : ${data.ue.trouves} trouvé(s), ${data.ue.ajoutes} nouveau(x)
+      ${[...data.an.erreurs, ...data.ue.erreurs].length ? `<br>⚠️ ${[...data.an.erreurs, ...data.ue.erreurs].join(' / ')}` : ''}
+    `;
+    if (total > 0) chargerLois?.();
   });
 }
 
