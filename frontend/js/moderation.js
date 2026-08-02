@@ -67,6 +67,28 @@ async function chargerReglagePartageRegional() {
   input.checked = !!commune.partage_regional;
 }
 
+function initVoletSyncLois() {
+  const toggle = document.getElementById('toggle-volet-sync-lois');
+  const volet = document.getElementById('volet-sync-lois-contenu');
+  if (!toggle || !volet) return;
+
+  toggle.addEventListener('click', () => {
+    const ouvert = volet.classList.toggle('ouvert');
+    toggle.querySelector('.chevron').textContent = ouvert ? '▲' : '▼';
+  });
+
+  document.getElementById('btn-sync-lois-manuel').addEventListener('click', async () => {
+    const zoneResultat = document.getElementById('resultat-sync-lois');
+    zoneResultat.textContent = 'Synchronisation en cours…';
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/lois/sync-manuel`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { zoneResultat.textContent = `Erreur : ${data.erreur}`; return; }
+    zoneResultat.textContent = `${data.trouves} texte(s) de loi trouvé(s) dans le flux, ${data.ajoutes} nouveau(x) ajouté(s).`;
+    if (data.erreurs.length) zoneResultat.textContent += ` ⚠️ ${data.erreurs.join(' / ')}`;
+    if (data.ajoutes > 0) chargerLois?.();
+  });
+}
+
 function initVoletRegional() {
   const toggle = document.getElementById('toggle-volet-regional');
   const volet = document.getElementById('volet-regional-contenu');

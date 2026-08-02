@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
+import { synchroniserLoisAssembleeNationale } from '../lib/sync-lois';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -161,6 +162,17 @@ app.post('/commentaires/:id/signaler', async (c) => {
   await supabaseInsert(c.env, 'lois_signalements', { commentaire_id, commune_id, user_id });
   await supabaseUpdate(c.env, 'lois_commentaires', { masque: true }, { id: `eq.${commentaire_id}` });
   return c.json({ ok: true });
+});
+
+// Déclenchement manuel de la synchro (superadmin uniquement) — sert à VÉRIFIER que le
+// flux de l'Assemblée nationale est bien parsé correctement, avant de faire confiance à
+// l'automatisation quotidienne. Renvoie le détail (trouvés/ajoutés/erreurs) pour inspection.
+app.post('/sync-manuel', async (c) => {
+  const role = c.get('role');
+  if (role !== 'superadmin') return c.json({ erreur: 'Réservé au superadmin' }, 403);
+
+  const resultat = await synchroniserLoisAssembleeNationale(c.env);
+  return c.json(resultat);
 });
 
 export default app;

@@ -141,6 +141,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initVoletMur();
   initVoletRgpd();
   initVoletRegional();
+  initVoletSyncLois();
   await initServiceWorker();
   initOnboardingPwa();
   initLiensDirectsNotification();

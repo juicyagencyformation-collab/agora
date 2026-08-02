@@ -26,6 +26,7 @@ import bulletin from './routes/bulletin';
 import photoDuJour from './routes/photo_du_jour';
 import decouverte from './routes/decouverte';
 import lois from './routes/lois';
+import { synchroniserLoisAssembleeNationale } from './lib/sync-lois';
 
 const app = new Hono();
 
@@ -120,6 +121,8 @@ export default {
       await purgerPhotosDuJour(env);
       await purgerEnigmes(env);
       await purgerMur(env);
+    } else if (event.cron === '0 */6 * * *') {
+      await synchroniserLoisAssembleeNationale(env);
     } else {
       await nettoyerCoupsDeMainExpires(env);
     }
