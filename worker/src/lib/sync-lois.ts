@@ -39,11 +39,35 @@ async function synchroniserFlux(
 
     const parser = new XMLParser({ ignoreAttributes: false });
     const data = parser.parse(xmlBrut);
-    const items = data?.rss?.channel?.item;
-    const liste = Array.isArray(items) ? items : items ? [items] : [];
+
+    // Les institutions n'utilisent pas toutes le même format XML : RSS 2.0 classique
+    // (rss > channel > item), RSS 1.0/RDF (rdf:RDF > item, item pas imbriqué dans channel),
+    // ou Atom (feed > entry). On essaie les trois avant d'abandonner.
+    let liste: any[] = [];
+    if (data?.rss?.channel?.item) {
+      const items = data.rss.channel.item;
+      liste = Array.isArray(items) ? items : [items];
+    } else if (data?.['rdf:RDF']?.item) {
+      const items = data['rdf:RDF'].item;
+      liste = Array.isArray(items) ? items : [items];
+    } else if (data?.feed?.entry) {
+      // Format Atom : les champs n'ont pas les mêmes noms, on les remappe vers le
+      // vocabulaire RSS (title/link/description/guid) utilisé plus bas.
+      const entries = Array.isArray(data.feed.entry) ? data.feed.entry : [data.feed.entry];
+      liste = entries.map((e: any) => ({
+        title: e.title,
+        link: e.link?.['@_href'] ?? e.link,
+        description: e.summary ?? e.content,
+        guid: e.id,
+      }));
+    }
 
     const filtres = filtreTitre ? liste.filter((item: any) => filtreTitre.test(String(item.title ?? ''))) : liste;
     trouves = filtres.length;
+
+    if (liste.length === 0) {
+      erreurs.push(`Format XML non reconnu (${source}) — clés racine trouvées : ${Object.keys(data).join(', ')}`);
+    }
 
     for (const item of filtres) {
       const titre = String(item.title ?? '').trim();
