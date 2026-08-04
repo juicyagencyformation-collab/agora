@@ -6,6 +6,32 @@
 
 const DOSSIERS_STATIQUES = ['css', 'js', 'icons', 'functions'];
 
+// Origine réelle du Worker. Le frontend appelle /api/... en same-origin (voir
+// frontend/js/config.js) et cette fonction relaie vers le Worker en coulisses : ainsi les
+// cookies de session sont posés sur plateforme-agora.fr et non sur un domaine tiers, ce qui
+// contourne le blocage des cookies tiers de Safari/iOS (ITP) — voir CLAUDE.md.
+const WORKER_ORIGIN = 'https://agora-worker.juicy-agency-formation.workers.dev';
+
+async function relayerVersWorker(request, segments) {
+  const url = new URL(request.url);
+  const cheminApi = '/' + segments.slice(1).join('/');
+  const cible = new URL(cheminApi + url.search, WORKER_ORIGIN);
+
+  const entetes = new Headers(request.headers);
+  entetes.delete('host');
+
+  const estAvecCorps = !['GET', 'HEAD'].includes(request.method);
+  const init = {
+    method: request.method,
+    headers: entetes,
+    body: estAvecCorps ? request.body : undefined,
+    redirect: 'manual',
+  };
+  if (estAvecCorps) init.duplex = 'half';
+
+  return fetch(cible, init);
+}
+
 async function recupererAssetSansRedirection(env, urlCible, profondeur = 0) {
   if (profondeur > 5) return null;
   const reponse = await env.ASSETS.fetch(urlCible);
@@ -27,6 +53,10 @@ export async function onRequest(context) {
   }
 
   const premier = segments[0];
+
+  if (premier === 'api') {
+    return relayerVersWorker(context.request, segments);
+  }
 
   if (DOSSIERS_STATIQUES.includes(premier) || (segments.length === 1 && premier.includes('.'))) {
     return context.env.ASSETS.fetch(context.request);

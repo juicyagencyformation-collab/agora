@@ -1,0 +1,76 @@
+# Agora — Instructions de projet pour Claude Code
+
+## Contexte
+Plateforme SaaS civic-tech multi-tenant pour petites communes françaises, développée par
+Juicy Solutions (Léandre Sallé), élu à Eaucourt-sur-Somme (Somme), commune de référence.
+PWA mobile-first, assez simple pour qu'un maire non-technophile la gère seul.
+
+## Stack technique
+- Backend : Cloudflare Workers + Hono.js (TypeScript)
+- Base de données : Supabase PostgreSQL — **REST uniquement, zéro SDK client, zéro RLS**
+  (toute la sécurité est gérée dans le Worker via commune_id extrait du JWT)
+- Stockage fichiers : Cloudflare R2, via URL présignées générées par le Worker
+- Auth : JWT maison (@tsndr/cloudflare-worker-jwt), cookies httpOnly SameSite=None;Secure
+- Frontend : HTML/CSS/JS vanilla, zéro framework, zéro build step
+- Cartes : Leaflet.js + tuiles IGN Géoplateforme (pas OpenStreetMap, pas Google Maps)
+- Notifications push : @pushforge/builder (Web Push natif, pas Firebase)
+- Tests : Vitest + @cloudflare/vitest-pool-workers
+- Déploiement : Git → GitHub → Cloudflare Pages/Workers Builds (déploiement automatique)
+
+## Règles d'architecture NON NÉGOCIABLES
+1. Le client ne connaît jamais Supabase — uniquement des fetch() vers l'API Worker
+2. commune_id est TOUJOURS extrait du JWT côté serveur, jamais envoyé par le client
+3. Zéro framework JS, zéro bibliothèque npm côté client (sauf Leaflet)
+4. Toute action de modération suit le même schéma : signalement → masquage immédiat → revue mairie
+5. Rôles : citoyen < admin < élu < superadmin. Le superadmin ne peut JAMAIS être attribué
+   via l'interface, uniquement en base directement.
+6. Anti-farming systématique sur toute action à XP : une table "X_lus_par_utilisateur" ou
+   équivalent, jamais d'XP en boucle (supprimer/recréer, revoter, etc.)
+7. Variables du domaine métier en français (commune, citoyen, sondage...), technique en
+   anglais (middleware, handler, token...)
+
+## Pièges déjà rencontrés — à ne PAS reproduire
+- **Cloudflare Pages `_redirects` s'est montré incohérent** sur le domaine personnalisé
+  (plateforme-agora.fr) — une simple règle catch-all y interceptait à tort les fichiers
+  statiques (css/js), alors que la même règle fonctionnait sur l'adresse .pages.dev.
+  Solution actuelle : une Pages Function (`frontend/functions/[[path]].js`) fait le routage
+  par commune à la main, avec un contrôle total — voir ce fichier avant de retoucher au
+  routage multi-commune.
+- **wrangler.toml ne doit jamais être écrasé en entier** par un fichier généré — il contient
+  des valeurs réelles (R2_PUBLIC_BASE, etc.) qui diffèrent de tout exemple. Donner des
+  instructions de ligne précise à ajouter/modifier, pas le fichier complet.
+- **frontend/js/config.js** contient l'URL réelle du Worker en prod — ne jamais l'écraser
+  avec une valeur de test (localhost:8787) sans vérifier d'abord la valeur réelle actuelle.
+- **Safari/iOS bloque les cookies tiers par défaut**, dans tous les modes de navigation,
+  depuis 2020 (Intelligent Tracking Prevention). Comme le frontend (plateforme-agora.fr) et
+  l'API (agora-worker....workers.dev) sont sur des domaines différents, les cookies de
+  session sont bloqués sur iPhone/Safari — connexion qui semble réussir puis revient
+  aussitôt à l'écran de connexion. PAS ENCORE RÉSOLU au moment de la rédaction de ce fichier.
+  Deux pistes envisagées : (A) faire passer l'API par le même domaine que le frontend
+  (proxy via la Pages Function existante), ou (B) abandonner les cookies pour un système de
+  jeton Bearer stocké manuellement. À trancher et implémenter.
+- Le hachage des mots de passe est passé de SHA-256 simple à PBKDF2 salé (100k itérations)
+  — voir worker/src/lib/password.ts — avec bascule automatique silencieuse à la connexion
+  pour les comptes encore sur l'ancien format. Ne jamais casser cette rétrocompatibilité.
+
+## Commandes de déploiement
+```powershell
+cd C:\Users\Leand\Downloads\agora
+git add .
+git commit -m "description"
+git push
+```
+Cloudflare déploie automatiquement Worker ET Pages depuis GitHub. Le déploiement du Worker
+exécute `npm test && npx wrangler deploy` — les tests bloquent le déploiement s'ils échouent.
+
+## Adresses actuelles
+- Frontend : https://plateforme-agora.fr/eaucourt/ (et /newappcitoyenne.pages.dev/eaucourt/ en secours)
+- Worker : https://agora-worker.juicy-agency-formation.workers.dev
+- Commune de test : eaucourt (compte test@eaucourt.fr)
+- Commune "nationale" : Plateforme-Agora (niveau_national=true, événements visibles par
+  toutes les communes via /decouverte/evenements)
+
+## Avant toute modification de fichier existant
+Toujours lire le fichier réel avant d'éditer — ne jamais halluciner son contenu de mémoire.
+Ce projet a déjà souffert d'une reconstruction de fichiers "de mémoire" ayant fait
+disparaître une fonction (initFormulaireAlerte) — vérifier systématiquement.

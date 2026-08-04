@@ -1,8 +1,10 @@
 // frontend/js/config.js
-// MODIFIE CETTE LIGNE selon où tourne ton Worker :
-// - Test local (wrangler dev) : 'http://localhost:8787'
-// - Après déploiement Cloudflare : 'https://agora-worker.TON-SOUS-DOMAINE.workers.dev'
-window.API_BASE = 'https://agora-worker.juicy-agency-formation.workers.dev';
+// API_BASE pointe vers le proxy same-origin (frontend/functions/[[path]].js), qui relaie
+// vers le vrai Worker. Nécessaire car Safari/iOS (ITP) bloque les cookies de session quand
+// le frontend et l'API sont sur des domaines différents — voir CLAUDE.md.
+// En test local (wrangler dev sans Pages Function), remplace temporairement par
+// 'http://localhost:8787'.
+window.API_BASE = '/api';
 
 // Commune détectée automatiquement depuis l'URL (ex: plateforme-agora.fr/eaucourt/ -> "eaucourt").
 // Fonctionne pour toute commune future sans jamais retoucher ce fichier. Si l'URL ne contient
