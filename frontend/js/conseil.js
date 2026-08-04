@@ -166,7 +166,7 @@ function renderPv(a) {
 
   el.innerHTML = `
     <button type="button" class="entete-article-compact">
-      <div class="miniature-liste-article miniature-vide">📝</div>
+      <div class="miniature-liste-article miniature-vide">${a.fichier_pv_type === 'pdf' ? '📄' : '📝'}</div>
       <div class="texte-entete-article">
         <h3 class="titre-article-compact">${escapeAttr(a.titre)}</h3>
         <p class="extrait-article-compact">${escapeAttr(extrait)}${extraitBrut.length > 110 ? '…' : ''}</p>
@@ -183,6 +183,27 @@ function renderPv(a) {
     zoneDepliee.hidden = !deploye;
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
       zoneDepliee.innerHTML = `<div class="contenu-article">${a.contenu_html}</div>`;
+
+      if (a.fichier_pv_url) {
+        if (a.fichier_pv_type === 'pdf') {
+          const lien = document.createElement('a');
+          lien.href = a.fichier_pv_url;
+          lien.target = '_blank';
+          lien.rel = 'noopener';
+          lien.className = 'lien-fichier-pv-pdf';
+          lien.textContent = '📄 Ouvrir le compte-rendu (PDF)';
+          zoneDepliee.appendChild(lien);
+        } else {
+          const conteneurImg = document.createElement('div');
+          conteneurImg.className = 'fichier-pv-apercu';
+          const img = document.createElement('img');
+          img.src = a.fichier_pv_url;
+          img.addEventListener('click', () => ouvrirLightbox(a.fichier_pv_url));
+          conteneurImg.appendChild(img);
+          zoneDepliee.appendChild(conteneurImg);
+        }
+      }
+
       if (['admin', 'elu', 'superadmin'].includes(window.ROLE)) {
         const bar = document.createElement('div');
         bar.className = 'actions-admin';
@@ -210,9 +231,11 @@ function initFormulairePv() {
 function ouvrirModaleCreationPv() {
   const html = `
     <form id="form-modale-pv">
-      <input type="text" id="titre-pv-modale" placeholder="Titre du compte-rendu" maxlength="200" required>
+      <input type="text" id="titre-pv-modale" placeholder="Titre (ex: Conseil du 12 septembre 2026)" maxlength="150" required>
       <div id="editeur-pv-modale"></div>
-      <button type="submit" style="margin-top:10px;">Publier</button>
+      <label class="label-champ-edition">Joindre le compte-rendu (PDF, JPEG ou PNG — 15 Mo max, optionnel)</label>
+      <input type="file" id="fichier-pv-modale" accept="application/pdf,image/jpeg,image/png">
+      <button type="submit" style="margin-top:12px;">Publier</button>
     </form>
   `;
   const overlay = ouvrirModaleFormulaire('Rédiger un compte-rendu', html);
@@ -222,46 +245,7 @@ function ouvrirModaleCreationPv() {
   corps.querySelector('#form-modale-pv').addEventListener('submit', async (e) => {
     e.preventDefault();
     const titre = corps.querySelector('#titre-pv-modale').value.trim();
-    const contenu_html = editeurPv.getHtml();
-    if (!titre || !contenu_html) return;
-
-    const res = await appelApi(`/${window.COMMUNE_SLUG}/actus`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ section: 'conseil', titre, contenu_html }),
-    });
-    if (res.ok) {
-      fermerModaleFormulaire(overlay);
-      chargerPv();
-    } else {
-      const data = await res.json();
-      alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de publication');
-    }
-  });
-}
-// À AJOUTER dans frontend/js/conseil.js (à la fin du fichier)
-// Remplace ta fonction actuelle d'ouverture du formulaire de création de PV
-// (probablement "ouvrirModaleCreationPv" ou similaire, déclenchée par le bouton
-// "btn-ouvrir-creation-pv") par cette version, qui ajoute un champ d'upload de
-// fichier (PDF, JPEG ou PNG) en plus du texte.
-
-function ouvrirModaleCreationPv() {
-  const html = `
-    <form id="form-modale-pv">
-      <input type="text" id="titre-pv-modale" placeholder="Titre (ex: Conseil du 12 septembre 2026)" maxlength="150" required>
-      <textarea id="contenu-pv-modale" placeholder="Résumé ou notes (optionnel si vous joignez un PDF)"></textarea>
-      <label class="label-champ-edition">Joindre le compte-rendu (PDF, JPEG ou PNG — 15 Mo max)</label>
-      <input type="file" id="fichier-pv-modale" accept="application/pdf,image/jpeg,image/png">
-      <button type="submit" style="margin-top:12px;">Publier</button>
-    </form>
-  `;
-  const overlay = ouvrirModaleFormulaire('Rédiger un compte-rendu', html);
-  const corps = overlay.querySelector('.corps-modale-formulaire');
-
-  corps.querySelector('#form-modale-pv').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const titre = corps.querySelector('#titre-pv-modale').value.trim();
-    const contenu_html = corps.querySelector('#contenu-pv-modale').value.trim() || '<p></p>';
+    const contenu_html = editeurPv.getHtml() || '<p></p>';
     if (!titre) return;
 
     let fichier_pv_url;
@@ -290,25 +274,17 @@ function ouvrirModaleCreationPv() {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/actus`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        titre, contenu_html, section: 'conseil', categorie: 'vie_village',
-        fichier_pv_url, fichier_pv_type,
-      }),
+      body: JSON.stringify({ section: 'conseil', titre, contenu_html, fichier_pv_url, fichier_pv_type }),
     });
-    if (res.ok) { fermerModaleFormulaire(overlay); chargerPv?.(); }
-    else { const d = await res.json(); afficherToastMessage(d.erreur ? JSON.stringify(d.erreur) : 'Erreur', 'erreur'); }
+    if (res.ok) {
+      fermerModaleFormulaire(overlay);
+      chargerPv();
+    } else {
+      const data = await res.json();
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de publication', 'erreur');
+    }
   });
 }
-
-// ── Affichage du fichier joint dans la liste des PV ──
-// Dans ta fonction de rendu d'un PV (celle qui construit la carte compacte pour
-// chaque compte-rendu), ajoute ceci dans la partie "contenu déplié" :
-//
-//   ${pv.fichier_pv_url ? (
-//     pv.fichier_pv_type === 'pdf'
-//       ? `<a href="${pv.fichier_pv_url}" target="_blank" rel="noopener" class="lien-fichier-pv-pdf">📄 Ouvrir le compte-rendu (PDF)</a>`
-//       : `<div class="fichier-pv-apercu"><img src="${pv.fichier_pv_url}" onclick="ouvrirLightbox('${pv.fichier_pv_url}')"></div>`
-//   ) : ''}
 
 // ── Date du prochain conseil (admin/élu/superadmin) ──
 
@@ -316,14 +292,12 @@ function initFormulaireProchainConseil() {
   const form = document.getElementById('form-prochain-conseil');
   if (!form) return;
 
-  // Pré-remplit avec la valeur actuelle si elle existe
   appelApi(`/${window.COMMUNE_SLUG}/commune`).then(async (res) => {
     if (!res.ok) return;
     const { commune } = await res.json();
     if (commune.prochain_conseil_date) {
       const input = document.getElementById('prochain-conseil-input');
       const d = new Date(commune.prochain_conseil_date);
-      // Format attendu par <input type="datetime-local"> : AAAA-MM-JJTHH:MM (heure locale)
       const pad = (n) => String(n).padStart(2, '0');
       input.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
@@ -342,6 +316,3 @@ function initFormulaireProchainConseil() {
     else afficherToastMessage('Erreur lors de l\'enregistrement.', 'erreur');
   });
 }
-
-// N'oublie pas d'appeler initFormulaireProchainConseil() dans navigation.js,
-// à côté des autres "init..." appelés au démarrage de l'app (dans initApp()).
