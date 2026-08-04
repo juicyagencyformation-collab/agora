@@ -7,7 +7,7 @@ const LABELS_CATEGORIE_ANNUAIRE = {
 let maFicheAnnuaireActuelle = null;
 
 async function chargerAnnuaire(filtreCategorie = null) {
-  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/annuaire`);
+  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/annuaire`, window.location.origin);
   if (filtreCategorie) url.searchParams.set('categorie', filtreCategorie);
 
   const res = await appelApi(url);

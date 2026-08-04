@@ -14,7 +14,7 @@ function ouvrirAnnonceParId(id) {
 }
 
 async function chargerCoupsDeMain(filtreType = null, filtreCategorie = null) {
-  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/coups-de-main`);
+  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/coups-de-main`, window.location.origin);
   if (filtreType) url.searchParams.set('type', filtreType);
   if (filtreCategorie) url.searchParams.set('categorie', filtreCategorie);
 

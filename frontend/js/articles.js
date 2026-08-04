@@ -12,7 +12,7 @@ const LABELS_CATEGORIE_ARTICLE = {
 };
 
 async function chargerArticles(section = 'actualites', curseur = null) {
-  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/actus`);
+  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/actus`, window.location.origin);
   url.searchParams.set('section', section);
   if (filtreCategorieActuel) url.searchParams.set('categorie', filtreCategorieActuel);
   if (curseur) url.searchParams.set('curseur', curseur);

@@ -133,7 +133,7 @@ function renderCarteEvenementAutour(e) {
 let carteAgenda;
 
 async function chargerAgenda() {
-  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/agenda`);
+  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/agenda`, window.location.origin);
   if (modeHistoriqueAgenda) url.searchParams.set('historique', 'true');
   const res = await appelApi(url);
   if (!res.ok) return;
