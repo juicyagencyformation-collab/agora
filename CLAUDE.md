@@ -41,14 +41,25 @@ PWA mobile-first, assez simple pour qu'un maire non-technophile la gère seul.
   instructions de ligne précise à ajouter/modifier, pas le fichier complet.
 - **frontend/js/config.js** contient l'URL réelle du Worker en prod — ne jamais l'écraser
   avec une valeur de test (localhost:8787) sans vérifier d'abord la valeur réelle actuelle.
-- **Safari/iOS bloque les cookies tiers par défaut**, dans tous les modes de navigation,
+- **Safari/iOS bloquait les cookies tiers par défaut**, dans tous les modes de navigation,
   depuis 2020 (Intelligent Tracking Prevention). Comme le frontend (plateforme-agora.fr) et
-  l'API (agora-worker....workers.dev) sont sur des domaines différents, les cookies de
-  session sont bloqués sur iPhone/Safari — connexion qui semble réussir puis revient
-  aussitôt à l'écran de connexion. PAS ENCORE RÉSOLU au moment de la rédaction de ce fichier.
-  Deux pistes envisagées : (A) faire passer l'API par le même domaine que le frontend
-  (proxy via la Pages Function existante), ou (B) abandonner les cookies pour un système de
-  jeton Bearer stocké manuellement. À trancher et implémenter.
+  l'API (agora-worker....workers.dev) étaient sur des domaines différents, les cookies de
+  session étaient bloqués sur iPhone/Safari — connexion qui semblait réussir puis revenait
+  aussitôt à l'écran de connexion. RÉSOLU : l'API est désormais appelée en same-origin via
+  `/api/...`, relayée en coulisses vers le vrai Worker par `frontend/functions/[[path]].js`
+  (fonction `relayerVersWorker`). `window.API_BASE` (frontend/js/config.js) vaut donc `/api`
+  et non plus l'URL `.workers.dev`. Piège associé à ce changement : tout code qui fait
+  `new URL(API_BASE + ...)` sans passer `window.location.origin` en base plante
+  ("Invalid URL"), car API_BASE n'est plus une URL absolue — voir articles.js, annuaire.js,
+  agenda.js, coups-de-main.js pour le bon pattern.
+- **Le service worker (`frontend/sw.js`) doit explicitement exclure `/api/`** de son cache
+  réseau-d'abord, par chemin et pas seulement par origine. Avant le proxy same-origin
+  ci-dessus, un test sur `url.origin !== self.location.origin` suffisait à exclure l'API
+  (autre domaine). Depuis le proxy, l'API est same-origin : ce test ne l'exclut plus, et le
+  SW s'est mis à mettre en cache les réponses de l'API — sur mobile, un article publié
+  pouvait sembler ne pas apparaître si le SW retombait sur une réponse en cache antérieure à
+  la publication. Toujours garder le test explicite `url.pathname.startsWith('/api/')` en
+  plus du test d'origine si ce fichier est retouché.
 - Le hachage des mots de passe est passé de SHA-256 simple à PBKDF2 salé (100k itérations)
   — voir worker/src/lib/password.ts — avec bascule automatique silencieuse à la connexion
   pour les comptes encore sur l'ancien format. Ne jamais casser cette rétrocompatibilité.
