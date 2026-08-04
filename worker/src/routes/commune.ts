@@ -10,7 +10,7 @@ const app = new Hono();
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id_resolue') ?? c.get('commune_id');
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional',
+    select: 'id,slug,nom,population,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date',
     id: `eq.${commune_id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -38,6 +38,7 @@ app.patch('/', jwtMiddleware, async (c) => {
     mur_duree: z.enum(['24h', '48h']).optional(),
     contact_email: z.string().email().optional(),
     partage_regional: z.boolean().optional(),
+    prochain_conseil_date: z.string().datetime().optional().nullable(),
   });
   const body = schema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);

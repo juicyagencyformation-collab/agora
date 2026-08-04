@@ -239,3 +239,109 @@ function ouvrirModaleCreationPv() {
     }
   });
 }
+// À AJOUTER dans frontend/js/conseil.js (à la fin du fichier)
+// Remplace ta fonction actuelle d'ouverture du formulaire de création de PV
+// (probablement "ouvrirModaleCreationPv" ou similaire, déclenchée par le bouton
+// "btn-ouvrir-creation-pv") par cette version, qui ajoute un champ d'upload de
+// fichier (PDF, JPEG ou PNG) en plus du texte.
+
+function ouvrirModaleCreationPv() {
+  const html = `
+    <form id="form-modale-pv">
+      <input type="text" id="titre-pv-modale" placeholder="Titre (ex: Conseil du 12 septembre 2026)" maxlength="150" required>
+      <textarea id="contenu-pv-modale" placeholder="Résumé ou notes (optionnel si vous joignez un PDF)"></textarea>
+      <label class="label-champ-edition">Joindre le compte-rendu (PDF, JPEG ou PNG — 15 Mo max)</label>
+      <input type="file" id="fichier-pv-modale" accept="application/pdf,image/jpeg,image/png">
+      <button type="submit" style="margin-top:12px;">Publier</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('Rédiger un compte-rendu', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  corps.querySelector('#form-modale-pv').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const titre = corps.querySelector('#titre-pv-modale').value.trim();
+    const contenu_html = corps.querySelector('#contenu-pv-modale').value.trim() || '<p></p>';
+    if (!titre) return;
+
+    let fichier_pv_url;
+    let fichier_pv_type;
+    const fichier = corps.querySelector('#fichier-pv-modale').files[0];
+    if (fichier) {
+      if (fichier.size > 15 * 1024 * 1024) {
+        afficherToastMessage('Fichier trop volumineux (15 Mo maximum).', 'erreur');
+        return;
+      }
+      const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/actus/pv-upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': fichier.type },
+        body: fichier,
+      });
+      if (!resUpload.ok) {
+        const d = await resUpload.json().catch(() => ({}));
+        afficherToastMessage(d.erreur || 'Échec de l\'envoi du fichier.', 'erreur');
+        return;
+      }
+      const data = await resUpload.json();
+      fichier_pv_url = data.url;
+      fichier_pv_type = data.type;
+    }
+
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/actus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titre, contenu_html, section: 'conseil', categorie: 'vie_village',
+        fichier_pv_url, fichier_pv_type,
+      }),
+    });
+    if (res.ok) { fermerModaleFormulaire(overlay); chargerPv?.(); }
+    else { const d = await res.json(); afficherToastMessage(d.erreur ? JSON.stringify(d.erreur) : 'Erreur', 'erreur'); }
+  });
+}
+
+// ── Affichage du fichier joint dans la liste des PV ──
+// Dans ta fonction de rendu d'un PV (celle qui construit la carte compacte pour
+// chaque compte-rendu), ajoute ceci dans la partie "contenu déplié" :
+//
+//   ${pv.fichier_pv_url ? (
+//     pv.fichier_pv_type === 'pdf'
+//       ? `<a href="${pv.fichier_pv_url}" target="_blank" rel="noopener" class="lien-fichier-pv-pdf">📄 Ouvrir le compte-rendu (PDF)</a>`
+//       : `<div class="fichier-pv-apercu"><img src="${pv.fichier_pv_url}" onclick="ouvrirLightbox('${pv.fichier_pv_url}')"></div>`
+//   ) : ''}
+
+// ── Date du prochain conseil (admin/élu/superadmin) ──
+
+function initFormulaireProchainConseil() {
+  const form = document.getElementById('form-prochain-conseil');
+  if (!form) return;
+
+  // Pré-remplit avec la valeur actuelle si elle existe
+  appelApi(`/${window.COMMUNE_SLUG}/commune`).then(async (res) => {
+    if (!res.ok) return;
+    const { commune } = await res.json();
+    if (commune.prochain_conseil_date) {
+      const input = document.getElementById('prochain-conseil-input');
+      const d = new Date(commune.prochain_conseil_date);
+      // Format attendu par <input type="datetime-local"> : AAAA-MM-JJTHH:MM (heure locale)
+      const pad = (n) => String(n).padStart(2, '0');
+      input.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const valeur = document.getElementById('prochain-conseil-input').value;
+    if (!valeur) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prochain_conseil_date: new Date(valeur).toISOString() }),
+    });
+    if (res.ok) afficherToastMessage('Date du prochain conseil enregistrée.', 'succes');
+    else afficherToastMessage('Erreur lors de l\'enregistrement.', 'erreur');
+  });
+}
+
+// N'oublie pas d'appeler initFormulaireProchainConseil() dans navigation.js,
+// à côté des autres "init..." appelés au démarrage de l'app (dans initApp()).

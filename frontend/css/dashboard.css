@@ -519,3 +519,37 @@ h1, h2, h3, h4, p, span, a, button {
   .overlay-modale-formulaire { align-items: center; }
   .carte-modale-formulaire { border-radius: 20px; max-height: 80vh; }
 }
+/* À AJOUTER dans frontend/css/dashboard.css */
+
+/* Alerte déchets, la veille du ramassage — bien visible, chaleureuse pas alarmante */
+.alerte-dechets-veille {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #FFF4E0, #FFE8C2);
+  border-left: 5px solid var(--aube); border-radius: var(--r);
+  padding: 14px; margin-bottom: 12px;
+  animation: pulse-dechets 2.5s ease-in-out infinite;
+}
+.alerte-dechets-veille strong { display: block; font-size: 14.5px; color: var(--boue); }
+.alerte-dechets-veille p { font-size: 12.5px; color: var(--roseau); margin: 2px 0 0; }
+@keyframes pulse-dechets {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(226,201,126,.4); }
+  50% { box-shadow: 0 0 0 6px rgba(226,201,126,0); }
+}
+
+/* Prochain conseil municipal — carte colorée façon "hero", cohérente avec météo/XP */
+.carte-prochain-conseil {
+  background: linear-gradient(135deg, #2C5F6E, #1F4550); color: #fff;
+}
+
+/* Carte cliquable générique (dernier PV, etc.) */
+.carte-cliquable { cursor: pointer; transition: transform .15s; }
+.carte-cliquable:active { transform: scale(0.98); }
+
+/* Fichier joint dans un compte-rendu (PDF ou image) */
+.fichier-pv-apercu { margin-top: 10px; }
+.fichier-pv-apercu img { max-width: 100%; border-radius: 10px; cursor: zoom-in; }
+.lien-fichier-pv-pdf {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--eauXL);
+  color: var(--eau); padding: 10px 14px; border-radius: 10px; font-size: 13px;
+  font-weight: 600; text-decoration: none; margin-top: 8px;
+}

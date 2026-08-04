@@ -95,11 +95,17 @@ app.patch('/:id/statut', async (c) => {
 
 app.delete('/:id', async (c) => {
   const role = c.get('role');
-  if (!estGestionnaire(role)) {
-    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
-  }
+  const user_id = c.get('user_id');
   const commune_id = c.get('commune_id');
   const alerte_id = c.req.param('id');
+
+  const [alerte] = await supabaseSelect(c.env, 'alertes', {
+    select: 'id,user_id', id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!alerte) return c.json({ erreur: 'Signalement introuvable' }, 404);
+  if (alerte.user_id !== user_id && !estGestionnaire(role)) {
+    return c.json({ erreur: 'Vous ne pouvez supprimer que vos propres signalements' }, 403);
+  }
 
   const images = await supabaseSelect(c.env, 'alerte_images', {
     select: 'r2_key',

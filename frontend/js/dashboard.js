@@ -50,6 +50,8 @@ async function chargerDashboard() {
   chargerResumes();
   chargerMiniXp();
   chargerPhotoVedette();
+  chargerDernierPv();
+  chargerProchainConseil();
 }
 
 function afficherSalut() {
@@ -63,9 +65,7 @@ function afficherSalut() {
   zone.textContent = `${salut} 👋`;
 }
 
-// Phase de la lune — calculée localement, aucune API nécessaire. Basé sur la phase
-// (nouvelle → pleine → nouvelle), pas le calendrier lunaire biodynamique complet
-// (lune montante/descendante + zodiaque), qui est un système distinct et plus complexe.
+// Phase de la lune — calculée localement, aucune API nécessaire.
 function calculerPhaseLune(date = new Date()) {
   const nouvelleLuneRef = Date.UTC(2000, 0, 6, 18, 14, 0);
   const cycle = 29.53058868;
@@ -174,7 +174,10 @@ async function chargerMeteo() {
   }
 }
 
+// ── Déchets : traitement spécial et visible la veille du ramassage ──
+
 async function chargerDechetsDashboard() {
+  const zoneAlerte = document.getElementById('carte-alerte-dechets');
   const zone = document.getElementById('carte-dechets');
   if (!zone) return;
   const res = await appelApi(`/${window.COMMUNE_SLUG}/dechets`);
@@ -182,12 +185,32 @@ async function chargerDechetsDashboard() {
   const { collectes } = await res.json();
 
   if (!collectes.length) {
+    if (zoneAlerte) zoneAlerte.hidden = true;
     zone.innerHTML = `<p class="dechets-vide">Aucun calendrier de collecte configuré. (Modération → Déchets)</p>`;
     return;
   }
 
   const aujourdhui = collectes.filter((c) => c.aujourdhui);
-  const prochaine = collectes.find((c) => !c.aujourdhui);
+  const veille = collectes.filter((c) => !c.aujourdhui && c.dans_jours === 1);
+  const prochaine = collectes.find((c) => !c.aujourdhui && c.dans_jours !== 1);
+
+  // Carte d'alerte bien visible, en haut de l'accueil, uniquement la veille du ramassage.
+  if (zoneAlerte) {
+    if (veille.length) {
+      zoneAlerte.hidden = false;
+      zoneAlerte.innerHTML = veille.map((c) => `
+        <div class="alerte-dechets-veille" style="border-left-color:${c.couleur}">
+          <span style="font-size:26px;">🗑️</span>
+          <div>
+            <strong>Sortez vos poubelles ce soir !</strong>
+            <p>Collecte "${LABELS_DECHET[c.type] ?? c.type}" demain matin</p>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      zoneAlerte.hidden = true;
+    }
+  }
 
   let html = '';
   if (aujourdhui.length) {
@@ -196,7 +219,7 @@ async function chargerDechetsDashboard() {
         <strong>🗑️ Aujourd'hui : ${LABELS_DECHET[c.type] ?? c.type}</strong>
       </div>
     `).join('');
-  } else {
+  } else if (!veille.length) {
     html += `<p class="dechets-rien">Rien à sortir aujourd'hui.</p>`;
   }
   if (prochaine) {
@@ -236,6 +259,61 @@ async function chargerDerniereActu() {
     <button id="btn-voir-actu" style="margin-top:10px;">Voir toutes les actualités</button>
   `;
   zone.querySelector('#btn-voir-actu').addEventListener('click', () => activerOnglet('actualites'));
+}
+
+// ── Dernier compte-rendu de conseil (PV) ──
+
+async function chargerDernierPv() {
+  const zone = document.getElementById('carte-dernier-pv');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/actus?section=conseil`);
+  if (!res.ok) { zone.hidden = true; return; }
+  const { articles } = await res.json();
+  const dernier = articles?.[0];
+  if (!dernier) { zone.hidden = true; return; }
+
+  zone.hidden = false;
+  const dateAffichee = new Date(dernier.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  zone.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div style="font-size:26px;">${dernier.fichier_pv_type === 'pdf' ? '📄' : '📋'}</div>
+      <div style="flex:1;">
+        <div style="font-size:11px;color:var(--roseau);font-weight:600;">🏛️ Dernier compte-rendu</div>
+        <h4 style="margin:2px 0 0;font-size:15px;">${escapeAttr(dernier.titre)}</h4>
+        <span style="font-size:11px;color:var(--roseau);">${dateAffichee}</span>
+      </div>
+    </div>
+  `;
+  zone.onclick = () => activerOnglet('conseil');
+}
+
+// ── Prochain conseil municipal ──
+
+async function chargerProchainConseil() {
+  const zone = document.getElementById('carte-prochain-conseil');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`);
+  if (!res.ok) { zone.hidden = true; return; }
+  const { commune } = await res.json();
+  if (!commune.prochain_conseil_date) { zone.hidden = true; return; }
+
+  const date = new Date(commune.prochain_conseil_date);
+  if (date.getTime() < Date.now()) { zone.hidden = true; return; }
+
+  zone.hidden = false;
+  const dateAffichee = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const heureAffichee = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  zone.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:center;">
+      <div style="font-size:26px;">🏛️</div>
+      <div>
+        <div style="font-size:11px;color:rgba(255,255,255,.85);font-weight:600;">Prochain conseil municipal</div>
+        <div style="font-size:15px;font-weight:700;text-transform:capitalize;">${dateAffichee}</div>
+        <div style="font-size:12.5px;color:rgba(255,255,255,.85);">à ${heureAffichee}</div>
+      </div>
+    </div>
+  `;
+  zone.onclick = () => activerOnglet('conseil');
 }
 
 async function chargerResumes() {

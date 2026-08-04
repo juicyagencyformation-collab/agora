@@ -43,6 +43,8 @@
     <section id="onglet-accueil" class="onglet-contenu">
       <p id="salut-utilisateur" class="salut-utilisateur"></p>
 
+      <div id="carte-alerte-dechets" hidden></div>
+
       <div class="bandeau-hero">
         <div id="carte-meteo" class="carte-meteo-hero"></div>
         <div id="carte-mini-xp" class="carte-xp-hero"></div>
@@ -52,7 +54,11 @@
 
       <div id="carte-lune" class="carte-dashboard carte-lune"></div>
 
+      <div id="carte-prochain-conseil" class="carte-dashboard carte-prochain-conseil carte-cliquable" hidden></div>
+
       <div id="carte-dechets" class="carte-dashboard"></div>
+
+      <div id="carte-dernier-pv" class="carte-dashboard carte-cliquable" hidden></div>
 
       <h3 style="font-size:15px;margin-top:18px;">Dernière actualité</h3>
       <div id="carte-derniere-actu" class="carte-dashboard"></div>
@@ -167,6 +173,17 @@
     </section>
 
     <section id="onglet-conseil" class="onglet-contenu" hidden>
+      <div class="form-admin-only" style="margin-bottom:18px;">
+        <h3 style="font-size:14px;margin-top:0;">🏛️ Prochain conseil municipal</h3>
+        <form id="form-prochain-conseil" style="display:flex;gap:8px;align-items:flex-end;">
+          <div style="flex:1;">
+            <label class="label-champ-edition">Date et heure</label>
+            <input type="datetime-local" id="prochain-conseil-input">
+          </div>
+          <button type="submit">Enregistrer</button>
+        </form>
+      </div>
+
       <div class="form-admin-only">
         <button type="button" id="btn-ouvrir-creation-deliberation" class="bouton-ouvrir-modale">+ Créer une délibération</button>
       </div>

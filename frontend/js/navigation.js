@@ -6,21 +6,15 @@ async function initUtilisateur() {
     const data = await res.json();
     window.USER_ID = data.user_id;
     window.ROLE = data.role;
-    // "est-admin" = peut créer/modifier/supprimer du contenu (admin, élu, superadmin)
     document.body.classList.toggle('est-admin', ['admin', 'elu', 'superadmin'].includes(data.role));
-    // "est-gestionnaire-roles" = peut attribuer des rôles (élu, superadmin)
     document.body.classList.toggle('est-gestionnaire-roles', ['elu', 'superadmin'].includes(data.role));
-    // "est-superadmin" = seul rôle pouvant désactiver des onglets
     document.body.classList.toggle('est-superadmin', data.role === 'superadmin');
 
-    // Le citoyen ne doit même pas savoir que l'onglet Modération existe
     const peutVoirModeration = ['admin', 'elu', 'superadmin'].includes(data.role);
     document.querySelectorAll('[data-onglet="moderation"]').forEach((btn) => {
       btn.style.display = peutVoirModeration ? '' : 'none';
     });
-  } catch {
-    // pas connecté ou Worker inaccessible — formulaires admin resteront masqués
-  }
+  } catch {}
 }
 
 async function initVisibiliteOnglets() {
@@ -29,7 +23,6 @@ async function initVisibiliteOnglets() {
     if (!res.ok) return;
     const { onglets } = await res.json();
 
-    // Les clés en base utilisent des underscores, les data-onglet HTML des tirets.
     const CORRESPONDANCE = {
       actualites: 'actualites', alertes: 'alertes', thermometre: 'thermometre',
       mur: 'mur', agenda: 'agenda', coups_de_main: 'coups-de-main',
@@ -40,20 +33,14 @@ async function initVisibiliteOnglets() {
 
     onglets.forEach(({ cle, actif }) => {
       const cleHtml = CORRESPONDANCE[cle];
-      if (!cleHtml || actif) return; // actif ou pas de tab correspondant : rien à cacher
+      if (!cleHtml || actif) return;
       document.querySelectorAll(`[data-onglet="${cleHtml}"], [data-sousonglet="${cleHtml}"]`).forEach((btn) => {
         btn.style.display = 'none';
       });
     });
-  } catch {
-    // en cas d'échec, on laisse tous les onglets visibles par défaut
-  }
+  } catch {}
 }
 
-// Applique les couleurs de la commune aux variables CSS — premier pas vers la personnalisation
-// par les élus. Note : seuls --eau (couleur principale) et --aube (accent) sont dynamiques pour
-// l'instant ; les teintes dérivées (--eauM/--eauL/--eauXL) restent fixes jusqu'à ce qu'on construise
-// un vrai calcul de palette. Suffisant pour un premier jet fonctionnel.
 function appliquerTheme(commune) {
   if (commune.couleur_theme) document.documentElement.style.setProperty('--eau', commune.couleur_theme);
   if (commune.couleur_accent) document.documentElement.style.setProperty('--aube', commune.couleur_accent);
@@ -69,9 +56,7 @@ async function initCommune() {
     window.COMMUNE_COORDS_MANQUANTES = commune.lat === null;
     if (commune.nom) document.getElementById('nom-commune').textContent = commune.nom;
     appliquerTheme(commune);
-  } catch {
-    // Worker inaccessible : on continue avec les valeurs par défaut
-  }
+  } catch {}
 }
 
 const CHARGEURS = {
@@ -101,8 +86,6 @@ function activerOnglet(cle) {
     b.classList.toggle('active', b.dataset.onglet === cle);
   });
 
-  // Accueil (dashboard) reflète l'état d'autres onglets (déchets, alertes, agenda...)
-  // donc il se recharge à chaque visite plutôt qu'une seule fois.
   if (cle === 'accueil' || cle === 'profil' || !dejaCharges.has(cle)) {
     CHARGEURS[cle]?.();
     dejaCharges.add(cle);
@@ -130,6 +113,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireSondage();
   initFormulaireDeliberation();
   initFormulairePv();
+  initFormulaireProchainConseil();
   initFormulaireAnnuaire();
   initFormulaireBulletin();
   initFormulairePhotoDuJour();

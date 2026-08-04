@@ -38,6 +38,8 @@ const articleSchema = z.object({
   contenu_html: z.string().min(1).max(20000),
   image_r2_keys: z.array(z.string()).max(10).optional(),
   sondage: sondageSchema.optional().nullable(),
+  fichier_pv_url: z.string().url().optional(),
+  fichier_pv_type: z.enum(['pdf', 'image']).optional(),
 });
 
 app.get('/', async (c) => {
@@ -50,7 +52,7 @@ app.get('/', async (c) => {
   }
 
   const filtres: Record<string, string> = {
-    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at',
+    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type',
     commune_id: `eq.${commune_id}`,
     section: `eq.${section}`,
     order: 'created_at.desc',
@@ -144,6 +146,8 @@ app.post('/', async (c) => {
   const [article] = await supabaseInsert(c.env, 'articles', {
     commune_id, auteur_id: user_id, section: data.section, categorie: data.categorie,
     titre: data.titre, contenu_html,
+    fichier_pv_url: data.fichier_pv_url ?? null,
+    fichier_pv_type: data.fichier_pv_type ?? null,
   });
 
   if (data.image_r2_keys?.length) {
@@ -245,6 +249,30 @@ app.post('/upload', async (c) => {
   const key = `${commune_id}/articles/${crypto.randomUUID()}.${extension}`;
   const url = await uploaderFichier(c.env, key, donnees, contentType);
   return c.json({ key, url });
+});
+
+app.post('/pv-upload', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+  const contentType = c.req.header('Content-Type') || '';
+  const typesAutorises = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+  if (!typesAutorises.includes(contentType)) {
+    return c.json({ erreur: 'Seuls les fichiers PDF, JPEG et PNG sont acceptés' }, 400);
+  }
+
+  const donnees = await c.req.arrayBuffer();
+  if (donnees.byteLength > 15 * 1024 * 1024) {
+    return c.json({ erreur: 'Fichier trop volumineux (15 Mo maximum)' }, 400);
+  }
+
+  const extension = contentType === 'application/pdf' ? 'pdf' : (contentType === 'image/png' ? 'png' : 'jpg');
+  const key = `${commune_id}/pv/${crypto.randomUUID()}.${extension}`;
+  const url = await uploaderFichier(c.env, key, donnees, contentType);
+
+  return c.json({ url, type: contentType === 'application/pdf' ? 'pdf' : 'image' });
 });
 
 app.post('/:id/vote', async (c) => {
