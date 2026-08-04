@@ -26,12 +26,15 @@ self.addEventListener('activate', (event) => {
 
 // Réseau d'abord (toujours la dernière version en ligne — important vu la fréquence des mises
 // à jour de cette app), le cache ne sert que de secours quand il n'y a pas de réseau du tout.
-// Ne s'applique jamais aux appels vers l'API du Worker (autre domaine) : ceux-ci doivent
-// toujours échouer proprement hors-ligne plutôt que de servir une réponse mise en cache
-// potentiellement fausse (données citoyennes, votes, etc.).
+// Ne s'applique jamais aux appels vers l'API (/api/...) : ceux-ci doivent toujours échouer
+// proprement hors-ligne plutôt que de servir une réponse mise en cache potentiellement fausse
+// (données citoyennes, votes, etc.). Depuis le passage de l'API en proxy same-origin (voir
+// frontend/functions/[[path]].js), le test sur l'origine ne suffit plus à les exclure — d'où
+// le test explicite sur le chemin /api/.
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
