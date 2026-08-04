@@ -1,9 +1,8 @@
 // frontend/functions/[[path]].js
 //
-// Routage par commune : /eaucourt/... sert l'app normalement, URL affichée intacte.
-// Cas particulier : /eaucourt/manifest.json est régénéré à la volée avec le bon start_url,
-// pour que l'icône installée sur l'écran d'accueil revienne toujours à la bonne commune,
-// même après une déconnexion ou un changement d'appareil.
+// Routage par commune, sans dépendre de _redirects (comportement incohérent constaté sur
+// le domaine personnalisé). On suit nous-mêmes toute redirection interne que Cloudflare
+// pourrait renvoyer, pour être certain qu'aucune redirection ne remonte au navigateur.
 
 const DOSSIERS_STATIQUES = ['css', 'js', 'icons', 'functions'];
 
@@ -35,8 +34,9 @@ export async function onRequest(context) {
 
   const dernier = segments[segments.length - 1];
 
-  // Manifest propre à la commune : start_url et scope pointent vers /<slug>/, pour que
-  // l'icône installée sur l'écran d'accueil revienne toujours à la bonne commune.
+  // Manifest propre à la commune : start_url et scope pointent vers /<slug>/, et les
+  // icônes sont forcées en chemin absolu (/icons/...) pour ne jamais se résoudre par
+  // erreur relativement à /<slug>/, quel que soit le contenu du fichier statique d'origine.
   if (dernier === 'manifest.json' && segments.length > 1) {
     const manifestReel = await recupererAssetSansRedirection(context.env, new URL('/manifest.json', url.origin));
     if (manifestReel) {
@@ -44,6 +44,12 @@ export async function onRequest(context) {
         const manifestJson = await manifestReel.json();
         manifestJson.start_url = `/${premier}/index.html`;
         manifestJson.scope = `/${premier}/`;
+        if (Array.isArray(manifestJson.icons)) {
+          manifestJson.icons = manifestJson.icons.map((icone) => ({
+            ...icone,
+            src: icone.src.startsWith('/') ? icone.src : `/${icone.src.replace(/^\.?\//, '')}`,
+          }));
+        }
         return new Response(JSON.stringify(manifestJson), {
           status: 200,
           headers: { 'Content-Type': 'application/manifest+json' },

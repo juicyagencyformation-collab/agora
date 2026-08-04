@@ -69,7 +69,7 @@ function ajouterMarqueurAlerte(alerte) {
   marqueur.bindPopup(popup);
 }
 
-// ── Liste des signalements sous la carte (vue compacte, cohérente avec le reste de l'app) ──
+// ── Liste des signalements sous la carte ──
 
 function renderListeAlertes(alertes) {
   const conteneur = document.getElementById('liste-alertes');
@@ -130,4 +130,89 @@ function renderCarteAlerteCompacte(alerte) {
   });
 
   return el;
+}
+
+// ── Formulaire de création (bouton "🚨 Signaler un problème") ──
+
+function initFormulaireAlerte() {
+  const btn = document.getElementById('btn-ouvrir-creation-alerte');
+  if (!btn) return;
+  btn.addEventListener('click', () => ouvrirModaleCreationAlerte());
+}
+
+function ouvrirModaleCreationAlerte() {
+  positionSelectionneeAlerte = null;
+  const html = `
+    <form id="form-modale-alerte">
+      <input type="text" id="titre-alerte-modale" placeholder="Titre du signalement" maxlength="150" required>
+      <textarea id="description-alerte-modale" placeholder="Décrivez le problème" required></textarea>
+
+      <button type="button" id="btn-position-alerte" style="margin-top:8px;">📍 Utiliser ma position actuelle</button>
+      <p id="position-choisie-alerte" style="font-size:12px;color:var(--roseau);"></p>
+
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13.5px;">
+        <input type="checkbox" id="urgent-alerte-modale" style="width:auto;margin:0;">
+        🚨 Signalement urgent (danger immédiat)
+      </label>
+
+      <label class="label-champ-edition">Photo (optionnel)</label>
+      <input type="file" id="image-alerte-modale" accept="image/jpeg,image/png,image/webp">
+
+      <button type="submit" style="margin-top:12px;">Signaler</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('Signaler un problème', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  corps.querySelector('#btn-position-alerte').addEventListener('click', () => {
+    if (!navigator.geolocation) { afficherToastMessage('Géolocalisation indisponible.', 'erreur'); return; }
+    navigator.geolocation.getCurrentPosition((position) => {
+      positionSelectionneeAlerte = { lat: position.coords.latitude, lng: position.coords.longitude };
+      corps.querySelector('#position-choisie-alerte').textContent = '📍 Position enregistrée !';
+    }, () => afficherToastMessage('Impossible de récupérer la position.', 'erreur'));
+  });
+
+  corps.querySelector('#form-modale-alerte').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const titre = corps.querySelector('#titre-alerte-modale').value.trim();
+    const description = corps.querySelector('#description-alerte-modale').value.trim();
+    const urgent = corps.querySelector('#urgent-alerte-modale').checked;
+    if (!titre || !description) return;
+    if (!positionSelectionneeAlerte) {
+      afficherToastMessage('Indique la position du problème avant d\'envoyer.', 'erreur');
+      return;
+    }
+
+    let image_r2_keys;
+    const fichier = corps.querySelector('#image-alerte-modale').files[0];
+    if (fichier) {
+      try {
+        const compresse = await compresserImage(fichier);
+        const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/alertes/upload`, {
+          method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+        });
+        if (resUpload.ok) { const { key } = await resUpload.json(); image_r2_keys = [key]; }
+      } catch { console.warn('Upload image échoué, signalement publié sans photo.'); }
+    }
+
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titre, description, urgent,
+        lat: positionSelectionneeAlerte.lat, lng: positionSelectionneeAlerte.lng,
+        image_r2_keys,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      fermerModaleFormulaire(overlay);
+      traiterRecompense?.(data);
+      initCarteAlertes();
+    } else {
+      const data = await res.json();
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur lors du signalement', 'erreur');
+    }
+  });
 }
