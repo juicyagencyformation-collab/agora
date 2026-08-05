@@ -105,6 +105,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireAgenda();
   initToggleHistoriqueAgenda();
   initToggleCarteAgenda();
+  initToggleCarteAutourDeMoi();
   initSousOngletsAgenda();
   initFormulaireMur();
   initFormulaireChasse();

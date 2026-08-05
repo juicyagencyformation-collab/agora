@@ -88,6 +88,7 @@ async function chargerAutourDeMoi() {
   if (window.COMMUNE_COORDS_MANQUANTES || !window.COMMUNE_LAT) {
     zoneMessage.textContent = 'La position de votre commune n\'est pas encore renseignée (Modération) — impossible de chercher autour.';
     zoneListe.innerHTML = '';
+    afficherEvenementsAutourSurCarte([]);
     return;
   }
 
@@ -102,11 +103,13 @@ async function chargerAutourDeMoi() {
       zoneMessage.textContent = data.communes_participantes
         ? `${data.communes_participantes} commune(s) partenaire(s) à moins de ${rayonAutourDeMoi} km, mais rien de prévu pour l'instant.`
         : `Aucune commune partenaire dans un rayon de ${rayonAutourDeMoi} km pour l'instant.`;
+      afficherEvenementsAutourSurCarte([]);
       return;
     }
 
     zoneMessage.textContent = `${data.evenements.length} événement(s) dans ${data.communes_participantes} commune(s)`;
     data.evenements.forEach((e) => zoneListe.appendChild(renderCarteEvenementAutour(e)));
+    afficherEvenementsAutourSurCarte(data.evenements);
   } catch {
     zoneMessage.textContent = 'Erreur lors de la recherche.';
   }
@@ -180,6 +183,54 @@ function afficherEvenementsSurCarte(events) {
   });
   events.filter((e) => e.lat && e.lng).forEach((e) => {
     L.marker([e.lat, e.lng]).addTo(carteAgenda).bindPopup(`<strong>${escapeAttr(e.titre)}</strong><br>${formatDateAffichageEvent(e)}`);
+  });
+}
+
+let carteAutourDeMoi;
+
+function initToggleCarteAutourDeMoi() {
+  const btn = document.getElementById('btn-toggle-carte-autour');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const zone = document.getElementById('carte-autour-de-moi');
+    const ouverte = zone.hidden;
+    zone.hidden = !ouverte;
+    btn.textContent = ouverte ? '📋 Revenir à la liste' : '🗺️ Voir sur la carte';
+    if (ouverte) {
+      setTimeout(() => {
+        if (!carteAutourDeMoi) {
+          carteAutourDeMoi = L.map('carte-autour-de-moi', { maxZoom: 20 }).setView(
+            [window.COMMUNE_LAT ?? 43.6047, window.COMMUNE_LNG ?? 1.4442],
+            window.COMMUNE_COORDS_MANQUANTES ? 6 : 10,
+          );
+          L.tileLayer(
+            'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+            { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+          ).addTo(carteAutourDeMoi);
+        }
+        carteAutourDeMoi.invalidateSize();
+      }, 50);
+    }
+  });
+}
+
+// Marqueurs colorés par origine — distingue en un coup d'œil une commune partenaire locale
+// d'un événement national, comme les badges déjà utilisés dans la liste (🇫🇷 vs 📍).
+function afficherEvenementsAutourSurCarte(events) {
+  if (!carteAutourDeMoi) return;
+  carteAutourDeMoi.eachLayer((couche) => {
+    if (couche instanceof L.Marker) carteAutourDeMoi.removeLayer(couche);
+  });
+  events.filter((e) => e.lat && e.lng).forEach((e) => {
+    const icone = L.divIcon({
+      className: 'marqueur-autour-de-moi',
+      html: e.commune_nationale ? '🇫🇷' : '📍',
+      iconSize: [26, 26],
+    });
+    const dateAffichee = new Date(e.date_debut).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    L.marker([e.lat, e.lng], { icon: icone }).addTo(carteAutourDeMoi).bindPopup(
+      `<strong>${escapeAttr(e.titre)}</strong><br>${escapeAttr(e.commune_nom)}${e.commune_distance_km != null ? ` · ${e.commune_distance_km} km` : ''}<br>${dateAffichee}`,
+    );
   });
 }
 
