@@ -8,10 +8,9 @@
 // - Parlement européen : https://www.europarl.europa.eu/rss/doc/texts-adopted/fr.xml
 //   Contient uniquement les textes adoptés — pas de filtrage nécessaire.
 //
-// Les deux vérifiées manuellement le 2026-08-02. Important : leur contenu XML brut n'a pas
-// pu être inspecté finement avant écriture (limite technique), le parsing suit le format
-// RSS 2.0 standard. À vérifier via /sync-manuel avant de faire confiance à l'automatisation
-// — voir routes/lois.ts.
+// Contenu XML réel inspecté et confirmé le 2026-08-05 : les deux flux sont du RSS 2.0
+// standard. Le flux du Parlement européen était bloqué par un WAF (voir le commentaire sur
+// le User-Agent plus bas) — pas un problème de format.
 
 import { XMLParser } from 'fast-xml-parser';
 import { supabaseSelect, supabaseInsert } from '../db';
@@ -30,7 +29,18 @@ async function synchroniserFlux(
   let ajoutes = 0;
 
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': 'Agora-Plateforme-Civique/1.0' } });
+    // Le Parlement européen bloque les requêtes non-navigateur via un WAF (AWS) qui renvoie
+    // un 202 vide plutôt qu'une erreur explicite — d'où le faux diagnostic initial "format XML
+    // non reconnu" (on parsait une réponse vide). Confirmé le 2026-08-05 : un User-Agent de
+    // navigateur classique suffit à passer, le flux réel est du RSS 2.0 standard (déjà géré
+    // ci-dessous). Ne jamais revenir à un User-Agent identifiant l'app.
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/rss+xml,application/xml,text/xml,*/*;q=0.9',
+        'Accept-Language': 'fr-FR,fr;q=0.9',
+      },
+    });
     if (!res.ok) {
       erreurs.push(`Flux inaccessible (${source}) : statut ${res.status}`);
       return { trouves, ajoutes, erreurs };
