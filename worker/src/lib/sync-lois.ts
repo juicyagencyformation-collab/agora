@@ -79,27 +79,40 @@ async function synchroniserFlux(
       erreurs.push(`Format XML non reconnu (${source}) — clés racine trouvées : ${Object.keys(data).join(', ')}`);
     }
 
-    for (const item of filtres) {
-      const titre = String(item.title ?? '').trim();
-      const lien = String(item.link ?? '').trim();
-      const description = String(item.description ?? titre).trim();
-      const externalId = String(item.guid?.['#text'] ?? item.guid ?? lien).trim();
-      if (!titre || !lien || !externalId) continue;
+    // Un SELECT + un INSERT par item dépasse vite la limite Cloudflare de sous-requêtes par
+    // invocation (ex: 25 items du Parlement européen ≈ 50 sous-requêtes rien que pour ce
+    // flux, en plus de celui de l'Assemblée nationale synchronisé dans la même invocation).
+    // On normalise tout en mémoire d'abord, puis un seul SELECT groupé + un seul INSERT groupé.
+    const candidats = filtres
+      .map((item: any) => ({
+        titre: String(item.title ?? '').trim(),
+        lien: String(item.link ?? '').trim(),
+        description: String(item.description ?? item.title ?? '').trim(),
+        externalId: String(item.guid?.['#text'] ?? item.guid ?? item.link ?? '').trim(),
+      }))
+      .filter((c: any) => c.titre && c.lien && c.externalId);
 
-      const [existant] = await supabaseSelect(env, 'lois', {
-        select: 'id', source: `eq.${source}`, external_id: `eq.${externalId}`,
+    if (candidats.length) {
+      // Valeurs entre guillemets pour le filtre PostgREST in.() : un external_id contenant
+      // une virgule ou une parenthèse casserait sinon la liste.
+      const listeIds = candidats.map((c: any) => `"${c.externalId.replace(/"/g, '\\"')}"`).join(',');
+      const existants = await supabaseSelect(env, 'lois', {
+        select: 'external_id', source: `eq.${source}`, external_id: `in.(${listeIds})`,
       });
-      if (existant) continue; // déjà connu, on ne duplique pas
+      const idsConnus = new Set(existants.map((e: any) => e.external_id));
+      const nouveaux = candidats.filter((c: any) => !idsConnus.has(c.externalId));
 
-      await supabaseInsert(env, 'lois', {
-        titre: titre.slice(0, 300),
-        description: description.slice(0, 5000),
-        source,
-        statut: statutParDefaut,
-        url_source: lien,
-        external_id: externalId,
-      });
-      ajoutes++;
+      if (nouveaux.length) {
+        await supabaseInsert(env, 'lois', nouveaux.map((c: any) => ({
+          titre: c.titre.slice(0, 300),
+          description: c.description.slice(0, 5000),
+          source,
+          statut: statutParDefaut,
+          url_source: c.lien,
+          external_id: c.externalId,
+        })));
+        ajoutes = nouveaux.length;
+      }
     }
   } catch (err: any) {
     erreurs.push(`Erreur de synchronisation (${source}) : ${err?.message ?? String(err)}`);
