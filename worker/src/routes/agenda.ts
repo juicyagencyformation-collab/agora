@@ -619,15 +619,40 @@ app.get('/:id/qr-page', async (c) => {
   const event_id = c.req.param('id');
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,user_id,qr_token', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
+    select: 'id,user_id,titre,qr_token', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
   if (event.user_id !== user_id && !estGestionnaire(role)) {
     return c.json({ erreur: 'Réservé à l\'organisateur ou aux administrateurs' }, 403);
   }
 
-  const svg = genererQrSvg(event.qr_token);
-  return c.html(`<div>${svg}<p style="font-family:monospace">${event.qr_token}</p></div>`);
+  // Titre affiché en clair dans une page HTML : échappement obligatoire (contenu saisi
+  // par un organisateur, jamais fait confiance directement dans du HTML).
+  const titreEchappe = event.titre.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const svg = genererQrSvg(event.qr_token, 320);
+  return c.html(`<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QR — ${titreEchappe}</title>
+<style>
+  body { font-family: sans-serif; text-align: center; padding: 28px 16px; color: #3D3530; }
+  h1 { font-size: 19px; margin: 0 0 6px; }
+  p { color: #8B7355; font-size: 14px; margin: 0; }
+  .qr { margin: 24px auto; max-width: 320px; }
+  .qr svg { width: 100%; height: auto; }
+  .token { font-family: monospace; font-size: 11px; color: #C8DDE4; margin-top: 18px; }
+  @media print { .token { color: #ccc; } }
+</style>
+</head>
+<body>
+  <h1>${titreEchappe}</h1>
+  <p>À scanner sur place pour déclarer sa présence</p>
+  <div class="qr">${svg}</div>
+  <p class="token">${event.qr_token}</p>
+</body>
+</html>`);
 });
 
 export default app;

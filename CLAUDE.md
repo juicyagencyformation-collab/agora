@@ -100,6 +100,20 @@ worker/src/
 ```
 
 ## Pièges déjà rencontrés — à ne PAS reproduire
+- **Les fichiers JS/CSS du frontend gardent toujours le même nom** (`agenda.js` reste
+  `agenda.js` à chaque déploiement) — rien ne force un navigateur mobile à recharger la
+  dernière version, même avec le service worker en "réseau d'abord" (le `fetch()` qu'il fait
+  peut lui-même être satisfait par le cache HTTP du téléphone). Symptôme vécu : un citoyen
+  sur mobile voit une fonctionnalité "à moitié" fonctionner (ex. un bouton présent dans un
+  commit mais pas dans le suivant) alors que tout est correct côté serveur — seul un
+  effacement manuel du cache du navigateur (pas juste réinstaller le raccourci PWA) le
+  résout. Palliatif retenu, à appliquer à CHAQUE fois qu'un fichier `frontend/js/*.js` ou
+  `frontend/css/*.css` change : bumper le paramètre `?v=AAAAMMJJ` sur TOUTES les balises
+  `<script src="/js/...">` / `<link href="/css/...">` de TOUS les fichiers HTML
+  (`index.html`, `connexion.html`, `decouverte.html`, `mentions-legales.html`,
+  `confidentialite.html`, `reinitialiser.html`) — une URL différente est un cache différent,
+  sans dépendre d'un comportement Cloudflare qu'on ne maîtrise pas (voir le piège
+  `_redirects` ci-dessous, même catégorie de surprise sur ce domaine personnalisé).
 - **Cloudflare Pages `_redirects` s'est montré incohérent** sur le domaine personnalisé
   (plateforme-agora.fr) — une simple règle catch-all y interceptait à tort les fichiers
   statiques (css/js), alors que la même règle fonctionnait sur l'adresse .pages.dev.

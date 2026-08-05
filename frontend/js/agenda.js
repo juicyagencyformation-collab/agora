@@ -257,7 +257,7 @@ function remplirContenuEvenement(zone, event, peutModifier) {
 
     ${event.necessite_validation_presence && !event.est_moi ? `<div class="zone-scan-civique">${renderZoneScanCivique(event)}</div>` : ''}
     ${event.necessite_validation_presence && peutModifier ? `
-      <a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/qr-page" target="_blank" class="lien-calendrier">📱 Voir le QR à afficher sur place</a>
+      <a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/qr-page" target="_blank" class="lien-qr-civique">📱 Voir le QR à afficher sur place</a>
     ` : ''}
     ${event.necessite_validation_presence && peutValiderPresences ? `
       <button type="button" class="btn-gerer-presences">🎫 Gérer les présences</button>

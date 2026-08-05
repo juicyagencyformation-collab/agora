@@ -560,6 +560,11 @@ h1, h2, h3, h4, p, span, a, button {
 .statut-presence-civique { font-size: 13px; color: var(--roseau); margin: 6px 0; }
 .statut-presence-civique.statut-confirme { color: var(--prairie); font-weight: 600; }
 .zone-scan-civique { margin: 8px 0; }
+.lien-qr-civique {
+  display: block; box-sizing: border-box; width: 100%; text-align: center; margin: 8px 0;
+  padding: 10px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--eau); font-weight: 600; font-size: 13px; text-decoration: none;
+}
 .zone-scan-civique .zone-scanner-civique video { width: 100%; border-radius: 10px; margin-top: 6px; }
 .form-code-manuel-civique { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
 .form-code-manuel-civique input { flex: 1; margin-bottom: 0; }
