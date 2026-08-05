@@ -17,6 +17,20 @@ import { supabaseSelect, supabaseInsert } from '../db';
 
 interface ResultatSync { trouves: number; ajoutes: number; erreurs: string[] }
 
+// Le flux du Parlement européen encode du HTML dans <description> (&lt;br /&gt;,
+// &lt;a href=...&gt;...) — une fois les entités XML décodées par le parseur, ça redevient du
+// HTML brut en clair. Stocké tel quel, le frontend (qui traite la description comme du texte
+// simple, via escapeAttr côté lois.js) l'affiche échappé : les balises apparaissent en toutes
+// lettres au lieu d'être interprétées ou nettoyées. On nettoie donc ici, à la source.
+function nettoyerDescriptionHtml(texte: string): string {
+  return texte
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gis, '$1') // garde le texte du lien, retire la balise
+    .replace(/<[^>]+>/g, '') // filet de sécurité pour toute autre balise résiduelle
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function synchroniserFlux(
   env: any,
   url: string,
@@ -87,7 +101,7 @@ async function synchroniserFlux(
       .map((item: any) => ({
         titre: String(item.title ?? '').trim(),
         lien: String(item.link ?? '').trim(),
-        description: String(item.description ?? item.title ?? '').trim(),
+        description: nettoyerDescriptionHtml(String(item.description ?? item.title ?? '').trim()),
         externalId: String(item.guid?.['#text'] ?? item.guid ?? item.link ?? '').trim(),
       }))
       .filter((c: any) => c.titre && c.lien && c.externalId);
