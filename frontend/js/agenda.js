@@ -256,6 +256,9 @@ function remplirContenuEvenement(zone, event, peutModifier) {
     ${!event.est_moi ? `<button class="btn-participer ${event.je_participe ? 'active' : ''}">${event.je_participe ? 'Je ne participe plus' : 'Je participe'}</button>` : ''}
 
     ${event.necessite_validation_presence && !event.est_moi ? `<div class="zone-scan-civique">${renderZoneScanCivique(event)}</div>` : ''}
+    ${event.necessite_validation_presence && peutModifier ? `
+      <a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/qr-page" target="_blank" class="lien-calendrier">📱 Voir le QR à afficher sur place</a>
+    ` : ''}
     ${event.necessite_validation_presence && peutValiderPresences ? `
       <button type="button" class="btn-gerer-presences">🎫 Gérer les présences</button>
       <div class="zone-validation-presences" hidden></div>
