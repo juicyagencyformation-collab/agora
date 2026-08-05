@@ -51,7 +51,12 @@ soumis par les citoyens — voir règle 4 ci-dessous.
 ## Règles d'architecture NON NÉGOCIABLES
 1. Le client ne connaît jamais Supabase — uniquement des fetch() vers l'API Worker
 2. commune_id est TOUJOURS extrait du JWT côté serveur, jamais envoyé par le client
-3. Zéro framework JS, zéro bibliothèque npm côté client (sauf Leaflet)
+3. Zéro framework JS, zéro bibliothèque npm côté client, sauf exceptions explicitement
+   validées et vendorées en local (pas de `npm install` client, pas de CDN externe non
+   vendoré) : Leaflet.js (cartes) et jsQR (`frontend/js/vendor/jsQR.min.js`, décodage QR —
+   nécessaire car Safari/iOS n'implémente pas l'API native BarcodeDetector). Toute nouvelle
+   exception à cette règle doit être validée explicitement avec Léandre avant ajout, jamais
+   décidée seule.
 4. Toute action de modération suit le même schéma : signalement → masquage immédiat → revue mairie
 5. Rôles : citoyen < admin < élu < superadmin. Le superadmin ne peut JAMAIS être attribué
    via l'interface, uniquement en base directement.
@@ -100,6 +105,16 @@ worker/src/
 ```
 
 ## Pièges déjà rencontrés — à ne PAS reproduire
+- **Le générateur de QR maison (`worker/src/lib/qrcode.ts`) est plafonné à 42 caractères**
+  (une seule version QR codée à la main, volontairement, pour tenir un UUID) — ne jamais
+  essayer d'y faire tenir une URL complète ou tout texte plus long qu'un UUID sans réécrire
+  une bonne partie du fichier (gestion multi-version + blocs Reed-Solomon multiples). Piège
+  découvert en voulant encoder une URL cliquable pour permettre le scan via l'appareil photo
+  natif d'iPhone (Safari n'implémentant pas `BarcodeDetector`) — solution retenue à la place :
+  `frontend/js/vendor/jsQR.min.js` (décodeur QR client, jsQR v1.4.0, vendoré en local via
+  `curl` depuis unpkg puis minifié avec `npx terser` — jamais un `<script>` pointant vers un
+  CDN externe en direct). Voir `demarrerScannerQr` dans `frontend/js/utils.js` : bascule
+  automatique BarcodeDetector → jsQR → saisie manuelle en dernier recours.
 - **Les fichiers JS/CSS du frontend gardent toujours le même nom** (`agenda.js` reste
   `agenda.js` à chaque déploiement) — rien ne force un navigateur mobile à recharger la
   dernière version, même avec le service worker en "réseau d'abord" (le `fetch()` qu'il fait

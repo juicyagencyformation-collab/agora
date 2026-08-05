@@ -173,14 +173,19 @@ function compresserImage(fichier, maxLargeur = 1600, qualite = 0.82) {
   });
 }
 
-// Scanner QR générique (caméra + BarcodeDetector), réutilisé par Chasse au trésor et
-// Participation citoyenne. Affiche un message de repli si l'API n'est pas supportée
-// (notamment Safari historiquement) — prévoir une saisie manuelle côté appelant.
+// Scanner QR générique (caméra), réutilisé par Chasse au trésor et Participation citoyenne.
+// Utilise l'API native BarcodeDetector quand disponible (Chrome/Android), sinon bascule sur
+// jsQR (frontend/js/vendor/jsQR.min.js, vendoré en local — voir CLAUDE.md) : Safari/iOS
+// n'a jamais implémenté BarcodeDetector, et taper un code à la main n'est pas une option
+// acceptable pour un scan en public. Message de repli seulement si aucune des deux méthodes
+// n'est disponible (prévoir une saisie manuelle côté appelant dans ce cas).
 async function demarrerScannerQr(zoneElementId, onCodeDetecte) {
-  if (!('BarcodeDetector' in window)) {
-    afficherToastMessage('Scanner non supporté sur ce navigateur, utilise la saisie manuelle ci-dessous.', 'erreur');
-    return;
-  }
+  if ('BarcodeDetector' in window) return demarrerScannerNatif(zoneElementId, onCodeDetecte);
+  if (typeof jsQR === 'function') return demarrerScannerJsQr(zoneElementId, onCodeDetecte);
+  afficherToastMessage('Scanner non supporté sur ce navigateur, utilise la saisie manuelle ci-dessous.', 'erreur');
+}
+
+async function demarrerScannerNatif(zoneElementId, onCodeDetecte) {
   const flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
   const video = document.createElement('video');
   video.srcObject = flux;
@@ -198,6 +203,34 @@ async function demarrerScannerQr(zoneElementId, onCodeDetecte) {
       }
     } catch { /* frame illisible, on continue */ }
   }, 500);
+}
+
+async function demarrerScannerJsQr(zoneElementId, onCodeDetecte) {
+  const flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  const video = document.createElement('video');
+  video.srcObject = flux;
+  video.autoplay = true;
+  video.muted = true;
+  video.setAttribute('playsinline', ''); // indispensable sur iOS, sinon la vidéo passe en plein écran natif
+  document.getElementById(zoneElementId).replaceChildren(video);
+  await video.play().catch(() => {});
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const intervalle = setInterval(() => {
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const resultat = jsQR(image.data, image.width, image.height);
+    if (resultat) {
+      clearInterval(intervalle);
+      flux.getTracks().forEach((t) => t.stop());
+      onCodeDetecte(resultat.data);
+    }
+  }, 300);
 }
 
 // ── Modal réutilisable pour tous les formulaires de création/édition ──
