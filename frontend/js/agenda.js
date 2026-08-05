@@ -94,7 +94,7 @@ async function chargerAutourDeMoi() {
 
   zoneMessage.textContent = 'Recherche en cours…';
   try {
-    const url = `${window.API_BASE}/decouverte/evenements?lat=${window.COMMUNE_LAT}&lng=${window.COMMUNE_LNG}&rayon=${rayonAutourDeMoi}`;
+    const url = `${window.API_BASE}/decouverte/evenements?lat=${window.COMMUNE_LAT}&lng=${window.COMMUNE_LNG}&rayon=${rayonAutourDeMoi}&exclure=${window.COMMUNE_SLUG}`;
     const res = await fetch(url);
     const data = await res.json();
 

@@ -16,12 +16,18 @@ app.get('/evenements', async (c) => {
   const lat = parseFloat(c.req.query('lat') || '');
   const lng = parseFloat(c.req.query('lng') || '');
   const rayonKm = Math.min(parseFloat(c.req.query('rayon') || '20'), 100);
+  // Slug de la commune appelante, transmis par le client (window.COMMUNE_SLUG) — cette route
+  // est publique et sans résolution de tenant, donc rien d'autre ne permet de savoir "d'où"
+  // vient l'appel. But : ne jamais afficher sa propre commune dans "Autour de moi", déjà
+  // visible dans l'onglet Agenda local juste à côté.
+  const exclureSlug = c.req.query('exclure');
   if (isNaN(lat) || isNaN(lng)) return c.json({ erreur: 'Position (lat, lng) requise' }, 400);
 
   try {
-    const communes = await supabaseSelect(c.env, 'communes', {
+    const toutesCommunes = await supabaseSelect(c.env, 'communes', {
       select: 'id,nom,slug,lat,lng,niveau_national', partage_regional: 'eq.true',
     });
+    const communes = exclureSlug ? toutesCommunes.filter((commune: any) => commune.slug !== exclureSlug) : toutesCommunes;
 
     // Deux catégories bien distinctes : les communes "nationales" apparaissent toujours,
     // peu importe la distance (pas de coordonnées nécessaires) ; les communes locales sont
