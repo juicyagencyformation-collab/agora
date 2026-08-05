@@ -6,10 +6,10 @@
 
 const LABELS_STATUT_PRESENCE = {
   inscrit: 'En attente de scan',
-  scanne: 'Scanné — en attente de validation',
-  confirme: 'Présence confirmée ✓',
-  non_confirme: 'Non confirmée',
-  no_show: 'Absence non signalée',
+  scanne: 'Scanné, à valider',
+  confirme: 'Confirmé ✓',
+  non_confirme: 'Non confirmé',
+  no_show: 'Absence',
   desiste_a_temps: 'Désisté(e)',
   desiste_tardif: 'Désisté(e) tardivement',
 };
@@ -19,16 +19,20 @@ const LABELS_STATUT_PRESENCE = {
 function renderZoneScanCivique(event) {
   const statut = event.ma_participation_citoyenne;
   if (statut === 'confirme') {
-    return `<p class="statut-presence-civique statut-confirme">✓ Présence confirmée</p>`;
+    return `<span class="pill-statut-presence pill-statut-confirme">✓ Présence confirmée</span>`;
   }
   if (statut === 'non_confirme') {
     return `
-      <p class="statut-presence-civique">Présence non confirmée.</p>
-      <button type="button" class="btn-contester-presence">Contester (je pense y être allé·e)</button>
+      <span class="pill-statut-presence pill-statut-non_confirme">Non confirmée</span>
+      <p class="aide-action-civique" style="margin-top:8px;">Tu penses vraiment y être allé·e ? Signale-le, un superadmin va vérifier.</p>
+      <button type="button" class="btn-contester-presence">Contester</button>
     `;
   }
   if (statut === 'scanne') {
-    return `<p class="statut-presence-civique">Présence déclarée, en attente de validation par l'organisateur.</p>`;
+    return `
+      <span class="pill-statut-presence pill-statut-scanne">Scanné</span>
+      <p class="aide-action-civique" style="margin-top:8px;">En attente de validation par l'organisateur.</p>
+    `;
   }
   return `
     <button type="button" class="btn-scanner-civique">📷 Scanner ma présence sur place</button>
@@ -145,7 +149,7 @@ function renderLigneParticipantPresence(p) {
     <div class="ligne-toggle-onglet ligne-participant-presence">
       <span>${escapeAttr(p.prenom)} ${escapeAttr(p.nom)}${p.hors_geofence ? ' <span title="Scan loin du lieu de l\'action">⚠️</span>' : ''}${p.contestee_le ? ' <span title="Contestée par le citoyen">🚩</span>' : ''}</span>
       <span class="actions-ligne-presence">
-        ${LABELS_STATUT_PRESENCE[p.statut] ?? p.statut}
+        <span class="pill-statut-presence pill-statut-${p.statut}">${LABELS_STATUT_PRESENCE[p.statut] ?? p.statut}</span>
         ${p.statut === 'scanne' ? `<button type="button" class="btn-valider-participant-presence" data-pid="${p.id}">Valider</button>` : ''}
       </span>
     </div>

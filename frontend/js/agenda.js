@@ -255,7 +255,7 @@ function remplirContenuEvenement(zone, event, peutModifier) {
 
     ${!event.est_moi ? `<button class="btn-participer ${event.je_participe ? 'active' : ''}">${event.je_participe ? 'Je ne participe plus' : 'Je participe'}</button>` : ''}
 
-    ${event.necessite_validation_presence && !event.est_moi ? `<div class="zone-scan-civique">${renderZoneScanCivique(event)}</div>` : ''}
+    ${event.necessite_validation_presence && !event.est_moi ? `<div class="carte-scan-civique">${renderZoneScanCivique(event)}</div>` : ''}
     ${event.necessite_validation_presence && peutModifier ? `
       <a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/qr-page" target="_blank" class="lien-qr-civique">📱 Voir le QR à afficher sur place</a>
     ` : ''}
@@ -275,7 +275,7 @@ function remplirContenuEvenement(zone, event, peutModifier) {
   `;
 
   if (event.necessite_validation_presence && !event.est_moi) {
-    initZoneScanCivique(zone.querySelector('.zone-scan-civique'), event.id);
+    initZoneScanCivique(zone.querySelector('.carte-scan-civique'), event.id);
   }
   zone.querySelector('.btn-gerer-presences')?.addEventListener('click', () => {
     const zonePresences = zone.querySelector('.zone-validation-presences');
@@ -362,11 +362,13 @@ const OPTIONS_TYPE_ACTION = [
 
 function htmlChampTypeAction(prefixe, valeurActuelle) {
   return `
-    <label class="label-champ-edition">Type d'action citoyenne (optionnel)</label>
-    <select id="type-action-${prefixe}">
-      ${OPTIONS_TYPE_ACTION.map((o) => `<option value="${o.valeur}" ${o.valeur === (valeurActuelle || '') ? 'selected' : ''}>${o.label}</option>`).join('')}
-    </select>
-    <p style="font-size:11.5px;color:var(--roseau);margin:-4px 0 8px;">Si renseigné, les participants devront scanner un QR code sur place pour valider leur présence et gagner des points de participation citoyenne.</p>
+    <div class="bloc-action-civique">
+      <label class="label-champ-edition">🌍 Type d'action citoyenne (optionnel)</label>
+      <select id="type-action-${prefixe}">
+        ${OPTIONS_TYPE_ACTION.map((o) => `<option value="${o.valeur}" ${o.valeur === (valeurActuelle || '') ? 'selected' : ''}>${o.label}</option>`).join('')}
+      </select>
+      <p class="aide-action-civique">Si renseigné, les participants devront scanner un QR code sur place pour valider leur présence et gagner des points de participation citoyenne.</p>
+    </div>
   `;
 }
 function lireChampTypeAction(corps, prefixe) {

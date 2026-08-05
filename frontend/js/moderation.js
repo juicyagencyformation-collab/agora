@@ -523,6 +523,20 @@ function slugifierBadge(texte) {
     .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
+// Libellé lisible pour un maire non-technophile — jamais le nom technique du déclencheur.
+function libelleConditionBadge(declencheur, valeurSeuil) {
+  switch (declencheur) {
+    case 'score_citoyen': return `À partir de ${valeurSeuil ?? '?'} points`;
+    case 'streak_participation': return `${valeurSeuil ?? '?'} actions d'affilée`;
+    case 'premier_signalement_resolu': return 'Premier signalement résolu';
+    case 'premiere_action_organisee': return 'Première action organisée';
+    case 'valide_par_elu': return 'Validé par un élu';
+    case 'streak_5_consecutives': return '5 actions consécutives';
+    case 'streak_mensuel_6': return "6 mois d'affilée";
+    default: return declencheur;
+  }
+}
+
 async function chargerBadgesCitoyensModeration() {
   const zone = document.getElementById('liste-badges-citoyens');
   if (!zone || window.ROLE !== 'superadmin') return;
@@ -539,22 +553,20 @@ async function chargerBadgesCitoyensModeration() {
   zone.innerHTML = '';
   badges.forEach((b, i) => {
     const carte = document.createElement('div');
-    carte.className = 'carte-dashboard';
+    carte.className = 'carte-dashboard carte-badge-citoyen';
     carte.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-size:26px;flex-shrink:0;">${b.visuel_url ? `<img src="${b.visuel_url}" alt="" style="width:32px;height:32px;object-fit:contain;">` : '🏅'}</div>
-        <div style="flex:1;min-width:0;">
-          <strong>${escapeAttr(b.nom)}</strong>
-          <p style="font-size:12px;color:var(--roseau);margin:2px 0;">${escapeAttr(b.description || '')}</p>
-          <p style="font-size:11px;color:var(--roseau);font-family:'DM Mono',monospace;">${b.declencheur}${b.valeur_seuil != null ? ` ≥ ${b.valeur_seuil}` : ''}</p>
+      <div class="visuel-badge-citoyen">${b.visuel_url ? `<img src="${b.visuel_url}" alt="">` : '🏅'}</div>
+      <div class="infos-badge-citoyen">
+        <strong>${escapeAttr(b.nom)}</strong>
+        ${b.description ? `<p class="description-badge-citoyen">${escapeAttr(b.description)}</p>` : ''}
+        <span class="condition-badge-citoyen ${b.actif ? '' : 'condition-inactive'}">${escapeAttr(libelleConditionBadge(b.declencheur, b.valeur_seuil))}</span>
+        <div class="actions-badge-citoyen">
+          <label><input type="checkbox" class="toggle-actif-badge" ${b.actif ? 'checked' : ''}> Actif</label>
+          <button type="button" class="btn-reordonner-badge" data-action="monter" ${i === 0 ? 'disabled' : ''} title="Monter">▲</button>
+          <button type="button" class="btn-reordonner-badge" data-action="descendre" ${i === badges.length - 1 ? 'disabled' : ''} title="Descendre">▼</button>
+          <button type="button" data-action="modifier">Modifier</button>
+          <button type="button" data-action="supprimer">Supprimer</button>
         </div>
-      </div>
-      <div class="actions-admin" style="margin-top:8px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;"><input type="checkbox" class="toggle-actif-badge" ${b.actif ? 'checked' : ''}> Actif</label>
-        <button type="button" data-action="monter" ${i === 0 ? 'disabled' : ''}>▲</button>
-        <button type="button" data-action="descendre" ${i === badges.length - 1 ? 'disabled' : ''}>▼</button>
-        <button type="button" data-action="modifier">Modifier</button>
-        <button type="button" data-action="supprimer">Supprimer</button>
       </div>
     `;
 

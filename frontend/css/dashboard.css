@@ -555,42 +555,132 @@ h1, h2, h3, h4, p, span, a, button {
   font-weight: 600; text-decoration: none; margin-top: 8px;
 }
 
-/* ─── Participation citoyenne (score séparé de l'XP) ─── */
-.carte-score-citoyen { text-align: left; }
-.statut-presence-civique { font-size: 13px; color: var(--roseau); margin: 6px 0; }
-.statut-presence-civique.statut-confirme { color: var(--prairie); font-weight: 600; }
-.zone-scan-civique { margin: 8px 0; }
+/* ─── Participation citoyenne (score séparé de l'XP — vert prairie pour bien le
+   distinguer visuellement du bleu "usage de l'appli") ─── */
+
+/* Formulaire agenda : encart "action civique" mis en valeur, pour que l'organisateur
+   comprenne d'un coup d'œil que cocher un type déclenche le suivi de présence + points. */
+.bloc-action-civique {
+  border: 1.5px dashed var(--eauL); border-radius: var(--r); background: var(--eauXL);
+  padding: 12px; margin: 10px 0;
+}
+.bloc-action-civique .label-champ-edition { margin-top: 0; color: var(--eau); }
+.aide-action-civique { font-size: 11px; color: var(--roseau); margin: 4px 0 0; }
+
+/* Carte "scanner ma présence" côté citoyen */
+.carte-scan-civique {
+  background: #fff; border: 1.5px solid var(--eauL); border-radius: var(--r);
+  padding: 14px; margin: 10px 0; text-align: center;
+}
+.carte-scan-civique .zone-scanner-civique video {
+  width: 100%; border-radius: 10px; margin-top: 10px;
+}
+.btn-scanner-civique {
+  width: 100%; padding: 12px; border-radius: 100px; border: none;
+  background: var(--prairie); color: #fff; font-weight: 600; font-size: 14px;
+}
+.form-code-manuel-civique { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+.form-code-manuel-civique input { flex: 1; margin-bottom: 0; }
+.btn-contester-presence {
+  background: transparent; color: var(--roseau); border: 1.5px solid var(--eauL);
+  font-size: 12px; padding: 6px 12px; margin-top: 6px;
+}
+
+/* Pastilles de statut de présence — même famille visuelle que .badge-ouverte/.badge-resolue */
+.pill-statut-presence {
+  display: inline-block; padding: 3px 10px; border-radius: 100px;
+  font-size: 10.5px; font-weight: 600; white-space: nowrap;
+}
+.pill-statut-inscrit { background: var(--eauXL); color: var(--eau); }
+.pill-statut-scanne { background: rgba(226,201,126,.25); color: #8B6A2A; }
+.pill-statut-confirme { background: rgba(92,122,78,.15); color: var(--prairie); }
+.pill-statut-non_confirme, .pill-statut-desiste_tardif, .pill-statut-no_show {
+  background: rgba(192,57,43,.12); color: var(--rouge);
+}
+.pill-statut-desiste_a_temps { background: var(--calc); color: var(--roseau); }
+
+/* Bouton "Gérer les présences" — teinte violette (--admin), jamais utilisée ailleurs,
+   pour signaler clairement une action de gestion distincte des actions citoyennes */
+.btn-gerer-presences {
+  display: block; width: 100%; margin: 10px 0; padding: 11px; border-radius: 100px;
+  border: 1.5px solid var(--admin); background: rgba(107,53,160,.07); color: var(--admin);
+  font-weight: 600; font-size: 13.5px;
+}
 .lien-qr-civique {
   display: block; box-sizing: border-box; width: 100%; text-align: center; margin: 8px 0;
   padding: 10px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
   color: var(--eau); font-weight: 600; font-size: 13px; text-decoration: none;
 }
-.zone-scan-civique .zone-scanner-civique video { width: 100%; border-radius: 10px; margin-top: 6px; }
-.form-code-manuel-civique { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
-.form-code-manuel-civique input { flex: 1; margin-bottom: 0; }
-.btn-contester-presence {
-  background: transparent; color: var(--roseau); border: 1.5px solid var(--eauL);
-  font-size: 12px; padding: 6px 12px;
-}
 
-.panneau-validation-presences { margin-top: 10px; padding: 12px; background: var(--calc); border-radius: var(--r); }
-.note-role-validateur { font-size: 12px; color: var(--eau); margin: 0 0 8px; }
+.panneau-validation-presences {
+  margin-top: 10px; padding: 14px; background: var(--calc); border-radius: var(--r);
+  border: 1.5px solid var(--eauL);
+}
+.note-role-validateur {
+  font-size: 12px; color: var(--admin); background: rgba(107,53,160,.08);
+  border-radius: 8px; padding: 8px 10px; margin: 0 0 10px;
+}
 .alerte-audit-presences {
   font-size: 12.5px; color: var(--rouge); background: rgba(192,57,43,.1);
-  border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
+  border-radius: 8px; padding: 8px 10px; margin: 0 0 10px;
 }
-.progression-presences { font-size: 13px; font-weight: 600; color: var(--boue); margin: 0 0 4px; }
-.filtre-participants-presences { margin-top: 10px; }
+.progression-presences { font-size: 14px; font-weight: 700; color: var(--boue); margin: 0 0 6px; }
+.filtre-participants-presences { margin: 10px 0; }
 .btn-valider-tous-presences {
-  width: 100%; margin: 8px 0; padding: 10px; border-radius: 100px; border: none;
+  width: 100%; margin: 4px 0 10px; padding: 11px; border-radius: 100px; border: none;
   background: var(--eau); color: #fff; font-weight: 600; font-size: 13.5px;
 }
+.liste-participants-presences { display: flex; flex-direction: column; gap: 6px; }
+.ligne-participant-presence {
+  background: #fff; border-radius: 10px; padding: 10px 12px !important; border: none !important;
+}
 .ligne-participant-presence .actions-ligne-presence {
-  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--roseau);
+  display: flex; align-items: center; gap: 8px;
 }
 .ligne-participant-presence .btn-valider-participant-presence {
   padding: 5px 12px; border-radius: 100px; border: none; background: var(--prairie);
   color: #fff; font-size: 11.5px; font-weight: 600;
 }
 
+/* ─── Mon profil : score citoyen ─── */
+.palier-cercle {
+  width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--prairie), #7A9B68);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-family: 'DM Mono', monospace; font-weight: 700; font-size: 10px;
+  padding: 4px; line-height: 1.15;
+}
+.carte-score-citoyen { display: flex; align-items: center; gap: 12px; text-align: left; }
+.carte-score-citoyen .details-score-citoyen { flex: 1; min-width: 0; }
+.suspension-participation {
+  font-size: 12.5px; color: var(--rouge); background: rgba(192,57,43,.1);
+  border-radius: 10px; padding: 10px 12px; margin: 10px 0;
+}
+.historique-participation { display: flex; flex-direction: column; gap: 4px; }
 .historique-participation .ligne-toggle-onglet { font-size: 12.5px; }
+
+/* ─── Modération : badges citoyens ─── */
+.carte-badge-citoyen { display: flex; gap: 12px; align-items: flex-start; }
+.carte-badge-citoyen .visuel-badge-citoyen {
+  width: 42px; height: 42px; border-radius: 10px; background: var(--eauXL);
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+  flex-shrink: 0; overflow: hidden;
+}
+.carte-badge-citoyen .visuel-badge-citoyen img { width: 100%; height: 100%; object-fit: cover; }
+.carte-badge-citoyen .infos-badge-citoyen { flex: 1; min-width: 0; }
+.carte-badge-citoyen .description-badge-citoyen { font-size: 12px; color: var(--roseau); margin: 2px 0 0; }
+.condition-badge-citoyen {
+  display: inline-block; margin-top: 6px; font-size: 11px; color: var(--prairie);
+  background: rgba(92,122,78,.12); padding: 3px 9px; border-radius: 100px; font-weight: 600;
+}
+.condition-badge-citoyen.condition-inactive { color: var(--roseau); background: var(--calc); }
+.actions-badge-citoyen { display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.actions-badge-citoyen label {
+  display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--roseau);
+  margin-right: auto;
+}
+.btn-reordonner-badge {
+  width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--roseau); font-size: 12px; padding: 0; display: flex; align-items: center; justify-content: center;
+}
+.btn-reordonner-badge:disabled { opacity: .3; }

@@ -102,12 +102,15 @@ function renderSectionParticipationCitoyenne(participation) {
   return `
     <h3 style="font-size:15px;margin-top:22px;">🌍 Participation citoyenne</h3>
     <div class="carte-dashboard carte-score-citoyen">
-      ${participation.palier_actuel ? `
-        <strong>${escapeAttr(participation.palier_actuel.nom)}</strong>
+      <div class="palier-cercle">${participation.palier_actuel ? '🌍' : '🌱'}</div>
+      <div class="details-score-citoyen">
+        <strong>${participation.palier_actuel ? escapeAttr(participation.palier_actuel.nom) : 'Pas encore de palier'}</strong>
         <div class="jauge" style="margin-top:6px;"><div class="jauge-remplie" style="width:${participation.progression_pct}%"></div></div>
-        <small style="color:var(--roseau);">${participation.palier_suivant ? `Prochain palier : ${escapeAttr(participation.palier_suivant.nom)}` : 'Palier maximum atteint 🎉'}</small>
-      ` : `<p class="dechets-vide">Participez à une première action pour débuter votre parcours citoyen.</p>`}
-      <p style="font-family:'DM Mono',monospace;font-size:13px;color:var(--eau);margin:8px 0 0;">${participation.score_citoyen} points</p>
+        <small style="color:var(--roseau);">${participation.palier_suivant
+          ? `Prochain palier : ${escapeAttr(participation.palier_suivant.nom)}`
+          : (participation.palier_actuel ? 'Palier maximum atteint 🎉' : 'Participez à une première action pour débuter')}</small>
+        <p style="font-family:'DM Mono',monospace;font-size:13px;color:var(--prairie);font-weight:700;margin:6px 0 0;">${participation.score_citoyen} points</p>
+      </div>
     </div>
 
     <div class="carte-dashboard streak-carte">
@@ -115,16 +118,16 @@ function renderSectionParticipationCitoyenne(participation) {
       <div><span class="streak-nombre">🏆 ${participation.streak_record}</span><span class="streak-label">record personnel</span></div>
     </div>
 
-    ${participation.suspendu_jusqu_au ? `<p class="dechets-vide" style="color:var(--rouge);">Inscriptions à de nouvelles actions suspendues jusqu'au ${new Date(participation.suspendu_jusqu_au).toLocaleDateString('fr-FR')} (plusieurs absences non signalées).</p>` : ''}
+    ${participation.suspendu_jusqu_au ? `<p class="suspension-participation">⏸️ Inscriptions à de nouvelles actions suspendues jusqu'au ${new Date(participation.suspendu_jusqu_au).toLocaleDateString('fr-FR')} (plusieurs absences non signalées).</p>` : ''}
 
     <h3 style="font-size:15px;margin-top:18px;">Badges citoyens (${badgesDebloques}/${participation.badges.length})</h3>
     <div class="grille-badges">
-      ${participation.badges.map((b) => `
+      ${participation.badges.length ? participation.badges.map((b) => `
         <div class="badge-item ${b.debloque ? 'badge-obtenu' : 'badge-verrouille'}" title="${escapeAttr(b.description || '')}">
           <div class="badge-icone">${b.visuel_url ? `<img src="${b.visuel_url}" alt="">` : '🏅'}</div>
           <div class="badge-nom">${escapeAttr(b.nom)}</div>
         </div>
-      `).join('')}
+      `).join('') : '<p class="dechets-vide">Aucun badge citoyen pour l\'instant.</p>'}
     </div>
 
     <h3 style="font-size:15px;margin-top:18px;">Historique récent</h3>
