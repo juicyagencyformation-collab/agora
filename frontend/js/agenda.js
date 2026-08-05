@@ -97,8 +97,15 @@ async function chargerAutourDeMoi() {
     const url = `${window.API_BASE}/decouverte/evenements?lat=${window.COMMUNE_LAT}&lng=${window.COMMUNE_LNG}&rayon=${rayonAutourDeMoi}`;
     const res = await fetch(url);
     const data = await res.json();
-    zoneListe.innerHTML = '';
 
+    if (!res.ok) {
+      zoneMessage.textContent = data.erreur || 'Erreur lors de la recherche.';
+      zoneListe.innerHTML = '';
+      afficherEvenementsAutourSurCarte([]);
+      return;
+    }
+
+    zoneListe.innerHTML = '';
     if (!data.evenements.length) {
       zoneMessage.textContent = data.communes_participantes
         ? `${data.communes_participantes} commune(s) partenaire(s) à moins de ${rayonAutourDeMoi} km, mais rien de prévu pour l'instant.`
