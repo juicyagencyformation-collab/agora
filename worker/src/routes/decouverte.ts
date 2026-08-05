@@ -18,49 +18,56 @@ app.get('/evenements', async (c) => {
   const rayonKm = Math.min(parseFloat(c.req.query('rayon') || '20'), 100);
   if (isNaN(lat) || isNaN(lng)) return c.json({ erreur: 'Position (lat, lng) requise' }, 400);
 
-  const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id,nom,slug,lat,lng,niveau_national', partage_regional: 'eq.true',
-  });
+  try {
+    const communes = await supabaseSelect(c.env, 'communes', {
+      select: 'id,nom,slug,lat,lng,niveau_national', partage_regional: 'eq.true',
+    });
 
-  // Deux catégories bien distinctes : les communes "nationales" apparaissent toujours,
-  // peu importe la distance (pas de coordonnées nécessaires) ; les communes locales sont
-  // filtrées par rayon comme d'habitude.
-  const communesNationales = communes
-    .filter((commune: any) => commune.niveau_national)
-    .map((commune: any) => ({ ...commune, distance_km: null }));
+    // Deux catégories bien distinctes : les communes "nationales" apparaissent toujours,
+    // peu importe la distance (pas de coordonnées nécessaires) ; les communes locales sont
+    // filtrées par rayon comme d'habitude. Number(...) en défense : PostgREST peut renvoyer
+    // un type numeric en JSON sous forme de chaîne selon la colonne, et une valeur non
+    // convertible (chaîne vide, texte...) donnerait NaN plutôt qu'une exception.
+    const communesNationales = communes
+      .filter((commune: any) => commune.niveau_national)
+      .map((commune: any) => ({ ...commune, distance_km: null }));
 
-  const communesLocales = communes
-    .filter((commune: any) => !commune.niveau_national && commune.lat != null && commune.lng != null)
-    .map((commune: any) => ({
-      ...commune,
-      distance_km: Math.round(distanceMetres(lat, lng, commune.lat, commune.lng) / 1000),
-    }))
-    .filter((commune: any) => commune.distance_km <= rayonKm);
+    const communesLocales = communes
+      .filter((commune: any) => !commune.niveau_national && commune.lat != null && commune.lng != null)
+      .map((commune: any) => ({
+        ...commune,
+        distance_km: Math.round(distanceMetres(lat, lng, Number(commune.lat), Number(commune.lng)) / 1000),
+      }))
+      .filter((commune: any) => !isNaN(commune.distance_km) && commune.distance_km <= rayonKm);
 
-  const communesProches = [...communesNationales, ...communesLocales];
-  if (!communesProches.length) return c.json({ evenements: [], communes_participantes: 0 });
+    const communesProches = [...communesNationales, ...communesLocales];
+    if (!communesProches.length) return c.json({ evenements: [], communes_participantes: 0 });
 
-  const idsCommunes = communesProches.map((commune: any) => commune.id);
-  const evenements = await supabaseSelect(c.env, 'events', {
-    select: 'id,commune_id,titre,description,lieu,lat,lng,photo_url,date_debut,date_fin',
-    commune_id: `in.(${idsCommunes.join(',')})`,
-    officiel: 'eq.true',
-    date_fin: `gte.${new Date().toISOString()}`,
-    order: 'date_debut.asc',
-  });
+    const idsCommunes = communesProches.map((commune: any) => commune.id);
+    const evenements = await supabaseSelect(c.env, 'events', {
+      select: 'id,commune_id,titre,description,lieu,lat,lng,photo_url,date_debut,date_fin',
+      commune_id: `in.(${idsCommunes.join(',')})`,
+      officiel: 'eq.true',
+      date_fin: `gte.${new Date().toISOString()}`,
+      order: 'date_debut.asc',
+    });
 
-  const result = evenements.map((e: any) => {
-    const commune = communesProches.find((c: any) => c.id === e.commune_id);
-    return {
-      ...e,
-      commune_nom: commune?.nom,
-      commune_slug: commune?.slug,
-      commune_distance_km: commune?.distance_km,
-      commune_nationale: !!commune?.niveau_national,
-    };
-  });
+    const result = evenements.map((e: any) => {
+      const commune = communesProches.find((c: any) => c.id === e.commune_id);
+      return {
+        ...e,
+        commune_nom: commune?.nom,
+        commune_slug: commune?.slug,
+        commune_distance_km: commune?.distance_km,
+        commune_nationale: !!commune?.niveau_national,
+      };
+    });
 
-  return c.json({ evenements: result, communes_participantes: communesProches.length });
+    return c.json({ evenements: result, communes_participantes: communesProches.length });
+  } catch (err) {
+    console.error('Erreur /decouverte/evenements :', err);
+    return c.json({ erreur: 'Impossible de charger les événements pour le moment.' }, 500);
+  }
 });
 
 export default app;

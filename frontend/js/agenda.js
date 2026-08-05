@@ -503,22 +503,58 @@ function lireChampsDateHeure(corps, prefixe) {
 
 function htmlChampPosition(prefixe, lat, lng) {
   return `
-    <button type="button" id="btn-position-${prefixe}" style="margin-top:8px;">📍 Indiquer le lieu sur la carte (optionnel)</button>
-    <p id="position-choisie-${prefixe}" style="font-size:12px;color:var(--roseau);">${lat && lng ? '📍 Position déjà enregistrée' : ''}</p>
+    <label class="label-champ-edition">📍 Lieu sur la carte (optionnel)</label>
+    <div id="mini-carte-${prefixe}" class="mini-carte-position"></div>
+    <button type="button" id="btn-position-${prefixe}" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12px;padding:6px 10px;margin-top:6px;">📍 Utiliser ma position actuelle</button>
+    <p id="position-choisie-${prefixe}" style="font-size:12px;color:var(--roseau);margin-top:4px;">${lat && lng ? 'Position enregistrée — clique sur la carte pour la déplacer.' : 'Clique sur la carte pour placer le lieu (pas besoin d\'être sur place), ou utilise ta position actuelle.'}</p>
     <input type="hidden" id="lat-${prefixe}" value="${lat ?? ''}">
     <input type="hidden" id="lng-${prefixe}" value="${lng ?? ''}">
   `;
 }
 
-function initBoutonPosition(corps, prefixe) {
+// La carte se centre sur le lieu déjà enregistré, sinon sur la commune — permet de
+// programmer un événement sans être physiquement sur place au moment de la création.
+function initBoutonPosition(corps, prefixe, latInitial, lngInitial) {
+  const inputLat = corps.querySelector(`#lat-${prefixe}`);
+  const inputLng = corps.querySelector(`#lng-${prefixe}`);
+  const texteStatut = corps.querySelector(`#position-choisie-${prefixe}`);
+
+  const latDepart = latInitial ?? window.COMMUNE_LAT ?? 43.6047;
+  const lngDepart = lngInitial ?? window.COMMUNE_LNG ?? 1.4442;
+
+  const carte = L.map(`mini-carte-${prefixe}`, { maxZoom: 20 }).setView(
+    [latDepart, lngDepart],
+    latInitial ? 15 : (window.COMMUNE_COORDS_MANQUANTES ? 6 : 13),
+  );
+  L.tileLayer(
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+  ).addTo(carte);
+
+  let marqueur = latInitial && lngInitial ? L.marker([latInitial, lngInitial]).addTo(carte) : null;
+
+  const definirPosition = (lat, lng) => {
+    inputLat.value = lat;
+    inputLng.value = lng;
+    if (marqueur) marqueur.setLatLng([lat, lng]);
+    else marqueur = L.marker([lat, lng]).addTo(carte);
+    texteStatut.textContent = 'Position enregistrée.';
+  };
+
+  carte.on('click', (e) => definirPosition(e.latlng.lat, e.latlng.lng));
+
   corps.querySelector(`#btn-position-${prefixe}`).addEventListener('click', () => {
     if (!navigator.geolocation) { afficherToastMessage('Géolocalisation indisponible.', 'erreur'); return; }
     navigator.geolocation.getCurrentPosition((position) => {
-      corps.querySelector(`#lat-${prefixe}`).value = position.coords.latitude;
-      corps.querySelector(`#lng-${prefixe}`).value = position.coords.longitude;
-      corps.querySelector(`#position-choisie-${prefixe}`).textContent = '📍 Position enregistrée !';
+      definirPosition(position.coords.latitude, position.coords.longitude);
+      carte.setView([position.coords.latitude, position.coords.longitude], 15);
     }, () => afficherToastMessage('Impossible de récupérer la position.', 'erreur'));
   });
+
+  // La carte est créée dans une modale tout juste insérée dans le DOM : Leaflet a besoin
+  // d'un invalidateSize() une fois le conteneur réellement visible, sinon les tuiles restent
+  // grisées ou mal alignées (bug classique de Leaflet dans un conteneur caché/animé).
+  setTimeout(() => carte.invalidateSize(), 80);
 }
 
 function ouvrirEditionEvent(event) {
@@ -545,7 +581,7 @@ function ouvrirEditionEvent(event) {
   const overlay = ouvrirModaleFormulaire('Modifier l\'événement', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   initToggleOptionsAvancees(corps, 'edition-event-modale');
-  initBoutonPosition(corps, 'edition-event-modale');
+  initBoutonPosition(corps, 'edition-event-modale', event.lat, event.lng);
 
   corps.querySelector('#form-modale-edition-event').addEventListener('submit', async (e) => {
     e.preventDefault();

@@ -161,10 +161,21 @@ app.post('/', async (c) => {
   // un type valant des points, s'inviter lui-même et s'auto-valider en tant qu'organisateur.
   const typeAction = data.type_action && estGestionnaire(c.get('role')) ? data.type_action : undefined;
 
+  // Pas de point GPS choisi (l'organisateur n'était pas forcément sur place au moment de la
+  // création) : on retombe sur les coordonnées de la commune plutôt que de laisser l'événement
+  // sans position (invisible sur toutes les cartes, y compris "Autour de moi").
+  let lat = data.lat;
+  let lng = data.lng;
+  if (lat == null || lng == null) {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'lat,lng', id: `eq.${commune_id}` });
+    lat = lat ?? commune?.lat ?? null;
+    lng = lng ?? commune?.lng ?? null;
+  }
+
   const [event] = await supabaseInsert(c.env, 'events', {
     commune_id, user_id, titre: data.titre,
     description: data.description ?? null, lieu: data.lieu ?? null,
-    lat: data.lat ?? null, lng: data.lng ?? null,
+    lat, lng,
     photo_url: data.r2_key ? `${c.env.R2_PUBLIC_BASE}/${data.r2_key}` : null,
     r2_key: data.r2_key ?? null,
     officiel: estGestionnaire(c.get('role')),
