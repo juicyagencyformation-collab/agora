@@ -41,26 +41,34 @@ function ilYA(jours: number): string {
   return new Date(Date.now() - jours * JOUR_MS).toISOString();
 }
 
-function moisPrecedent(moisYYYYMM: string): string {
+// Exportée pour être testée isolément (voir test/points-citoyens.test.ts) — le rollover
+// d'année (ex: moisPrecedent('2026-01') === '2025-12') est le genre de calcul qui casse
+// silencieusement sans test dédié.
+export function moisPrecedent(moisYYYYMM: string): string {
   const [an, mois] = moisYYYYMM.split('-').map(Number);
   const d = new Date(Date.UTC(an, mois - 1, 1));
   d.setUTCMonth(d.getUTCMonth() - 1);
   return d.toISOString().slice(0, 7);
 }
 
-// Dégressivité anti-farming : 1re-3e fois du même type d'action (fenêtre glissante 30j) =
-// 100%, 4e-6e = 70%, 7e+ = 40% (plancher). Le filtre par type_action fait naturellement
-// office de réinitialisation "si l'utilisateur diversifie".
+// Pur : logique de dégressivité isolée de l'accès DB pour être testable sans mock.
+// 1re-3e fois du même type d'action (fenêtre glissante 30j) = 100%, 4e-6e = 70%,
+// 7e+ = 40% (plancher, jamais 0).
+export function multiplicateurPourOccurrence(occurrence: number): number {
+  if (occurrence <= 3) return 1;
+  if (occurrence <= 6) return 0.7;
+  return 0.4;
+}
+
+// Le filtre par type_action (dans la requête ci-dessous) fait naturellement office de
+// réinitialisation "si l'utilisateur diversifie" — pas de logique de reset séparée à écrire.
 export async function calculerMultiplicateurDegressif(env: any, commune_id: string, user_id: string, type_action: string): Promise<number> {
   const lignes = await supabaseSelect(env, 'points_citoyens_history', {
     select: 'id',
     commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`, type_action: `eq.${type_action}`,
     type_mouvement: 'eq.gain', created_at: `gte.${ilYA(30)}`,
   });
-  const occurrence = lignes.length + 1; // celle qu'on est en train de créditer
-  if (occurrence <= 3) return 1;
-  if (occurrence <= 6) return 0.7;
-  return 0.4;
+  return multiplicateurPourOccurrence(lignes.length + 1); // +1 : celle qu'on est en train de créditer
 }
 
 // Primitive bas niveau : toute variation du score citoyen passe par ici (comme attribuerXp
@@ -117,6 +125,15 @@ export async function attribuerPointsParticipation(
   return { points_gagnes: points, nouveaux_badges: nouveauxBadges };
 }
 
+// Pur : incrémente le streak mensuel si le mois précédent était bien consécutif (rollover
+// d'année compris via moisPrecedent), le réinitialise à 1 en cas de trou, ne change rien si
+// une action a déjà été comptabilisée ce mois-ci.
+export function calculerStreakMensuel(dernierMois: string | null | undefined, moisActuel: string, streakActuel: number): number {
+  if (dernierMois === moisActuel) return streakActuel;
+  if (dernierMois === moisPrecedent(moisActuel)) return streakActuel + 1;
+  return 1;
+}
+
 // Streak "actions consécutives sans désistement" (pas une connexion quotidienne) + streak
 // mensuel séparé pour le bonus de régularité longue durée (6 mois consécutifs).
 export async function gererStreakParticipation(env: any, commune_id: string, user_id: string): Promise<void> {
@@ -130,12 +147,9 @@ export async function gererStreakParticipation(env: any, commune_id: string, use
   const nouveauRecord = Math.max(nouveauStreak, user.streak_participation_record ?? 0);
 
   const moisActuel = new Date().toISOString().slice(0, 7);
-  let nouveauStreakMensuel = user.streak_mensuel_citoyen_actuel ?? 0;
-  if (user.dernier_mois_action_citoyenne !== moisActuel) {
-    nouveauStreakMensuel = user.dernier_mois_action_citoyenne === moisPrecedent(moisActuel)
-      ? nouveauStreakMensuel + 1
-      : 1;
-  }
+  const nouveauStreakMensuel = calculerStreakMensuel(
+    user.dernier_mois_action_citoyenne, moisActuel, user.streak_mensuel_citoyen_actuel ?? 0,
+  );
 
   await supabaseUpdate(env, 'users', {
     streak_participation_actuel: nouveauStreak,
@@ -297,15 +311,13 @@ export async function verifierBadgesCitoyens(env: any, commune_id: string, user_
   return nouveaux;
 }
 
+// Pur : logique de recherche de palier isolée de l'accès DB pour être testable sans mock.
 // Seule donnée de progression exposée au client — jamais la formule de dégressivité.
-export async function calculerPalierCourant(env: any, commune_id: string, score: number): Promise<{
+export function trouverPalier(paliers: { nom: string; seuil: number }[], score: number): {
   actuel: { nom: string; seuil: number } | null;
   suivant: { nom: string; seuil: number } | null;
   progression_pct: number;
-}> {
-  const paliers = await supabaseSelect(env, 'paliers_citoyens', {
-    select: 'nom,seuil', commune_id: `eq.${commune_id}`, order: 'seuil.asc',
-  });
+} {
   if (!paliers.length) return { actuel: null, suivant: null, progression_pct: 0 };
 
   let actuel: { nom: string; seuil: number } | null = null;
@@ -319,4 +331,15 @@ export async function calculerPalierCourant(env: any, commune_id: string, score:
   const seuilBas = actuel ? actuel.seuil : 0;
   const pct = Math.min(100, Math.round(((score - seuilBas) / (suivant.seuil - seuilBas)) * 100));
   return { actuel, suivant, progression_pct: pct };
+}
+
+export async function calculerPalierCourant(env: any, commune_id: string, score: number): Promise<{
+  actuel: { nom: string; seuil: number } | null;
+  suivant: { nom: string; seuil: number } | null;
+  progression_pct: number;
+}> {
+  const paliers = await supabaseSelect(env, 'paliers_citoyens', {
+    select: 'nom,seuil', commune_id: `eq.${commune_id}`, order: 'seuil.asc',
+  });
+  return trouverPalier(paliers, score);
 }
