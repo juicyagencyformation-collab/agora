@@ -5,6 +5,37 @@ Plateforme SaaS civic-tech multi-tenant pour petites communes françaises, déve
 Juicy Solutions (Léandre Sallé), élu à Eaucourt-sur-Somme (Somme), commune de référence.
 PWA mobile-first, assez simple pour qu'un maire non-technophile la gère seul.
 
+## Comportement de l'assistant
+- Toujours répondre en français, de façon directe et concise (pas de remplissage)
+- Toujours expliquer avant de coder quoi que ce soit
+- Si une demande est ambiguë, poser UNE seule question de clarification avant de coder
+- Toujours privilégier la solution la plus simple et professionnelle qui fonctionne (YAGNI)
+  plutôt que la plus complète en théorie
+- Le contenu (listes, formulaires) doit rester visuellement sobre : menus déroulants plutôt
+  que tout afficher à plat
+
+## Priorités architecturales (par ordre)
+1. Sécurité : isolation tenant irréprochable
+2. Souveraineté : zéro vendor lock-in côté client
+3. Simplicité : le code le plus court qui fait le job proprement
+4. Performance : edge-first, cache quand pertinent
+
+## Matrice de permissions par module
+admin, élu et superadmin peuvent créer/modifier/supprimer le contenu de : actus, thermomètre
+(sondages), mur, coups de main, agenda, signalements/alertes, chasse au trésor. Le module
+conseil (délibérations) est réservé à élu et superadmin uniquement. Ceci s'ajoute au schéma
+de modération standard (signalement → masquage immédiat → revue mairie) pour le contenu
+soumis par les citoyens — voir règle 4 ci-dessous.
+
+## Format des réponses code
+- Toujours indiquer le chemin du fichier en commentaire en haut du bloc de code
+- Pour un fichier existant, montrer uniquement le diff ou la section modifiée, pas le fichier
+  entier (voir aussi la règle sur wrangler.toml et config.js plus bas)
+- Schémas SQL : toujours inclure commune_id, created_at, et les contraintes UNIQUE nécessaires
+- Nouvelle route Hono : toujours inclure middleware JWT, extraction de commune_id, validation
+  Zod, gestion d'erreur
+- Jamais de `SELECT *` : toujours lister les colonnes explicitement
+
 ## Stack technique
 - Backend : Cloudflare Workers + Hono.js (TypeScript)
 - Base de données : Supabase PostgreSQL — **REST uniquement, zéro SDK client, zéro RLS**
@@ -28,6 +59,45 @@ PWA mobile-first, assez simple pour qu'un maire non-technophile la gère seul.
    équivalent, jamais d'XP en boucle (supprimer/recréer, revoter, etc.)
 7. Variables du domaine métier en français (commune, citoyen, sondage...), technique en
    anglais (middleware, handler, token...)
+8. Toute écriture en base passe par une validation Zod côté Worker au préalable
+9. Jamais de framework JS (React, Vue, Next.js...) ni de service d'auth tiers (Firebase,
+   Auth0, Clerk...) — ni côté client ni côté serveur
+10. Jamais Supabase Realtime côté client
+
+## Architecture worker/src/
+Instantané pris le 2026-08-05 — peut avoir bougé depuis. Avant de s'y fier pour une tâche
+précise, vérifier avec un `Glob worker/src/**/*.ts` plutôt que de faire confiance à cette
+liste telle quelle (elle-même remplace une version antérieure devenue fausse).
+```
+worker/src/
+├── index.ts              ← entrée, routage principal, CORS
+├── auth.ts                ← login, inscription, JWT, refresh, RGPD (/moi, /mes-donnees)
+├── cron.ts                ← purges planifiées (mur, photos du jour, énigmes, coups de main)
+├── db.ts                  ← abstraction Supabase REST
+├── storage.ts              ← abstraction R2 (URL présignées)
+├── middleware/
+│   ├── jwt.ts              ← vérification du token, extraction user/commune/role
+│   ├── tenant.ts            ← résolution slug → commune_id
+│   └── onglet.ts            ← vérifie qu'un module est actif pour la commune
+├── lib/
+│   ├── password.ts          ← hachage PBKDF2 (+ bascule silencieuse depuis SHA-256)
+│   ├── permissions.ts        ← hiérarchie de rôles (peutGererRoles, peutAttribuerRole...)
+│   ├── gamification.ts        ← XP, connexions quotidiennes, badges
+│   ├── email.ts               ← envoi d'emails (reset mot de passe...)
+│   ├── push.ts                 ← notifications Web Push
+│   ├── geo.ts                   ← utilitaires géographiques (chasse au trésor)
+│   ├── sanitize.ts               ← nettoyage des entrées utilisateur
+│   ├── ics.ts                     ← export calendrier (agenda)
+│   ├── qrcode.ts                   ← génération QR (chasse au trésor)
+│   └── sync-lois.ts                 ← synchro RSS/Atom Parlement européen
+└── routes/
+    ├── actus.ts, alertes.ts, agenda.ts, mur.ts, coups_de_main.ts, chasses_tresor.ts,
+    │   sondages.ts, deliberations.ts, lois.ts, annuaire.ts, bulletin.ts,
+    │   photo_du_jour.ts, enigmes.ts, profil.ts, dechets.ts, push.ts
+    ├── commune.ts            ← infos publiques de la commune (avant résolution tenant)
+    ├── decouverte.ts          ← événements nationaux, hors résolution tenant
+    └── moderation.ts           ← gestion des rôles, activation/désactivation des onglets
+```
 
 ## Pièges déjà rencontrés — à ne PAS reproduire
 - **Cloudflare Pages `_redirects` s'est montré incohérent** sur le domaine personnalisé
