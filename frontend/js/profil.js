@@ -77,6 +77,8 @@ async function chargerProfil() {
       }).join('')}
     </div>
 
+    ${renderSectionParticipationCitoyenne(data.participation)}
+
     <button id="btn-deconnexion" style="margin-top:20px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">Se déconnecter</button>
   `;
 
@@ -86,6 +88,55 @@ async function chargerProfil() {
   });
 
   initReglagesRgpdProfil();
+}
+
+// ── Score de participation citoyenne — système séparé de l'XP/niveau ci-dessus, voir
+// worker/src/lib/points-citoyens.ts. Les badges sont récupérés dynamiquement (contrairement
+// à LABELS_BADGES codé en dur) car pilotés en base par le superadmin. ──
+
+function renderSectionParticipationCitoyenne(participation) {
+  if (!participation) return '';
+
+  const badgesDebloques = participation.badges.filter((b) => b.debloque).length;
+
+  return `
+    <h3 style="font-size:15px;margin-top:22px;">🌍 Participation citoyenne</h3>
+    <div class="carte-dashboard carte-score-citoyen">
+      ${participation.palier_actuel ? `
+        <strong>${escapeAttr(participation.palier_actuel.nom)}</strong>
+        <div class="jauge" style="margin-top:6px;"><div class="jauge-remplie" style="width:${participation.progression_pct}%"></div></div>
+        <small style="color:var(--roseau);">${participation.palier_suivant ? `Prochain palier : ${escapeAttr(participation.palier_suivant.nom)}` : 'Palier maximum atteint 🎉'}</small>
+      ` : `<p class="dechets-vide">Participez à une première action pour débuter votre parcours citoyen.</p>`}
+      <p style="font-family:'DM Mono',monospace;font-size:13px;color:var(--eau);margin:8px 0 0;">${participation.score_citoyen} points</p>
+    </div>
+
+    <div class="carte-dashboard streak-carte">
+      <div><span class="streak-nombre">🔥 ${participation.streak_actuel}</span><span class="streak-label">action(s) d'affilée</span></div>
+      <div><span class="streak-nombre">🏆 ${participation.streak_record}</span><span class="streak-label">record personnel</span></div>
+    </div>
+
+    ${participation.suspendu_jusqu_au ? `<p class="dechets-vide" style="color:var(--rouge);">Inscriptions à de nouvelles actions suspendues jusqu'au ${new Date(participation.suspendu_jusqu_au).toLocaleDateString('fr-FR')} (plusieurs absences non signalées).</p>` : ''}
+
+    <h3 style="font-size:15px;margin-top:18px;">Badges citoyens (${badgesDebloques}/${participation.badges.length})</h3>
+    <div class="grille-badges">
+      ${participation.badges.map((b) => `
+        <div class="badge-item ${b.debloque ? 'badge-obtenu' : 'badge-verrouille'}" title="${escapeAttr(b.description || '')}">
+          <div class="badge-icone">${b.visuel_url ? `<img src="${b.visuel_url}" alt="">` : '🏅'}</div>
+          <div class="badge-nom">${escapeAttr(b.nom)}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <h3 style="font-size:15px;margin-top:18px;">Historique récent</h3>
+    <div class="historique-participation">
+      ${participation.historique_recent.length ? participation.historique_recent.map((h) => `
+        <div class="ligne-toggle-onglet">
+          <span>${escapeAttr(h.raison)}${h.valide_par_nom ? ` · validé par ${escapeAttr(h.valide_par_nom)}` : ''}</span>
+          <span style="font-family:'DM Mono',monospace;color:${h.montant >= 0 ? 'var(--prairie)' : 'var(--rouge)'};">${h.montant >= 0 ? '+' : ''}${h.montant}</span>
+        </div>
+      `).join('') : '<p class="dechets-vide">Aucune activité pour l\'instant.</p>'}
+    </div>
+  `;
 }
 
 // ── Droits RGPD : export de mes données, suppression de mon compte ──

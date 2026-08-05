@@ -173,6 +173,33 @@ function compresserImage(fichier, maxLargeur = 1600, qualite = 0.82) {
   });
 }
 
+// Scanner QR générique (caméra + BarcodeDetector), réutilisé par Chasse au trésor et
+// Participation citoyenne. Affiche un message de repli si l'API n'est pas supportée
+// (notamment Safari historiquement) — prévoir une saisie manuelle côté appelant.
+async function demarrerScannerQr(zoneElementId, onCodeDetecte) {
+  if (!('BarcodeDetector' in window)) {
+    afficherToastMessage('Scanner non supporté sur ce navigateur, utilise la saisie manuelle ci-dessous.', 'erreur');
+    return;
+  }
+  const flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+  const video = document.createElement('video');
+  video.srcObject = flux;
+  video.autoplay = true;
+  document.getElementById(zoneElementId).replaceChildren(video);
+
+  const detecteur = new BarcodeDetector({ formats: ['qr_code'] });
+  const intervalle = setInterval(async () => {
+    try {
+      const codes = await detecteur.detect(video);
+      if (codes.length) {
+        clearInterval(intervalle);
+        flux.getTracks().forEach((t) => t.stop());
+        await onCodeDetecte(codes[0].rawValue);
+      }
+    } catch { /* frame illisible, on continue */ }
+  }, 500);
+}
+
 // ── Modal réutilisable pour tous les formulaires de création/édition ──
 // Remonte en feuille depuis le bas sur mobile, centrée sur desktop.
 function ouvrirModaleFormulaire(titre, contenuHtml) {

@@ -145,6 +145,8 @@ form button:hover { background: var(--eauM); }
 body.est-admin .form-admin-only { display: block; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--eauL); }
 .roles-gestionnaire-only { display: none; }
 body.est-gestionnaire-roles .roles-gestionnaire-only { display: block; }
+.badges-superadmin-only { display: none; }
+body.est-superadmin .badges-superadmin-only { display: block; }
 .ligne-etape-chasse input, .ligne-etape-chasse textarea { margin-bottom: 6px; }
 .ligne-etape-chasse .btn-position-etape, .ligne-etape-chasse .btn-supprimer-etape {
   padding: 6px 10px; border: 1.5px solid var(--eauL); background: #fff; border-radius: 8px; font-size: 12px; color: var(--roseau);

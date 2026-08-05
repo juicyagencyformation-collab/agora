@@ -56,6 +56,7 @@ async function chargerPanneauModeration() {
   chargerReglageDureeMur();
   chargerReglageContactRgpd();
   chargerReglagePartageRegional();
+  chargerBadgesCitoyensModeration();
 }
 
 async function chargerReglagePartageRegional() {
@@ -499,5 +500,178 @@ async function chargerListeDechetsModeration() {
       await appelApi(`/${window.COMMUNE_SLUG}/dechets/${btn.dataset.id}`, { method: 'DELETE' });
       chargerListeDechetsModeration();
     });
+  });
+}
+
+// ── Badges citoyens — réservé au superadmin (contrôle d'accès strict côté serveur, voir
+// worker/src/routes/moderation.ts). Système séparé des badges existants ci-dessus, qui
+// restent codés en dur et gérés par verifierBadges() côté Worker. ──
+
+const DECLENCHEURS_BADGE = [
+  { valeur: 'score_citoyen', label: 'Score citoyen atteint un seuil', avecSeuil: true },
+  { valeur: 'streak_participation', label: 'Série d\'actions consécutives atteint un seuil', avecSeuil: true },
+  { valeur: 'premier_signalement_resolu', label: 'Premier signalement résolu', avecSeuil: false },
+  { valeur: 'premiere_action_organisee', label: 'Première action organisée', avecSeuil: false },
+  { valeur: 'valide_par_elu', label: 'Validé par un élu (une fois)', avecSeuil: false },
+  { valeur: 'streak_5_consecutives', label: '5 actions consécutives', avecSeuil: false },
+  { valeur: 'streak_mensuel_6', label: '6 mois consécutifs avec au moins une action', avecSeuil: false },
+];
+
+function slugifierBadge(texte) {
+  return texte.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // enlève les accents
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+async function chargerBadgesCitoyensModeration() {
+  const zone = document.getElementById('liste-badges-citoyens');
+  if (!zone || window.ROLE !== 'superadmin') return;
+
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/badges-citoyens`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { badges } = await res.json();
+
+  if (!badges.length) {
+    zone.innerHTML = `<p class="dechets-vide">Aucun badge citoyen pour l'instant.</p>`;
+    return;
+  }
+
+  zone.innerHTML = '';
+  badges.forEach((b, i) => {
+    const carte = document.createElement('div');
+    carte.className = 'carte-dashboard';
+    carte.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:26px;flex-shrink:0;">${b.visuel_url ? `<img src="${b.visuel_url}" alt="" style="width:32px;height:32px;object-fit:contain;">` : '🏅'}</div>
+        <div style="flex:1;min-width:0;">
+          <strong>${escapeAttr(b.nom)}</strong>
+          <p style="font-size:12px;color:var(--roseau);margin:2px 0;">${escapeAttr(b.description || '')}</p>
+          <p style="font-size:11px;color:var(--roseau);font-family:'DM Mono',monospace;">${b.declencheur}${b.valeur_seuil != null ? ` ≥ ${b.valeur_seuil}` : ''}</p>
+        </div>
+      </div>
+      <div class="actions-admin" style="margin-top:8px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;"><input type="checkbox" class="toggle-actif-badge" ${b.actif ? 'checked' : ''}> Actif</label>
+        <button type="button" data-action="monter" ${i === 0 ? 'disabled' : ''}>▲</button>
+        <button type="button" data-action="descendre" ${i === badges.length - 1 ? 'disabled' : ''}>▼</button>
+        <button type="button" data-action="modifier">Modifier</button>
+        <button type="button" data-action="supprimer">Supprimer</button>
+      </div>
+    `;
+
+    carte.querySelector('.toggle-actif-badge').addEventListener('change', async (e) => {
+      await appelApi(`/${window.COMMUNE_SLUG}/moderation/badges-citoyens/${b.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: e.target.checked }),
+      });
+    });
+    carte.querySelector('[data-action="monter"]').addEventListener('click', async () => {
+      await echangerOrdreBadgesCitoyens(badges[i - 1], b);
+      chargerBadgesCitoyensModeration();
+    });
+    carte.querySelector('[data-action="descendre"]').addEventListener('click', async () => {
+      await echangerOrdreBadgesCitoyens(b, badges[i + 1]);
+      chargerBadgesCitoyensModeration();
+    });
+    carte.querySelector('[data-action="modifier"]').addEventListener('click', () => ouvrirModaleBadgeCitoyen(b));
+    carte.querySelector('[data-action="supprimer"]').addEventListener('click', async () => {
+      if (!confirm('Supprimer ce badge citoyen ?')) return;
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/badges-citoyens/${b.id}`, { method: 'DELETE' });
+      if (!res.ok) { const data = await res.json(); alert(data.erreur || 'Erreur'); return; }
+      chargerBadgesCitoyensModeration();
+    });
+
+    zone.appendChild(carte);
+  });
+}
+
+async function echangerOrdreBadgesCitoyens(a, b) {
+  await Promise.all([
+    appelApi(`/${window.COMMUNE_SLUG}/moderation/badges-citoyens/${a.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ordre: b.ordre }),
+    }),
+    appelApi(`/${window.COMMUNE_SLUG}/moderation/badges-citoyens/${b.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ordre: a.ordre }),
+    }),
+  ]);
+}
+
+function initFormulaireBadgeCitoyen() {
+  const btn = document.getElementById('btn-ouvrir-creation-badge-citoyen');
+  if (!btn) return;
+  btn.addEventListener('click', () => ouvrirModaleBadgeCitoyen());
+}
+
+function ouvrirModaleBadgeCitoyen(badgeExistant = null) {
+  const html = `
+    <form id="form-modale-badge-citoyen">
+      <input type="text" id="nom-badge-modale" placeholder="Nom du badge" maxlength="100" value="${badgeExistant ? escapeAttr(badgeExistant.nom) : ''}" required>
+      <textarea id="description-badge-modale" placeholder="Description">${badgeExistant ? escapeAttr(badgeExistant.description || '') : ''}</textarea>
+      <label class="label-champ-edition">Condition de déblocage</label>
+      <select id="declencheur-badge-modale">
+        ${DECLENCHEURS_BADGE.map((d) => `<option value="${d.valeur}" ${badgeExistant?.declencheur === d.valeur ? 'selected' : ''}>${d.label}</option>`).join('')}
+      </select>
+      <input type="number" id="seuil-badge-modale" placeholder="Seuil (ex : 400)" min="1" value="${badgeExistant?.valeur_seuil ?? ''}">
+      <label class="label-champ-edition">Visuel (image)</label>
+      <input type="file" id="visuel-badge-modale" accept="image/*">
+      <button type="submit" style="margin-top:12px;">${badgeExistant ? '✓ Enregistrer' : 'Créer le badge'}</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire(badgeExistant ? 'Modifier le badge' : 'Créer un badge citoyen', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  const selectDeclencheur = corps.querySelector('#declencheur-badge-modale');
+  const inputSeuil = corps.querySelector('#seuil-badge-modale');
+  const majAffichageSeuil = () => {
+    const avecSeuil = DECLENCHEURS_BADGE.find((d) => d.valeur === selectDeclencheur.value)?.avecSeuil;
+    inputSeuil.style.display = avecSeuil ? '' : 'none';
+  };
+  selectDeclencheur.addEventListener('change', majAffichageSeuil);
+  majAffichageSeuil();
+
+  corps.querySelector('#form-modale-badge-citoyen').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nom = corps.querySelector('#nom-badge-modale').value.trim();
+    const description = corps.querySelector('#description-badge-modale').value.trim();
+    const declencheur = selectDeclencheur.value;
+    const seuilBrut = corps.querySelector('#seuil-badge-modale').value;
+    const valeur_seuil = seuilBrut ? parseInt(seuilBrut, 10) : undefined;
+    if (!nom) return;
+
+    let visuel_url;
+    let r2_key;
+    const fichier = corps.querySelector('#visuel-badge-modale').files[0];
+    if (fichier) {
+      try {
+        const compresse = await compresserImage(fichier, 300, 0.9);
+        const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/moderation/badges-citoyens/upload`, {
+          method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+        });
+        if (resUpload.ok) { const data = await resUpload.json(); visuel_url = data.url; r2_key = data.key; }
+      } catch { console.warn('Upload du visuel échoué.'); }
+    }
+
+    const payload = {
+      nom, description, declencheur, valeur_seuil,
+      ...(visuel_url ? { visuel_url, r2_key } : {}),
+    };
+    if (!badgeExistant) {
+      payload.cle = slugifierBadge(nom);
+      payload.type = ['score_citoyen', 'streak_participation'].includes(declencheur) ? 'seuil' : 'evenement';
+    }
+
+    const url = badgeExistant
+      ? `/${window.COMMUNE_SLUG}/moderation/badges-citoyens/${badgeExistant.id}`
+      : `/${window.COMMUNE_SLUG}/moderation/badges-citoyens`;
+    const res = await appelApi(url, {
+      method: badgeExistant ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      fermerModaleFormulaire(overlay);
+      chargerBadgesCitoyensModeration();
+    } else {
+      const data = await res.json();
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur', 'erreur');
+    }
   });
 }

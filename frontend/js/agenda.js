@@ -242,6 +242,10 @@ function renderEvent(event) {
 }
 
 function remplirContenuEvenement(zone, event, peutModifier) {
+  // Distinct de peutModifier (qui inclut admin) : validation des présences civiques réservée
+  // à l'organisateur, élu ou superadmin — voir la garde bespoke côté serveur (agenda.ts).
+  const peutValiderPresences = event.est_moi || ['elu', 'superadmin'].includes(window.ROLE);
+
   zone.innerHTML = `
     ${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}
     <p style="font-size:11.5px;color:var(--roseau);">Organisé par ${escapeAttr(event.auteur_prenom)} ${escapeAttr(event.auteur_nom)}</p>
@@ -250,6 +254,12 @@ function remplirContenuEvenement(zone, event, peutModifier) {
     <div class="zone-participants-repliable" hidden></div>
 
     ${!event.est_moi ? `<button class="btn-participer ${event.je_participe ? 'active' : ''}">${event.je_participe ? 'Je ne participe plus' : 'Je participe'}</button>` : ''}
+
+    ${event.necessite_validation_presence && !event.est_moi ? `<div class="zone-scan-civique">${renderZoneScanCivique(event)}</div>` : ''}
+    ${event.necessite_validation_presence && peutValiderPresences ? `
+      <button type="button" class="btn-gerer-presences">🎫 Gérer les présences</button>
+      <div class="zone-validation-presences" hidden></div>
+    ` : ''}
 
     <div class="liens-calendrier">
       ${lienCalendrierAuto(event)}
@@ -260,6 +270,15 @@ function remplirContenuEvenement(zone, event, peutModifier) {
     </div>
     <div class="zone-contacts-event" hidden></div>
   `;
+
+  if (event.necessite_validation_presence && !event.est_moi) {
+    initZoneScanCivique(zone.querySelector('.zone-scan-civique'), event.id);
+  }
+  zone.querySelector('.btn-gerer-presences')?.addEventListener('click', () => {
+    const zonePresences = zone.querySelector('.zone-validation-presences');
+    if (!zonePresences.hidden) { zonePresences.hidden = true; return; }
+    ouvrirPanneauValidationPresences(zonePresences, event.id);
+  });
 
   const zoneParticipants = zone.querySelector('.zone-participants-repliable');
   zone.querySelector('.btn-toggle-participants').addEventListener('click', (e) => {
@@ -317,8 +336,38 @@ async function envoyerParticipation(eventId, contact) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(contact),
   });
-  if (res.ok) traiterRecompense(await res.clone().json());
+  const data = await res.clone().json().catch(() => null);
+  if (res.ok) traiterRecompense(data);
+  else if (data?.erreur) afficherToastMessage(data.erreur, 'erreur');
   chargerAgenda();
+}
+
+// ── Type d'action civique (points de participation citoyenne) — réservé aux gestionnaires,
+// voir la garde côté serveur dans worker/src/routes/agenda.ts (POST / et PATCH /:id). ──
+
+const OPTIONS_TYPE_ACTION = [
+  { valeur: '', label: 'Événement classique (pas de suivi de présence)' },
+  { valeur: 'reunion', label: '🏛️ Réunion publique / conseil de quartier' },
+  { valeur: 'reunion_conseil', label: '🏛️ Réunion du conseil citoyen' },
+  { valeur: 'atelier', label: '🎨 Atelier de concertation' },
+  { valeur: 'nettoyage', label: '🧹 Nettoyage citoyen' },
+  { valeur: 'plantation', label: '🌱 Plantation / jardin partagé' },
+  { valeur: 'maraude', label: '🤝 Maraude solidaire' },
+  { valeur: 'chantier', label: '🔨 Chantier participatif' },
+  { valeur: 'aide_ponctuelle', label: '🙋 Aide ponctuelle' },
+];
+
+function htmlChampTypeAction(prefixe, valeurActuelle) {
+  return `
+    <label class="label-champ-edition">Type d'action citoyenne (optionnel)</label>
+    <select id="type-action-${prefixe}">
+      ${OPTIONS_TYPE_ACTION.map((o) => `<option value="${o.valeur}" ${o.valeur === (valeurActuelle || '') ? 'selected' : ''}>${o.label}</option>`).join('')}
+    </select>
+    <p style="font-size:11.5px;color:var(--roseau);margin:-4px 0 8px;">Si renseigné, les participants devront scanner un QR code sur place pour valider leur présence et gagner des points de participation citoyenne.</p>
+  `;
+}
+function lireChampTypeAction(corps, prefixe) {
+  return corps.querySelector(`#type-action-${prefixe}`).value || undefined;
 }
 
 // ── Aide date/heure : décompose une date/heure de début/fin optionnelle en horodatages,
@@ -418,6 +467,7 @@ function initBoutonPosition(corps, prefixe) {
 
 function ouvrirEditionEvent(event) {
   const valeurs = decomposerDatesEvenement(event);
+  const estGestionnaireAgenda = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
   const html = `
     <form id="form-modale-edition-event">
       <label class="label-champ-edition">Titre</label>
@@ -431,6 +481,7 @@ function ouvrirEditionEvent(event) {
 
       ${htmlChampsDateHeure('edition-event-modale', valeurs)}
       ${htmlChampPosition('edition-event-modale', event.lat, event.lng)}
+      ${estGestionnaireAgenda ? htmlChampTypeAction('edition-event-modale', event.type_action) : ''}
 
       <button type="submit" style="margin-top:12px;">✓ Enregistrer</button>
     </form>
@@ -449,6 +500,7 @@ function ouvrirEditionEvent(event) {
     const { date_debut, date_fin } = lireChampsDateHeure(corps, 'edition-event-modale');
     const lat = corps.querySelector('#lat-edition-event-modale').value;
     const lng = corps.querySelector('#lng-edition-event-modale').value;
+    const typeAction = estGestionnaireAgenda ? lireChampTypeAction(corps, 'edition-event-modale') : undefined;
 
     const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda/${event.id}`, {
       method: 'PATCH',
@@ -456,6 +508,7 @@ function ouvrirEditionEvent(event) {
       body: JSON.stringify({
         titre, description, lieu, date_debut, date_fin,
         ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
+        ...(estGestionnaireAgenda ? { type_action: typeAction ?? '' } : {}),
       }),
     });
     if (res.ok) { fermerModaleFormulaire(overlay); chargerAgenda(); }
@@ -470,6 +523,7 @@ function initFormulaireAgenda() {
 }
 
 function ouvrirModaleCreationAgenda() {
+  const estGestionnaireAgenda = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
   const html = `
     <form id="form-modale-agenda">
       <input type="text" id="titre-agenda-modale" placeholder="Titre" maxlength="150" required>
@@ -478,6 +532,7 @@ function ouvrirModaleCreationAgenda() {
       <input type="file" id="image-agenda-modale" accept="image/*">
       ${htmlChampsDateHeure('agenda-modale')}
       ${htmlChampPosition('agenda-modale')}
+      ${estGestionnaireAgenda ? htmlChampTypeAction('agenda-modale') : ''}
       <button type="submit" style="margin-top:12px;">Créer</button>
     </form>
   `;
@@ -495,6 +550,7 @@ function ouvrirModaleCreationAgenda() {
     const { date_debut, date_fin } = lireChampsDateHeure(corps, 'agenda-modale');
     const lat = corps.querySelector('#lat-agenda-modale').value;
     const lng = corps.querySelector('#lng-agenda-modale').value;
+    const typeAction = estGestionnaireAgenda ? lireChampTypeAction(corps, 'agenda-modale') : undefined;
 
     let r2Key;
     const fichier = corps.querySelector('#image-agenda-modale').files[0];
@@ -508,7 +564,7 @@ function ouvrirModaleCreationAgenda() {
       } catch { console.warn('Upload image échoué, événement publié sans image.'); }
     }
 
-    const res = await creerEvent(titre, description, lieu, date_debut, date_fin, r2Key, lat, lng);
+    const res = await creerEvent(titre, description, lieu, date_debut, date_fin, r2Key, lat, lng, typeAction);
     if (res.ok) {
       fermerModaleFormulaire(overlay);
     } else {
@@ -518,13 +574,14 @@ function ouvrirModaleCreationAgenda() {
   });
 }
 
-async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, lat, lng) {
+async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, lat, lng, typeAction) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       titre, description, lieu, date_debut: dateDebut, date_fin: dateFin, r2_key: r2Key,
       ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
+      ...(typeAction ? { type_action: typeAction } : {}),
     }),
   });
   if (res.ok) chargerAgenda();

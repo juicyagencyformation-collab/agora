@@ -126,6 +126,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initVoletRgpd();
   initVoletRegional();
   initVoletSyncLois();
+  initFormulaireBadgeCitoyen();
   await initServiceWorker();
   initOnboardingPwa();
   initLiensDirectsNotification();

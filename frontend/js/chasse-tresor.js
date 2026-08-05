@@ -118,27 +118,7 @@ async function afficherQrEtapes(chasseId, zone) {
 }
 
 async function ouvrirScanner() {
-  if (!('BarcodeDetector' in window)) {
-    afficherToastMessage('Scanner non supporté sur ce navigateur, utilise la saisie manuelle ci-dessous.', 'erreur');
-    return;
-  }
-  const flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-  const video = document.createElement('video');
-  video.srcObject = flux;
-  video.autoplay = true;
-  document.getElementById('zone-scanner').replaceChildren(video);
-
-  const detecteur = new BarcodeDetector({ formats: ['qr_code'] });
-  const intervalle = setInterval(async () => {
-    try {
-      const codes = await detecteur.detect(video);
-      if (codes.length) {
-        clearInterval(intervalle);
-        flux.getTracks().forEach((t) => t.stop());
-        await validerEtape(codes[0].rawValue);
-      }
-    } catch { /* frame illisible, on continue */ }
-  }, 500);
+  await demarrerScannerQr('zone-scanner', validerEtape);
 }
 
 async function validerEtape(qr_token) {

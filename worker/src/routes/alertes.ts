@@ -6,6 +6,7 @@ import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
 import { attribuerXp, XP_ACTIONS } from '../lib/gamification';
+import { crediterSignalementResolu } from '../lib/points-citoyens';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -89,6 +90,16 @@ app.patch('/:id/statut', async (c) => {
   await supabaseUpdate(c.env, 'alertes', { statut: body.data.statut }, {
     id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
   });
+
+  // Score de participation citoyenne (système séparé de l'XP_ACTIONS.signaler_alerte
+  // ci-dessus, qui reste attribué inconditionnellement à la création) — crediterSignalementResolu
+  // est idempotente par signalement, un second PATCH vers "resolue" ne recrédite rien.
+  if (body.data.statut === 'resolue') {
+    const [alerte] = await supabaseSelect(c.env, 'alertes', {
+      select: 'id,user_id', id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
+    });
+    if (alerte) await crediterSignalementResolu(c.env, commune_id, alerte);
+  }
 
   return c.json({ ok: true });
 });

@@ -1,6 +1,7 @@
 // worker/src/cron.ts
-import { supabaseDelete, supabaseSelect } from './db';
+import { supabaseDelete, supabaseSelect, supabaseUpdate } from './db';
 import { deleteObject } from './storage';
+import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -68,6 +69,47 @@ export async function purgerMur(env: any) {
     if (!posts.length) continue;
 
     await supabaseDelete(env, 'posts', { id: `in.(${posts.map((p: any) => p.id).join(',')})` });
+  }
+}
+
+// Clôture quotidienne des actions civiques (participation citoyenne — voir
+// worker/src/lib/points-citoyens.ts) :
+// 1. Scanné mais jamais validé par l'organisateur, 48h après la fin -> "non confirmé"
+//    (ni point ni pénalité, pour ne jamais punir un simple oubli d'organisateur).
+// 2. Inscrit mais jamais scanné -> no-show (pénalité + vérification de suspension).
+// 3. Organisateur récompensé une fois l'action terminée (idempotent par événement).
+export async function cloturerActionsCiviques(env: any) {
+  const communes = await supabaseSelect(env, 'communes', { select: 'id' });
+  const seuil48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+  const maintenant = new Date().toISOString();
+
+  for (const commune of communes) {
+    const eventsTermines = await supabaseSelect(env, 'events', {
+      select: 'id,user_id,date_fin', commune_id: `eq.${commune.id}`,
+      necessite_validation_presence: 'eq.true', date_fin: `lt.${maintenant}`,
+    });
+    if (!eventsTermines.length) continue;
+    const idsEvents = eventsTermines.map((e: any) => e.id);
+
+    const idsAssezVieux = eventsTermines.filter((e: any) => e.date_fin < seuil48h).map((e: any) => e.id);
+    if (idsAssezVieux.length) {
+      await supabaseUpdate(env, 'participations_citoyennes', { statut: 'non_confirme' }, {
+        commune_id: `eq.${commune.id}`, event_id: `in.(${idsAssezVieux.join(',')})`, statut: 'eq.scanne',
+      });
+    }
+
+    const inscritsJamaisScannes = await supabaseSelect(env, 'participations_citoyennes', {
+      select: 'id,user_id', commune_id: `eq.${commune.id}`,
+      event_id: `in.(${idsEvents.join(',')})`, statut: 'eq.inscrit',
+    });
+    for (const p of inscritsJamaisScannes) {
+      await romprePresenceCitoyenne(env, commune.id, p.user_id, p, 'no_show');
+      await verifierSuspensionNoShow(env, commune.id, p.user_id);
+    }
+
+    for (const event of eventsTermines) {
+      await crediterOrganisationAction(env, commune.id, event);
+    }
   }
 }
 
