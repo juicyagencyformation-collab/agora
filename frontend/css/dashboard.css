@@ -232,7 +232,7 @@ h1, h2, h3, h4, p, span, a, button {
 
 /* ─── Toast XP ─── */
 .toast-xp {
-  position: fixed; bottom: calc(var(--bnav) + 16px); left: 50%;
+  position: fixed; bottom: calc(var(--bnav) + env(safe-area-inset-bottom) + 16px); left: 50%;
   transform: translateX(-50%) translateY(10px); opacity: 0;
   background: var(--eau); color: #fff; font-family: 'DM Mono', monospace; font-weight: 700;
   font-size: 14px; padding: 8px 18px; border-radius: 100px; box-shadow: 0 4px 14px rgba(0,0,0,.2);
@@ -242,7 +242,7 @@ h1, h2, h3, h4, p, span, a, button {
 .toast-xp.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 .toast-message {
-  position: fixed; bottom: calc(var(--bnav) + 16px); left: 50%;
+  position: fixed; bottom: calc(var(--bnav) + env(safe-area-inset-bottom) + 16px); left: 50%;
   transform: translateX(-50%) translateY(10px); opacity: 0; max-width: 85vw; text-align: center;
   font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13.5px; color: #fff;
   padding: 10px 20px; border-radius: 100px; box-shadow: 0 4px 14px rgba(0,0,0,.2);
@@ -509,7 +509,7 @@ h1, h2, h3, h4, p, span, a, button {
   background: var(--calc); border: none; width: 30px; height: 30px; border-radius: 50%;
   color: var(--roseau); font-size: 15px; cursor: pointer; flex-shrink: 0;
 }
-.corps-modale-formulaire { padding: 16px 18px 24px; }
+.corps-modale-formulaire { padding: 16px 18px calc(24px + env(safe-area-inset-bottom)); }
 .bouton-ouvrir-modale {
   width: 100%; padding: 12px; border-radius: 100px; border: none;
   background: var(--eau); color: #fff; font-family: 'DM Sans', sans-serif;

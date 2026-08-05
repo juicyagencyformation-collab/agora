@@ -15,7 +15,7 @@ body {
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   color: var(--boue);
-  padding-bottom: calc(var(--bnav) + 12px);
+  padding-bottom: calc(var(--bnav) + 12px + env(safe-area-inset-bottom));
 }
 h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0 0 8px; color: var(--eau); }
 ::-webkit-scrollbar { width: 5px; }
@@ -54,7 +54,9 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 
 /* ─── Barre du bas mobile ─── */
 .barre-onglets {
-  position: fixed; bottom: 0; left: 0; right: 0; height: var(--bnav);
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(var(--bnav) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   display: flex; overflow-x: auto; background: #fff;
   border-top: 1px solid var(--eauL); z-index: 100;
 }
@@ -107,7 +109,7 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 }
 .zone-edition {
   border: 1.5px solid var(--eauL); border-radius: var(--r); padding: 10px;
-  min-height: 90px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+  min-height: 90px; font-family: 'DM Sans', sans-serif; font-size: 16px;
 }
 
 .btn-reaction {
@@ -126,7 +128,7 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 form input, form textarea, form select {
   display: block; width: 100%; margin-bottom: 10px; padding: 10px;
   border: 1.5px solid var(--eauL); border-radius: 10px;
-  font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--boue);
+  font-family: 'DM Sans', sans-serif; font-size: 16px; color: var(--boue);
 }
 form input:focus, form textarea:focus, form select:focus { outline: none; border-color: var(--eau); }
 form button {
