@@ -132,6 +132,14 @@ worker/src/
   `confidentialite.html`, `reinitialiser.html`) — une URL différente est un cache différent,
   sans dépendre d'un comportement Cloudflare qu'on ne maîtrise pas (voir le piège
   `_redirects` ci-dessous, même catégorie de surprise sur ce domaine personnalisé).
+  Nuance vécue le 2026-08-06 : le `?v=` ne suffit pas toujours à lui seul sur un appareil
+  qui avait déjà l'app installée avant l'ajout de ce système — le service worker déjà en
+  place peut mettre un moment à "comprendre" qu'il doit revalider. Si le bug persiste malgré
+  un `?v=` à jour et que le code déployé est confirmé correct (vérifiable avec
+  `curl https://plateforme-agora.fr/js/<fichier>.js?v=...`), le réflexe à proposer en premier
+  reste d'effacer les données du site dans le navigateur (pas juste réinstaller le raccourci
+  PWA) — ça a résolu le cas du volet "Logo de la commune" qui ne se dépliait pas alors que
+  tout était pourtant correct côté serveur.
 - **Cloudflare Pages `_redirects` s'est montré incohérent** sur le domaine personnalisé
   (plateforme-agora.fr) — une simple règle catch-all y interceptait à tort les fichiers
   statiques (css/js), alors que la même règle fonctionnait sur l'adresse .pages.dev.
