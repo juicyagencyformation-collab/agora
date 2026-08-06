@@ -52,7 +52,7 @@ function ajouterMarqueurAlerte(alerte) {
   popup.innerHTML = `
     ${alerte.urgent ? '<span class="badge-urgent-alerte">🚨 URGENT</span>' : ''}
     <strong>${escapeAttr(alerte.titre)}</strong>
-    <p>${escapeAttr(alerte.description)}</p>
+    <p>${texteAvecLiensCliquables(alerte.description)}</p>
     <span class="badge-statut badge-${alerte.statut}">${alerte.statut}</span>
     <div class="images-popup"></div>
     ${peutSupprimerAlerte(alerte) ? '<button class="btn-supprimer-alerte-popup" style="margin-top:6px;background:transparent;color:var(--rouge);border:1px solid var(--rouge);font-size:11px;padding:4px 8px;">🗑️ Supprimer</button>' : ''}
@@ -109,7 +109,7 @@ function renderCarteAlerteCompacte(alerte) {
     zoneDepliee.hidden = !deploye;
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
       zoneDepliee.innerHTML = `
-        <p>${escapeAttr(alerte.description)}</p>
+        <p>${texteAvecLiensCliquables(alerte.description)}</p>
         <div class="images-alerte-liste"></div>
         ${peutSupprimerAlerte(alerte) ? '<button class="btn-supprimer-alerte-liste" style="margin-top:10px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">🗑️ Supprimer ce signalement</button>' : ''}
       `;

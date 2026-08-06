@@ -67,7 +67,7 @@ function renderDetailChasse(chasse) {
   zone.innerHTML = `
     <button type="button" class="btn-retour-detail">← Retour aux chasses</button>
     <h3>${escapeAttr(chasse.titre)}</h3>
-    ${chasse.description ? `<p>${escapeAttr(chasse.description)}</p>` : ''}
+    ${chasse.description ? `<p>${texteAvecLiensCliquables(chasse.description)}</p>` : ''}
     <p>${chasse.etapes_validees} / ${chasse.total_etapes} étapes validées</p>
     ${!termine && chasse.etape_suivante ? `<p class="indice-etape">Indice : ${escapeAttr(chasse.etape_suivante.indice)}</p>` : ''}
     ${termine ? '<p class="trouve-enigme">Chasse terminée 🎉</p>' : ''}

@@ -45,7 +45,7 @@ function renderBulletin(bulletin) {
 }
 
 function remplirContenuBulletin(zone, bulletin, estBrouillon) {
-  zone.innerHTML = `<div class="contenu-article">${bulletin.contenu_html}</div>`;
+  zone.innerHTML = `<div class="contenu-article">${linkifierHtmlRiche(bulletin.contenu_html)}</div>`;
 
   if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');

@@ -56,7 +56,7 @@ function renderAnnonce(annonce) {
     deploye = !deploye;
     zoneDepliee.hidden = !deploye;
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
-      zoneDepliee.innerHTML = `<p>${escapeAttr(annonce.description)}</p>`;
+      zoneDepliee.innerHTML = `<p>${texteAvecLiensCliquables(annonce.description)}</p>`;
       if (annonce.user_id === window.USER_ID || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
         const bar = document.createElement('div');
         bar.className = 'actions-admin';

@@ -134,7 +134,7 @@ function renderCarteEvenementAutour(e) {
       <span class="badge-categorie-article">${badgeOrigine}</span>
       <h3 class="titre-article-compact">${escapeAttr(e.titre)}</h3>
       <p class="extrait-article-compact">${dateAffichee}${e.lieu ? ' · ' + escapeAttr(e.lieu) : ''}</p>
-      ${e.description ? `<p style="font-size:13px;color:var(--boue);margin-top:6px;">${escapeAttr(e.description)}</p>` : ''}
+      ${e.description ? `<p style="font-size:13px;color:var(--boue);margin-top:6px;">${texteAvecLiensCliquables(e.description)}</p>` : ''}
     </div>
   `;
   return el;
@@ -305,7 +305,7 @@ function remplirContenuEvenement(zone, event, peutModifier) {
   const peutValiderPresences = event.est_moi || ['elu', 'maire', 'superadmin'].includes(window.ROLE);
 
   zone.innerHTML = `
-    ${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}
+    ${event.description ? `<p>${texteAvecLiensCliquables(event.description)}</p>` : ''}
     <p style="font-size:11.5px;color:var(--roseau);">Organisé par ${escapeAttr(event.auteur_prenom)} ${escapeAttr(event.auteur_nom)}</p>
 
     <button type="button" class="btn-toggle-participants">👥 Voir les participants ▾</button>
@@ -373,8 +373,8 @@ function remplirContenuEvenement(zone, event, peutModifier) {
       zoneContacts.innerHTML = participants.length
         ? participants.map((p) => `
             <p class="commentaire">${escapeAttr(p.prenom)} ${escapeAttr(p.nom)}
-              ${p.telephone ? ' · 📞 ' + escapeAttr(p.telephone) : ''}
-              ${p.email ? ' · ✉️ ' + escapeAttr(p.email) : ''}
+              ${p.telephone ? ' · 📞 <a href="tel:' + escapeAttr(normaliserTel(p.telephone)) + '">' + escapeAttr(p.telephone) + '</a>' : ''}
+              ${p.email ? ' · ✉️ <a href="mailto:' + escapeAttr(p.email) + '">' + escapeAttr(p.email) + '</a>' : ''}
             </p>`).join('')
         : `<p class="dechets-vide">Aucun participant avec coordonnées.</p>`;
     }

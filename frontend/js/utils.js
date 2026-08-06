@@ -11,6 +11,91 @@ function escapeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function normaliserTel(numero) {
+  return numero.replace(/[\s.-]/g, '');
+}
+
+// Détection auto de site web / email / téléphone dans du texte libre — utilisé partout où
+// un citoyen ou la mairie saisit du texte (description, message, article...). Un seul passage
+// avec alternation (plutôt que 3 regex séparées) pour que les segments restent dans l'ordre.
+const REGEX_AUTO_LIEN = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)|([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|((?:\+33[\s.-]?|0)[1-9](?:[\s.-]?\d{2}){4})/g;
+
+function segmenterTexteAvecLiens(texteBrut) {
+  const segments = [];
+  let dernierIndex = 0;
+  for (const m of texteBrut.matchAll(REGEX_AUTO_LIEN)) {
+    if (m.index > dernierIndex) segments.push({ texte: texteBrut.slice(dernierIndex, m.index) });
+    const [brutComplet, url, email, tel] = m;
+    let brut = brutComplet;
+    let reste = '';
+    let href;
+    if (url) {
+      // Une URL en fin de phrase traîne souvent sa ponctuation (. , ) ...) — on la détache.
+      const [, sansPonctuation, ponctuation] = brut.match(/^(.*?)([.,;:!?)\]}'"]*)$/s);
+      brut = sansPonctuation;
+      reste = ponctuation;
+      href = /^www\./i.test(brut) ? `https://${brut}` : brut;
+    } else if (email) {
+      href = `mailto:${brut}`;
+    } else if (tel) {
+      href = `tel:${normaliserTel(brut)}`;
+    }
+    segments.push({ texte: brut, href });
+    if (reste) segments.push({ texte: reste });
+    dernierIndex = m.index + brutComplet.length;
+  }
+  if (dernierIndex < texteBrut.length) segments.push({ texte: texteBrut.slice(dernierIndex) });
+  return segments;
+}
+
+// Texte brut (pas de HTML) → chaîne HTML échappée avec liens tel:/mailto:/https: cliquables.
+function texteAvecLiensCliquables(texteBrut) {
+  if (!texteBrut) return '';
+  return segmenterTexteAvecLiens(texteBrut).map((seg) => {
+    if (!seg.href) return escapeAttr(seg.texte);
+    const nouvelOnglet = seg.href.startsWith('tel:') || seg.href.startsWith('mailto:') ? '' : ' target="_blank" rel="noopener"';
+    return `<a href="${escapeAttr(seg.href)}"${nouvelOnglet}>${escapeAttr(seg.texte)}</a>`;
+  }).join('');
+}
+
+// Même détection pour du HTML riche (article, bulletin, compte-rendu...) : on marche sur les
+// noeuds texte du DOM pour ne pas casser le HTML existant (gras, liens déjà posés...) et on
+// ignore le texte déjà à l'intérieur d'un <a> pour ne jamais imbriquer deux liens.
+function linkifierHtmlRiche(html) {
+  if (!html) return html;
+  const conteneur = document.createElement('div');
+  conteneur.innerHTML = html;
+  const walker = document.createTreeWalker(conteneur, NodeFilter.SHOW_TEXT, {
+    acceptNode: (noeud) => (noeud.parentElement?.closest('a') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  const noeudsTexte = [];
+  let noeud;
+  while ((noeud = walker.nextNode())) noeudsTexte.push(noeud);
+
+  noeudsTexte.forEach((n) => {
+    const segments = segmenterTexteAvecLiens(n.textContent);
+    if (!segments.some((seg) => seg.href)) return;
+    const fragment = document.createDocumentFragment();
+    segments.forEach((seg) => {
+      if (seg.href) {
+        const a = document.createElement('a');
+        a.href = seg.href;
+        a.textContent = seg.texte;
+        if (!seg.href.startsWith('tel:') && !seg.href.startsWith('mailto:')) {
+          a.target = '_blank';
+          a.rel = 'noopener';
+        }
+        fragment.appendChild(a);
+      } else {
+        fragment.appendChild(document.createTextNode(seg.texte));
+      }
+    });
+    n.replaceWith(fragment);
+  });
+
+  return conteneur.innerHTML;
+}
+
 function ouvrirLightbox(url, filtreCss = '') {
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';

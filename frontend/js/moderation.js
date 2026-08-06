@@ -391,7 +391,7 @@ async function chargerMurEnAttente() {
     const carte = document.createElement('div');
     carte.className = 'carte-dashboard';
     carte.innerHTML = `
-      <p style="margin-bottom:8px;">${escapeAttr(p.contenu)}</p>
+      <p style="margin-bottom:8px;">${texteAvecLiensCliquables(p.contenu)}</p>
       ${p.photo_url ? `<img src="${p.photo_url}" style="max-width:100%;border-radius:10px;margin-bottom:8px;">` : ''}
       <p style="font-size:12.5px;color:var(--roseau);">${p.total_signalements} signalement(s)</p>
       <div class="actions-admin">

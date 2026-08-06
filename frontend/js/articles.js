@@ -101,7 +101,7 @@ function renderArticle(article) {
 
 function remplirContenuDeplie(zone, article) {
   zone.innerHTML = `
-    <div class="contenu-article">${article.contenu_html}</div>
+    <div class="contenu-article">${linkifierHtmlRiche(article.contenu_html)}</div>
     <div class="images-article"></div>
     <div class="sondage-article"></div>
   `;

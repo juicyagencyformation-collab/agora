@@ -56,9 +56,9 @@ function renderFicheAnnuaire(fiche) {
 
 function remplirContenuFicheAnnuaire(zone, fiche) {
   zone.innerHTML = `
-    ${fiche.description ? `<p>${escapeAttr(fiche.description)}</p>` : ''}
-    ${fiche.telephone ? `<p>📞 ${escapeAttr(fiche.telephone)}</p>` : ''}
-    ${fiche.email ? `<p>✉️ ${escapeAttr(fiche.email)}</p>` : ''}
+    ${fiche.description ? `<p>${texteAvecLiensCliquables(fiche.description)}</p>` : ''}
+    ${fiche.telephone ? `<p>📞 <a href="tel:${escapeAttr(normaliserTel(fiche.telephone))}">${escapeAttr(fiche.telephone)}</a></p>` : ''}
+    ${fiche.email ? `<p>✉️ <a href="mailto:${escapeAttr(fiche.email)}">${escapeAttr(fiche.email)}</a></p>` : ''}
   `;
 
   const estProprietaire = fiche.user_id === window.USER_ID;

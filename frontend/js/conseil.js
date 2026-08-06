@@ -65,7 +65,7 @@ function remplirContenuDeliberation(zone, d, publiee) {
     contenuResultats = `<p style="color:var(--roseau);font-size:13px;">Résultats masqués jusqu'à publication par la mairie.${d.mon_vote ? ' Votre vote est enregistré : <strong>' + escapeAttr(d.mon_vote) + '</strong>.' : ''}</p>`;
   }
 
-  zone.innerHTML = `<p>${escapeAttr(d.description)}</p>${contenuResultats}`;
+  zone.innerHTML = `<p>${texteAvecLiensCliquables(d.description)}</p>${contenuResultats}`;
 
   if (!publiee && !d.cloturee) {
     const form = document.createElement('form');
@@ -182,7 +182,7 @@ function renderPv(a) {
     deploye = !deploye;
     zoneDepliee.hidden = !deploye;
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
-      zoneDepliee.innerHTML = `<div class="contenu-article">${a.contenu_html}</div>`;
+      zoneDepliee.innerHTML = `<div class="contenu-article">${linkifierHtmlRiche(a.contenu_html)}</div>`;
 
       if (a.fichier_pv_url) {
         if (a.fichier_pv_type === 'pdf') {

@@ -69,7 +69,7 @@ function renderLoi(l) {
 
 function remplirDetailLoi(zoneDepliee, l, total, pct) {
   zoneDepliee.innerHTML = `
-    <p>${escapeAttr(l.description)}</p>
+    <p>${texteAvecLiensCliquables(l.description)}</p>
     <a href="${l.url_source}" target="_blank" rel="noopener" style="font-size:12.5px;">📄 Lire le texte officiel</a>
 
     <p style="font-size:11.5px;color:var(--roseau);margin-top:12px;">⚠️ Vote symbolique d'opinion, pas un vote officiel.</p>
@@ -134,7 +134,7 @@ async function chargerCommentairesLoi(zoneDepliee, loi_id) {
     div.className = 'commentaire-loi';
     div.innerHTML = `
       <strong>${escapeAttr(cm.auteur_prenom)} ${escapeAttr(cm.auteur_nom)}</strong>
-      <p>${escapeAttr(cm.contenu)}</p>
+      <p>${texteAvecLiensCliquables(cm.contenu)}</p>
       <button type="button" class="btn-signaler-commentaire-loi" style="font-size:10px;background:transparent;color:var(--roseau);border:none;padding:2px;">🚩 Signaler</button>
     `;
     div.querySelector('.btn-signaler-commentaire-loi').addEventListener('click', async () => {

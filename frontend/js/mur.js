@@ -32,7 +32,7 @@ function renderPost(post) {
       <strong>${escapeAttr(post.auteur_prenom)} ${escapeAttr(post.auteur_nom)}</strong>
       <span class="date-post">${dateAffichee}</span>
     </div>
-    <p class="contenu-post">${escapeAttr(post.contenu)}</p>
+    <p class="contenu-post">${texteAvecLiensCliquables(post.contenu)}</p>
     <div class="barre-reactions"></div>
     <button type="button" class="btn-toggle-commentaires">💬 ${post.commentaires.length} commentaire(s) ▾</button>
     <div class="zone-commentaires-repliable" hidden>
@@ -65,7 +65,7 @@ function renderPost(post) {
   post.commentaires.forEach((cm) => {
     const p = document.createElement('p');
     p.className = 'commentaire';
-    p.textContent = cm.contenu;
+    p.innerHTML = texteAvecLiensCliquables(cm.contenu);
     zoneCommentaires.appendChild(p);
   });
 
