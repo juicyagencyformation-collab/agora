@@ -44,7 +44,7 @@ function renderAnnonce(annonce) {
         </div>
         <h3 class="titre-article-compact">${escapeAttr(annonce.titre)}</h3>
         <p class="extrait-article-compact">${escapeAttr(extrait)}${annonce.description.length > 90 ? '…' : ''}</p>
-        <span class="date-article-compact">Expire dans ${joursRestants} jour(s)</span>
+        <span class="date-article-compact">${escapeAttr(annonce.auteur_prenom)} ${escapeAttr(annonce.auteur_nom)} · expire dans ${joursRestants} jour(s)</span>
       </div>
     </button>
     <div class="contenu-article-deplie" hidden></div>

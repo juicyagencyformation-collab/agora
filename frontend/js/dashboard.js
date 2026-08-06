@@ -253,11 +253,11 @@ async function chargerDerniereActu() {
   const miniature = a.images?.[0]?.url;
 
   zone.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:flex-start;">
-      ${miniature ? `<img src="${miniature}" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;">` : ''}
-      <div style="flex:1;min-width:0;">
-        <h4 style="margin:0 0 4px;">${escapeAttr(a.titre)}</h4>
-        <p class="extrait-actu">${escapeAttr(extrait)}${extraitBrut.length > 140 ? '…' : ''}</p>
+    <div class="entete-article-compact" style="padding:0;cursor:default;">
+      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : '<div class="miniature-liste-article miniature-vide">📰</div>'}
+      <div class="texte-entete-article">
+        <h4 class="titre-article-compact" style="margin:2px 0 3px;">${escapeAttr(a.titre)}</h4>
+        <p class="extrait-article-compact">${escapeAttr(extrait)}${extraitBrut.length > 140 ? '…' : ''}</p>
       </div>
     </div>
     <button id="btn-voir-actu" style="margin-top:10px;">Voir toutes les actualités</button>
@@ -325,40 +325,26 @@ async function chargerResumes() {
   if (!zone) return;
   zone.innerHTML = '';
 
-  const [alertesRes, agendaRes, sondagesRes, cdmRes] = await Promise.all([
-    appelApi(`/${window.COMMUNE_SLUG}/alertes?statut=ouverte`),
-    appelApi(`/${window.COMMUNE_SLUG}/agenda`),
-    appelApi(`/${window.COMMUNE_SLUG}/sondages`),
-    appelApi(`/${window.COMMUNE_SLUG}/coups-de-main`),
-  ]);
-
-  const items = [];
-
-  if (alertesRes.ok) {
-    const { alertes } = await alertesRes.json();
-    items.push({ cle: 'alertes', icone: '🔔', texte: `${alertes.length} alerte(s)`, couleur: 'rouge' });
-  }
+  const agendaRes = await appelApi(`/${window.COMMUNE_SLUG}/agenda`);
   if (agendaRes.ok) {
     const { events } = await agendaRes.json();
     if (events.length) {
       const d = new Date(events[0].date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-      items.push({ cle: 'agenda', icone: '📅', texte: `${escapeAttr(events[0].titre)} (${d})`, couleur: 'aube' });
+      const pastille = document.createElement('button');
+      pastille.className = 'pastille-resume pastille-aube';
+      pastille.innerHTML = `<span class="pastille-icone">📅</span><span>${escapeAttr(events[0].titre)} (${d})</span>`;
+      pastille.addEventListener('click', () => activerOnglet('agenda'));
+      zone.appendChild(pastille);
     }
   }
-  if (sondagesRes.ok) {
-    const { sondages } = await sondagesRes.json();
-    if (sondages.length) items.push({ cle: 'thermometre', icone: '🌡️', texte: `${sondages.length} sondage(s)`, couleur: 'eau' });
-  }
-  if (cdmRes.ok) {
-    const { annonces } = await cdmRes.json();
-    items.push({ cle: 'coups-de-main', icone: '🤲', texte: `${annonces.length} entraide(s)`, couleur: 'prairie' });
-  }
 
-  items.forEach((item) => {
-    const pastille = document.createElement('button');
-    pastille.className = `pastille-resume pastille-${item.couleur}`;
-    pastille.innerHTML = `<span class="pastille-icone">${item.icone}</span><span>${item.texte}</span>`;
-    pastille.addEventListener('click', () => activerOnglet(item.cle));
-    zone.appendChild(pastille);
-  });
+  const rangee = document.createElement('div');
+  rangee.className = 'rangee-actions-rapides-accueil';
+  rangee.innerHTML = `
+    <button type="button" class="bouton-action-rapide-accueil rouge">🚨 Alerter</button>
+    <button type="button" class="bouton-action-rapide-accueil prairie">🤲 Demander de l'aide</button>
+  `;
+  rangee.querySelector('.rouge').addEventListener('click', () => ouvrirModaleCreationAlerte());
+  rangee.querySelector('.prairie').addEventListener('click', () => ouvrirModaleDemandeAideRapide());
+  zone.appendChild(rangee);
 }

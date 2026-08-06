@@ -18,15 +18,16 @@ h1, h2, h3, h4, p, span, a, button {
 .meteo-minmax { font-family: 'DM Mono', monospace; font-size: 11.5px; color: var(--roseau); margin-top: 2px; }
 .meteo-erreur { font-size: 13px; color: var(--roseau); margin: 0; }
 
+/* Zone compacte (pas de carte blanche pleine largeur) : la grosse carte
+   .alerte-dechets-veille reste seule réservée à la veille du ramassage. */
+.zone-dechets-accueil { margin-bottom: 10px; }
 .ligne-dechet {
-  border-left: 4px solid var(--eauL); padding: 8px 10px; margin-bottom: 6px;
-  background: var(--calc); border-radius: 8px; font-size: 13.5px;
+  border-left: 4px solid var(--eauL); padding: 7px 10px; margin-bottom: 5px;
+  background: var(--calc); border-radius: 8px; font-size: 12.5px;
 }
 .ligne-dechet-today { background: rgba(226,201,126,.2); }
-.dechets-vide, .dechets-rien { font-size: 13px; color: var(--roseau); margin: 4px 0; }
+.dechets-vide, .dechets-rien { font-size: 12.5px; color: var(--roseau); margin: 4px 2px; }
 
-#carte-derniere-actu h4 { font-family: 'Playfair Display', serif; margin: 0 0 6px; font-size: 16px; color: var(--eau); }
-.extrait-actu { font-size: 13.5px; color: var(--roseau); margin: 0 0 10px; }
 #carte-derniere-actu button {
   padding: 7px 14px; border-radius: 100px; border: 1.5px solid var(--eauL);
   background: #fff; color: var(--eau); font-size: 12.5px; font-family: 'DM Sans', sans-serif;
@@ -106,6 +107,14 @@ h1, h2, h3, h4, p, span, a, button {
 .pastille-aube { background: rgba(226,201,126,.25); color: #8B6A2A; }
 .pastille-eau { background: var(--eauXL); color: var(--eau); }
 .pastille-prairie { background: rgba(92,122,78,.15); color: var(--prairie); }
+
+.rangee-actions-rapides-accueil { display: flex; gap: 8px; width: 100%; margin-top: 8px; }
+.bouton-action-rapide-accueil {
+  flex: 1; padding: 11px 10px; border-radius: var(--r); border: none; color: #fff;
+  font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer;
+}
+.bouton-action-rapide-accueil.rouge { background: var(--rouge); }
+.bouton-action-rapide-accueil.prairie { background: var(--prairie); }
 
 /* ─── Lois & Projets de loi ─── */
 .btn-vote-loi {

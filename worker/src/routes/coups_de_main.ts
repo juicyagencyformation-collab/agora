@@ -35,7 +35,18 @@ app.get('/', async (c) => {
   if (categorie && CATEGORIES_VALIDES.includes(categorie as any)) filtres.categorie = `eq.${categorie}`;
 
   const annonces = await supabaseSelect(c.env, 'coups_de_main', filtres);
-  return c.json({ annonces });
+  if (!annonces.length) return c.json({ annonces: [] });
+
+  const idsAuteurs = [...new Set(annonces.map((a: any) => a.user_id))];
+  const auteurs = await supabaseSelect(c.env, 'users', {
+    select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
+  });
+  const result = annonces.map((a: any) => {
+    const auteur = auteurs.find((u: any) => u.id === a.user_id);
+    return { ...a, auteur_prenom: auteur?.prenom ?? '?', auteur_nom: auteur?.nom ?? '' };
+  });
+
+  return c.json({ annonces: result });
 });
 
 app.post('/', async (c) => {
