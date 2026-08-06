@@ -43,6 +43,7 @@ async function chargerDashboard() {
   if (resumes) resumes.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
 
   afficherSalut();
+  initActionsRapidesAccueil();
   chargerMeteo();
   chargerLune();
   chargerDechetsDashboard();
@@ -52,6 +53,20 @@ async function chargerDashboard() {
   chargerPhotoVedette();
   chargerDernierPv();
   chargerProchainConseil();
+}
+
+// Boutons d'action rapide, juste sous la phrase de salutation.
+function initActionsRapidesAccueil() {
+  const zone = document.getElementById('actions-rapides-accueil');
+  if (!zone) return;
+  zone.innerHTML = `
+    <div class="rangee-actions-rapides-accueil">
+      <button type="button" class="bouton-action-rapide-accueil rouge">🚨 Alerter</button>
+      <button type="button" class="bouton-action-rapide-accueil prairie">🤲 Demander de l'aide</button>
+    </div>
+  `;
+  zone.querySelector('.rouge').addEventListener('click', () => ouvrirModaleCreationAlerte());
+  zone.querySelector('.prairie').addEventListener('click', () => ouvrirModaleDemandeAideRapide());
 }
 
 function afficherSalut() {
@@ -322,6 +337,7 @@ async function chargerProchainConseil() {
 
 async function chargerResumes() {
   const zone = document.getElementById('bandeau-resumes');
+  const titre = document.getElementById('titre-coup-oeil');
   if (!zone) return;
   zone.innerHTML = '';
 
@@ -337,14 +353,5 @@ async function chargerResumes() {
       zone.appendChild(pastille);
     }
   }
-
-  const rangee = document.createElement('div');
-  rangee.className = 'rangee-actions-rapides-accueil';
-  rangee.innerHTML = `
-    <button type="button" class="bouton-action-rapide-accueil rouge">🚨 Alerter</button>
-    <button type="button" class="bouton-action-rapide-accueil prairie">🤲 Demander de l'aide</button>
-  `;
-  rangee.querySelector('.rouge').addEventListener('click', () => ouvrirModaleCreationAlerte());
-  rangee.querySelector('.prairie').addEventListener('click', () => ouvrirModaleDemandeAideRapide());
-  zone.appendChild(rangee);
+  if (titre) titre.hidden = zone.children.length === 0;
 }
