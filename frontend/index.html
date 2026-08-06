@@ -8,10 +8,10 @@
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260806-2">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260806-2">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260806-2">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260806-2">
+  <link rel="stylesheet" href="/css/base.css?v=20260806-3">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260806-3">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260806-3">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260806-3">
 </head>
 <body>
 
@@ -68,14 +68,24 @@
     </section>
 
     <section id="onglet-actualites" class="onglet-contenu" hidden>
-      <div class="form-admin-only">
-        <button type="button" id="btn-ouvrir-creation-article" class="bouton-ouvrir-modale">+ Publier un article</button>
+      <div class="bandeau-onglet">
+        <h3>Actualités</h3>
+        <p>Les dernières nouvelles de votre commune, publiées par la mairie et les citoyens.</p>
+        <div class="form-admin-only">
+          <button type="button" id="btn-ouvrir-creation-article" class="bouton-ouvrir-modale">+ Publier un article</button>
+        </div>
       </div>
       <div id="filtres-categorie-articles" class="filtres-categorie-articles"></div>
       <div id="liste-articles"></div>
     </section>
 
     <section id="onglet-alertes" class="onglet-contenu" hidden>
+      <div class="bandeau-onglet">
+        <h3>Alertes</h3>
+        <p>Signalez un problème dans la commune (voirie, propreté, sécurité...) — la mairie est notifiée et peut suivre son traitement.</p>
+        <button type="button" id="btn-ouvrir-creation-alerte" class="bouton-ouvrir-modale" style="background:var(--rouge);">🚨 Signaler un problème</button>
+      </div>
+
       <div class="carte-urgences">
         <h4>📞 Numéros utiles en cas d'urgence</h4>
         <div class="grille-urgences">
@@ -88,8 +98,6 @@
         </div>
       </div>
 
-      <button type="button" id="btn-ouvrir-creation-alerte" class="bouton-ouvrir-modale" style="background:var(--rouge);">🚨 Signaler un problème</button>
-
       <h3 style="margin-top:22px;">Carte des signalements</h3>
       <div id="carte-alertes" style="height:320px;border-radius:14px;overflow:hidden;"></div>
 
@@ -98,20 +106,30 @@
     </section>
 
     <section id="onglet-thermometre" class="onglet-contenu" hidden>
-      <div class="form-admin-only">
-        <button type="button" id="btn-ouvrir-creation-sondage" class="bouton-ouvrir-modale">+ Créer un sondage</button>
+      <div class="bandeau-onglet">
+        <h3>Thermomètre</h3>
+        <p>Donnez votre avis sur les sujets qui font la commune, en toute simplicité.</p>
+        <div class="form-admin-only">
+          <button type="button" id="btn-ouvrir-creation-sondage" class="bouton-ouvrir-modale">+ Créer un sondage</button>
+        </div>
       </div>
       <div id="liste-sondages"></div>
     </section>
 
     <section id="onglet-mur" class="onglet-contenu" hidden>
-      <h3>Le mur des voisins</h3>
-      <p style="font-size:12.5px;color:var(--roseau);">Exprimez-vous librement, dans le respect de chacun 🙂 · Les messages disparaissent après 24-48h.</p>
-      <button type="button" id="btn-ouvrir-creation-mur" class="bouton-ouvrir-modale">+ Écrire un message</button>
+      <div class="bandeau-onglet">
+        <h3>Le mur des voisins</h3>
+        <p>Exprimez-vous librement, dans le respect de chacun 🙂 · Les messages disparaissent après 24-48h.</p>
+        <button type="button" id="btn-ouvrir-creation-mur" class="bouton-ouvrir-modale">+ Écrire un message</button>
+      </div>
       <div id="liste-posts"></div>
     </section>
 
     <section id="onglet-agenda" class="onglet-contenu" hidden>
+      <div class="bandeau-onglet">
+        <h3>Agenda</h3>
+        <p>Les événements de votre commune, et ceux des communes voisines partenaires.</p>
+      </div>
       <div class="sous-onglets-chasse" style="margin-bottom:10px;">
         <button type="button" class="sous-onglet-agenda-btn active" data-sousonglet="local">📅 Mes événements</button>
         <button type="button" class="sous-onglet-agenda-btn" data-sousonglet="autour">🌍 Autour de moi</button>
@@ -142,11 +160,19 @@
     </section>
 
     <section id="onglet-coups-de-main" class="onglet-contenu" hidden>
-      <button type="button" id="btn-ouvrir-creation-coup-de-main" class="bouton-ouvrir-modale">+ Publier une annonce</button>
+      <div class="bandeau-onglet">
+        <h3>Coup de main</h3>
+        <p>Besoin d'aide ou envie d'en donner ? Publiez ou trouvez une annonce entre voisins.</p>
+        <button type="button" id="btn-ouvrir-creation-coup-de-main" class="bouton-ouvrir-modale">+ Publier une annonce</button>
+      </div>
       <div id="liste-annonces"></div>
     </section>
 
     <section id="onglet-chasse-tresor" class="onglet-contenu" hidden>
+      <div class="bandeau-onglet">
+        <h3>Chasse au trésor</h3>
+        <p>Explorez votre commune à travers des chasses officielles et des énigmes photo entre voisins.</p>
+      </div>
       <div class="sous-onglets-chasse">
         <button type="button" class="sous-onglet-btn active" data-sousonglet="chasses">🗺️ Chasses officielles</button>
         <button type="button" class="sous-onglet-btn" data-sousonglet="enigmes">🧭 Trouve la photo</button>
@@ -199,31 +225,43 @@
     </section>
 
     <section id="onglet-lois" class="onglet-contenu" hidden>
-      <p style="font-size:12.5px;color:var(--roseau);">Textes de loi français et européens, sélectionnés par votre mairie. Donnez votre avis et échangez avec vos voisins — un exercice citoyen, pas un vote officiel.</p>
-      <div class="form-admin-only">
-        <button type="button" id="btn-ouvrir-creation-loi" class="bouton-ouvrir-modale">+ Ajouter un texte</button>
+      <div class="bandeau-onglet">
+        <h3>Lois</h3>
+        <p>Textes de loi français et européens, sélectionnés par votre mairie. Donnez votre avis et échangez avec vos voisins — un exercice citoyen, pas un vote officiel.</p>
+        <div class="form-admin-only">
+          <button type="button" id="btn-ouvrir-creation-loi" class="bouton-ouvrir-modale">+ Ajouter un texte</button>
+        </div>
       </div>
       <div id="liste-lois"></div>
     </section>
 
     <section id="onglet-annuaire" class="onglet-contenu" hidden>
-      <button type="button" id="btn-ouvrir-creation-annuaire" class="bouton-ouvrir-modale">+ Créer ma fiche</button>
-      <h3 style="margin-top:22px;">Annuaire</h3>
+      <div class="bandeau-onglet">
+        <h3>Annuaire</h3>
+        <p>Retrouvez les habitants et associations de la commune, ou créez votre propre fiche.</p>
+        <button type="button" id="btn-ouvrir-creation-annuaire" class="bouton-ouvrir-modale">+ Créer ma fiche</button>
+      </div>
       <div id="liste-annuaire"></div>
     </section>
 
     <section id="onglet-bulletin" class="onglet-contenu" hidden>
-      <div class="form-admin-only">
-        <button type="button" id="btn-ouvrir-creation-bulletin" class="bouton-ouvrir-modale">+ Rédiger un bulletin</button>
-        <p style="font-size:12px;color:var(--roseau);">Un brouillon doit être validé par un élu ou le superadmin avant d'être visible par les citoyens.</p>
+      <div class="bandeau-onglet">
+        <h3>Bulletin municipal</h3>
+        <p>Les publications officielles de votre mairie.</p>
+        <div class="form-admin-only">
+          <button type="button" id="btn-ouvrir-creation-bulletin" class="bouton-ouvrir-modale">+ Rédiger un bulletin</button>
+          <p style="font-size:12px;color:var(--roseau);">Un brouillon doit être validé par un élu ou le superadmin avant d'être visible par les citoyens.</p>
+        </div>
       </div>
       <div id="liste-bulletin"></div>
     </section>
 
     <section id="onglet-photo-du-jour" class="onglet-contenu" hidden>
-      <h3>Photo du jour</h3>
-      <p style="font-size:12.5px;color:var(--roseau);">Une photo par jour. La galerie est remise à zéro chaque lundi. Les photos des autres sont floues jusqu'à ce que la communauté les valide.</p>
-      <button type="button" id="btn-ouvrir-creation-photo-jour" class="bouton-ouvrir-modale">+ Publier ma photo du jour</button>
+      <div class="bandeau-onglet">
+        <h3>Photo du jour</h3>
+        <p>Une photo par jour. La galerie est remise à zéro chaque lundi. Les photos des autres sont floues jusqu'à ce que la communauté les valide.</p>
+        <button type="button" id="btn-ouvrir-creation-photo-jour" class="bouton-ouvrir-modale">+ Publier ma photo du jour</button>
+      </div>
       <p id="compteur-publications-jour" style="font-size:12px;color:var(--roseau);"></p>
 
       <div id="grille-photos-jour" class="grille-photos-jour"></div>
@@ -439,30 +477,30 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260806-2"></script>
-  <script src="/js/config.js?v=20260806-2"></script>
-  <script src="/js/utils.js?v=20260806-2"></script>
-  <script src="/js/api.js?v=20260806-2"></script>
-  <script src="/js/editeur-riche.js?v=20260806-2"></script>
-  <script src="/js/dashboard.js?v=20260806-2"></script>
-  <script src="/js/articles.js?v=20260806-2"></script>
-  <script src="/js/alertes.js?v=20260806-2"></script>
-  <script src="/js/thermometre.js?v=20260806-2"></script>
-  <script src="/js/mur.js?v=20260806-2"></script>
-  <script src="/js/agenda.js?v=20260806-2"></script>
-  <script src="/js/coups-de-main.js?v=20260806-2"></script>
-  <script src="/js/coups-de-main-form.js?v=20260806-2"></script>
-  <script src="/js/chasse-tresor.js?v=20260806-2"></script>
-  <script src="/js/conseil.js?v=20260806-2"></script>
-  <script src="/js/annuaire.js?v=20260806-2"></script>
-  <script src="/js/bulletin.js?v=20260806-2"></script>
-  <script src="/js/photo-du-jour.js?v=20260806-2"></script>
-  <script src="/js/enigmes.js?v=20260806-2"></script>
-  <script src="/js/profil.js?v=20260806-2"></script>
-  <script src="/js/notifications.js?v=20260806-2"></script>
-  <script src="/js/lois.js?v=20260806-2"></script>
-  <script src="/js/moderation.js?v=20260806-2"></script>
-  <script src="/js/participation-citoyenne.js?v=20260806-2"></script>
-  <script src="/js/navigation.js?v=20260806-2"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260806-3"></script>
+  <script src="/js/config.js?v=20260806-3"></script>
+  <script src="/js/utils.js?v=20260806-3"></script>
+  <script src="/js/api.js?v=20260806-3"></script>
+  <script src="/js/editeur-riche.js?v=20260806-3"></script>
+  <script src="/js/dashboard.js?v=20260806-3"></script>
+  <script src="/js/articles.js?v=20260806-3"></script>
+  <script src="/js/alertes.js?v=20260806-3"></script>
+  <script src="/js/thermometre.js?v=20260806-3"></script>
+  <script src="/js/mur.js?v=20260806-3"></script>
+  <script src="/js/agenda.js?v=20260806-3"></script>
+  <script src="/js/coups-de-main.js?v=20260806-3"></script>
+  <script src="/js/coups-de-main-form.js?v=20260806-3"></script>
+  <script src="/js/chasse-tresor.js?v=20260806-3"></script>
+  <script src="/js/conseil.js?v=20260806-3"></script>
+  <script src="/js/annuaire.js?v=20260806-3"></script>
+  <script src="/js/bulletin.js?v=20260806-3"></script>
+  <script src="/js/photo-du-jour.js?v=20260806-3"></script>
+  <script src="/js/enigmes.js?v=20260806-3"></script>
+  <script src="/js/profil.js?v=20260806-3"></script>
+  <script src="/js/notifications.js?v=20260806-3"></script>
+  <script src="/js/lois.js?v=20260806-3"></script>
+  <script src="/js/moderation.js?v=20260806-3"></script>
+  <script src="/js/participation-citoyenne.js?v=20260806-3"></script>
+  <script src="/js/navigation.js?v=20260806-3"></script>
 </body>
 </html>
