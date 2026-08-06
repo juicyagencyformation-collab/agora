@@ -139,7 +139,7 @@ async function chargerMiniXp() {
 
   zoneXp.innerHTML = `
     <button class="carte-xp-hero-bouton" id="btn-vers-profil">
-      <div class="badge-xp-commune" style="--pct: ${pct};">
+      <div class="badge-xp-commune" style="--pct: ${pct}; --couleur-anneau-vide: rgba(255,255,255,.25);">
         <div class="interieur-badge-xp">
           ${window.COMMUNE_LOGO_URL ? `<img src="${window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
         </div>

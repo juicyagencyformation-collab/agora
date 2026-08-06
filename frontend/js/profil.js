@@ -51,11 +51,15 @@ async function chargerProfil() {
 
   zone.innerHTML = `
     <div class="carte-dashboard carte-profil-entete">
-      <div class="niveau-cercle">Nv. ${data.niveau}</div>
+      <div class="badge-xp-commune" style="--pct: ${pct};">
+        <div class="interieur-badge-xp">
+          ${window.COMMUNE_LOGO_URL ? `<img src="${window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
+        </div>
+        <div class="niveau-overlay-badge-xp">${data.niveau}</div>
+      </div>
       <div style="flex:1;">
         <strong>${escapeAttr(data.prenom)} ${escapeAttr(data.nom)}</strong>
-        <div class="jauge" style="margin-top:6px;"><div class="jauge-remplie" style="width:${pct}%"></div></div>
-        <small style="color:var(--roseau);">${xpDansNiveau} / ${xpPourNiveau} XP vers le niveau ${data.niveau + 1}</small>
+        <small style="display:block;color:var(--roseau);margin-top:4px;">${xpDansNiveau} / ${xpPourNiveau} XP vers le niveau ${data.niveau + 1}</small>
       </div>
     </div>
 
