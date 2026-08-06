@@ -1,9 +1,10 @@
 // worker/src/routes/commune.ts
-import { estGestionnaire } from '../lib/permissions';
+import { estGestionnaire, peutGererRoles } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseUpdate } from '../db';
+import { uploaderFichier } from '../storage';
 
 const app = new Hono();
 
@@ -46,6 +47,31 @@ app.patch('/', jwtMiddleware, async (c) => {
 
   await supabaseUpdate(c.env, 'communes', body.data, { id: `eq.${commune_id}` });
   return c.json({ ok: true });
+});
+
+// POST /logo — réservé aux élus, au maire et au superadmin (pas les admins) : le logo
+// engage l'image officielle de la commune, plus sensible qu'un réglage de contenu courant.
+app.post('/logo', jwtMiddleware, async (c) => {
+  const role = c.get('role');
+  if (!peutGererRoles(role)) {
+    return c.json({ erreur: 'Réservé aux élus, au maire et au superadmin' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+  const contentType = c.req.header('Content-Type') || '';
+  if (!/^image\/(jpeg|png)$/.test(contentType)) {
+    return c.json({ erreur: 'Format non autorisé (JPEG ou PNG uniquement)' }, 400);
+  }
+  const donnees = await c.req.arrayBuffer();
+  if (donnees.byteLength > 4 * 1024 * 1024) {
+    return c.json({ erreur: 'Image trop lourde (max 4 Mo)' }, 400);
+  }
+  const extension = contentType.split('/')[1];
+  // Clé fixe (pas d'UUID) : un nouvel upload remplace directement l'ancien logo dans R2 —
+  // un seul logo par commune, inutile de suivre/supprimer un ancien fichier séparément.
+  const key = `${commune_id}/logo.${extension}`;
+  const url = await uploaderFichier(c.env, key, donnees, contentType);
+  await supabaseUpdate(c.env, 'communes', { logo_url: url }, { id: `eq.${commune_id}` });
+  return c.json({ ok: true, logo_url: url });
 });
 
 export default app;

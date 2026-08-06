@@ -79,7 +79,7 @@ app.patch('/onglets/:cle', async (c) => {
 app.get('/utilisateurs', async (c) => {
   const role = c.get('role');
   if (!peutGererRoles(role)) {
-    return c.json({ erreur: 'Réservé aux élus et superadmin' }, 403);
+    return c.json({ erreur: 'Réservé aux élus, au maire et au superadmin' }, 403);
   }
   const commune_id = c.get('commune_id');
   const utilisateurs = await supabaseSelect(c.env, 'users', {
@@ -98,13 +98,13 @@ app.patch('/utilisateurs/:id/role', async (c) => {
   const cibleId = c.req.param('id');
 
   if (!peutGererRoles(roleAppelant)) {
-    return c.json({ erreur: 'Réservé aux élus et superadmin' }, 403);
+    return c.json({ erreur: 'Réservé aux élus, au maire et au superadmin' }, 403);
   }
   if (cibleId === appelantId) {
     return c.json({ erreur: 'Impossible de modifier son propre rôle' }, 400);
   }
 
-  const schema = z.object({ role: z.enum(['citoyen', 'admin', 'elu']) });
+  const schema = z.object({ role: z.enum(['citoyen', 'admin', 'elu', 'maire']) });
   const body = schema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 

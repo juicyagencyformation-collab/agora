@@ -38,7 +38,7 @@ function renderPhotoDuJour(p, medaille) {
 
   const netteforcee = p.est_moi || p.force_deflout;
   const flou = netteforcee ? 0 : Math.max(0, Math.round(16 * (1 - p.total_validations / p.seuil_validations)));
-  const estGestionnairePhoto = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  const estGestionnairePhoto = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 
   el.innerHTML = `
     <img src="${p.url}" style="filter:blur(${flou}px);" loading="lazy">

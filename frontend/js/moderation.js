@@ -47,6 +47,7 @@ async function chargerPanneauModeration() {
 
   chargerListeDechetsModeration();
   chargerListeUtilisateurs();
+  chargerApercuLogoCommune();
   chargerPhotosEnAttente();
   chargerEnigmesEnAttente();
   chargerMurEnAttente();
@@ -213,6 +214,50 @@ function initVoletEnigme() {
     });
     if (res.ok) alert('Réglage mis à jour.');
     else alert('Erreur lors de la mise à jour.');
+  });
+}
+
+async function chargerApercuLogoCommune() {
+  const zone = document.getElementById('apercu-logo-commune');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`);
+  if (!res.ok) return;
+  const { commune } = await res.json();
+  zone.innerHTML = commune.logo_url
+    ? `<img src="${commune.logo_url}" alt="Logo actuel de la commune">`
+    : `<p class="dechets-vide">Aucun logo pour l'instant — une icône par défaut est utilisée sur l'accueil.</p>`;
+}
+
+function initVoletLogo() {
+  const toggle = document.getElementById('toggle-volet-logo');
+  const volet = document.getElementById('volet-logo-contenu');
+  if (!toggle || !volet) return;
+
+  toggle.addEventListener('click', () => {
+    const ouvert = volet.classList.toggle('ouvert');
+    toggle.querySelector('.chevron').textContent = ouvert ? '▲' : '▼';
+  });
+
+  document.getElementById('logo-commune-input').addEventListener('change', async (e) => {
+    const fichier = e.target.files[0];
+    if (!fichier) return;
+    if (!['image/jpeg', 'image/png'].includes(fichier.type)) {
+      afficherToastMessage('Format non autorisé (JPEG ou PNG uniquement).', 'erreur');
+      return;
+    }
+    // Pas de compresserImage() ici : elle convertit systématiquement en JPEG, ce qui
+    // détruirait la transparence d'un logo/blason en PNG. Les logos restent de toute façon
+    // des fichiers légers, la compression n'apporte rien ici.
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/commune/logo`, {
+      method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+    });
+    if (res.ok) {
+      afficherToastMessage('Logo mis à jour !', 'succes');
+      chargerApercuLogoCommune();
+    } else {
+      const data = await res.json();
+      afficherToastMessage(data.erreur || 'Erreur lors de l\'upload', 'erreur');
+    }
   });
 }
 
@@ -415,18 +460,25 @@ async function chargerListeUtilisateurs() {
   if (!res.ok) { zone.innerHTML = ''; return; }
   const { utilisateurs } = await res.json();
 
-  const LABELS_ROLE = { citoyen: 'Citoyen', admin: 'Admin', elu: 'Élu', superadmin: 'Superadmin' };
+  const LABELS_ROLE = { citoyen: 'Citoyen', admin: 'Admin', elu: 'Élu', maire: 'Maire', superadmin: 'Superadmin' };
 
   zone.innerHTML = utilisateurs.map((u) => {
     if (u.id === window.USER_ID) {
       return `<div class="ligne-toggle-onglet"><span>${escapeAttr(u.prenom)} ${escapeAttr(u.nom)} (vous)</span><span>${LABELS_ROLE[u.role]}</span></div>`;
     }
-    // Un élu ne peut ni voir modifiable ni toucher un élu/superadmin
-    const verrouille = (window.ROLE === 'elu' && ['elu', 'superadmin'].includes(u.role)) || u.role === 'superadmin';
+    // Un élu ne peut toucher ni un élu, ni le maire, ni un superadmin ; le maire ne peut
+    // toucher ni un autre maire ni un superadmin (mais peut toucher un élu) — voir la même
+    // logique côté serveur dans worker/src/lib/permissions.ts.
+    const verrouille =
+      (window.ROLE === 'elu' && ['elu', 'maire', 'superadmin'].includes(u.role)) ||
+      (window.ROLE === 'maire' && ['maire', 'superadmin'].includes(u.role)) ||
+      u.role === 'superadmin';
     if (verrouille) {
       return `<div class="ligne-toggle-onglet"><span>${escapeAttr(u.prenom)} ${escapeAttr(u.nom)}</span><span>${LABELS_ROLE[u.role]}</span></div>`;
     }
-    const optionsDisponibles = window.ROLE === 'superadmin' ? ['citoyen', 'admin', 'elu'] : ['citoyen', 'admin'];
+    const optionsDisponibles = window.ROLE === 'superadmin' ? ['citoyen', 'admin', 'elu', 'maire']
+      : window.ROLE === 'maire' ? ['citoyen', 'admin', 'elu']
+      : ['citoyen', 'admin'];
     return `
       <div class="ligne-toggle-onglet">
         <span>${escapeAttr(u.prenom)} ${escapeAttr(u.nom)} <small style="color:var(--roseau);">${escapeAttr(u.email)}</small></span>

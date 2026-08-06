@@ -86,7 +86,7 @@ function remplirContenuDeliberation(zone, d, publiee) {
     zone.appendChild(form);
   }
 
-  if (['admin', 'elu', 'superadmin'].includes(window.ROLE)) {
+  if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
     bar.innerHTML = publiee
@@ -204,7 +204,7 @@ function renderPv(a) {
         }
       }
 
-      if (['admin', 'elu', 'superadmin'].includes(window.ROLE)) {
+      if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
         const bar = document.createElement('div');
         bar.className = 'actions-admin';
         bar.innerHTML = `<button data-action="supprimer">Supprimer</button>`;

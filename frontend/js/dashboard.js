@@ -139,11 +139,15 @@ async function chargerMiniXp() {
 
   zoneXp.innerHTML = `
     <button class="carte-xp-hero-bouton" id="btn-vers-profil">
-      <div class="xp-hero-cercle">⭐<br><span style="font-size:15px;">${data.niveau}</span></div>
+      <div class="badge-xp-commune" style="--pct: ${pct};">
+        <div class="interieur-badge-xp">
+          ${window.COMMUNE_LOGO_URL ? `<img src="${window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
+        </div>
+        <div class="niveau-overlay-badge-xp">${data.niveau}</div>
+      </div>
       <div style="flex:1;text-align:left;">
         <div style="font-size:12.5px;font-weight:600;">Niveau ${data.niveau}</div>
-        <div class="jauge" style="margin-top:4px;"><div class="jauge-remplie" style="width:${pct}%"></div></div>
-        <div style="font-size:10.5px;color:var(--roseau);margin-top:2px;">${xpDansNiveau}/${xpPourNiveau} XP</div>
+        <div style="font-size:10.5px;color:rgba(255,255,255,.85);margin-top:2px;">${xpDansNiveau}/${xpPourNiveau} XP</div>
       </div>
     </button>
   `;

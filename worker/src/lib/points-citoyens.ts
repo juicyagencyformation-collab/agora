@@ -115,7 +115,8 @@ export async function attribuerPointsParticipation(
     }
   }
 
-  if (valideurRole === 'elu') {
+  // Le maire hérite de ce bonus (super-élu) — voir worker/src/lib/permissions.ts.
+  if (['elu', 'maire'].includes(valideurRole)) {
     await crediterScoreCitoyen(env, commune_id, user_id, BONUS_VALIDATION_ELU, RAISON_VALIDE_ELU, 'bonus', { event_id: event.id, valide_par: valideurId });
   }
 

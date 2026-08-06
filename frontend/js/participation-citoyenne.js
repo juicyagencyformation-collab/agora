@@ -103,7 +103,11 @@ async function ouvrirPanneauValidationPresences(zone, eventId) {
 
 function renderPanneauValidationPresences(zone, eventId, data) {
   const pct = data.total ? Math.round((data.total_confirmes / data.total) * 100) : 0;
-  const labelRole = { elu: '🏛️ Vous validez en tant qu\'élu(e) — bonus de +10 pts pour chaque présence.', superadmin: '👑 Vous validez en tant que superadmin — pouvoir de correction.' };
+  const labelRole = {
+    elu: '🏛️ Vous validez en tant qu\'élu(e) — bonus de +10 pts pour chaque présence.',
+    maire: '🎖️ Vous validez en tant que maire — bonus de +10 pts pour chaque présence.',
+    superadmin: '👑 Vous validez en tant que superadmin — pouvoir de correction.',
+  };
 
   zone.innerHTML = `
     <div class="panneau-validation-presences">

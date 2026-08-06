@@ -70,7 +70,7 @@ function renderDetailEnigme(enigme) {
     ${!enigme.est_moi && !enigme.deja_trouve ? '<button class="btn-je-suis-ici">📍 Je suis ici !</button>' : ''}
     <div class="actions-admin" style="margin-top:10px;">
       ${!enigme.est_moi ? `<button class="btn-signaler-enigme" ${enigme.deja_signale ? 'disabled' : ''}>${enigme.deja_signale ? 'Signalée' : '🚩 Signaler'}</button>` : ''}
-      ${enigme.est_moi || ['admin', 'elu', 'superadmin'].includes(window.ROLE) ? '<button class="btn-supprimer-enigme">Supprimer</button>' : ''}
+      ${enigme.est_moi || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE) ? '<button class="btn-supprimer-enigme">Supprimer</button>' : ''}
     </div>
   `;
 

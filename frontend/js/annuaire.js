@@ -62,7 +62,7 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
   `;
 
   const estProprietaire = fiche.user_id === window.USER_ID;
-  if (estProprietaire || ['admin', 'elu', 'superadmin'].includes(window.ROLE)) {
+  if (estProprietaire || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
     bar.innerHTML = `<button data-action="supprimer">Supprimer</button>`;

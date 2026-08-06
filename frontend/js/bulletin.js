@@ -47,10 +47,10 @@ function renderBulletin(bulletin) {
 function remplirContenuBulletin(zone, bulletin, estBrouillon) {
   zone.innerHTML = `<div class="contenu-article">${bulletin.contenu_html}</div>`;
 
-  if (['admin', 'elu', 'superadmin'].includes(window.ROLE)) {
+  if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
-    bar.innerHTML = estBrouillon && ['elu', 'superadmin'].includes(window.ROLE)
+    bar.innerHTML = estBrouillon && ['elu', 'maire', 'superadmin'].includes(window.ROLE)
       ? `<button data-action="publier">Valider et publier</button><button data-action="supprimer">Supprimer</button>`
       : `<button data-action="supprimer">Supprimer</button>`;
 

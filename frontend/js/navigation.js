@@ -6,11 +6,11 @@ async function initUtilisateur() {
     const data = await res.json();
     window.USER_ID = data.user_id;
     window.ROLE = data.role;
-    document.body.classList.toggle('est-admin', ['admin', 'elu', 'superadmin'].includes(data.role));
-    document.body.classList.toggle('est-gestionnaire-roles', ['elu', 'superadmin'].includes(data.role));
+    document.body.classList.toggle('est-admin', ['admin', 'elu', 'maire', 'superadmin'].includes(data.role));
+    document.body.classList.toggle('est-gestionnaire-roles', ['elu', 'maire', 'superadmin'].includes(data.role));
     document.body.classList.toggle('est-superadmin', data.role === 'superadmin');
 
-    const peutVoirModeration = ['admin', 'elu', 'superadmin'].includes(data.role);
+    const peutVoirModeration = ['admin', 'elu', 'maire', 'superadmin'].includes(data.role);
     document.querySelectorAll('[data-onglet="moderation"]').forEach((btn) => {
       btn.style.display = peutVoirModeration ? '' : 'none';
     });
@@ -54,6 +54,7 @@ async function initCommune() {
     window.COMMUNE_LAT = commune.lat ?? 43.6047;
     window.COMMUNE_LNG = commune.lng ?? 1.4442;
     window.COMMUNE_COORDS_MANQUANTES = commune.lat === null;
+    window.COMMUNE_LOGO_URL = commune.logo_url ?? null;
     if (commune.nom) document.getElementById('nom-commune').textContent = commune.nom;
     appliquerTheme(commune);
   } catch {}
@@ -121,6 +122,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireEnigme();
   initSousOngletsChasse();
   initVoletSeuilPhoto();
+  initVoletLogo();
   initVoletCouleurs();
   initVoletEnigme();
   initVoletMur();

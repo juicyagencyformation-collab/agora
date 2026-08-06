@@ -64,13 +64,31 @@ h1, h2, h3, h4, p, span, a, button {
   background: none; border: none; padding: 0; width: 100%; height: 100%;
   display: flex; align-items: center; gap: 10px; color: #fff; cursor: pointer;
 }
-.xp-hero-cercle {
-  width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.2);
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  font-size: 15px; line-height: 1.1; flex-shrink: 0;
+/* Badge circulaire façon "achievement" (Reddit) : anneau de progression XP tout autour,
+   logo de la commune au centre (repli sur une icône générique si aucun logo uploadé),
+   niveau affiché en pastille sur le coin bas-droit. */
+.badge-xp-commune {
+  --pct: 0;
+  position: relative; width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0;
+  background: conic-gradient(var(--aube) calc(var(--pct) * 1%), rgba(255,255,255,.25) 0);
+  padding: 4px;
 }
-.carte-xp-hero-bouton .jauge { background: rgba(255,255,255,.3); }
-.carte-xp-hero-bouton .jauge-remplie { background: var(--aube); }
+.interieur-badge-xp {
+  width: 100%; height: 100%; border-radius: 50%; background: #fff;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.interieur-badge-xp img { width: 100%; height: 100%; object-fit: cover; }
+.logo-defaut-badge-xp { font-size: 24px; }
+.niveau-overlay-badge-xp {
+  position: absolute; bottom: -3px; right: -3px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--eau); color: #fff; font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; border: 2px solid #fff;
+}
+.apercu-logo-commune { margin-bottom: 10px; }
+.apercu-logo-commune img {
+  width: 72px; height: 72px; object-fit: contain; border-radius: 12px;
+  background: var(--calc); border: 1.5px solid var(--eauL); padding: 6px;
+}
 
 .carte-lune { background: linear-gradient(135deg, #2E2A4A, #4A3F6B); color: #fff; }
 .carte-lune p { color: rgba(255,255,255,.85) !important; }

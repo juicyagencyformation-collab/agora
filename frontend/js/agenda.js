@@ -255,7 +255,7 @@ function renderEvent(event) {
   const el = document.createElement('article');
   el.className = 'carte-event-compact';
   el.dataset.eventId = event.id;
-  const estGestionnaireEvent = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  const estGestionnaireEvent = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const peutModifier = event.est_moi || estGestionnaireEvent;
   const dateAffichee = formatDateAffichageEvent(event);
   const badgeQuand = !modeHistoriqueAgenda ? badgeQuandEvenement(event.date_debut) : null;
@@ -302,7 +302,7 @@ function renderEvent(event) {
 function remplirContenuEvenement(zone, event, peutModifier) {
   // Distinct de peutModifier (qui inclut admin) : validation des présences civiques réservée
   // à l'organisateur, élu ou superadmin — voir la garde bespoke côté serveur (agenda.ts).
-  const peutValiderPresences = event.est_moi || ['elu', 'superadmin'].includes(window.ROLE);
+  const peutValiderPresences = event.est_moi || ['elu', 'maire', 'superadmin'].includes(window.ROLE);
 
   zone.innerHTML = `
     ${event.description ? `<p>${escapeAttr(event.description)}</p>` : ''}
@@ -566,7 +566,7 @@ function initBoutonPosition(corps, prefixe, latInitial, lngInitial) {
 
 function ouvrirEditionEvent(event) {
   const valeurs = decomposerDatesEvenement(event);
-  const estGestionnaireAgenda = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  const estGestionnaireAgenda = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const html = `
     <form id="form-modale-edition-event">
       <label class="label-champ-edition">Titre</label>
@@ -622,7 +622,7 @@ function initFormulaireAgenda() {
 }
 
 function ouvrirModaleCreationAgenda() {
-  const estGestionnaireAgenda = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  const estGestionnaireAgenda = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const html = `
     <form id="form-modale-agenda">
       <input type="text" id="titre-agenda-modale" placeholder="Titre" maxlength="150" required>

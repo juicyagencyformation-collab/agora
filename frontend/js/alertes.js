@@ -28,7 +28,7 @@ async function initCarteAlertes() {
 }
 
 function peutSupprimerAlerte(alerte) {
-  return alerte.user_id === window.USER_ID || ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  return alerte.user_id === window.USER_ID || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 }
 
 async function supprimerAlerte(id) {

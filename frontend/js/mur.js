@@ -24,7 +24,7 @@ function renderPost(post) {
   el.className = 'carte-post';
   el.dataset.postId = post.id;
   const estMoi = post.user_id === window.USER_ID;
-  const estGestionnairePost = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  const estGestionnairePost = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const dateAffichee = new Date(post.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   el.innerHTML = `

@@ -62,7 +62,7 @@ function renderDetailChasse(chasse) {
   zone.hidden = false;
 
   const termine = chasse.etapes_validees >= chasse.total_etapes;
-  const estGestionnaireChasse = ['admin', 'elu', 'superadmin'].includes(window.ROLE);
+  const estGestionnaireChasse = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 
   zone.innerHTML = `
     <button type="button" class="btn-retour-detail">← Retour aux chasses</button>

@@ -58,8 +58,11 @@ soumis par les citoyens — voir règle 4 ci-dessous.
    exception à cette règle doit être validée explicitement avec Léandre avant ajout, jamais
    décidée seule.
 4. Toute action de modération suit le même schéma : signalement → masquage immédiat → revue mairie
-5. Rôles : citoyen < admin < élu < superadmin. Le superadmin ne peut JAMAIS être attribué
-   via l'interface, uniquement en base directement.
+5. Rôles : citoyen < admin < élu < maire < superadmin (maire ajouté le 2026-08-06 : hérite
+   des pouvoirs d'élu + peut nommer/révoquer des élus + seul rôle avec élu à pouvoir
+   uploader le logo de la commune ; un seul maire par commune par convention, jamais imposé
+   techniquement). Le superadmin ne peut JAMAIS être attribué via l'interface, uniquement en
+   base directement — maire non plus, réservé au superadmin.
 6. Anti-farming systématique sur toute action à XP : une table "X_lus_par_utilisateur" ou
    équivalent, jamais d'XP en boucle (supprimer/recréer, revoter, etc.)
 7. Variables du domaine métier en français (commune, citoyen, sondage...), technique en

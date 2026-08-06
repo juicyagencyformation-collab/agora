@@ -485,7 +485,7 @@ app.get('/:id/participations-citoyennes', async (c) => {
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
 
-  const peutGererPresences = event.user_id === user_id || role === 'elu' || role === 'superadmin';
+  const peutGererPresences = event.user_id === user_id || ['elu', 'maire', 'superadmin'].includes(role);
   if (!peutGererPresences) return c.json({ erreur: 'Non autorisé' }, 403);
 
   const participations = await supabaseSelect(c.env, 'participations_citoyennes', {
@@ -534,7 +534,7 @@ app.patch('/:id/participations-citoyennes/:pid/valider', async (c) => {
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
 
-  const peutGererPresences = event.user_id === user_id || role === 'elu' || role === 'superadmin';
+  const peutGererPresences = event.user_id === user_id || ['elu', 'maire', 'superadmin'].includes(role);
   if (!peutGererPresences) return c.json({ erreur: 'Non autorisé' }, 403);
 
   const [participation] = await supabaseSelect(c.env, 'participations_citoyennes', {
@@ -570,7 +570,7 @@ app.post('/:id/participations-citoyennes/valider-tous', async (c) => {
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
 
-  const peutGererPresences = event.user_id === user_id || role === 'elu' || role === 'superadmin';
+  const peutGererPresences = event.user_id === user_id || ['elu', 'maire', 'superadmin'].includes(role);
   if (!peutGererPresences) return c.json({ erreur: 'Non autorisé' }, 403);
 
   const valides = await supabaseUpdate(c.env, 'participations_citoyennes', {

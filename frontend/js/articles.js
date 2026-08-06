@@ -120,7 +120,7 @@ function remplirContenuDeplie(zone, article) {
     zone.querySelector('.sondage-article').appendChild(renderSondageArticle(article.sondage, article.id));
   }
 
-  if (['admin', 'elu', 'superadmin'].includes(window.ROLE)) {
+  if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
     bar.innerHTML = `<button data-action="modifier">Modifier</button><button data-action="supprimer">Supprimer</button>`;
