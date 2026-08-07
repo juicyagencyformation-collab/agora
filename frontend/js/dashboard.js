@@ -156,7 +156,7 @@ async function chargerMiniXp() {
     <button class="carte-xp-hero-bouton" id="btn-vers-profil">
       <div class="badge-xp-commune" style="--pct: ${pct}; --couleur-anneau-vide: rgba(255,255,255,.25);">
         <div class="interieur-badge-xp">
-          ${window.COMMUNE_LOGO_URL ? `<img src="${window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
+          ${data.photo_profil_url || window.COMMUNE_LOGO_URL ? `<img src="${data.photo_profil_url || window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
         </div>
         <div class="niveau-overlay-badge-xp">${data.niveau}</div>
       </div>

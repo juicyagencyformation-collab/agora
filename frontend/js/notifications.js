@@ -110,7 +110,6 @@ function initSectionInstallationProfil() {
 
   if (estDejaInstallee()) {
     zone.innerHTML = `
-      <h3 style="margin-top:22px;">📲 Application installée</h3>
       <p style="font-size:13px;color:var(--prairie);">✅ L'application est déjà installée sur cet appareil, comme une vraie application.</p>
     `;
     return;
@@ -140,11 +139,10 @@ function initSectionInstallationProfil() {
         <span class="numero-etape">2</span>
         <p>Confirme en appuyant sur <strong>"Installer"</strong></p>
       </div>
-      <button type="button" id="btn-installer-pwa-profil" style="width:100%;font-size:15px;padding:14px;margin-top:8px;">📲 Installer l'application</button>
+      <button type="button" id="btn-installer-pwa-profil" class="bouton-ouvrir-modale" style="margin-top:8px;">📲 Installer l'application</button>
     `;
 
   zone.innerHTML = `
-    <h3 style="margin-top:22px;">📲 Installer l'application</h3>
     <p style="font-size:13px;color:var(--roseau);">Pour un accès rapide, comme une vraie application, directement depuis l'écran d'accueil de ton téléphone.</p>
     ${instructions}
   `;
@@ -323,7 +321,6 @@ async function initReglagesNotificationsProfil() {
   };
 
   zone.innerHTML = `
-    <h3 style="margin-top:22px;">🔔 Notifications</h3>
     ${abonnementReel
       ? '<p style="font-size:12.5px;color:var(--prairie);">Notifications activées sur cet appareil.</p>'
       : `<button type="button" id="btn-activer-notifs-profil" class="bouton-ouvrir-modale">Activer les notifications sur cet appareil</button>`}

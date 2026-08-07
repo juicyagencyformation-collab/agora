@@ -1,12 +1,26 @@
 // worker/src/routes/profil.ts
 import { Hono } from 'hono';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseSelect } from '../db';
+import { supabaseSelect, supabaseUpdate } from '../db';
+import { uploaderFichier, deleteObject } from '../storage';
 import { xpRequisPourNiveau } from '../lib/gamification';
 import { calculerPalierCourant } from '../lib/points-citoyens';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
+
+// Tables où un citoyen publie du contenu qui lui est attribué (user_id) — comptées telles
+// quelles (pas de compteur persistant à part) : une ligne encore présente = une contribution
+// encore active, le contenu éphémère/expiré déjà purgé (mur, photo du jour, coups de main...)
+// disparaît donc de lui-même du total, sans logique supplémentaire à maintenir.
+const TABLES_CONTRIBUTIONS = ['alertes', 'posts', 'coups_de_main', 'events', 'annuaire', 'lois_commentaires', 'photos_du_jour', 'photos_enigmes'];
+
+async function compterContributionsActives(env: any, commune_id: string, user_id: string): Promise<number> {
+  const comptes = await Promise.all(TABLES_CONTRIBUTIONS.map((table) =>
+    supabaseSelect(env, table, { select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}` })
+  ));
+  return comptes.reduce((total, rows) => total + rows.length, 0);
+}
 
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id');
@@ -14,16 +28,20 @@ app.get('/', async (c) => {
 
   const [user] = await supabaseSelect(c.env, 'users', {
     select: 'nom,prenom,email,role,xp,niveau,streak_actuel,streak_record,created_at,'
-      + 'score_citoyen,streak_participation_actuel,streak_participation_record,streak_mensuel_citoyen_actuel,suspendu_jusqu_au',
+      + 'score_citoyen,streak_participation_actuel,streak_participation_record,streak_mensuel_citoyen_actuel,suspendu_jusqu_au,'
+      + 'photo_profil_url,banniere_url',
     commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
   if (!user) return c.json({ erreur: 'Utilisateur introuvable' }, 404);
 
-  const badges = await supabaseSelect(c.env, 'badges_obtenus', {
-    select: 'cle_badge,obtenu_at',
-    commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
-    order: 'obtenu_at.asc',
-  });
+  const [badges, contributions_total] = await Promise.all([
+    supabaseSelect(c.env, 'badges_obtenus', {
+      select: 'cle_badge,obtenu_at',
+      commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
+      order: 'obtenu_at.asc',
+    }),
+    compterContributionsActives(c.env, commune_id, user_id),
+  ]);
 
   const xpNiveauActuel = xpRequisPourNiveau(Math.max(0, user.niveau - 1));
   const xpNiveauSuivant = xpRequisPourNiveau(user.niveau);
@@ -35,8 +53,64 @@ app.get('/', async (c) => {
     xp_niveau_actuel: xpNiveauActuel,
     xp_niveau_suivant: xpNiveauSuivant,
     badges,
+    contributions_total,
     participation,
   });
+});
+
+// POST /photo — photo de profil personnelle. Remplace le logo de la commune au centre du
+// badge XP (repli sur le logo de la commune si absente, comme avant) — voir frontend/js/profil.js.
+app.post('/photo', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const contentType = c.req.header('Content-Type') || '';
+  if (!/^image\/(jpeg|png|webp)$/.test(contentType)) {
+    return c.json({ erreur: 'Format non autorisé (JPEG, PNG ou WebP uniquement)' }, 400);
+  }
+  const donnees = await c.req.arrayBuffer();
+  if (donnees.byteLength > 8 * 1024 * 1024) {
+    return c.json({ erreur: 'Image trop lourde (8 Mo maximum)' }, 400);
+  }
+
+  const [user] = await supabaseSelect(c.env, 'users', {
+    select: 'photo_profil_r2_key', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
+  });
+
+  const extension = contentType.split('/')[1];
+  const key = `${commune_id}/profils/${user_id}/photo-${crypto.randomUUID()}.${extension}`;
+  const url = await uploaderFichier(c.env, key, donnees, contentType);
+
+  if (user?.photo_profil_r2_key) await deleteObject(c.env, user.photo_profil_r2_key);
+  await supabaseUpdate(c.env, 'users', { photo_profil_url: url, photo_profil_r2_key: key }, { id: `eq.${user_id}` });
+
+  return c.json({ url });
+});
+
+// POST /banniere — image de couverture personnelle, en haut de l'onglet Profil.
+app.post('/banniere', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const contentType = c.req.header('Content-Type') || '';
+  if (!/^image\/(jpeg|png|webp)$/.test(contentType)) {
+    return c.json({ erreur: 'Format non autorisé (JPEG, PNG ou WebP uniquement)' }, 400);
+  }
+  const donnees = await c.req.arrayBuffer();
+  if (donnees.byteLength > 8 * 1024 * 1024) {
+    return c.json({ erreur: 'Image trop lourde (8 Mo maximum)' }, 400);
+  }
+
+  const [user] = await supabaseSelect(c.env, 'users', {
+    select: 'banniere_r2_key', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
+  });
+
+  const extension = contentType.split('/')[1];
+  const key = `${commune_id}/profils/${user_id}/banniere-${crypto.randomUUID()}.${extension}`;
+  const url = await uploaderFichier(c.env, key, donnees, contentType);
+
+  if (user?.banniere_r2_key) await deleteObject(c.env, user.banniere_r2_key);
+  await supabaseUpdate(c.env, 'users', { banniere_url: url, banniere_r2_key: key }, { id: `eq.${user_id}` });
+
+  return c.json({ url });
 });
 
 // Score de participation citoyenne — système séparé de l'XP/niveau ci-dessus (voir

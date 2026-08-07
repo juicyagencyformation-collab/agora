@@ -130,6 +130,8 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initVoletRegional();
   initVoletSyncLois();
   initFormulaireBadgeCitoyen();
+  initBoutonDeconnexionProfil();
+  initTogglesCategoriesProfil();
   await initServiceWorker();
   initOnboardingPwa();
   initLiensDirectsNotification();

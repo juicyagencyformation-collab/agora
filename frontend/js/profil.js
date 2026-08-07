@@ -33,6 +33,16 @@ const LABELS_BADGES = {
   evenement_reussi: { nom: 'Événement réussi', icone: '🎉', description: 'Un de vos événements a réuni au moins 10 participants' },
 };
 
+// Ancienneté façon Reddit ("6 mois") — pas de précision au jour près, juste un repère.
+function formaterAnciennete(dateCreation) {
+  const jours = Math.floor((Date.now() - new Date(dateCreation).getTime()) / 86400000);
+  if (jours < 1) return 'Aujourd\'hui';
+  if (jours < 30) return `${jours} jour${jours > 1 ? 's' : ''}`;
+  if (jours < 365) { const mois = Math.floor(jours / 30); return `${mois} mois`; }
+  const annees = Math.floor(jours / 365);
+  return `${annees} an${annees > 1 ? 's' : ''}`;
+}
+
 async function chargerProfil() {
   const zone = document.getElementById('contenu-profil');
   if (!zone) return;
@@ -48,50 +58,120 @@ async function chargerProfil() {
   const xpDansNiveau = data.xp - data.xp_niveau_actuel;
   const xpPourNiveau = data.xp_niveau_suivant - data.xp_niveau_actuel;
   const pct = xpPourNiveau > 0 ? Math.round((xpDansNiveau / xpPourNiveau) * 100) : 100;
+  // La photo perso remplace le logo de la commune (repli sur le logo, puis sur l'icône par défaut).
+  const photoOuLogo = data.photo_profil_url || window.COMMUNE_LOGO_URL;
 
   zone.innerHTML = `
-    <div class="carte-dashboard carte-profil-entete">
-      <div class="badge-xp-commune" style="--pct: ${pct};">
+    <div class="banniere-profil" style="${data.banniere_url ? `background-image:url('${data.banniere_url}');` : ''}">
+      <button type="button" id="btn-changer-banniere" class="bouton-changer-media bouton-changer-banniere" title="Changer la bannière">📷</button>
+      <div class="badge-xp-commune badge-xp-profil-hero" style="--pct: ${pct};">
         <div class="interieur-badge-xp">
-          ${window.COMMUNE_LOGO_URL ? `<img src="${window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
+          ${photoOuLogo ? `<img src="${photoOuLogo}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
         </div>
         <div class="niveau-overlay-badge-xp">${data.niveau}</div>
-      </div>
-      <div style="flex:1;">
-        <strong>${escapeAttr(data.prenom)} ${escapeAttr(data.nom)}</strong>
-        <small style="display:block;color:var(--roseau);margin-top:4px;">${xpDansNiveau} / ${xpPourNiveau} XP vers le niveau ${data.niveau + 1}</small>
+        <button type="button" id="btn-changer-photo" class="bouton-changer-media bouton-changer-photo" title="Changer la photo">📷</button>
       </div>
     </div>
+    <input type="file" id="input-photo-profil" accept="image/jpeg,image/png,image/webp" hidden>
+    <input type="file" id="input-banniere-profil" accept="image/jpeg,image/png,image/webp" hidden>
 
-    <div class="carte-dashboard streak-carte">
-      <div><span class="streak-nombre">🔥 ${data.streak_actuel}</span><span class="streak-label">jour(s) d'affilée</span></div>
-      <div><span class="streak-nombre">🏆 ${data.streak_record}</span><span class="streak-label">record personnel</span></div>
+    <div class="identite-profil-hero">
+      <strong>${escapeAttr(data.prenom)} ${escapeAttr(data.nom)}</strong>
+      <small>${xpDansNiveau} / ${xpPourNiveau} XP vers le niveau ${data.niveau + 1}</small>
     </div>
 
-    <h3 style="font-size:15px;margin-top:18px;">Badges obtenus (${data.badges.length}/${Object.keys(LABELS_BADGES).length})</h3>
-    <div class="grille-badges">
-      ${Object.entries(LABELS_BADGES).map(([cle, info]) => {
-        const obtenu = data.badges.find((b) => b.cle_badge === cle);
-        return `
-          <div class="badge-item ${obtenu ? 'badge-obtenu' : 'badge-verrouille'}" title="${escapeAttr(info.description)}">
-            <div class="badge-icone">${info.icone}</div>
-            <div class="badge-nom">${escapeAttr(info.nom)}</div>
-          </div>
-        `;
-      }).join('')}
+    <div class="recap-stats-profil">
+      <div><strong>${data.contributions_total}</strong><span>Contribution${data.contributions_total > 1 ? 's' : ''}</span></div>
+      <div><strong>${data.score_citoyen ?? 0}</strong><span>Score citoyen</span></div>
+      <div><strong>${formaterAnciennete(data.created_at)}</strong><span>Ancienneté</span></div>
     </div>
 
-    ${renderSectionParticipationCitoyenne(data.participation)}
+    <div class="carte-categorie-profil">
+      <button type="button" class="entete-categorie-profil"><span>🏆 Progression</span><span class="chevron">▲</span></button>
+      <div class="corps-categorie-profil">
+        <div class="carte-dashboard streak-carte">
+          <div><span class="streak-nombre">🔥 ${data.streak_actuel}</span><span class="streak-label">jour(s) d'affilée</span></div>
+          <div><span class="streak-nombre">🏆 ${data.streak_record}</span><span class="streak-label">record personnel</span></div>
+        </div>
+        <h3 style="font-size:15px;margin-top:18px;">Badges obtenus (${data.badges.length}/${Object.keys(LABELS_BADGES).length})</h3>
+        <div class="grille-badges">
+          ${Object.entries(LABELS_BADGES).map(([cle, info]) => {
+            const obtenu = data.badges.find((b) => b.cle_badge === cle);
+            return `
+              <div class="badge-item ${obtenu ? 'badge-obtenu' : 'badge-verrouille'}" title="${escapeAttr(info.description)}">
+                <div class="badge-icone">${info.icone}</div>
+                <div class="badge-nom">${escapeAttr(info.nom)}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </div>
 
-    <button id="btn-deconnexion" style="margin-top:20px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">Se déconnecter</button>
+    <div class="carte-categorie-profil">
+      <button type="button" class="entete-categorie-profil"><span>🌍 Participation citoyenne</span><span class="chevron">▾</span></button>
+      <div class="corps-categorie-profil" hidden>
+        ${renderSectionParticipationCitoyenne(data.participation)}
+      </div>
+    </div>
   `;
 
-  document.getElementById('btn-deconnexion').addEventListener('click', async () => {
+  initUploadsMediaProfil();
+  initReglagesRgpdProfil();
+}
+
+// ── Photo de profil et bannière personnelles ──
+
+function initUploadsMediaProfil() {
+  const inputPhoto = document.getElementById('input-photo-profil');
+  const inputBanniere = document.getElementById('input-banniere-profil');
+
+  document.getElementById('btn-changer-photo')?.addEventListener('click', () => inputPhoto.click());
+  document.getElementById('btn-changer-banniere')?.addEventListener('click', () => inputBanniere.click());
+
+  inputPhoto?.addEventListener('change', (e) => {
+    if (e.target.files[0]) envoyerMediaProfil('photo', e.target.files[0]);
+  });
+  inputBanniere?.addEventListener('change', (e) => {
+    if (e.target.files[0]) envoyerMediaProfil('banniere', e.target.files[0]);
+  });
+}
+
+async function envoyerMediaProfil(type, fichier) {
+  // Pas de compresserImage() : elle convertit systématiquement en JPEG, ce qui détruirait la
+  // transparence d'un PNG (même raison que le logo de la commune et de l'annuaire).
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/profil/${type}`, {
+    method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+  });
+  if (res.ok) {
+    chargerProfil();
+  } else {
+    const data = await res.json();
+    afficherToastMessage(data.erreur || 'Échec de l\'envoi.', 'erreur');
+  }
+}
+
+// ── Déconnexion + volets repliables des catégories — attachés une seule fois (éléments
+// statiques de index.html), pas à chaque rechargement du profil. ──
+
+function initBoutonDeconnexionProfil() {
+  const btn = document.getElementById('btn-deconnexion');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
     await appelApi(`/${window.COMMUNE_SLUG}/auth/logout`, { method: 'POST' });
     document.location.href = 'connexion.html';
   });
+}
 
-  initReglagesRgpdProfil();
+function initTogglesCategoriesProfil() {
+  document.getElementById('onglet-profil')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.entete-categorie-profil');
+    if (!btn) return;
+    const corps = btn.nextElementSibling;
+    const seraOuvert = corps.hidden;
+    corps.hidden = !seraOuvert;
+    btn.querySelector('.chevron').textContent = seraOuvert ? '▲' : '▾';
+  });
 }
 
 // ── Score de participation citoyenne — système séparé de l'XP/niveau ci-dessus, voir
@@ -104,7 +184,6 @@ function renderSectionParticipationCitoyenne(participation) {
   const badgesDebloques = participation.badges.filter((b) => b.debloque).length;
 
   return `
-    <h3 style="font-size:15px;margin-top:22px;">🌍 Participation citoyenne</h3>
     <div class="carte-dashboard carte-score-citoyen">
       <div class="palier-cercle">${participation.palier_actuel ? '🌍' : '🌱'}</div>
       <div class="details-score-citoyen">
@@ -153,9 +232,8 @@ function initReglagesRgpdProfil() {
   if (!zone) return;
 
   zone.innerHTML = `
-    <h3 style="margin-top:22px;">🔒 Mes données</h3>
-    <button type="button" id="btn-telecharger-donnees" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">📥 Télécharger mes données</button>
-    <button type="button" id="btn-supprimer-compte" style="margin-top:8px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">🗑️ Supprimer mon compte</button>
+    <button type="button" id="btn-telecharger-donnees" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">📥 Télécharger mes données</button>
+    <button type="button" id="btn-supprimer-compte" class="bouton-pilule-profil" style="margin-top:8px;color:var(--rouge);border-color:var(--rouge);">🗑️ Supprimer mon compte</button>
     <p style="font-size:11.5px;color:var(--roseau);margin-top:6px;">
       La suppression efface définitivement vos données personnelles (email, mot de passe, nom).
       Le contenu que vous avez publié reste visible mais n'est plus rattaché à votre identité.
