@@ -114,6 +114,14 @@ app.route('/:slug/bulletin', bulletin);
 app.use('/:slug/photo-du-jour/*', jwtMiddleware, requireOngletActif('photo_du_jour'));
 app.route('/:slug/photo-du-jour', photoDuJour);
 
+// Filet de sécurité : sans ça, toute exception non rattrapée dans une route (ex: colonne
+// manquante en base, jamais migrée) remonte en 500 brut non-JSON — le frontend plante alors
+// sur `res.json()` avant même de pouvoir afficher une erreur lisible.
+app.onError((err, c) => {
+  console.error(`Erreur non gérée sur ${c.req.method} ${c.req.path} :`, err);
+  return c.json({ erreur: 'Erreur interne du serveur, réessaie dans un instant.' }, 500);
+});
+
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: any) {
