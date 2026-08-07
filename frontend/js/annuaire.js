@@ -58,7 +58,7 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
   const documents = fiche.documents ?? [];
   zone.innerHTML = `
     ${fiche.description ? `<p>${texteAvecLiensCliquables(fiche.description)}</p>` : ''}
-    ${fiche.telephone ? `<p>📞 <a href="tel:${escapeAttr(normaliserTel(fiche.telephone))}">${escapeAttr(fiche.telephone)}</a></p>` : ''}
+    ${fiche.telephone ? `<p style="white-space:pre-line;">📞 ${texteAvecLiensCliquables(fiche.telephone)}</p>` : ''}
     ${fiche.email ? `<p>✉️ <a href="mailto:${escapeAttr(fiche.email)}">${escapeAttr(fiche.email)}</a></p>` : ''}
     ${fiche.site_web ? `<p>🌐 <a href="${escapeAttr(normaliserSiteWeb(fiche.site_web))}" target="_blank" rel="noopener">${escapeAttr(fiche.site_web)}</a></p>` : ''}
     ${documents.length ? `<div class="liste-documents-annuaire">${documents.map(htmlDocumentAnnuaire).join('')}</div>` : ''}
@@ -102,7 +102,7 @@ function ouvrirModaleAnnuaire() {
         ).join('')}
       </select>
       <textarea id="description-annuaire-modale" placeholder="Description">${fiche ? escapeAttr(fiche.description || '') : ''}</textarea>
-      <input type="tel" id="telephone-annuaire-modale" placeholder="Téléphone (optionnel)" value="${fiche ? escapeAttr(fiche.telephone || '') : ''}">
+      <textarea id="telephone-annuaire-modale" placeholder="Téléphone (optionnel) — un numéro par ligne, ex: Président : 06 12 34 56 78" rows="2">${fiche ? escapeAttr(fiche.telephone || '') : ''}</textarea>
       <input type="email" id="email-annuaire-modale" placeholder="Email (optionnel)" value="${fiche ? escapeAttr(fiche.email || '') : ''}">
       <input type="text" id="site-web-annuaire-modale" placeholder="Site web (optionnel)" value="${fiche ? escapeAttr(fiche.site_web || '') : ''}">
 

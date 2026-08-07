@@ -23,7 +23,9 @@ const creationSchema = z.object({
   nom: z.string().min(1).max(150),
   categorie: z.enum(CATEGORIES_VALIDES),
   description: z.string().max(1000).optional(),
-  telephone: z.string().max(30).optional(),
+  // Texte libre multi-lignes (plusieurs numéros possibles, ex: "Président : 06...") — la
+  // détection auto de liens (frontend/js/utils.js) rend chaque numéro cliquable au rendu.
+  telephone: z.string().max(300).optional(),
   email: z.string().email().max(200).optional().or(z.literal('')),
   site_web: z.string().url().max(300).optional().or(z.literal('')),
   logo_r2_key: z.string().optional(),
