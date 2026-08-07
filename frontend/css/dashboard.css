@@ -485,6 +485,22 @@ h1, h2, h3, h4, p, span, a, button {
   background: var(--calc); border-radius: 10px; padding: 8px 10px; margin: 6px 0;
 }
 
+/* ─── Annuaire — documents joints (statuts, plaquette, photos...) ─── */
+.liste-documents-annuaire { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.lien-document-annuaire {
+  padding: 6px 12px; border-radius: 100px; border: 1.5px solid var(--eauL);
+  background: #fff; color: var(--eau); font-size: 12px; font-weight: 600;
+  text-decoration: none; font-family: 'DM Sans', sans-serif;
+}
+.ligne-document-annuaire-modale {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--calc); border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; font-size: 13px;
+}
+.ligne-document-annuaire-modale a { color: var(--eau); text-decoration: none; }
+.btn-suppr-document-annuaire-modale {
+  background: none; border: none; padding: 2px 4px; font-size: 14px; cursor: pointer; flex-shrink: 0;
+}
+
 /* ─── Agenda ─── */
 .zone-contacts-event .commentaire { font-size: 12.5px; }
 .liens-calendrier { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }

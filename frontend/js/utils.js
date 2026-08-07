@@ -15,6 +15,13 @@ function normaliserTel(numero) {
   return numero.replace(/[\s.-]/g, '');
 }
 
+// Un champ "site web" dédié (contrairement au texte libre) doit rester cliquable même saisi
+// sans protocole ("monasso.fr") — on ne peut pas compter sur la présence de "http(s)://"/"www."
+// comme le fait segmenterTexteAvecLiens.
+function normaliserSiteWeb(url) {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
 // Détection auto de site web / email / téléphone dans du texte libre — utilisé partout où
 // un citoyen ou la mairie saisit du texte (description, message, article...). Un seul passage
 // avec alternation (plutôt que 3 regex séparées) pour que les segments restent dans l'ordre.
