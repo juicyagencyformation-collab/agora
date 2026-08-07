@@ -68,7 +68,8 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
   if (estProprietaire || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
-    bar.innerHTML = `<button data-action="supprimer">Supprimer</button>`;
+    bar.innerHTML = `<button data-action="modifier">Modifier</button><button data-action="supprimer">Supprimer</button>`;
+    bar.querySelector('[data-action="modifier"]').addEventListener('click', () => ouvrirModaleAnnuaire(fiche));
     bar.querySelector('[data-action="supprimer"]').addEventListener('click', async () => {
       if (!confirm('Supprimer cette fiche ?')) return;
       await appelApi(`/${window.COMMUNE_SLUG}/annuaire/${fiche.id}`, { method: 'DELETE' });
@@ -90,8 +91,9 @@ function initFormulaireAnnuaire() {
   btn.addEventListener('click', () => ouvrirModaleAnnuaire());
 }
 
-function ouvrirModaleAnnuaire() {
-  const fiche = maFicheAnnuaireActuelle;
+// fiche: passée explicitement quand un gestionnaire modifie la fiche de quelqu'un d'autre
+// (bouton "Modifier" de la vue détaillée) ; sinon la sienne, via le bouton "+ Créer ma fiche".
+function ouvrirModaleAnnuaire(fiche = maFicheAnnuaireActuelle) {
   const documents = fiche?.documents ?? [];
   const html = `
     <form id="form-modale-annuaire">
@@ -117,7 +119,8 @@ function ouvrirModaleAnnuaire() {
       <button type="submit" style="margin-top:12px;">${fiche ? 'Mettre à jour' : 'Créer ma fiche'}</button>
     </form>
   `;
-  const overlay = ouvrirModaleFormulaire(fiche ? 'Modifier ma fiche' : 'Créer ma fiche', html);
+  const titreModale = fiche ? (fiche.user_id === window.USER_ID ? 'Modifier ma fiche' : 'Modifier la fiche') : 'Créer ma fiche';
+  const overlay = ouvrirModaleFormulaire(titreModale, html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
 
   corps.querySelectorAll('.btn-suppr-document-annuaire-modale').forEach((btn) => {
