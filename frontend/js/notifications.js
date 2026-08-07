@@ -246,7 +246,17 @@ function afficherBanniereOnboarding() {
 
 async function activerNotifications() {
   if (!('Notification' in window) || !('PushManager' in window)) {
-    afficherToastMessage('Les notifications ne sont pas supportées sur ce navigateur.', 'erreur');
+    // Sur iPhone, Safari n'expose les notifications que si l'app tourne depuis l'écran
+    // d'accueil (comme installée) — sinon 'Notification'/'PushManager' n'existent tout
+    // simplement pas, quelle que soit la version d'iOS. On guide vers l'installation plutôt
+    // que d'afficher un message générique qui ne dit pas quoi faire.
+    if (estIOS() && !estDejaInstallee()) {
+      afficherToastMessage('Installe d\'abord l\'application sur ton écran d\'accueil pour activer les notifications 👇', 'info');
+      activerOnglet('profil');
+      document.getElementById('section-installation-profil')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      afficherToastMessage('Les notifications ne sont pas supportées sur ce navigateur.', 'erreur');
+    }
     return false;
   }
   if (!enregistrementSW) await initServiceWorker();
