@@ -28,9 +28,9 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
   height: var(--topbar);
   background: linear-gradient(135deg, var(--eau), var(--eauM));
   color: #fff;
-  display: flex; align-items: center; padding: 0 18px;
+  display: flex; align-items: center; padding: 0 66px 0 18px;
 }
-.entete-app h1 { color: #fff; font-size: 19px; margin: 0; }
+.entete-app h1 { color: #fff; font-size: 19px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entete-app h1 em { font-style: italic; font-weight: 400; color: var(--aube); }
 
 /* ─── Sidebar desktop ─── */

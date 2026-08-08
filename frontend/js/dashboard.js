@@ -136,12 +136,16 @@ async function chargerPhotoVedette() {
   zone.onclick = () => activerOnglet('photo-du-jour');
 }
 
+// Badge XP superposé à la bannière du haut (nom de la commune) — juste l'anneau et le
+// chiffre de niveau, sans texte, pour rester discret sur une barre de 58px de haut. Le clic
+// (vers Profil) est attaché une seule fois par initBadgeEntete(), pas ici : ce bouton est
+// global (dans <header>, jamais recréé), contrairement à l'ancienne carte de l'accueil.
 async function chargerMiniXp() {
-  const zoneXp = document.getElementById('carte-mini-xp');
+  const zoneXp = document.getElementById('btn-badge-entete');
   const zoneSalut = document.getElementById('salut-utilisateur');
   if (!zoneXp) return;
   const res = await appelApi(`/${window.COMMUNE_SLUG}/profil`);
-  if (!res.ok) { zoneXp.innerHTML = ''; return; }
+  if (!res.ok) { zoneXp.hidden = true; return; }
   const data = await res.json();
 
   if (zoneSalut && data.prenom) {
@@ -151,22 +155,20 @@ async function chargerMiniXp() {
   const xpDansNiveau = data.xp - data.xp_niveau_actuel;
   const xpPourNiveau = data.xp_niveau_suivant - data.xp_niveau_actuel;
   const pct = xpPourNiveau > 0 ? Math.round((xpDansNiveau / xpPourNiveau) * 100) : 100;
+  const photoOuLogo = data.photo_profil_url || window.COMMUNE_LOGO_URL;
 
+  zoneXp.style.setProperty('--pct', pct);
   zoneXp.innerHTML = `
-    <button class="carte-xp-hero-bouton" id="btn-vers-profil">
-      <div class="badge-xp-commune" style="--pct: ${pct}; --couleur-anneau-vide: rgba(255,255,255,.25);">
-        <div class="interieur-badge-xp">
-          ${data.photo_profil_url || window.COMMUNE_LOGO_URL ? `<img src="${data.photo_profil_url || window.COMMUNE_LOGO_URL}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
-        </div>
-        <div class="niveau-overlay-badge-xp">${data.niveau}</div>
-      </div>
-      <div style="flex:1;text-align:left;">
-        <div style="font-size:12.5px;font-weight:600;">Niveau ${data.niveau}</div>
-        <div style="font-size:10.5px;color:rgba(255,255,255,.85);margin-top:2px;">${xpDansNiveau}/${xpPourNiveau} XP</div>
-      </div>
-    </button>
+    <div class="interieur-badge-xp">
+      ${photoOuLogo ? `<img src="${photoOuLogo}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
+    </div>
+    <div class="niveau-overlay-badge-xp">${data.niveau}</div>
   `;
-  document.getElementById('btn-vers-profil').addEventListener('click', () => activerOnglet('profil'));
+  zoneXp.hidden = false;
+}
+
+function initBadgeEntete() {
+  document.getElementById('btn-badge-entete')?.addEventListener('click', () => activerOnglet('profil'));
 }
 
 async function chargerMeteo() {

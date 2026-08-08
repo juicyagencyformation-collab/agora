@@ -133,6 +133,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireBadgeCitoyen();
   initBoutonDeconnexionProfil();
   initTogglesCategoriesProfil();
+  initBadgeEntete();
   await initServiceWorker();
   initOnboardingPwa();
   initLiensDirectsNotification();

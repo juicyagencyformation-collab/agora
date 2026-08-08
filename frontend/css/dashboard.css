@@ -69,16 +69,6 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .carte-lune-hero p { color: rgba(255,255,255,.85) !important; }
 
-/* Badge XP compact : autrefois accolé à la météo dans .bandeau-hero, il occupe maintenant
-   sa propre ligne, en plus discret (moins de padding, pas de min-height imposée). */
-.carte-xp-hero-compacte {
-  background: linear-gradient(135deg, var(--eau), var(--eauM));
-  border-radius: var(--r); padding: 10px 14px; color: #fff; margin-bottom: 12px;
-}
-.carte-xp-hero-bouton {
-  background: none; border: none; padding: 0; width: 100%; height: 100%;
-  display: flex; align-items: center; gap: 10px; color: #fff; cursor: pointer;
-}
 /* Badge circulaire façon "achievement" (Reddit) : anneau de progression XP tout autour,
    logo de la commune au centre (repli sur une icône générique si aucun logo uploadé),
    niveau affiché en pastille sur le coin bas-droit. Réutilisé sur Accueil (fond dégradé
@@ -97,6 +87,14 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .interieur-badge-xp img { width: 100%; height: 100%; object-fit: cover; }
 .logo-defaut-badge-xp { font-size: 24px; }
+
+/* Superposé à la bannière du haut (nom de la commune) : juste l'anneau + le chiffre de
+   niveau, aucun texte — la barre ne fait que --topbar (58px) de haut, il déborde légèrement
+   en bas pour l'effet "accroché" plutôt que rester strictement contenu dedans. */
+.badge-xp-entete {
+  position: absolute; bottom: -10px; right: 14px; width: 52px; height: 52px;
+  border: none; cursor: pointer; z-index: 2; --couleur-anneau-vide: rgba(255,255,255,.35);
+}
 .niveau-overlay-badge-xp {
   position: absolute; bottom: -3px; right: -3px; width: 22px; height: 22px; border-radius: 50%;
   background: var(--eau); color: #fff; font-size: 11px; font-weight: 700;
