@@ -6,6 +6,12 @@
 
 const DOSSIERS_STATIQUES = ['css', 'js', 'icons', 'functions'];
 
+// Pages HTML servies à la racine (pas dans un dossier de commune). Cloudflare leur retire
+// automatiquement l'extension (/connexion.html -> /connexion) : le navigateur arrive donc sur
+// un chemin sans point, que le routeur prendrait pour un slug de commune et servirait avec
+// index.html (l'appli) à la place. On mappe ces noms "propres" vers leur vrai fichier .html.
+const PAGES_RACINE = ['connexion', 'reinitialiser', 'decouverte', 'mentions-legales', 'confidentialite'];
+
 // Origine réelle du Worker. Le frontend appelle /api/... en same-origin (voir
 // frontend/js/config.js) et cette fonction relaie vers le Worker en coulisses : ainsi les
 // cookies de session sont posés sur plateforme-agora.fr et non sur un domaine tiers, ce qui
@@ -69,6 +75,16 @@ export async function onRequest(context) {
   }
 
   const dernier = segments[segments.length - 1];
+
+  // Page racine dont Cloudflare a retiré le .html (ex: /connexion, /reinitialiser) : on sert
+  // le vrai fichier .html plutôt que de retomber sur index.html. La query string éventuelle
+  // (?token=...) reste dans l'URL du navigateur, lue côté client — on ne fait que servir le
+  // contenu, sans redirection.
+  const nomSansHtml = dernier.replace(/\.html$/, '');
+  if (PAGES_RACINE.includes(nomSansHtml)) {
+    const page = await recupererAssetSansRedirection(context.env, new URL(`/${nomSansHtml}.html`, url.origin));
+    if (page) return new Response(page.body, { status: page.status, headers: page.headers });
+  }
 
   // Manifest propre à la commune : start_url et scope pointent vers /<slug>/, et les
   // icônes sont forcées en chemin absolu (/icons/...) pour ne jamais se résoudre par
