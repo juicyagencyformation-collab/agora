@@ -59,7 +59,13 @@ export async function onRequest(context) {
   }
 
   if (DOSSIERS_STATIQUES.includes(premier) || (segments.length === 1 && premier.includes('.'))) {
-    return context.env.ASSETS.fetch(context.request);
+    // Comme pour le reste du fichier : on absorbe nous-mêmes toute redirection interne que
+    // Cloudflare pourrait renvoyer (ex: /reinitialiser.html → /reinitialiser sans extension),
+    // sinon elle remonte telle quelle au navigateur, qui atterrit sur un chemin sans point —
+    // non reconnu plus bas comme un fichier statique, et sert index.html par erreur à la place.
+    const reponseAsset = await recupererAssetSansRedirection(context.env, url);
+    if (!reponseAsset) return context.env.ASSETS.fetch(context.request);
+    return new Response(reponseAsset.body, { status: reponseAsset.status, headers: reponseAsset.headers });
   }
 
   const dernier = segments[segments.length - 1];
