@@ -175,6 +175,12 @@ app.post('/reinitialiser-mot-de-passe', async (c) => {
   await supabaseUpdate(c.env, 'users', { password_hash }, { id: `eq.${enregistrement.user_id}` });
   await supabaseUpdate(c.env, 'password_reset_tokens', { utilise: true }, { id: `eq.${enregistrement.id}` });
 
+  // Un reset de mot de passe doit invalider toute session déjà ouverte ailleurs (navigateur
+  // oublié, accès non désiré...) — sinon l'ancien mot de passe suffit encore à rester connecté
+  // partout où une session tournait déjà. Les accès déjà émis (JWT courte durée, 15 min) ne
+  // peuvent pas être révoqués individuellement, mais expirent vite d'eux-mêmes.
+  await supabaseUpdate(c.env, 'refresh_tokens', { revoked: true }, { user_id: `eq.${enregistrement.user_id}` });
+
   return c.json({ ok: true });
 });
 
