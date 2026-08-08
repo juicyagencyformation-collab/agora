@@ -129,6 +129,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initVoletRgpd();
   initVoletRegional();
   initVoletSyncLois();
+  initVoletsGeneriquesModeration();
   initFormulaireBadgeCitoyen();
   initBoutonDeconnexionProfil();
   initTogglesCategoriesProfil();

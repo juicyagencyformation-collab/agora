@@ -1,5 +1,5 @@
 // worker/src/routes/moderation.ts
-import { peutGererRoles, peutAttribuerRole } from '../lib/permissions';
+import { estGestionnaire, peutGererRoles, peutAttribuerRole } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
@@ -270,6 +270,57 @@ app.get('/audits-citoyens', async (c) => {
   }));
 
   return c.json({ contestations: contestationsEnrichies });
+});
+
+// GET /stats — vue d'ensemble de la commune, en tête de l'onglet Modération. Comptages à la
+// volée (select:'id' + .length) plutôt qu'un compteur persistant à maintenir : cohérent avec
+// compterContributionsActives (worker/src/routes/profil.ts), même logique "encore actif" pour
+// le contenu éphémère déjà purgé.
+app.get('/stats', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+
+  const compter = (table: string, filtresSupp: Record<string, string> = {}) =>
+    supabaseSelect(c.env, table, { select: 'id', commune_id: `eq.${commune_id}`, ...filtresSupp }).then((r: any[]) => r.length);
+
+  const [
+    citoyens, articles, alertesOuvertes, alertesEnCours, alertesResolues, sondages, messagesMur,
+    evenementsAVenir, annonces, fichesAnnuaire, chassesActives, enigmesActives, photosJour,
+    avisLois, enAttentePhotos, enAttenteEnigmes, enAttenteMur, scoresCitoyens,
+  ] = await Promise.all([
+    compter('users'),
+    compter('articles', { section: 'eq.actualites' }),
+    compter('alertes', { statut: 'eq.ouverte' }),
+    compter('alertes', { statut: 'eq.en_cours' }),
+    compter('alertes', { statut: 'eq.resolue' }),
+    compter('sondages'),
+    compter('posts', { statut: 'eq.visible' }),
+    compter('events', { date_debut: `gt.${new Date().toISOString()}` }),
+    compter('coups_de_main'),
+    compter('annuaire'),
+    compter('chasses_tresor', { actif: 'eq.true' }),
+    compter('photos_enigmes', { statut: 'eq.visible' }),
+    compter('photos_du_jour', { statut: 'eq.visible' }),
+    compter('lois_commentaires'),
+    compter('photos_du_jour', { statut: 'eq.masquee' }),
+    compter('photos_enigmes', { statut: 'eq.masquee' }),
+    compter('posts', { statut: 'eq.masquee' }),
+    supabaseSelect(c.env, 'users', { select: 'score_citoyen', commune_id: `eq.${commune_id}` }),
+  ]);
+
+  const score_citoyen_total = scoresCitoyens.reduce((total: number, u: any) => total + (u.score_citoyen ?? 0), 0);
+
+  return c.json({
+    citoyens, articles,
+    alertes_en_cours: alertesOuvertes + alertesEnCours, alertes_resolues: alertesResolues,
+    sondages, messages_mur: messagesMur, evenements_a_venir: evenementsAVenir,
+    annonces_entraide: annonces, fiches_annuaire: fichesAnnuaire,
+    explorations_actives: chassesActives + enigmesActives,
+    photos_jour: photosJour, avis_lois: avisLois,
+    en_attente_moderation: enAttentePhotos + enAttenteEnigmes + enAttenteMur,
+    score_citoyen_total,
+  });
 });
 
 export default app;

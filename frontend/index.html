@@ -8,10 +8,10 @@
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260807-5">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260807-5">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260807-5">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260807-5">
+  <link rel="stylesheet" href="/css/base.css?v=20260808-1">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260808-1">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260808-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260808-1">
 </head>
 <body>
 
@@ -291,42 +291,64 @@
     </section>
 
     <section id="onglet-moderation" class="onglet-contenu" hidden>
-      <h3>Onglets actifs</h3>
-      <div id="panneau-onglets"></div>
+      <div id="recap-stats-moderation" class="recap-stats-moderation"></div>
 
-      <h3 style="margin-top:22px;">Calendrier des déchets</h3>
-      <form id="form-dechets">
-        <select id="type-dechet">
-          <option value="ordures_menageres">Ordures ménagères</option>
-          <option value="tri_selectif">Tri sélectif</option>
-          <option value="verre">Verre</option>
-          <option value="encombrants">Encombrants</option>
-          <option value="dechets_verts">Déchets verts</option>
-        </select>
-        <select id="jour-dechet">
-          <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
-          <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option>
-          <option value="7">Dimanche</option>
-        </select>
-        <select id="frequence-dechet">
-          <option value="chaque_semaine">Chaque semaine</option>
-          <option value="semaines_paires">Semaines paires</option>
-          <option value="semaines_impaires">Semaines impaires</option>
-        </select>
-        <label style="font-size:12.5px;color:var(--roseau);">Couleur</label>
-        <input type="color" id="couleur-dechet" value="#8B7355">
-        <button type="submit">Ajouter / mettre à jour</button>
-      </form>
-      <div id="liste-dechets-config"></div>
+      <div class="volet-reglage">
+        <button type="button" class="volet-entete-generique">
+          <span>🗂️ Onglets actifs</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="volet-contenu">
+          <div id="panneau-onglets"></div>
+        </div>
+      </div>
 
-      <h3 style="margin-top:22px;">Photos signalées en attente de revue</h3>
-      <div id="liste-photos-attente"></div>
+      <div class="volet-reglage">
+        <button type="button" class="volet-entete-generique">
+          <span>🗑️ Calendrier des déchets</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="volet-contenu">
+          <form id="form-dechets">
+            <select id="type-dechet">
+              <option value="ordures_menageres">Ordures ménagères</option>
+              <option value="tri_selectif">Tri sélectif</option>
+              <option value="verre">Verre</option>
+              <option value="encombrants">Encombrants</option>
+              <option value="dechets_verts">Déchets verts</option>
+            </select>
+            <select id="jour-dechet">
+              <option value="1">Lundi</option><option value="2">Mardi</option><option value="3">Mercredi</option>
+              <option value="4">Jeudi</option><option value="5">Vendredi</option><option value="6">Samedi</option>
+              <option value="7">Dimanche</option>
+            </select>
+            <select id="frequence-dechet">
+              <option value="chaque_semaine">Chaque semaine</option>
+              <option value="semaines_paires">Semaines paires</option>
+              <option value="semaines_impaires">Semaines impaires</option>
+            </select>
+            <label style="font-size:12.5px;color:var(--roseau);">Couleur</label>
+            <input type="color" id="couleur-dechet" value="#8B7355">
+            <button type="submit">Ajouter / mettre à jour</button>
+          </form>
+          <div id="liste-dechets-config"></div>
+        </div>
+      </div>
 
-      <h3 style="margin-top:22px;">Énigmes signalées en attente de revue</h3>
-      <div id="liste-enigmes-attente"></div>
-
-      <h3 style="margin-top:22px;">Messages du Mur signalés en attente de revue</h3>
-      <div id="liste-mur-attente"></div>
+      <div class="volet-reglage">
+        <button type="button" class="volet-entete-generique">
+          <span>🚨 Contenu signalé en attente</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="volet-contenu">
+          <h4>📸 Photos du jour</h4>
+          <div id="liste-photos-attente"></div>
+          <h4 style="margin-top:16px;">🧭 Énigmes</h4>
+          <div id="liste-enigmes-attente"></div>
+          <h4 style="margin-top:16px;">💬 Mur des voisins</h4>
+          <div id="liste-mur-attente"></div>
+        </div>
+      </div>
 
       <div class="volet-reglage">
         <button type="button" id="toggle-volet-photo" class="volet-entete">
@@ -459,15 +481,29 @@
           </div>
         </div>
 
-        <h3 style="margin-top:22px;">Gestion des rôles</h3>
-        <div id="liste-utilisateurs"></div>
+        <div class="volet-reglage">
+          <button type="button" class="volet-entete-generique">
+            <span>👤 Gestion des rôles</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="volet-contenu">
+            <div id="liste-utilisateurs"></div>
+          </div>
+        </div>
       </div>
 
       <div class="badges-superadmin-only">
-        <h3 style="margin-top:22px;">🏅 Badges citoyens (participation)</h3>
-        <p style="font-size:11.5px;color:var(--roseau);">Badges liés au score de participation citoyenne (présence vérifiée aux actions). Distinct des badges d'activité sur l'appli.</p>
-        <button type="button" id="btn-ouvrir-creation-badge-citoyen">+ Créer un badge citoyen</button>
-        <div id="liste-badges-citoyens"></div>
+        <div class="volet-reglage">
+          <button type="button" class="volet-entete-generique">
+            <span>🏅 Badges citoyens (participation)</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="volet-contenu">
+            <p style="font-size:11.5px;color:var(--roseau);">Badges liés au score de participation citoyenne (présence vérifiée aux actions). Distinct des badges d'activité sur l'appli.</p>
+            <button type="button" id="btn-ouvrir-creation-badge-citoyen">+ Créer un badge citoyen</button>
+            <div id="liste-badges-citoyens"></div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -493,30 +529,30 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260807-5"></script>
-  <script src="/js/config.js?v=20260807-5"></script>
-  <script src="/js/utils.js?v=20260807-5"></script>
-  <script src="/js/api.js?v=20260807-5"></script>
-  <script src="/js/editeur-riche.js?v=20260807-5"></script>
-  <script src="/js/dashboard.js?v=20260807-5"></script>
-  <script src="/js/articles.js?v=20260807-5"></script>
-  <script src="/js/alertes.js?v=20260807-5"></script>
-  <script src="/js/thermometre.js?v=20260807-5"></script>
-  <script src="/js/mur.js?v=20260807-5"></script>
-  <script src="/js/agenda.js?v=20260807-5"></script>
-  <script src="/js/coups-de-main.js?v=20260807-5"></script>
-  <script src="/js/coups-de-main-form.js?v=20260807-5"></script>
-  <script src="/js/chasse-tresor.js?v=20260807-5"></script>
-  <script src="/js/conseil.js?v=20260807-5"></script>
-  <script src="/js/annuaire.js?v=20260807-5"></script>
-  <script src="/js/bulletin.js?v=20260807-5"></script>
-  <script src="/js/photo-du-jour.js?v=20260807-5"></script>
-  <script src="/js/enigmes.js?v=20260807-5"></script>
-  <script src="/js/profil.js?v=20260807-5"></script>
-  <script src="/js/notifications.js?v=20260807-5"></script>
-  <script src="/js/lois.js?v=20260807-5"></script>
-  <script src="/js/moderation.js?v=20260807-5"></script>
-  <script src="/js/participation-citoyenne.js?v=20260807-5"></script>
-  <script src="/js/navigation.js?v=20260807-5"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260808-1"></script>
+  <script src="/js/config.js?v=20260808-1"></script>
+  <script src="/js/utils.js?v=20260808-1"></script>
+  <script src="/js/api.js?v=20260808-1"></script>
+  <script src="/js/editeur-riche.js?v=20260808-1"></script>
+  <script src="/js/dashboard.js?v=20260808-1"></script>
+  <script src="/js/articles.js?v=20260808-1"></script>
+  <script src="/js/alertes.js?v=20260808-1"></script>
+  <script src="/js/thermometre.js?v=20260808-1"></script>
+  <script src="/js/mur.js?v=20260808-1"></script>
+  <script src="/js/agenda.js?v=20260808-1"></script>
+  <script src="/js/coups-de-main.js?v=20260808-1"></script>
+  <script src="/js/coups-de-main-form.js?v=20260808-1"></script>
+  <script src="/js/chasse-tresor.js?v=20260808-1"></script>
+  <script src="/js/conseil.js?v=20260808-1"></script>
+  <script src="/js/annuaire.js?v=20260808-1"></script>
+  <script src="/js/bulletin.js?v=20260808-1"></script>
+  <script src="/js/photo-du-jour.js?v=20260808-1"></script>
+  <script src="/js/enigmes.js?v=20260808-1"></script>
+  <script src="/js/profil.js?v=20260808-1"></script>
+  <script src="/js/notifications.js?v=20260808-1"></script>
+  <script src="/js/lois.js?v=20260808-1"></script>
+  <script src="/js/moderation.js?v=20260808-1"></script>
+  <script src="/js/participation-citoyenne.js?v=20260808-1"></script>
+  <script src="/js/navigation.js?v=20260808-1"></script>
 </body>
 </html>

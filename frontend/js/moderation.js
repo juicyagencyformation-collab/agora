@@ -13,6 +13,53 @@ const LABELS_DECHET_MOD = {
 
 const LABELS_JOUR = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' };
 
+// ── Vue d'ensemble de la commune, en tête de l'onglet Modération ──
+
+async function chargerStatsModeration() {
+  const zone = document.getElementById('recap-stats-moderation');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/stats`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const s = await res.json();
+
+  const stats = [
+    { valeur: s.citoyens, label: 'Comptes citoyens' },
+    { valeur: s.en_attente_moderation, label: 'En attente de modération', alerte: s.en_attente_moderation > 0 },
+    { valeur: s.alertes_en_cours, label: 'Alertes en cours', alerte: s.alertes_en_cours > 0 },
+    { valeur: s.alertes_resolues, label: 'Alertes résolues' },
+    { valeur: s.articles, label: 'Articles publiés' },
+    { valeur: s.messages_mur, label: 'Messages du mur' },
+    { valeur: s.sondages, label: 'Sondages' },
+    { valeur: s.evenements_a_venir, label: 'Événements à venir' },
+    { valeur: s.annonces_entraide, label: "Annonces d'entraide" },
+    { valeur: s.fiches_annuaire, label: 'Fiches annuaire' },
+    { valeur: s.explorations_actives, label: 'Chasses & énigmes actives' },
+    { valeur: s.photos_jour, label: 'Photos du jour' },
+    { valeur: s.avis_lois, label: 'Avis sur des lois' },
+    { valeur: s.score_citoyen_total, label: 'Score citoyen cumulé' },
+  ];
+
+  zone.innerHTML = stats.map((st) => `
+    <div class="stat-moderation${st.alerte ? ' stat-moderation-alerte' : ''}">
+      <strong>${st.valeur}</strong>
+      <span>${escapeAttr(st.label)}</span>
+    </div>
+  `).join('');
+}
+
+// Volets génériques (contrairement aux volets historiques ci-dessous, qui ont chacun leur
+// propre initVolet*() car ils embarquent une logique spécifique) : juste replier/déplier,
+// écouteur unique posé une fois sur le conteneur plutôt qu'un par volet.
+function initVoletsGeneriquesModeration() {
+  document.getElementById('onglet-moderation')?.addEventListener('click', (e) => {
+    const toggle = e.target.closest('.volet-entete-generique');
+    if (!toggle) return;
+    const volet = toggle.nextElementSibling;
+    const ouvert = volet.classList.toggle('ouvert');
+    toggle.querySelector('.chevron').textContent = ouvert ? '▲' : '▼';
+  });
+}
+
 async function chargerPanneauModeration() {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/onglets`);
   if (!res.ok) return;
@@ -45,6 +92,7 @@ async function chargerPanneauModeration() {
     conteneur.appendChild(ligne);
   });
 
+  chargerStatsModeration();
   chargerListeDechetsModeration();
   chargerListeUtilisateurs();
   chargerApercuLogoCommune();
