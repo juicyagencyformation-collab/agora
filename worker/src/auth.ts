@@ -281,9 +281,18 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
 
-  const requete = (table: string, champs: string) => supabaseSelect(c.env, table, {
-    select: champs, user_id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
-  });
+  // Résilient : une table absente ou une colonne renommée ne doit jamais faire échouer TOUT
+  // l'export RGPD (droit à la portabilité). La section concernée revient vide, le reste passe.
+  const requete = async (table: string, champs: string) => {
+    try {
+      return await supabaseSelect(c.env, table, {
+        select: champs, user_id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+      });
+    } catch (err) {
+      console.warn(`Export RGPD : lecture de "${table}" échouée`, err);
+      return [];
+    }
+  };
 
   const [profil] = await supabaseSelect(c.env, 'users', {
     select: 'nom,prenom,email,role,xp,niveau,created_at',
@@ -304,7 +313,7 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
     requete('chasses_tresor', 'id,titre,description,created_at'),
     requete('progressions_chasse', 'chasse_id,etape_id,validee_at'),
     requete('photos_enigmes', 'id,indice,created_at'),
-    requete('enigme_reussites', 'enigme_id,distance_metres,created_at'),
+    requete('enigme_reussites', 'enigme_id,distance_metres'),
     requete('photos_du_jour', 'id,created_at,libre_de_droit'),
     requete('events', 'id,titre,date_debut,created_at'),
     requete('event_attendees', 'event_id,actif,created_at'),

@@ -238,6 +238,11 @@ function initReglagesRgpdProfil() {
       La suppression efface définitivement vos données personnelles (email, mot de passe, nom).
       Le contenu que vous avez publié reste visible mais n'est plus rattaché à votre identité.
     </p>
+
+    <div class="liens-legaux-profil">
+      <a href="/confidentialite.html" target="_blank" rel="noopener">📄 Politique de confidentialité (RGPD)</a>
+      <a href="/mentions-legales.html" target="_blank" rel="noopener">📄 Mentions légales</a>
+    </div>
   `;
 
   zone.querySelector('#btn-telecharger-donnees').addEventListener('click', async () => {
