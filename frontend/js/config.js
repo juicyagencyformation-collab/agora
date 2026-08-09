@@ -11,17 +11,21 @@ window.API_BASE = '/api';
 // aucun slug (ex: PWA réouverte depuis l'écran d'accueil sur l'adresse racine), on retombe sur
 // la dernière commune connue de cet appareil, puis sur "eaucourt" en tout dernier recours.
 window.COMMUNE_SLUG = (() => {
+  // Pages/fichiers servis à la racine — jamais des slugs de commune. Comparaison SANS extension
+  // car Cloudflare retire le .html (/connexion.html servi comme /connexion) : sans ça, "connexion"
+  // serait pris pour un slug, l'API appelée sur /api/connexion/... et le serveur répondrait
+  // "Commune introuvable". On s'en sert aussi pour ignorer une valeur polluée déjà en localStorage.
+  const pagesNonCommune = ['index', 'connexion', 'reinitialiser', 'confidentialite', 'mentions-legales', 'decouverte', 'manifest', 'sw'];
+  const estPage = (s) => !!s && pagesNonCommune.includes(s.replace(/\.[a-z0-9]+$/i, ''));
+
   const segments = window.location.pathname.split('/').filter(Boolean);
-  const fichiersConnus = [
-    'index.html', 'connexion.html', 'manifest.json', 'sw.js',
-    'reinitialiser.html', 'confidentialite.html', 'mentions-legales.html', 'decouverte.html',
-  ];
   const premier = segments[0];
-  if (premier && !fichiersConnus.includes(premier) && !premier.includes('.')) {
+  if (premier && !premier.includes('.') && !estPage(premier)) {
     localStorage.setItem('agora_derniere_commune', premier);
     return premier;
   }
-  return localStorage.getItem('agora_derniere_commune') || 'eaucourt';
+  const memorisee = localStorage.getItem('agora_derniere_commune');
+  return (memorisee && !estPage(memorisee)) ? memorisee : 'eaucourt';
 })();
 
 // Clé publique VAPID pour les notifications push (la clé privée reste secrète côté Worker)
