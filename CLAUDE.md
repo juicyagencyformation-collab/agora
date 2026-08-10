@@ -140,6 +140,15 @@ worker/src/
   reste d'effacer les données du site dans le navigateur (pas juste réinstaller le raccourci
   PWA) — ça a résolu le cas du volet "Logo de la commune" qui ne se dépliait pas alors que
   tout était pourtant correct côté serveur.
+  **Ajout 2026-08-10 :** à CHAQUE déploiement front, bumper AUSSI `CACHE_NAME` dans
+  `frontend/sw.js` (même token de date que le `?v=`, ex. `agora-shell-20260810-1`). Sans ça,
+  `sw.js` reste identique d'un déploiement à l'autre → le navigateur ne détecte jamais de
+  mise à jour du service worker → l'ancien cache n'est jamais purgé (l'événement `activate`
+  ne supprime les vieux caches que si `CACHE_NAME` a changé). Symptôme vécu sur iPhone :
+  l'app installée affichait une page d'accueil VIDE alors qu'un onglet Safari normal marchait
+  et que le code déployé était confirmé sain — c'était le SW figé qui servait un cache cassé.
+  Le changement de `CACHE_NAME` force la ré-installation du SW (`skipWaiting`) + purge des
+  anciens caches (`activate`) + prise de contrôle immédiate (`clients.claim`).
 - **Cloudflare Pages `_redirects` s'est montré incohérent** sur le domaine personnalisé
   (plateforme-agora.fr) — une simple règle catch-all y interceptait à tort les fichiers
   statiques (css/js), alors que la même règle fonctionnait sur l'adresse .pages.dev.

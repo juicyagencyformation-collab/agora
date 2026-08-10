@@ -1,5 +1,11 @@
 // frontend/sw.js
-const CACHE_NAME = 'agora-shell-v1';
+// ⚠️ CACHE_NAME DOIT être bumpé à CHAQUE déploiement (même date que le ?v= des HTML). Sinon
+// sw.js reste identique d'un déploiement à l'autre, le navigateur ne détecte aucune mise à
+// jour du service worker, et l'ancien cache n'est jamais purgé — une app installée (surtout
+// iOS/PWA) peut alors rester bloquée sur une version cassée (page d'accueil vide, etc.). Le
+// changement de nom force la ré-installation du SW puis la suppression des anciens caches
+// dans l'événement 'activate' ci-dessous. Voir CLAUDE.md (pièges de cache).
+const CACHE_NAME = 'agora-shell-20260810-1';
 const FICHIERS_A_METTRE_EN_CACHE = [
   '/index.html',
   '/connexion.html',
