@@ -1,5 +1,6 @@
 // frontend/js/coups-de-main-form.js
 function initFormulaireCoupDeMain() {
+  initFiltresTypeAnnonces();
   const btn = document.getElementById('btn-ouvrir-creation-coup-de-main');
   if (!btn) return;
   btn.addEventListener('click', () => ouvrirModaleCreationCoupDeMain());
@@ -22,6 +23,8 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
         <option value="garde_enfants" ${annonce ? sel(annonce.categorie, 'garde_enfants') : ''}>Garde d'enfants</option>
         <option value="transport" ${annonce ? sel(annonce.categorie, 'transport') : ''}>Transport</option>
         <option value="courses" ${annonce ? sel(annonce.categorie, 'courses') : ''}>Courses</option>
+        <option value="informatique" ${annonce ? sel(annonce.categorie, 'informatique') : ''}>Informatique</option>
+        <option value="cuisine" ${annonce ? sel(annonce.categorie, 'cuisine') : ''}>Cuisine</option>
         <option value="autre" ${annonce ? sel(annonce.categorie, 'autre') : ''}>Autre</option>
       </select>
       <input name="prix" placeholder="Prix (optionnel — ex: gratuit, 15€, à débattre)" value="${annonce ? escapeAttr(annonce.prix || '') : ''}">

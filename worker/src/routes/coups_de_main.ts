@@ -10,7 +10,7 @@ import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/p
 const app = new Hono();
 app.use('*', jwtMiddleware);
 
-const CATEGORIES_VALIDES = ['bricolage', 'jardinage', 'garde_enfants', 'transport', 'courses', 'autre'] as const;
+const CATEGORIES_VALIDES = ['bricolage', 'jardinage', 'garde_enfants', 'transport', 'courses', 'informatique', 'cuisine', 'autre'] as const;
 
 const creationSchema = z.object({
   type: z.enum(['offre', 'demande']),

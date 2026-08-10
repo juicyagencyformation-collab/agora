@@ -1,8 +1,36 @@
 // frontend/js/coups-de-main.js
 const LABELS_CATEGORIE = {
   bricolage: 'Bricolage', jardinage: 'Jardinage', garde_enfants: "Garde d'enfants",
-  transport: 'Transport', courses: 'Courses', autre: 'Autre',
+  transport: 'Transport', courses: 'Courses', informatique: 'Informatique',
+  cuisine: 'Cuisine', autre: 'Autre',
 };
+
+// Couleur de thème par catégorie : liseré de la carte + teinte du badge.
+const COULEURS_CATEGORIE = {
+  bricolage: '#E8833A', jardinage: '#4CAF50', garde_enfants: '#E86AA6',
+  transport: '#3B82C4', courses: '#F0B429', informatique: '#7C5CD6',
+  cuisine: '#E4572E', autre: '#8A94A6',
+};
+
+let filtreTypeActuel = null;
+
+// Barre de tri Tout / Offres / Demandes (vue principale).
+function initFiltresTypeAnnonces() {
+  const zone = document.getElementById('filtres-type-annonces');
+  if (!zone) return;
+  const options = [['', 'Tout'], ['offre', 'Offres'], ['demande', 'Demandes']];
+  zone.innerHTML = options.map(([val, label], i) =>
+    `<button class="filtre-categorie-btn${i === 0 ? ' active' : ''}" data-type="${val}">${label}</button>`
+  ).join('');
+  zone.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      zone.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      filtreTypeActuel = btn.dataset.type || null;
+      chargerCoupsDeMain();
+    });
+  });
+}
 
 // Ouvre une annonce précise (venant d'un lien de notification) : la déplie et y fait défiler.
 function ouvrirAnnonceParId(id) {
@@ -13,7 +41,7 @@ function ouvrirAnnonceParId(id) {
   if (zoneDepliee?.hidden) carte.querySelector('.entete-article-compact').click();
 }
 
-async function chargerCoupsDeMain(filtreType = null, filtreCategorie = null) {
+async function chargerCoupsDeMain(filtreType = filtreTypeActuel, filtreCategorie = null) {
   const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/coups-de-main`, window.location.origin);
   if (filtreType) url.searchParams.set('type', filtreType);
   if (filtreCategorie) url.searchParams.set('categorie', filtreCategorie);
@@ -29,8 +57,10 @@ async function chargerCoupsDeMain(filtreType = null, filtreCategorie = null) {
 
 function renderAnnonce(annonce) {
   const el = document.createElement('article');
-  el.className = 'carte-article-compacte';
+  el.className = 'carte-article-compacte carte-annonce-coloree';
   el.dataset.annonceId = annonce.id;
+  const couleur = COULEURS_CATEGORIE[annonce.categorie] || COULEURS_CATEGORIE.autre;
+  el.style.borderLeftColor = couleur;
   const joursRestants = Math.ceil((new Date(annonce.expires_at) - Date.now()) / 86_400_000);
   const extrait = annonce.description.slice(0, 90);
 
@@ -40,7 +70,7 @@ function renderAnnonce(annonce) {
       <div class="texte-entete-article">
         <div class="badges-event-compact">
           <span class="badge-categorie-article">${annonce.type === 'offre' ? 'Offre' : 'Demande'}</span>
-          <span class="badge-categorie-article">${LABELS_CATEGORIE[annonce.categorie]}</span>
+          <span class="badge-categorie-article" style="color:${couleur};background:${couleur}1A;">${LABELS_CATEGORIE[annonce.categorie]}</span>
         </div>
         <h3 class="titre-article-compact">${escapeAttr(annonce.titre)}</h3>
         <p class="extrait-article-compact">${escapeAttr(extrait)}${annonce.description.length > 90 ? '…' : ''}</p>

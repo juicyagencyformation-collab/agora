@@ -656,6 +656,8 @@ h1, h2, h3, h4, p, span, a, button {
   background: #fff; border: 1px solid var(--eauL); border-radius: var(--r);
   overflow: hidden; margin-bottom: 10px;
 }
+/* Liseré coloré par catégorie (coups de main) */
+.carte-annonce-coloree { border-left-width: 5px; border-left-style: solid; }
 .entete-article-compact {
   display: flex; gap: 10px; width: 100%; padding: 10px; border: none; background: none;
   text-align: left; cursor: pointer; align-items: stretch;
