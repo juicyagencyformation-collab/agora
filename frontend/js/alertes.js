@@ -3,6 +3,12 @@ let carteAlertes;
 let positionSelectionneeAlerte = null;
 let alertesCache = [];
 
+const LABELS_STATUT_ALERTE = { ouverte: 'Ouverte', en_cours: 'En cours', resolue: 'Résolu' };
+
+function estGestionnaireAlerte() {
+  return ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
+}
+
 async function initCarteAlertes() {
   if (!carteAlertes) {
     carteAlertes = L.map('carte-alertes', { maxZoom: 20 }).setView(
@@ -55,7 +61,9 @@ function ajouterMarqueurAlerte(alerte) {
     ${alerte.urgent ? '<span class="badge-urgent-alerte">🚨 URGENT</span>' : ''}
     <strong>${escapeAttr(alerte.titre)}</strong>
     <p>${texteAvecLiensCliquables(alerte.description)}</p>
-    <span class="badge-statut badge-${alerte.statut}">${alerte.statut}</span>
+    <span class="badge-statut-alerte badge-statut-${alerte.statut}">${LABELS_STATUT_ALERTE[alerte.statut] ?? alerte.statut}</span>
+    ${alerte.soutiens ? `<span style="font-size:11px;color:var(--roseau);margin-left:6px;">👍 ${alerte.soutiens}</span>` : ''}
+    ${alerte.reponse_officielle ? '<p style="font-size:11px;color:var(--prairie);margin-top:4px;">🏛️ Réponse de la mairie disponible</p>' : ''}
     <div class="images-popup"></div>
     ${peutSupprimerAlerte(alerte) ? '<button class="btn-supprimer-alerte-popup" style="margin-top:6px;background:transparent;color:var(--rouge);border:1px solid var(--rouge);font-size:11px;padding:4px 8px;">🗑️ Supprimer</button>' : ''}
   `;
@@ -86,7 +94,8 @@ function renderListeAlertes(alertes) {
 
 function renderCarteAlerteCompacte(alerte) {
   const el = document.createElement('article');
-  el.className = 'carte-article-compacte';
+  // Outline colorée selon le statut : ouverte (rouge), en cours (or), résolu (vert).
+  el.className = `carte-article-compacte carte-alerte-${alerte.statut}`;
   const dateAffichee = new Date(alerte.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
   el.innerHTML = `
@@ -95,7 +104,8 @@ function renderCarteAlerteCompacte(alerte) {
       <div class="texte-entete-article">
         <div class="badges-event-compact">
           ${alerte.urgent ? '<span class="badge-categorie-article badge-urgent-alerte" style="margin:0;">Urgent</span>' : ''}
-          <span class="badge-categorie-article">${alerte.statut}</span>
+          <span class="badge-statut-alerte badge-statut-${alerte.statut}">${LABELS_STATUT_ALERTE[alerte.statut] ?? alerte.statut}</span>
+          ${alerte.soutiens ? `<span class="badge-categorie-article">👍 ${alerte.soutiens}</span>` : ''}
         </div>
         <h3 class="titre-article-compact">${escapeAttr(alerte.titre)}</h3>
         <span class="date-article-compact">${dateAffichee}</span>
@@ -110,28 +120,103 @@ function renderCarteAlerteCompacte(alerte) {
     deploye = !deploye;
     zoneDepliee.hidden = !deploye;
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
-      zoneDepliee.innerHTML = `
-        <p>${texteAvecLiensCliquables(alerte.description)}</p>
-        <div class="images-alerte-liste"></div>
-        ${peutSupprimerAlerte(alerte) ? '<button class="btn-supprimer-alerte-liste" style="margin-top:10px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">🗑️ Supprimer ce signalement</button>' : ''}
-      `;
-      const zoneImages = zoneDepliee.querySelector('.images-alerte-liste');
-      alerte.images.forEach((url) => {
-        const img = document.createElement('img');
-        img.src = url;
-        img.className = 'miniature-article';
-        img.addEventListener('click', () => ouvrirLightbox(url));
-        zoneImages.appendChild(img);
-      });
-      zoneDepliee.querySelector('.btn-supprimer-alerte-liste')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        supprimerAlerte(alerte.id);
-      });
+      remplirDetailAlerte(zoneDepliee, alerte);
       zoneDepliee.dataset.rempli = 'true';
     }
   });
 
   return el;
+}
+
+function remplirDetailAlerte(zone, alerte) {
+  const estGestionnaire = estGestionnaireAlerte();
+  const estAuteur = alerte.user_id === window.USER_ID;
+
+  zone.innerHTML = `
+    <p>${texteAvecLiensCliquables(alerte.description)}</p>
+    <div class="images-alerte-liste"></div>
+
+    ${alerte.reponse_officielle ? `
+      <div class="reponse-mairie">
+        <div class="reponse-mairie-entete">🏛️ Réponse de la mairie${alerte.reponse_par_nom ? ` · ${escapeAttr(alerte.reponse_par_nom)}` : ''}</div>
+        <p>${texteAvecLiensCliquables(alerte.reponse_officielle)}</p>
+      </div>` : ''}
+
+    <div class="ligne-soutien-alerte">
+      ${estAuteur
+        ? `<span class="info-soutien">👍 ${alerte.soutiens} soutien(s)</span>`
+        : `<button type="button" class="btn-soutenir ${alerte.je_soutiens ? 'soutenu' : ''}">👍 <span class="txt-soutien">${alerte.je_soutiens ? 'Soutenu' : 'Soutenir'}</span> · <span class="compteur-soutien">${alerte.soutiens}</span></button>`}
+    </div>
+
+    ${estGestionnaire ? `
+      <div class="actions-gestion-alerte">
+        <div class="boutons-statut-alerte">
+          <button type="button" data-statut="en_cours" class="${alerte.statut === 'en_cours' ? 'actif' : ''}">🔧 En cours</button>
+          <button type="button" data-statut="resolue" class="${alerte.statut === 'resolue' ? 'actif' : ''}">✅ Résolu</button>
+          <button type="button" data-statut="ouverte" class="${alerte.statut === 'ouverte' ? 'actif' : ''}">↩️ Rouvrir</button>
+        </div>
+        <label class="label-champ-edition">Réponse officielle de la mairie</label>
+        <textarea class="reponse-officielle-input" placeholder="Répondre publiquement à ce signalement (optionnel)">${escapeAttr(alerte.reponse_officielle || '')}</textarea>
+        <button type="button" class="btn-enregistrer-reponse">💬 Publier la réponse</button>
+      </div>` : ''}
+
+    ${peutSupprimerAlerte(alerte) ? '<button class="btn-supprimer-alerte-liste" style="margin-top:12px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">🗑️ Supprimer ce signalement</button>' : ''}
+  `;
+
+  const zoneImages = zone.querySelector('.images-alerte-liste');
+  alerte.images.forEach((url) => {
+    const img = document.createElement('img');
+    img.src = url;
+    img.className = 'miniature-article';
+    img.addEventListener('click', () => ouvrirLightbox(url));
+    zoneImages.appendChild(img);
+  });
+
+  // Soutenir / retirer son soutien (mise à jour en place, sans recharger toute la liste).
+  zone.querySelector('.btn-soutenir')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes/${alerte.id}/soutenir`, { method: 'POST' });
+    btn.disabled = false;
+    if (!res.ok) return;
+    const data = await res.json();
+    alerte.soutiens = data.soutiens;
+    alerte.je_soutiens = data.je_soutiens;
+    btn.classList.toggle('soutenu', data.je_soutiens);
+    btn.querySelector('.txt-soutien').textContent = data.je_soutiens ? 'Soutenu' : 'Soutenir';
+    btn.querySelector('.compteur-soutien').textContent = data.soutiens;
+  });
+
+  // Changement de statut (gestionnaires) → recharge pour refléter l'outline/badge.
+  zone.querySelectorAll('.boutons-statut-alerte [data-statut]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes/${alerte.id}/statut`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statut: btn.dataset.statut }),
+      });
+      if (res.ok) { afficherToastMessage('Statut mis à jour.', 'succes'); initCarteAlertes(); }
+      else afficherToastMessage('Erreur lors du changement de statut.', 'erreur');
+    });
+  });
+
+  // Réponse officielle (gestionnaires).
+  zone.querySelector('.btn-enregistrer-reponse')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const reponse = zone.querySelector('.reponse-officielle-input').value.trim();
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes/${alerte.id}/reponse`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reponse }),
+    });
+    if (res.ok) { afficherToastMessage('Réponse publiée.', 'succes'); initCarteAlertes(); }
+    else afficherToastMessage('Erreur lors de la publication.', 'erreur');
+  });
+
+  zone.querySelector('.btn-supprimer-alerte-liste')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    supprimerAlerte(alerte.id);
+  });
 }
 
 // ── Formulaire de création (bouton "🚨 Signaler un problème") ──

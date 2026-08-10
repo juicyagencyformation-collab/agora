@@ -655,6 +655,49 @@ h1, h2, h3, h4, p, span, a, button {
   padding: 2px 8px; border-radius: 100px; margin-bottom: 4px;
 }
 
+/* ─── Signalements : outline + badge de statut, soutiens, réponse mairie ─── */
+.carte-alerte-ouverte { border-left: 4px solid var(--rouge); }
+.carte-alerte-en_cours { border-left: 4px solid var(--aube); }
+.carte-alerte-resolue { border-left: 4px solid var(--prairie); }
+
+.badge-statut-alerte {
+  display: inline-block; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+}
+.badge-statut-ouverte { background: rgba(192,57,43,.12); color: var(--rouge); }
+.badge-statut-en_cours { background: rgba(226,201,126,.3); color: #8B6A2A; }
+.badge-statut-resolue { background: rgba(92,122,78,.16); color: var(--prairie); }
+
+.reponse-mairie {
+  background: var(--eauXL); border-left: 3px solid var(--eau); border-radius: 10px;
+  padding: 10px 12px; margin: 12px 0;
+}
+.reponse-mairie-entete { font-size: 12px; font-weight: 700; color: var(--eau); margin-bottom: 4px; }
+.reponse-mairie p { font-size: 13px; color: var(--boue); margin: 0; }
+
+.ligne-soutien-alerte { margin-top: 12px; }
+.btn-soutenir {
+  padding: 8px 16px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--eau); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-soutenir.soutenu { background: var(--eau); color: #fff; border-color: var(--eau); }
+.btn-soutenir:disabled { opacity: .6; }
+.info-soutien { font-size: 13px; color: var(--roseau); font-weight: 600; }
+
+.actions-gestion-alerte {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--eauL);
+}
+.boutons-statut-alerte { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.boutons-statut-alerte button {
+  flex: 1; min-width: 92px; padding: 8px; border-radius: 100px; border: 1.5px solid var(--eauL);
+  background: #fff; color: var(--roseau); font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.boutons-statut-alerte button.actif { background: var(--eau); color: #fff; border-color: var(--eau); }
+.reponse-officielle-input { min-height: 70px; }
+.btn-enregistrer-reponse {
+  padding: 9px 18px; border-radius: 100px; border: none; background: var(--eau); color: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
 /* ─── Mur des voisins ─── */
 .entete-post { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
 .entete-post strong { font-size: 13.5px; color: var(--eau); }

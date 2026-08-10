@@ -26,10 +26,11 @@ const creationSchema = z.object({
 
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
   const statut = c.req.query('statut');
 
   const filtres: Record<string, string> = {
-    select: 'id,user_id,titre,description,lat,lng,statut,urgent,created_at',
+    select: 'id,user_id,titre,description,lat,lng,statut,urgent,created_at,reponse_officielle,reponse_par,reponse_le',
     commune_id: `eq.${commune_id}`,
     order: 'urgent.desc,created_at.desc',
   };
@@ -37,19 +38,84 @@ app.get('/', async (c) => {
 
   const alertes = await supabaseSelect(c.env, 'alertes', filtres);
   const ids = alertes.map((a: any) => a.id);
-  const images = ids.length ? await supabaseSelect(c.env, 'alerte_images', {
-    select: 'alerte_id,url,ordre',
-    commune_id: `eq.${commune_id}`,
-    alerte_id: `in.(${ids.join(',')})`,
-    order: 'ordre.asc',
-  }) : [];
+  if (!ids.length) return c.json({ alertes: [] });
 
-  const result = alertes.map((a: any) => ({
-    ...a,
-    images: images.filter((i: any) => i.alerte_id === a.id).map((i: any) => i.url),
-  }));
+  const idsRepondeurs = [...new Set(alertes.map((a: any) => a.reponse_par).filter(Boolean))];
+  const [images, soutiens, repondeurs] = await Promise.all([
+    supabaseSelect(c.env, 'alerte_images', {
+      select: 'alerte_id,url,ordre',
+      commune_id: `eq.${commune_id}`, alerte_id: `in.(${ids.join(',')})`, order: 'ordre.asc',
+    }),
+    supabaseSelect(c.env, 'alerte_soutiens', {
+      select: 'alerte_id,user_id', commune_id: `eq.${commune_id}`, alerte_id: `in.(${ids.join(',')})`,
+    }),
+    idsRepondeurs.length ? supabaseSelect(c.env, 'users', {
+      select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsRepondeurs.join(',')})`,
+    }) : [],
+  ]);
+
+  const result = alertes.map((a: any) => {
+    const sesSoutiens = soutiens.filter((s: any) => s.alerte_id === a.id);
+    const rep = repondeurs.find((u: any) => u.id === a.reponse_par);
+    return {
+      ...a,
+      images: images.filter((i: any) => i.alerte_id === a.id).map((i: any) => i.url),
+      soutiens: sesSoutiens.length,
+      je_soutiens: sesSoutiens.some((s: any) => s.user_id === user_id),
+      reponse_par_nom: rep ? `${rep.prenom} ${rep.nom}` : null,
+    };
+  });
 
   return c.json({ alertes: result });
+});
+
+// POST /:id/soutenir — un citoyen soutient (ou retire son soutien à) un signalement. Un seul
+// soutien par personne (contrainte UNIQUE en base), pas d'XP pour éviter le farming.
+app.post('/:id/soutenir', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const alerte_id = c.req.param('id');
+
+  const [alerte] = await supabaseSelect(c.env, 'alertes', {
+    select: 'id', id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!alerte) return c.json({ erreur: 'Signalement introuvable' }, 404);
+
+  const [existant] = await supabaseSelect(c.env, 'alerte_soutiens', {
+    select: 'id', alerte_id: `eq.${alerte_id}`, user_id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (existant) {
+    await supabaseDelete(c.env, 'alerte_soutiens', { id: `eq.${existant.id}`, commune_id: `eq.${commune_id}` });
+  } else {
+    await supabaseInsert(c.env, 'alerte_soutiens', { commune_id, alerte_id, user_id });
+  }
+
+  const tous = await supabaseSelect(c.env, 'alerte_soutiens', {
+    select: 'id', alerte_id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ soutiens: tous.length, je_soutiens: !existant });
+});
+
+// PATCH /:id/reponse — réponse officielle de la mairie (gestionnaires). Chaîne vide = efface.
+app.patch('/:id/reponse', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const alerte_id = c.req.param('id');
+
+  const schema = z.object({ reponse: z.string().max(2000) });
+  const body = schema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const reponse = body.data.reponse.trim();
+  await supabaseUpdate(c.env, 'alertes', {
+    reponse_officielle: reponse || null,
+    reponse_par: reponse ? user_id : null,
+    reponse_le: reponse ? new Date().toISOString() : null,
+  }, { id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}` });
+
+  return c.json({ ok: true });
 });
 
 app.post('/', async (c) => {
