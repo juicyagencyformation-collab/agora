@@ -342,10 +342,29 @@ function ouvrirModaleFormulaire(titre, contenuHtml) {
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('visible'));
 
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) fermerModaleFormulaire(overlay); });
-  overlay.querySelector('.btn-fermer-modale').addEventListener('click', () => fermerModaleFormulaire(overlay));
+  // Clic sur le fond ou sur ✕ : si des champs ont été saisis, on confirme avant de fermer,
+  // pour ne pas perdre le travail sur un clic à côté par erreur (fermeture libre si rien n'est
+  // rempli). La fermeture après un envoi réussi passe par fermerModaleFormulaire() directement,
+  // donc sans confirmation.
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) demanderFermetureModale(overlay); });
+  overlay.querySelector('.btn-fermer-modale').addEventListener('click', () => demanderFermetureModale(overlay));
 
   return overlay;
+}
+
+// Vrai si au moins un champ texte/zone de texte/fichier a été rempli (on ignore les <select>
+// qui ont toujours une valeur par défaut, et les cases/radios, pour éviter les confirmations
+// inutiles).
+function modaleContientSaisie(overlay) {
+  const champs = overlay.querySelectorAll(
+    '.corps-modale-formulaire input:not([type=checkbox]):not([type=radio]):not([type=hidden]), .corps-modale-formulaire textarea',
+  );
+  return [...champs].some((c) => (c.type === 'file' ? c.files && c.files.length > 0 : c.value && c.value.trim() !== ''));
+}
+
+function demanderFermetureModale(overlay) {
+  if (modaleContientSaisie(overlay) && !confirm('Abandonner les informations saisies ?')) return;
+  fermerModaleFormulaire(overlay);
 }
 
 function fermerModaleFormulaire(overlay) {
