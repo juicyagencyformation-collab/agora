@@ -45,6 +45,7 @@ function renderPhotoDuJour(p, medaille) {
     ${p.libre_de_droit ? '<span class="ruban-libre-droit">Libre de droit</span>' : ''}
     ${medaille ? `<span class="medaille-photo">${medaille}</span>` : ''}
     <div class="overlay-photo-jour">
+      <span class="auteur-photo-jour">📷 ${escapeAttr(p.auteur_prenom)} ${escapeAttr(p.auteur_nom)}</span>
       <button class="btn-like-photo ${p.deja_like ? 'like-actif' : ''}">❤️ ${p.total_likes}</button>
       ${p.est_moi ? `
         <label class="toggle-libre-droit">

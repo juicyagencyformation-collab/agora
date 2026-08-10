@@ -108,7 +108,7 @@ function renderCarteAlerteCompacte(alerte) {
           ${alerte.soutiens ? `<span class="badge-categorie-article">👍 ${alerte.soutiens}</span>` : ''}
         </div>
         <h3 class="titre-article-compact">${escapeAttr(alerte.titre)}</h3>
-        <span class="date-article-compact">${dateAffichee}</span>
+        <span class="date-article-compact">${dateAffichee} · par ${escapeAttr(alerte.auteur_prenom)} ${escapeAttr(alerte.auteur_nom)}</span>
       </div>
     </button>
     <div class="contenu-article-deplie" hidden></div>

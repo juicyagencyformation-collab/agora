@@ -40,8 +40,12 @@ app.get('/', async (c) => {
   const ids = alertes.map((a: any) => a.id);
   if (!ids.length) return c.json({ alertes: [] });
 
-  const idsRepondeurs = [...new Set(alertes.map((a: any) => a.reponse_par).filter(Boolean))];
-  const [images, soutiens, repondeurs] = await Promise.all([
+  // Un seul fetch users pour les auteurs des signalements ET les auteurs des réponses officielles.
+  const idsUtilisateurs = [...new Set([
+    ...alertes.map((a: any) => a.user_id),
+    ...alertes.map((a: any) => a.reponse_par).filter(Boolean),
+  ])];
+  const [images, soutiens, utilisateurs] = await Promise.all([
     supabaseSelect(c.env, 'alerte_images', {
       select: 'alerte_id,url,ordre',
       commune_id: `eq.${commune_id}`, alerte_id: `in.(${ids.join(',')})`, order: 'ordre.asc',
@@ -49,19 +53,22 @@ app.get('/', async (c) => {
     supabaseSelect(c.env, 'alerte_soutiens', {
       select: 'alerte_id,user_id', commune_id: `eq.${commune_id}`, alerte_id: `in.(${ids.join(',')})`,
     }),
-    idsRepondeurs.length ? supabaseSelect(c.env, 'users', {
-      select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsRepondeurs.join(',')})`,
+    idsUtilisateurs.length ? supabaseSelect(c.env, 'users', {
+      select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsUtilisateurs.join(',')})`,
     }) : [],
   ]);
 
   const result = alertes.map((a: any) => {
     const sesSoutiens = soutiens.filter((s: any) => s.alerte_id === a.id);
-    const rep = repondeurs.find((u: any) => u.id === a.reponse_par);
+    const auteur = utilisateurs.find((u: any) => u.id === a.user_id);
+    const rep = utilisateurs.find((u: any) => u.id === a.reponse_par);
     return {
       ...a,
       images: images.filter((i: any) => i.alerte_id === a.id).map((i: any) => i.url),
       soutiens: sesSoutiens.length,
       je_soutiens: sesSoutiens.some((s: any) => s.user_id === user_id),
+      auteur_prenom: auteur?.prenom ?? '?',
+      auteur_nom: auteur?.nom ?? '',
       reponse_par_nom: rep ? `${rep.prenom} ${rep.nom}` : null,
     };
   });

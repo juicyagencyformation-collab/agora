@@ -41,7 +41,8 @@ app.get('/', async (c) => {
   });
 
   const ids = photos.map((p: any) => p.id);
-  const [validations, mesSignalements, likes] = await Promise.all([
+  const idsAuteurs = [...new Set(photos.map((p: any) => p.user_id))];
+  const [validations, mesSignalements, likes, auteurs] = await Promise.all([
     ids.length ? supabaseSelect(c.env, 'photo_validations', {
       select: 'photo_id,user_id',
       commune_id: `eq.${commune_id}`,
@@ -58,6 +59,9 @@ app.get('/', async (c) => {
       commune_id: `eq.${commune_id}`,
       photo_id: `in.(${ids.join(',')})`,
     }) : [],
+    idsAuteurs.length ? supabaseSelect(c.env, 'users', {
+      select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
+    }) : [],
   ]);
 
   const mesPhotosSignalees = new Set(mesSignalements.map((s: any) => s.photo_id));
@@ -69,9 +73,12 @@ app.get('/', async (c) => {
   const result = photos.map((p: any) => {
     const validationsPhoto = validations.filter((v: any) => v.photo_id === p.id);
     const likesPhoto = likes.filter((l: any) => l.photo_id === p.id);
+    const auteur = auteurs.find((a: any) => a.id === p.user_id);
     return {
       ...p,
       est_moi: p.user_id === user_id,
+      auteur_prenom: auteur?.prenom ?? '?',
+      auteur_nom: auteur?.nom ?? '',
       total_validations: validationsPhoto.length,
       seuil_validations: seuil,
       deja_valide: validationsPhoto.some((v: any) => v.user_id === user_id),
