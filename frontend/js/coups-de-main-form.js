@@ -24,6 +24,9 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
         <option value="courses" ${annonce ? sel(annonce.categorie, 'courses') : ''}>Courses</option>
         <option value="autre" ${annonce ? sel(annonce.categorie, 'autre') : ''}>Autre</option>
       </select>
+      <input name="prix" placeholder="Prix (optionnel — ex: gratuit, 15€, à débattre)" value="${annonce ? escapeAttr(annonce.prix || '') : ''}">
+      <input name="contact" placeholder="Contact — téléphone ou email (optionnel)" value="${annonce ? escapeAttr(annonce.contact || '') : ''}">
+      <input name="disponibilites" placeholder="Disponibilités (optionnel — ex: week-ends, soirées)" value="${annonce ? escapeAttr(annonce.disponibilites || '') : ''}">
       <label class="label-champ-edition">${annonce ? 'Prolonger de (jours, optionnel)' : 'Durée de l\'annonce (jours)'}</label>
       <input name="duree_jours" type="number" ${annonce ? 'placeholder="Laisser vide pour ne pas changer"' : 'value="30"'}>
       <button type="submit" style="margin-top:12px;">${annonce ? 'Mettre à jour' : 'Publier'}</button>
@@ -42,14 +45,16 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: donnees.type, titre: donnees.titre, description: donnees.description,
-            categorie: donnees.categorie, ...(dureeSaisie > 0 ? { duree_jours: dureeSaisie } : {}),
+            categorie: donnees.categorie, prix: donnees.prix, contact: donnees.contact, disponibilites: donnees.disponibilites,
+            ...(dureeSaisie > 0 ? { duree_jours: dureeSaisie } : {}),
           }),
         })
       : await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: donnees.type, titre: donnees.titre, description: donnees.description,
-            categorie: donnees.categorie, duree_jours: dureeSaisie > 0 ? dureeSaisie : 30,
+            categorie: donnees.categorie, prix: donnees.prix, contact: donnees.contact, disponibilites: donnees.disponibilites,
+            duree_jours: dureeSaisie > 0 ? dureeSaisie : 30,
           }),
         });
 

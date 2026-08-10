@@ -18,6 +18,9 @@ const creationSchema = z.object({
   description: z.string().min(1).max(1000),
   categorie: z.enum(CATEGORIES_VALIDES),
   duree_jours: z.number().int().min(1).max(90).default(30),
+  contact: z.string().max(300).optional(),
+  prix: z.string().max(60).optional(),
+  disponibilites: z.string().max(300).optional(),
 });
 
 // Distinct de creationSchema.partial() : sans le .default(30), pour ne PAS recalculer
@@ -28,6 +31,9 @@ const editionSchema = z.object({
   description: z.string().min(1).max(1000).optional(),
   categorie: z.enum(CATEGORIES_VALIDES).optional(),
   duree_jours: z.number().int().min(1).max(90).optional(),
+  contact: z.string().max(300).optional(),
+  prix: z.string().max(60).optional(),
+  disponibilites: z.string().max(300).optional(),
 });
 
 app.get('/', async (c) => {
@@ -36,7 +42,7 @@ app.get('/', async (c) => {
   const categorie = c.req.query('categorie');
 
   const filtres: Record<string, string> = {
-    select: 'id,user_id,type,titre,description,categorie,expires_at,created_at',
+    select: 'id,user_id,type,titre,description,categorie,contact,prix,disponibilites,expires_at,created_at',
     commune_id: `eq.${commune_id}`,
     expires_at: `gt.${new Date().toISOString()}`,
     order: 'created_at.desc',
@@ -72,6 +78,9 @@ app.post('/', async (c) => {
   const [annonce] = await supabaseInsert(c.env, 'coups_de_main', {
     commune_id, user_id, type: data.type, titre: data.titre,
     description: data.description, categorie: data.categorie, expires_at,
+    contact: data.contact?.trim() || null,
+    prix: data.prix?.trim() || null,
+    disponibilites: data.disponibilites?.trim() || null,
   });
 
   const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.publier_annonce);
@@ -112,6 +121,9 @@ app.patch('/:id', async (c) => {
   if (data.titre) patch.titre = data.titre;
   if (data.description) patch.description = data.description;
   if (data.categorie) patch.categorie = data.categorie;
+  if (data.contact !== undefined) patch.contact = data.contact.trim() || null;
+  if (data.prix !== undefined) patch.prix = data.prix.trim() || null;
+  if (data.disponibilites !== undefined) patch.disponibilites = data.disponibilites.trim() || null;
   // duree_jours fournie = on repart de maintenant pour recalculer l'expiration.
   if (data.duree_jours) patch.expires_at = new Date(Date.now() + data.duree_jours * 24 * 3600 * 1000).toISOString();
   if (Object.keys(patch).length === 0) return c.json({ erreur: 'Aucun champ à modifier' }, 400);

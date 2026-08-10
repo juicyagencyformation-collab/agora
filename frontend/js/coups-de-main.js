@@ -56,7 +56,10 @@ function renderAnnonce(annonce) {
     deploye = !deploye;
     zoneDepliee.hidden = !deploye;
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
-      zoneDepliee.innerHTML = `<p>${texteAvecLiensCliquables(annonce.description)}</p>`;
+      zoneDepliee.innerHTML = `<p>${texteAvecLiensCliquables(annonce.description)}</p>`
+        + (annonce.prix ? `<p class="detail-annonce">💶 ${escapeAttr(annonce.prix)}</p>` : '')
+        + (annonce.disponibilites ? `<p class="detail-annonce">🗓️ ${escapeAttr(annonce.disponibilites)}</p>` : '')
+        + (annonce.contact ? `<p class="detail-annonce">📞 ${texteAvecLiensCliquables(annonce.contact)}</p>` : '');
       if (annonce.user_id === window.USER_ID || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
         const bar = document.createElement('div');
         bar.className = 'actions-admin';
