@@ -168,7 +168,7 @@ app.post('/:id/valider', async (c) => {
 
   return c.json({
     ok: true, reussi: true, distance_metres: Math.round(distance),
-    xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges,
+    ...resultatXp,
   });
 });
 

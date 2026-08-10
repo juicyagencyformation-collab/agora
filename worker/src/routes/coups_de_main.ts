@@ -75,7 +75,7 @@ app.post('/', async (c) => {
     );
   })());
 
-  return c.json({ annonce_id: annonce.id, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges }, 201);
+  return c.json({ annonce_id: annonce.id, ...resultatXp }, 201);
 });
 
 app.delete('/:id', async (c) => {

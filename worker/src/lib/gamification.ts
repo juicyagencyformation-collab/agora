@@ -32,16 +32,18 @@ export function niveauDepuisXp(xp: number): number {
   return n;
 }
 
-export async function attribuerXp(env: any, commune_id: string, user_id: string, montant: number): Promise<{ xp_gagne: number; nouveaux_badges: string[] }> {
+export async function attribuerXp(env: any, commune_id: string, user_id: string, montant: number): Promise<{ xp_gagne: number; nouveaux_badges: string[]; niveau: number; monte_de_niveau: boolean }> {
   const [user] = await supabaseSelect(env, 'users', {
     select: 'xp', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
-  if (!user) return { xp_gagne: 0, nouveaux_badges: [] };
-  const nouveauXp = (user.xp ?? 0) + montant;
+  if (!user) return { xp_gagne: 0, nouveaux_badges: [], niveau: 1, monte_de_niveau: false };
+  const ancienXp = user.xp ?? 0;
+  const nouveauXp = ancienXp + montant;
+  const niveauAvant = niveauDepuisXp(ancienXp);
   const nouveauNiveau = niveauDepuisXp(nouveauXp);
   await supabaseUpdate(env, 'users', { xp: nouveauXp, niveau: nouveauNiveau }, { id: `eq.${user_id}` });
   const nouveauxBadges = await verifierBadges(env, commune_id, user_id);
-  return { xp_gagne: montant, nouveaux_badges: nouveauxBadges };
+  return { xp_gagne: montant, nouveaux_badges: nouveauxBadges, niveau: nouveauNiveau, monte_de_niveau: nouveauNiveau > niveauAvant };
 }
 
 // Incrémente un compteur permanent sur le profil (ex: validations_donnees, signalements_confirmes).

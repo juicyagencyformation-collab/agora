@@ -464,6 +464,109 @@ h1, h2, h3, h4, p, span, a, button {
   100% { transform: translateY(420px) rotate(540deg); opacity: 0; }
 }
 
+/* ─── Célébration de montée de niveau (plein écran) ─── */
+.overlay-niveau {
+  position: fixed; inset: 0; z-index: 4000; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 42%, #1c4450 0%, #0c1c22 72%);
+  opacity: 0; pointer-events: none; transition: opacity .35s ease;
+}
+.overlay-niveau.visible { opacity: 1; pointer-events: auto; }
+
+.etoiles-niveau { position: absolute; inset: 0; pointer-events: none; }
+.etoile {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff;
+  opacity: .5; animation: scintille 2.2s ease-in-out infinite;
+}
+@keyframes scintille { 0%, 100% { opacity: .18; } 50% { opacity: .9; } }
+
+/* Fusée : décolle du bas et sort par le haut (le glyphe pointe déjà vers le haut-droit,
+   -45deg le redresse à la verticale). */
+.fusee-niveau {
+  position: absolute; left: 50%; bottom: -90px; font-size: 60px; line-height: 1; z-index: 3;
+  transform: translateX(-50%) rotate(-45deg);
+  filter: drop-shadow(0 0 14px rgba(226,201,126,.85));
+  animation: envol-fusee 1s cubic-bezier(.45,0,.7,1) forwards;
+}
+@keyframes envol-fusee {
+  0% { transform: translateX(-50%) translateY(0) rotate(-45deg) scale(.7); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translateX(-50%) translateY(-120vh) rotate(-45deg) scale(1.05); opacity: 1; }
+}
+
+/* Onde de choc : flash lumineux qui se dilate au sommet, à l'instant de l'explosion. */
+.onde-choc {
+  position: absolute; left: 50%; top: 34%; width: 22px; height: 22px; border-radius: 50%;
+  transform: translate(-50%, -50%); opacity: 0;
+  background: radial-gradient(circle, #fff, rgba(226,201,126,.5), transparent 70%);
+  animation: onde-choc .6s ease-out .85s forwards;
+}
+@keyframes onde-choc {
+  0% { opacity: .85; transform: translate(-50%, -50%) scale(.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(24); }
+}
+
+.feux-niveau { position: absolute; inset: 0; pointer-events: none; }
+.particule-feu {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%; opacity: 0; color: inherit;
+  box-shadow: 0 0 8px currentColor; animation: eclat-feu 1s ease-out forwards;
+}
+@keyframes eclat-feu {
+  0% { transform: translate(0, 0) scale(1.1); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; }
+}
+
+/* Bloc central : le niveau jaillit après le décollage, avec rayons dorés tournants. */
+.contenu-niveau {
+  position: relative; text-align: center; z-index: 2; padding: 0 24px;
+  opacity: 0; animation: apparition-niveau .6s cubic-bezier(.34,1.56,.64,1) 1s forwards;
+}
+@keyframes apparition-niveau {
+  0% { opacity: 0; transform: scale(.5); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.rayons-niveau {
+  position: absolute; top: -36px; left: 50%; width: 260px; height: 260px; transform: translateX(-50%);
+  z-index: -1; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(226,201,126,.28) 0deg 8deg, transparent 8deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 28%, transparent 62%);
+  mask: radial-gradient(circle, #000 28%, transparent 62%);
+  animation: rotation-rayons 9s linear infinite;
+}
+@keyframes rotation-rayons { to { transform: translateX(-50%) rotate(360deg); } }
+.cercle-niveau {
+  width: 122px; height: 122px; border-radius: 50%; margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 32% 28%, #f0d98a, #c99a24);
+  box-shadow: 0 0 0 6px rgba(255,255,255,.15), 0 0 45px rgba(226,201,126,.8);
+  animation: pulse-cercle 1.8s ease-in-out 1.6s infinite;
+}
+@keyframes pulse-cercle {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(255,255,255,.15), 0 0 45px rgba(226,201,126,.8); }
+  50% { box-shadow: 0 0 0 10px rgba(255,255,255,.08), 0 0 68px rgba(226,201,126,1); }
+}
+.chiffre-niveau { font-family: 'Playfair Display', serif; font-weight: 900; font-size: 58px; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.label-niveau { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--aube); }
+.titre-niveau { font-family: 'Playfair Display', serif; font-size: 32px; color: #fff; margin: 4px 0 6px; }
+.sous-titre-niveau { font-size: 14px; color: rgba(255,255,255,.85); margin-bottom: 24px; }
+.btn-fermer-niveau {
+  padding: 13px 34px; border-radius: 100px; border: none; cursor: pointer;
+  background: var(--aube); color: var(--boue); font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 15px;
+  box-shadow: 0 6px 20px rgba(226,201,126,.4);
+}
+.confettis-niveau .confetti { animation: chute-confetti-niveau 2.6s linear forwards; }
+@keyframes chute-confetti-niveau {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fusee-niveau, .onde-choc, .particule-feu, .rayons-niveau, .cercle-niveau, .confettis-niveau .confetti, .etoile {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+  }
+}
+
 /* ─── Trouve la photo (énigmes) ─── */
 .carte-enigme {
   background: #fff; border: 1px solid var(--eauL); border-radius: var(--r);

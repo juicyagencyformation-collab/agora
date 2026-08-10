@@ -336,7 +336,7 @@ app.post('/:id/lu', async (c) => {
     }
   }
 
-  return c.json({ ok: true, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges });
+  return c.json({ ok: true, ...resultatXp });
 });
 
 export default app;

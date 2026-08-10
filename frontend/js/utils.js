@@ -175,6 +175,9 @@ function renderSondageJoli({ id, question, choix, totalVotes, mesVotes, multiCho
 function traiterRecompense(data) {
   if (!data) return;
   if (data.xp_gagne) afficherToastXp(data.xp_gagne);
+  // La montée de niveau est le grand moment : on la joue en plein écran. Les éventuels badges
+  // débloqués s'enchaînent après (leur file d'attente les affiche à la fermeture).
+  if (data.monte_de_niveau) celebrerMonteeNiveau(data.niveau);
   if (data.nouveaux_badges && data.nouveaux_badges.length) {
     data.nouveaux_badges.forEach((cle) => mettreEnFileBadge(cle));
   }
@@ -240,6 +243,85 @@ function traiterFileCelebrationsBadges() {
       traiterFileCelebrationsBadges();
     }, 300);
   });
+}
+
+// ── Célébration de montée de niveau : fusée qui décolle → explosion → feux d'artifice →
+// le nouveau niveau qui jaillit, rayons dorés tournants et pluie de confettis. Full écran,
+// pensé pour "en mettre plein la vue". Tout en CSS/JS vanilla, aucune dépendance. ──
+function celebrerMonteeNiveau(niveau) {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay-niveau';
+  overlay.innerHTML = `
+    <div class="etoiles-niveau"></div>
+    <div class="fusee-niveau">🚀</div>
+    <div class="onde-choc"></div>
+    <div class="feux-niveau"></div>
+    <div class="contenu-niveau">
+      <div class="rayons-niveau"></div>
+      <div class="cercle-niveau"><span class="chiffre-niveau">${niveau}</span></div>
+      <div class="label-niveau">Niveau atteint</div>
+      <div class="titre-niveau">NIVEAU ${niveau} !</div>
+      <div class="sous-titre-niveau">Bravo, tu montes en grade 🎉</div>
+      <button type="button" class="btn-fermer-niveau">Continuer</button>
+    </div>
+    <div class="confettis confettis-niveau"></div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Champ d'étoiles scintillantes en fond.
+  const zoneEtoiles = overlay.querySelector('.etoiles-niveau');
+  for (let i = 0; i < 34; i++) {
+    const e = document.createElement('span');
+    e.className = 'etoile';
+    e.style.left = `${Math.random() * 100}%`;
+    e.style.top = `${Math.random() * 100}%`;
+    e.style.animationDelay = `${Math.random() * 2}s`;
+    e.style.transform = `scale(${0.4 + Math.random()})`;
+    zoneEtoiles.appendChild(e);
+  }
+
+  // Feux d'artifice : plusieurs explosions de particules, décalées dans le temps et l'espace,
+  // déclenchées à l'instant où la fusée atteint le sommet.
+  const couleurs = ['#E2C97E', '#2C5F6E', '#5C7A4E', '#C0392B', '#ffffff', '#4FA3B8'];
+  const zoneFeux = overlay.querySelector('.feux-niveau');
+  const lancerExplosion = (x, y, retardMs) => {
+    for (let i = 0; i < 16; i++) {
+      const p = document.createElement('span');
+      p.className = 'particule-feu';
+      const angle = (Math.PI * 2 * i) / 16 + Math.random() * 0.3;
+      const dist = 70 + Math.random() * 70;
+      p.style.left = `${x}%`;
+      p.style.top = `${y}%`;
+      p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+      p.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+      p.style.background = couleurs[Math.floor(Math.random() * couleurs.length)];
+      p.style.animationDelay = `${retardMs}ms`;
+      zoneFeux.appendChild(p);
+    }
+  };
+  [[50, 34, 950], [28, 26, 1250], [72, 30, 1450], [40, 20, 1700], [62, 42, 1900]]
+    .forEach(([x, y, t]) => lancerExplosion(x, y, t));
+
+  // Pluie de confettis (réutilise .confetti / @keyframes chute-confetti déjà en place).
+  const zoneConfettis = overlay.querySelector('.confettis-niveau');
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('span');
+    c.className = 'confetti';
+    c.style.left = `${Math.random() * 100}%`;
+    c.style.animationDelay = `${1 + Math.random() * 1.2}s`;
+    c.style.background = couleurs[i % couleurs.length];
+    zoneConfettis.appendChild(c);
+  }
+
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  const fermer = () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 350);
+  };
+  overlay.querySelector('.btn-fermer-niveau').addEventListener('click', fermer);
+  // Sécurité : auto-fermeture au bout de 9s si l'utilisateur ne clique pas (ex. écran laissé de côté).
+  setTimeout(() => { if (overlay.isConnected) fermer(); }, 9000);
 }
 
 // Réduit la charge R2/bande passante — utile notamment pour les photos prises au mobile.

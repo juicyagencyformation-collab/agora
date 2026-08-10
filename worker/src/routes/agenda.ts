@@ -320,7 +320,7 @@ app.post('/:id/participer', async (c) => {
     }
     const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.participer_evenement);
     await verifierSeuilSuccesEvenement(c.env, commune_id, event_id);
-    return c.json({ ok: true, action: 'ajouté', xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges });
+    return c.json({ ok: true, action: 'ajouté', ...resultatXp });
   }
 
   // Ré-inscription ou désinscription : jamais de nouvelle XP (empêche le farming par toggle répété)

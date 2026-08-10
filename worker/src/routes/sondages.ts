@@ -135,7 +135,7 @@ app.post('/:id/vote', async (c) => {
     resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.voter_sondage);
   }
 
-  return c.json({ ok: true, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges });
+  return c.json({ ok: true, ...resultatXp });
 });
 
 app.patch('/:id', async (c) => {

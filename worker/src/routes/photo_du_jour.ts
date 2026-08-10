@@ -219,7 +219,7 @@ app.post('/:id/valider', async (c) => {
   await supabaseInsert(c.env, 'photo_validations', { commune_id, photo_id, user_id });
   await incrementerCompteurUtilisateur(c.env, commune_id, user_id, 'validations_donnees');
   const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.valider_photo);
-  return c.json({ ok: true, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges });
+  return c.json({ ok: true, ...resultatXp });
 });
 
 // POST /:id/liker — toggle like (indépendant de la validation, purement appréciation)

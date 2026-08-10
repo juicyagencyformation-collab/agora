@@ -182,7 +182,7 @@ app.post('/valider', async (c) => {
   await gererStreakExploration(c.env, commune_id, user_id);
   const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.valider_etape_chasse);
 
-  return c.json({ ok: true, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges });
+  return c.json({ ok: true, ...resultatXp });
 });
 
 // GET /classement-exploration — score combiné (étapes de chasse validées + énigmes trouvées),

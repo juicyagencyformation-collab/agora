@@ -72,7 +72,7 @@ app.post('/', async (c) => {
 
   const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.signaler_alerte);
 
-  return c.json({ alerte_id: alerte.id, xp_gagne: resultatXp.xp_gagne, nouveaux_badges: resultatXp.nouveaux_badges }, 201);
+  return c.json({ alerte_id: alerte.id, ...resultatXp }, 201);
 });
 
 app.patch('/:id/statut', async (c) => {
