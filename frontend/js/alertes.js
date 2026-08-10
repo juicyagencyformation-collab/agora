@@ -160,7 +160,11 @@ function remplirDetailAlerte(zone, alerte) {
         <button type="button" class="btn-enregistrer-reponse">💬 Publier la réponse</button>
       </div>` : ''}
 
-    ${peutSupprimerAlerte(alerte) ? '<button class="btn-supprimer-alerte-liste" style="margin-top:12px;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);">🗑️ Supprimer ce signalement</button>' : ''}
+    ${peutSupprimerAlerte(alerte) ? `
+      <div class="actions-auteur-alerte">
+        <button class="btn-modifier-alerte-liste">✏️ Modifier</button>
+        <button class="btn-supprimer-alerte-liste">🗑️ Supprimer</button>
+      </div>` : ''}
   `;
 
   const zoneImages = zone.querySelector('.images-alerte-liste');
@@ -213,9 +217,67 @@ function remplirDetailAlerte(zone, alerte) {
     else afficherToastMessage('Erreur lors de la publication.', 'erreur');
   });
 
+  zone.querySelector('.btn-modifier-alerte-liste')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    ouvrirModaleEditionAlerte(alerte);
+  });
+
   zone.querySelector('.btn-supprimer-alerte-liste')?.addEventListener('click', (e) => {
     e.stopPropagation();
     supprimerAlerte(alerte.id);
+  });
+}
+
+// ── Édition d'un signalement (par son auteur ou un gestionnaire) ──
+function ouvrirModaleEditionAlerte(alerte) {
+  positionSelectionneeAlerte = (alerte.lat != null && alerte.lng != null)
+    ? { lat: alerte.lat, lng: alerte.lng } : null;
+
+  const html = `
+    <form id="form-edition-alerte">
+      <input type="text" id="titre-edition-alerte" maxlength="150" required value="${escapeAttr(alerte.titre)}">
+      <textarea id="description-edition-alerte" required>${escapeAttr(alerte.description)}</textarea>
+
+      <label class="label-champ-edition">Localisation (optionnel)</label>
+      <button type="button" id="btn-position-edition-alerte">📍 Utiliser ma position actuelle</button>
+      <p id="position-edition-alerte" style="font-size:12px;color:var(--roseau);">${positionSelectionneeAlerte ? '📍 Position enregistrée.' : 'Aucune position.'}</p>
+
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13.5px;">
+        <input type="checkbox" id="urgent-edition-alerte" style="width:auto;margin:0;" ${alerte.urgent ? 'checked' : ''}>
+        🚨 Signalement urgent (danger immédiat)
+      </label>
+
+      <button type="submit" style="margin-top:12px;">Enregistrer</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('Modifier le signalement', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  corps.querySelector('#btn-position-edition-alerte').addEventListener('click', () => {
+    if (!navigator.geolocation) { afficherToastMessage('Géolocalisation indisponible.', 'erreur'); return; }
+    navigator.geolocation.getCurrentPosition((position) => {
+      positionSelectionneeAlerte = { lat: position.coords.latitude, lng: position.coords.longitude };
+      corps.querySelector('#position-edition-alerte').textContent = '📍 Position mise à jour !';
+    }, () => afficherToastMessage('Impossible de récupérer la position.', 'erreur'));
+  });
+
+  corps.querySelector('#form-edition-alerte').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const titre = corps.querySelector('#titre-edition-alerte').value.trim();
+    const description = corps.querySelector('#description-edition-alerte').value.trim();
+    const urgent = corps.querySelector('#urgent-edition-alerte').checked;
+    if (!titre || !description) return;
+
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes/${alerte.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titre, description, urgent,
+        ...(positionSelectionneeAlerte ? { lat: positionSelectionneeAlerte.lat, lng: positionSelectionneeAlerte.lng } : {}),
+      }),
+    });
+    if (res.ok) { fermerModaleFormulaire(overlay); afficherToastMessage('Signalement modifié.', 'succes'); initCarteAlertes(); }
+    else { const data = await res.json(); afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur', 'erreur'); }
   });
 }
 

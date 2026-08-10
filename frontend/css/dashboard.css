@@ -734,6 +734,13 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .boutons-statut-alerte button.actif { background: var(--eau); color: #fff; border-color: var(--eau); }
 .reponse-officielle-input { min-height: 70px; }
+
+.actions-auteur-alerte { display: flex; gap: 8px; margin-top: 12px; }
+.actions-auteur-alerte button {
+  flex: 1; padding: 8px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--eau); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.actions-auteur-alerte .btn-supprimer-alerte-liste { color: var(--rouge); border-color: var(--rouge); }
 .btn-enregistrer-reponse {
   padding: 9px 18px; border-radius: 100px; border: none; background: var(--eau); color: #fff;
   font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;

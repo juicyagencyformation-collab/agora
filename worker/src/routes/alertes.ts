@@ -172,6 +172,42 @@ app.patch('/:id/statut', async (c) => {
   return c.json({ ok: true });
 });
 
+// PATCH /:id — modifier le contenu de son propre signalement (ou n'importe lequel pour un
+// gestionnaire). Distinct de /:id/statut et /:id/reponse (réservés aux gestionnaires).
+app.patch('/:id', async (c) => {
+  const role = c.get('role');
+  const user_id = c.get('user_id');
+  const commune_id = c.get('commune_id');
+  const alerte_id = c.req.param('id');
+
+  const [alerte] = await supabaseSelect(c.env, 'alertes', {
+    select: 'id,user_id', id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!alerte) return c.json({ erreur: 'Signalement introuvable' }, 404);
+  if (alerte.user_id !== user_id && !estGestionnaire(role)) {
+    return c.json({ erreur: 'Vous ne pouvez modifier que vos propres signalements' }, 403);
+  }
+
+  const schema = z.object({
+    titre: z.string().min(1).max(150).optional(),
+    description: z.string().min(1).max(2000).optional(),
+    urgent: z.boolean().optional(),
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
+  });
+  const body = schema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const patch: Record<string, unknown> = {};
+  for (const [cle, valeur] of Object.entries(body.data)) {
+    if (valeur !== undefined) patch[cle] = valeur;
+  }
+  if (Object.keys(patch).length === 0) return c.json({ erreur: 'Aucun champ à modifier' }, 400);
+
+  await supabaseUpdate(c.env, 'alertes', patch, { id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}` });
+  return c.json({ ok: true });
+});
+
 app.delete('/:id', async (c) => {
   const role = c.get('role');
   const user_id = c.get('user_id');
