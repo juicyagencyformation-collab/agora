@@ -117,11 +117,20 @@ export async function gererStreakExploration(env: any, commune_id: string, user_
   await verifierBadges(env, commune_id, user_id);
 }
 
+// Paliers de série de connexion quotidienne (streak). 7 et 30 restent couverts par assidu /
+// super_assidu ci-dessous ; on ajoute ici les paliers supérieurs. Badge conservé à vie même
+// si la série se casse ensuite. Les libellés/icônes sont dans frontend/js/profil.js (LABELS_BADGES).
+const PALIERS_STREAK_CONNEXION = [10, 20, 40, 50, 75, 100, 150, 200, 300, 365, 400, 500, 600, 700, 1000];
+
 // Définitions des badges — chaque condition est vérifiée côté serveur, jamais fournie par le client.
 const DEFINITIONS_BADGES = [
   { cle: 'premier_pas', verifie: async () => true }, // acquis dès la 1re vérification (après 1re connexion)
   { cle: 'assidu', verifie: async (_env: any, _cid: string, _uid: string, user: any) => (user.streak_actuel ?? 0) >= 7 },
   { cle: 'super_assidu', verifie: async (_env: any, _cid: string, _uid: string, user: any) => (user.streak_actuel ?? 0) >= 30 },
+  ...PALIERS_STREAK_CONNEXION.map((jours) => ({
+    cle: `connexion_${jours}`,
+    verifie: async (_env: any, _cid: string, _uid: string, user: any) => (user.streak_actuel ?? 0) >= jours,
+  })),
   { cle: 'pilier_du_village', verifie: async (_env: any, _cid: string, _uid: string, user: any) => (user.niveau ?? 1) >= 5 },
   {
     cle: 'sentinelle',
