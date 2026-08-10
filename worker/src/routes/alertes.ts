@@ -16,8 +16,10 @@ const STATUTS_VALIDES = ['ouverte', 'en_cours', 'resolue'] as const;
 const creationSchema = z.object({
   titre: z.string().min(1).max(150),
   description: z.string().min(1).max(2000),
-  lat: z.number().min(-90).max(90),
-  lng: z.number().min(-180).max(180),
+  // Localisation optionnelle : un signalement sans coordonnées reste valide (juste absent de
+  // la carte, présent dans la liste). lat et lng vont ensemble — les deux ou aucun.
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   image_r2_keys: z.array(z.string()).max(6).optional(),
   urgent: z.boolean().default(false),
 });
@@ -60,7 +62,7 @@ app.post('/', async (c) => {
 
   const [alerte] = await supabaseInsert(c.env, 'alertes', {
     commune_id, user_id, titre: data.titre, description: data.description,
-    lat: data.lat, lng: data.lng, statut: 'ouverte', urgent: data.urgent,
+    lat: data.lat ?? null, lng: data.lng ?? null, statut: 'ouverte', urgent: data.urgent,
   });
 
   if (data.image_r2_keys?.length) {

@@ -44,6 +44,8 @@ async function supprimerAlerte(id) {
 }
 
 function ajouterMarqueurAlerte(alerte) {
+  // Signalement sans localisation : pas de marqueur sur la carte (il reste dans la liste).
+  if (alerte.lat == null || alerte.lng == null) return;
   const marqueur = alerte.urgent
     ? L.circleMarker([alerte.lat, alerte.lng], { radius: 10, color: '#C0392B', fillColor: '#C0392B', fillOpacity: 0.85, weight: 2 }).addTo(carteAlertes)
     : L.marker([alerte.lat, alerte.lng]).addTo(carteAlertes);
@@ -147,8 +149,9 @@ function ouvrirModaleCreationAlerte() {
       <input type="text" id="titre-alerte-modale" placeholder="Titre du signalement" maxlength="150" required>
       <textarea id="description-alerte-modale" placeholder="Décrivez le problème" required></textarea>
 
-      <button type="button" id="btn-position-alerte" style="margin-top:8px;">📍 Utiliser ma position actuelle</button>
-      <p id="position-choisie-alerte" style="font-size:12px;color:var(--roseau);"></p>
+      <label class="label-champ-edition">Localisation (optionnel)</label>
+      <button type="button" id="btn-position-alerte">📍 Utiliser ma position actuelle</button>
+      <p id="position-choisie-alerte" style="font-size:12px;color:var(--roseau);">Sans position, le signalement reste dans la liste mais n'apparaît pas sur la carte.</p>
 
       <label style="display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13.5px;">
         <input type="checkbox" id="urgent-alerte-modale" style="width:auto;margin:0;">
@@ -178,10 +181,6 @@ function ouvrirModaleCreationAlerte() {
     const description = corps.querySelector('#description-alerte-modale').value.trim();
     const urgent = corps.querySelector('#urgent-alerte-modale').checked;
     if (!titre || !description) return;
-    if (!positionSelectionneeAlerte) {
-      afficherToastMessage('Indique la position du problème avant d\'envoyer.', 'erreur');
-      return;
-    }
 
     let image_r2_keys;
     const fichier = corps.querySelector('#image-alerte-modale').files[0];
@@ -200,7 +199,7 @@ function ouvrirModaleCreationAlerte() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         titre, description, urgent,
-        lat: positionSelectionneeAlerte.lat, lng: positionSelectionneeAlerte.lng,
+        ...(positionSelectionneeAlerte ? { lat: positionSelectionneeAlerte.lat, lng: positionSelectionneeAlerte.lng } : {}),
         image_r2_keys,
       }),
     });
