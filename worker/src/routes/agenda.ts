@@ -56,6 +56,9 @@ const creationSchema = z.object({
   date_fin: z.string().datetime(),
   r2_key: z.string().optional(),
   type_action: z.enum(TYPES_ACTION_VALIDES).optional(),
+  // Partage dans "Autour de moi" (communes voisines) — n'a d'effet que sur un événement
+  // officiel (créé par un gestionnaire) ; sans effet pour un événement citoyen, jamais partagé.
+  partage_autour: z.boolean().optional(),
 });
 
 app.get('/', async (c) => {
@@ -65,7 +68,7 @@ app.get('/', async (c) => {
   const user_id = c.get('user_id');
 
   const filtres: Record<string, string> = {
-    select: 'id,user_id,titre,description,lieu,lat,lng,photo_url,officiel,date_debut,date_fin,type_action,necessite_validation_presence,created_at',
+    select: 'id,user_id,titre,description,lieu,lat,lng,photo_url,officiel,partage_autour,date_debut,date_fin,type_action,necessite_validation_presence,created_at',
     commune_id: `eq.${commune_id}`,
     order: historique ? 'date_debut.desc' : 'date_debut.asc',
     limit: '20',
@@ -179,6 +182,7 @@ app.post('/', async (c) => {
     photo_url: data.r2_key ? `${c.env.R2_PUBLIC_BASE}/${data.r2_key}` : null,
     r2_key: data.r2_key ?? null,
     officiel: estGestionnaire(c.get('role')),
+    partage_autour: data.partage_autour ?? true,
     date_debut: data.date_debut, date_fin: data.date_fin,
     type_action: typeAction ?? null,
     necessite_validation_presence: !!typeAction,
@@ -250,6 +254,7 @@ app.patch('/:id', async (c) => {
     patch.type_action = data.type_action || null;
     patch.necessite_validation_presence = !!data.type_action;
   }
+  if (data.partage_autour !== undefined) patch.partage_autour = data.partage_autour;
 
   if (Object.keys(patch).length === 0) return c.json({ erreur: 'Aucun champ à modifier' }, 400);
 

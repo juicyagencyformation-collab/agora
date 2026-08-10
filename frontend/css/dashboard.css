@@ -857,6 +857,16 @@ h1, h2, h3, h4, p, span, a, button {
 .bloc-action-civique .label-champ-edition { margin-top: 0; color: var(--eau); }
 .aide-action-civique { font-size: 11px; color: var(--roseau); margin: 4px 0 0; }
 
+/* Case "Autour de moi" — volontairement bien visible (encadré coloré). */
+.bloc-partage-autour {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+  border: 2px solid var(--eau); border-radius: var(--r); background: var(--eauXL);
+  padding: 12px 14px; margin: 12px 0;
+}
+.bloc-partage-autour input { width: auto; margin: 2px 0 0; flex-shrink: 0; transform: scale(1.3); }
+.bloc-partage-autour strong { display: block; font-size: 14px; color: var(--eau); }
+.bloc-partage-autour small { display: block; font-size: 11.5px; color: var(--roseau); margin-top: 3px; line-height: 1.35; }
+
 /* Carte "scanner ma présence" côté citoyen */
 .carte-scan-civique {
   background: #fff; border: 1.5px solid var(--eauL); border-radius: var(--r);

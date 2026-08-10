@@ -433,6 +433,24 @@ function lireChampTypeAction(corps, prefixe) {
   return corps.querySelector(`#type-action-${prefixe}`).value || undefined;
 }
 
+// Case "Autour de moi" — visible uniquement pour les gestionnaires (seuls à créer des
+// événements officiels). Cochée par défaut (comportement actuel : partagé).
+function htmlChampPartageAutour(prefixe, valeurActuelle) {
+  const coche = valeurActuelle !== false;
+  return `
+    <label class="bloc-partage-autour">
+      <input type="checkbox" id="partage-autour-${prefixe}" ${coche ? 'checked' : ''}>
+      <span>
+        <strong>🗺️ Afficher dans « Autour de moi »</strong>
+        <small>Cet événement officiel sera visible par les communes voisines partenaires. Décoche pour le garder uniquement dans ta commune.</small>
+      </span>
+    </label>
+  `;
+}
+function lireChampPartageAutour(corps, prefixe) {
+  return corps.querySelector(`#partage-autour-${prefixe}`)?.checked;
+}
+
 // ── Aide date/heure : décompose une date/heure de début/fin optionnelle en horodatages,
 // avec des valeurs par défaut sensées (pas d'heure = toute la journée ; pas d'heure de fin
 // = +1h après le début). Aucun changement côté backend nécessaire : tout se calcule ici. ──
@@ -581,6 +599,7 @@ function ouvrirEditionEvent(event) {
       ${htmlChampsDateHeure('edition-event-modale', valeurs)}
       ${htmlChampPosition('edition-event-modale', event.lat, event.lng)}
       ${estGestionnaireAgenda ? htmlChampTypeAction('edition-event-modale', event.type_action) : ''}
+      ${estGestionnaireAgenda ? htmlChampPartageAutour('edition-event-modale', event.partage_autour) : ''}
 
       <button type="submit" style="margin-top:12px;">✓ Enregistrer</button>
     </form>
@@ -607,7 +626,7 @@ function ouvrirEditionEvent(event) {
       body: JSON.stringify({
         titre, description, lieu, date_debut, date_fin,
         ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
-        ...(estGestionnaireAgenda ? { type_action: typeAction ?? '' } : {}),
+        ...(estGestionnaireAgenda ? { type_action: typeAction ?? '', partage_autour: lireChampPartageAutour(corps, 'edition-event-modale') } : {}),
       }),
     });
     if (res.ok) { fermerModaleFormulaire(overlay); chargerAgenda(); }
@@ -632,6 +651,7 @@ function ouvrirModaleCreationAgenda() {
       ${htmlChampsDateHeure('agenda-modale')}
       ${htmlChampPosition('agenda-modale')}
       ${estGestionnaireAgenda ? htmlChampTypeAction('agenda-modale') : ''}
+      ${estGestionnaireAgenda ? htmlChampPartageAutour('agenda-modale') : ''}
       <button type="submit" style="margin-top:12px;">Créer</button>
     </form>
   `;
@@ -650,6 +670,7 @@ function ouvrirModaleCreationAgenda() {
     const lat = corps.querySelector('#lat-agenda-modale').value;
     const lng = corps.querySelector('#lng-agenda-modale').value;
     const typeAction = estGestionnaireAgenda ? lireChampTypeAction(corps, 'agenda-modale') : undefined;
+    const partageAutour = estGestionnaireAgenda ? lireChampPartageAutour(corps, 'agenda-modale') : undefined;
 
     let r2Key;
     const fichier = corps.querySelector('#image-agenda-modale').files[0];
@@ -663,7 +684,7 @@ function ouvrirModaleCreationAgenda() {
       } catch { console.warn('Upload image échoué, événement publié sans image.'); }
     }
 
-    const res = await creerEvent(titre, description, lieu, date_debut, date_fin, r2Key, lat, lng, typeAction);
+    const res = await creerEvent(titre, description, lieu, date_debut, date_fin, r2Key, lat, lng, typeAction, partageAutour);
     if (res.ok) {
       fermerModaleFormulaire(overlay);
     } else {
@@ -673,7 +694,7 @@ function ouvrirModaleCreationAgenda() {
   });
 }
 
-async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, lat, lng, typeAction) {
+async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, lat, lng, typeAction, partageAutour) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -681,6 +702,7 @@ async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, l
       titre, description, lieu, date_debut: dateDebut, date_fin: dateFin, r2_key: r2Key,
       ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
       ...(typeAction ? { type_action: typeAction } : {}),
+      ...(partageAutour !== undefined ? { partage_autour: partageAutour } : {}),
     }),
   });
   if (res.ok) chargerAgenda();

@@ -54,6 +54,7 @@ app.get('/evenements', async (c) => {
       select: 'id,commune_id,titre,description,lieu,lat,lng,photo_url,date_debut,date_fin',
       commune_id: `in.(${idsCommunes.join(',')})`,
       officiel: 'eq.true',
+      partage_autour: 'eq.true',
       date_fin: `gte.${new Date().toISOString()}`,
       order: 'date_debut.asc',
     });
