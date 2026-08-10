@@ -60,7 +60,8 @@ function renderAnnonce(annonce) {
       if (annonce.user_id === window.USER_ID || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
         const bar = document.createElement('div');
         bar.className = 'actions-admin';
-        bar.innerHTML = `<button data-action="supprimer">Supprimer</button>`;
+        bar.innerHTML = `<button data-action="modifier">Modifier</button><button data-action="supprimer">Supprimer</button>`;
+        bar.querySelector('[data-action="modifier"]').addEventListener('click', () => ouvrirModaleCreationCoupDeMain(annonce));
         bar.querySelector('[data-action="supprimer"]').addEventListener('click', async () => {
           if (!confirm('Supprimer cette annonce ?')) return;
           await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main/${annonce.id}`, { method: 'DELETE' });

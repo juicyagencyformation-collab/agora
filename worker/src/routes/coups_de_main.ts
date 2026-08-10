@@ -3,7 +3,7 @@ import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseInsert, supabaseDelete, supabaseSelect } from '../db';
+import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { attribuerXp, XP_ACTIONS } from '../lib/gamification';
 import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/push';
 
@@ -18,6 +18,16 @@ const creationSchema = z.object({
   description: z.string().min(1).max(1000),
   categorie: z.enum(CATEGORIES_VALIDES),
   duree_jours: z.number().int().min(1).max(90).default(30),
+});
+
+// Distinct de creationSchema.partial() : sans le .default(30), pour ne PAS recalculer
+// l'expiration quand on modifie juste le titre sans toucher à la durée.
+const editionSchema = z.object({
+  type: z.enum(['offre', 'demande']).optional(),
+  titre: z.string().min(1).max(150).optional(),
+  description: z.string().min(1).max(1000).optional(),
+  categorie: z.enum(CATEGORIES_VALIDES).optional(),
+  duree_jours: z.number().int().min(1).max(90).optional(),
 });
 
 app.get('/', async (c) => {
@@ -76,6 +86,38 @@ app.post('/', async (c) => {
   })());
 
   return c.json({ annonce_id: annonce.id, ...resultatXp }, 201);
+});
+
+// PATCH /:id — modifier sa propre annonce (ou n'importe laquelle pour un gestionnaire).
+app.patch('/:id', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const role = c.get('role');
+  const annonce_id = c.req.param('id');
+
+  const [annonce] = await supabaseSelect(c.env, 'coups_de_main', {
+    select: 'id,user_id', commune_id: `eq.${commune_id}`, id: `eq.${annonce_id}`,
+  });
+  if (!annonce) return c.json({ erreur: 'Annonce introuvable' }, 404);
+  if (annonce.user_id !== user_id && !estGestionnaire(role)) {
+    return c.json({ erreur: 'Vous ne pouvez modifier que vos propres annonces' }, 403);
+  }
+
+  const body = editionSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+
+  const patch: Record<string, unknown> = {};
+  if (data.type) patch.type = data.type;
+  if (data.titre) patch.titre = data.titre;
+  if (data.description) patch.description = data.description;
+  if (data.categorie) patch.categorie = data.categorie;
+  // duree_jours fournie = on repart de maintenant pour recalculer l'expiration.
+  if (data.duree_jours) patch.expires_at = new Date(Date.now() + data.duree_jours * 24 * 3600 * 1000).toISOString();
+  if (Object.keys(patch).length === 0) return c.json({ erreur: 'Aucun champ à modifier' }, 400);
+
+  await supabaseUpdate(c.env, 'coups_de_main', patch, { id: `eq.${annonce_id}`, commune_id: `eq.${commune_id}` });
+  return c.json({ ok: true });
 });
 
 app.delete('/:id', async (c) => {
