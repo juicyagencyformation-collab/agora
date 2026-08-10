@@ -139,4 +139,20 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initLiensDirectsNotification();
   initFormulaireLoi();
   activerOnglet('accueil');
+  celebrerRecompensesConnexion();
 })();
+
+// Récompenses débloquées lors de la connexion (badges de série de connexion, montée de niveau
+// via l'XP quotidien) : stockées par connexion.html dans sessionStorage, célébrées ici une fois
+// l'app chargée. Petit délai pour laisser l'accueil s'afficher avant l'animation.
+function celebrerRecompensesConnexion() {
+  const brut = sessionStorage.getItem('agora_recompenses_connexion');
+  if (!brut) return;
+  sessionStorage.removeItem('agora_recompenses_connexion');
+  let recompenses;
+  try { recompenses = JSON.parse(brut); } catch { return; }
+  setTimeout(() => {
+    if (recompenses.monte_de_niveau) celebrerMonteeNiveau(recompenses.niveau);
+    (recompenses.nouveaux_badges || []).forEach((cle) => mettreEnFileBadge(cle));
+  }, 700);
+}

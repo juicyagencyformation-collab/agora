@@ -112,10 +112,19 @@ app.post('/login', async (c) => {
   setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
   setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
 
-  await gererConnexionQuotidienne(c.env, commune_id, user.id);
-  await verifierBadges(c.env, commune_id, user.id);
+  const resultatConnexion = await gererConnexionQuotidienne(c.env, commune_id, user.id);
+  // Filet de sécurité (badges non liés à l'XP quotidien) — idempotent, ne re-débloque rien.
+  const autresBadges = await verifierBadges(c.env, commune_id, user.id);
+  const nouveauxBadges = [...new Set([...resultatConnexion.nouveaux_badges, ...autresBadges])];
 
-  return c.json({ ok: true, role: user.role });
+  // Remontés au client pour être célébrés une fois l'app chargée (voir connexion.html →
+  // sessionStorage → navigation.js), car la page de connexion n'a pas l'UI d'animation.
+  return c.json({
+    ok: true, role: user.role,
+    nouveaux_badges: nouveauxBadges,
+    niveau: resultatConnexion.niveau,
+    monte_de_niveau: resultatConnexion.monte_de_niveau,
+  });
 });
 
 const emailSchema = z.object({ email: z.string().email() });
