@@ -42,9 +42,11 @@ app.get('/', async (c) => {
       order: 'obtenu_at.asc',
     }),
     compterContributionsActives(c.env, commune_id, user_id),
+    // Résilient : si la table avis_application n'existe pas encore (migration 016 non passée),
+    // le profil doit quand même se charger (mon_avis = null) au lieu de renvoyer 500.
     supabaseSelect(c.env, 'avis_application', {
       select: 'note,commentaire', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
-    }),
+    }).catch(() => []),
   ]);
 
   const xpNiveauActuel = xpRequisPourNiveau(Math.max(0, user.niveau - 1));
