@@ -142,6 +142,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initVoletRegional();
   initVoletSyncLois();
   initVoletsGeneriquesModeration();
+  initFormulaireInfosMairie();
   initFormulaireBadgeCitoyen();
   initBoutonDeconnexionProfil();
   initTogglesCategoriesProfil();

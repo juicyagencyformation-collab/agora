@@ -21,6 +21,16 @@ h1, h2, h3, h4, p, span, a, button {
 /* Zone compacte (pas de carte blanche pleine largeur) : la grosse carte
    .alerte-dechets-veille reste seule réservée à la veille du ramassage. */
 .zone-dechets-accueil { margin-bottom: 10px; }
+
+/* Infos mairie, tout en bas de l'accueil */
+.carte-infos-mairie {
+  background: #fff; border: 1px solid var(--eauL); border-radius: var(--r);
+  padding: 16px 16px 6px; margin-top: 18px;
+}
+.titre-infos-mairie { font-size: 15px; margin: 0 0 12px; }
+.bloc-info-mairie { margin-bottom: 12px; }
+.bloc-info-mairie strong { display: block; font-size: 12.5px; color: var(--eau); margin-bottom: 2px; }
+.bloc-info-mairie p { font-size: 13px; color: var(--boue); margin: 0; line-height: 1.4; }
 .ligne-dechet {
   border-left: 4px solid var(--eauL); padding: 7px 10px; margin-bottom: 5px;
   background: var(--calc); border-radius: 8px; font-size: 12.5px;

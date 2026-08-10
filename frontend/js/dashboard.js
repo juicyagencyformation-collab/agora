@@ -53,6 +53,33 @@ async function chargerDashboard() {
   chargerPhotoVedette();
   chargerDernierPv();
   chargerProchainConseil();
+  chargerInfosMairie();
+}
+
+// Infos pratiques de la mairie, tout en bas de l'accueil (configurées en Modération par les
+// élus/maire). Masqué tant que rien n'est renseigné. Téléphones/emails rendus cliquables.
+async function chargerInfosMairie() {
+  const zone = document.getElementById('carte-infos-mairie');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`);
+  if (!res.ok) { zone.hidden = true; return; }
+  const { commune } = await res.json();
+  const { horaires_ouverture, permanences, telephone_mairie, email_mairie } = commune;
+
+  if (!horaires_ouverture && !permanences && !telephone_mairie && !email_mairie) { zone.hidden = true; return; }
+
+  const bloc = (icone, titre, valeur) => valeur
+    ? `<div class="bloc-info-mairie"><strong>${icone} ${titre}</strong><p style="white-space:pre-line;">${texteAvecLiensCliquables(valeur)}</p></div>`
+    : '';
+
+  zone.hidden = false;
+  zone.innerHTML = `
+    <h3 class="titre-infos-mairie">🏛️ Votre mairie</h3>
+    ${bloc('🕐', 'Horaires d\'ouverture', horaires_ouverture)}
+    ${bloc('📅', 'Permanences', permanences)}
+    ${bloc('📞', 'Téléphone', telephone_mairie)}
+    ${bloc('✉️', 'Email', email_mairie)}
+  `;
 }
 
 // Boutons d'action rapide, juste sous la phrase de salutation.

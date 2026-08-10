@@ -108,6 +108,37 @@ async function chargerPanneauModeration() {
   chargerBadgesCitoyensModeration();
 }
 
+// Infos mairie (horaires, permanences, tél, email) — configurables par les élus/maire, affichées
+// en bas de l'accueil. Init une seule fois (préremplit + branche l'envoi).
+async function initFormulaireInfosMairie() {
+  const form = document.getElementById('form-infos-mairie');
+  if (!form) return;
+
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`);
+  if (res.ok) {
+    const { commune } = await res.json();
+    document.getElementById('horaires-mairie-input').value = commune.horaires_ouverture || '';
+    document.getElementById('permanences-mairie-input').value = commune.permanences || '';
+    document.getElementById('telephone-mairie-input').value = commune.telephone_mairie || '';
+    document.getElementById('email-mairie-input').value = commune.email_mairie || '';
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const rep = await appelApi(`/${window.COMMUNE_SLUG}/commune/infos-mairie`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        horaires_ouverture: document.getElementById('horaires-mairie-input').value,
+        permanences: document.getElementById('permanences-mairie-input').value,
+        telephone_mairie: document.getElementById('telephone-mairie-input').value,
+        email_mairie: document.getElementById('email-mairie-input').value,
+      }),
+    });
+    if (rep.ok) afficherToastMessage('Infos mairie enregistrées.', 'succes');
+    else { const d = await rep.json().catch(() => ({})); afficherToastMessage(typeof d.erreur === 'string' ? d.erreur : 'Erreur lors de l\'enregistrement.', 'erreur'); }
+  });
+}
+
 async function chargerReglagePartageRegional() {
   const input = document.getElementById('partage-regional-input');
   if (!input) return;

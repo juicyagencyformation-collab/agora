@@ -8,10 +8,10 @@
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260810-9">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260810-9">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260810-9">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260810-9">
+  <link rel="stylesheet" href="/css/base.css?v=20260810-10">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260810-10">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260810-10">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260810-10">
 </head>
 <body>
 
@@ -66,6 +66,8 @@
 
       <h3 id="titre-coup-oeil" style="font-size:15px;margin-top:18px;" hidden>En un coup d'œil</h3>
       <div id="bandeau-resumes" class="bandeau-resumes-pastilles"></div>
+
+      <div id="carte-infos-mairie" class="carte-infos-mairie" hidden></div>
     </section>
 
     <section id="onglet-actualites" class="onglet-contenu" hidden>
@@ -469,6 +471,27 @@
 
       <div class="roles-gestionnaire-only">
         <div class="volet-reglage">
+          <button type="button" class="volet-entete-generique">
+            <span>🏛️ Infos mairie (horaires & contact)</span>
+            <span class="chevron">▼</span>
+          </button>
+          <div class="volet-contenu">
+            <form id="form-infos-mairie">
+              <label class="label-champ-edition">Horaires d'ouverture</label>
+              <textarea id="horaires-mairie-input" placeholder="Ex : Lun-Ven 9h-12h et 14h-17h&#10;Sam 9h-12h"></textarea>
+              <label class="label-champ-edition">Permanences</label>
+              <textarea id="permanences-mairie-input" placeholder="Ex : M. le Maire reçoit le mardi 17h-19h sur RDV"></textarea>
+              <label class="label-champ-edition">Téléphone(s)</label>
+              <textarea id="telephone-mairie-input" placeholder="Ex : 03 22 00 00 00&#10;Urgences : 06 12 34 56 78" rows="2"></textarea>
+              <label class="label-champ-edition">Email</label>
+              <input type="email" id="email-mairie-input" placeholder="mairie@macommune.fr">
+              <button type="submit">Enregistrer</button>
+              <p style="font-size:11.5px;color:var(--roseau);margin-top:6px;">Affiché en bas de l'accueil pour tous les citoyens. Réservé aux élus et au maire.</p>
+            </form>
+          </div>
+        </div>
+
+        <div class="volet-reglage">
           <button type="button" id="toggle-volet-logo" class="volet-entete">
             <span>🖼️ Logo de la commune</span>
             <span class="chevron">▼</span>
@@ -528,30 +551,30 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260810-9"></script>
-  <script src="/js/config.js?v=20260810-9"></script>
-  <script src="/js/utils.js?v=20260810-9"></script>
-  <script src="/js/api.js?v=20260810-9"></script>
-  <script src="/js/editeur-riche.js?v=20260810-9"></script>
-  <script src="/js/dashboard.js?v=20260810-9"></script>
-  <script src="/js/articles.js?v=20260810-9"></script>
-  <script src="/js/alertes.js?v=20260810-9"></script>
-  <script src="/js/thermometre.js?v=20260810-9"></script>
-  <script src="/js/mur.js?v=20260810-9"></script>
-  <script src="/js/agenda.js?v=20260810-9"></script>
-  <script src="/js/coups-de-main.js?v=20260810-9"></script>
-  <script src="/js/coups-de-main-form.js?v=20260810-9"></script>
-  <script src="/js/chasse-tresor.js?v=20260810-9"></script>
-  <script src="/js/conseil.js?v=20260810-9"></script>
-  <script src="/js/annuaire.js?v=20260810-9"></script>
-  <script src="/js/bulletin.js?v=20260810-9"></script>
-  <script src="/js/photo-du-jour.js?v=20260810-9"></script>
-  <script src="/js/enigmes.js?v=20260810-9"></script>
-  <script src="/js/profil.js?v=20260810-9"></script>
-  <script src="/js/notifications.js?v=20260810-9"></script>
-  <script src="/js/lois.js?v=20260810-9"></script>
-  <script src="/js/moderation.js?v=20260810-9"></script>
-  <script src="/js/participation-citoyenne.js?v=20260810-9"></script>
-  <script src="/js/navigation.js?v=20260810-9"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260810-10"></script>
+  <script src="/js/config.js?v=20260810-10"></script>
+  <script src="/js/utils.js?v=20260810-10"></script>
+  <script src="/js/api.js?v=20260810-10"></script>
+  <script src="/js/editeur-riche.js?v=20260810-10"></script>
+  <script src="/js/dashboard.js?v=20260810-10"></script>
+  <script src="/js/articles.js?v=20260810-10"></script>
+  <script src="/js/alertes.js?v=20260810-10"></script>
+  <script src="/js/thermometre.js?v=20260810-10"></script>
+  <script src="/js/mur.js?v=20260810-10"></script>
+  <script src="/js/agenda.js?v=20260810-10"></script>
+  <script src="/js/coups-de-main.js?v=20260810-10"></script>
+  <script src="/js/coups-de-main-form.js?v=20260810-10"></script>
+  <script src="/js/chasse-tresor.js?v=20260810-10"></script>
+  <script src="/js/conseil.js?v=20260810-10"></script>
+  <script src="/js/annuaire.js?v=20260810-10"></script>
+  <script src="/js/bulletin.js?v=20260810-10"></script>
+  <script src="/js/photo-du-jour.js?v=20260810-10"></script>
+  <script src="/js/enigmes.js?v=20260810-10"></script>
+  <script src="/js/profil.js?v=20260810-10"></script>
+  <script src="/js/notifications.js?v=20260810-10"></script>
+  <script src="/js/lois.js?v=20260810-10"></script>
+  <script src="/js/moderation.js?v=20260810-10"></script>
+  <script src="/js/participation-citoyenne.js?v=20260810-10"></script>
+  <script src="/js/navigation.js?v=20260810-10"></script>
 </body>
 </html>
