@@ -243,10 +243,22 @@ app.post('/logout', async (c) => {
 });
 
 app.get('/me', jwtMiddleware, async (c) => {
+  // Appelé à chaque ouverture de l'app (initUtilisateur) : c'est ici qu'on compte la série de
+  // connexion quotidienne, pas seulement au login — sinon un citoyen qui reste connecté et
+  // rouvre l'app chaque jour ne verrait jamais sa série avancer. Idempotent (1x/jour), donc
+  // léger les fois suivantes. Les badges de palier éventuellement débloqués sont renvoyés pour
+  // que l'app les célèbre.
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const resultatConnexion = await gererConnexionQuotidienne(c.env, commune_id, user_id);
+
   return c.json({
-    user_id: c.get('user_id'),
-    commune_id: c.get('commune_id'),
+    user_id,
+    commune_id,
     role: c.get('role'),
+    nouveaux_badges: resultatConnexion.nouveaux_badges,
+    niveau: resultatConnexion.niveau,
+    monte_de_niveau: resultatConnexion.monte_de_niveau,
   });
 });
 
