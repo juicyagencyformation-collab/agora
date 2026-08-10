@@ -127,6 +127,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireSondage();
   initFormulaireDeliberation();
   initFormulairePv();
+  initFormulaireMembreConseil();
   initFormulaireProchainConseil();
   initFormulaireAnnuaire();
   initFormulaireBulletin();

@@ -226,6 +226,28 @@ h1, h2, h3, h4, p, span, a, button {
 .liens-legaux-profil { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .liens-legaux-profil a { font-size: 13px; color: var(--eau); font-weight: 600; text-decoration: none; }
 
+/* ─── Conseil municipal : trombinoscope ─── */
+.grille-conseil { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; }
+.carte-membre-conseil {
+  background: #fff; border: 1px solid var(--eauL); border-radius: var(--r);
+  padding: 14px 12px; text-align: center;
+}
+.photo-membre-conseil {
+  width: 72px; height: 72px; border-radius: 50%; margin: 0 auto 8px; overflow: hidden;
+  background: var(--eauXL); display: flex; align-items: center; justify-content: center; font-size: 34px;
+}
+.photo-membre-conseil img { width: 100%; height: 100%; object-fit: cover; }
+.infos-membre-conseil strong { display: block; font-size: 13.5px; color: var(--boue); }
+.fonction-membre { display: block; font-size: 11.5px; font-weight: 600; color: var(--eau); margin-top: 2px; }
+.profession-membre { display: block; font-size: 11.5px; color: var(--roseau); margin-top: 1px; }
+.contact-membre { display: block; font-size: 11.5px; color: var(--roseau); margin-top: 3px; word-break: break-word; }
+.actions-membre-conseil { display: flex; gap: 6px; margin-top: 10px; }
+.actions-membre-conseil button {
+  flex: 1; padding: 5px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--roseau); font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+@media (min-width: 600px) { .grille-conseil { grid-template-columns: repeat(3, 1fr); } }
+
 /* Noter l'application — étoiles cliquables */
 .etoiles-note { display: flex; gap: 4px; margin-bottom: 12px; }
 .etoile-note {

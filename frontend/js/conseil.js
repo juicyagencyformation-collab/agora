@@ -2,8 +2,126 @@
 let editeurPv;
 
 async function chargerConseil() {
+  chargerConseilMembres();
   chargerDeliberations();
   chargerPv();
+}
+
+// ── Trombinoscope du conseil municipal (maire, adjoints, conseillers) ──
+
+function estGestionnaireConseil() {
+  return ['elu', 'maire', 'superadmin'].includes(window.ROLE);
+}
+
+async function chargerConseilMembres() {
+  const zone = document.getElementById('liste-conseil-membres');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/conseil-membres`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { membres } = await res.json();
+  zone.innerHTML = '';
+  if (!membres.length) {
+    zone.innerHTML = `<p class="dechets-vide">Le conseil municipal n'est pas encore renseigné.</p>`;
+    return;
+  }
+  const grille = document.createElement('div');
+  grille.className = 'grille-conseil';
+  membres.forEach((m) => grille.appendChild(renderMembreConseil(m)));
+  zone.appendChild(grille);
+}
+
+function renderMembreConseil(membre) {
+  const el = document.createElement('div');
+  el.className = 'carte-membre-conseil';
+  el.innerHTML = `
+    <div class="photo-membre-conseil">
+      ${membre.photo_url ? `<img src="${membre.photo_url}" alt="">` : '<span>👤</span>'}
+    </div>
+    <div class="infos-membre-conseil">
+      <strong>${escapeAttr(membre.prenom)} ${escapeAttr(membre.nom)}</strong>
+      ${membre.fonction ? `<span class="fonction-membre">${escapeAttr(membre.fonction)}</span>` : ''}
+      ${membre.profession ? `<span class="profession-membre">${escapeAttr(membre.profession)}</span>` : ''}
+      ${membre.contact ? `<span class="contact-membre">${texteAvecLiensCliquables(membre.contact)}</span>` : ''}
+      ${estGestionnaireConseil() ? `
+        <div class="actions-membre-conseil">
+          <button type="button" data-action="modifier">Modifier</button>
+          <button type="button" data-action="supprimer">Supprimer</button>
+        </div>` : ''}
+    </div>
+  `;
+  el.querySelector('[data-action="modifier"]')?.addEventListener('click', () => ouvrirModaleMembreConseil(membre));
+  el.querySelector('[data-action="supprimer"]')?.addEventListener('click', async () => {
+    if (!confirm(`Retirer ${membre.prenom} ${membre.nom} du conseil ?`)) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/conseil-membres/${membre.id}`, { method: 'DELETE' });
+    if (res.ok) chargerConseilMembres();
+  });
+  return el;
+}
+
+function initFormulaireMembreConseil() {
+  const btn = document.getElementById('btn-ouvrir-creation-membre-conseil');
+  if (!btn) return;
+  btn.addEventListener('click', () => ouvrirModaleMembreConseil());
+}
+
+function ouvrirModaleMembreConseil(membre = null) {
+  const html = `
+    <form id="form-membre-conseil">
+      <label class="label-champ-edition">Prénom</label>
+      <input type="text" id="prenom-membre" maxlength="100" required value="${membre ? escapeAttr(membre.prenom) : ''}">
+      <label class="label-champ-edition">Nom</label>
+      <input type="text" id="nom-membre" maxlength="100" required value="${membre ? escapeAttr(membre.nom) : ''}">
+      <label class="label-champ-edition">Fonction</label>
+      <input type="text" id="fonction-membre" maxlength="120" placeholder="Ex : Maire, Adjointe, Conseiller municipal" value="${membre ? escapeAttr(membre.fonction || '') : ''}">
+      <label class="label-champ-edition">Profession</label>
+      <input type="text" id="profession-membre" maxlength="120" placeholder="Ex : Agriculteur, Enseignante..." value="${membre ? escapeAttr(membre.profession || '') : ''}">
+      <label class="label-champ-edition">Contact (optionnel)</label>
+      <input type="text" id="contact-membre" maxlength="300" placeholder="Téléphone ou email" value="${membre ? escapeAttr(membre.contact || '') : ''}">
+      <label class="label-champ-edition">Photo (optionnel)</label>
+      ${membre?.photo_url ? `<div class="apercu-logo-commune"><img src="${membre.photo_url}" alt=""></div>` : ''}
+      <input type="file" id="photo-membre" accept="image/jpeg,image/png,image/webp">
+      <button type="submit" style="margin-top:12px;">${membre ? 'Mettre à jour' : 'Ajouter'}</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire(membre ? 'Modifier le membre' : 'Ajouter un membre', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  corps.querySelector('#form-membre-conseil').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const donnees = {
+      prenom: corps.querySelector('#prenom-membre').value.trim(),
+      nom: corps.querySelector('#nom-membre').value.trim(),
+      fonction: corps.querySelector('#fonction-membre').value.trim(),
+      profession: corps.querySelector('#profession-membre').value.trim(),
+      contact: corps.querySelector('#contact-membre').value.trim(),
+    };
+    if (!donnees.prenom || !donnees.nom) return;
+
+    const boutonSubmit = corps.querySelector('button[type="submit"]');
+    boutonSubmit.disabled = true;
+
+    // Pas de compresserImage() : garde la transparence PNG (même raison que les autres logos).
+    const fichier = corps.querySelector('#photo-membre').files[0];
+    if (fichier) {
+      const resPhoto = await appelApi(`/${window.COMMUNE_SLUG}/conseil-membres/photo-upload`, {
+        method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+      });
+      if (resPhoto.ok) { const { key } = await resPhoto.json(); donnees.photo_r2_key = key; }
+      else { afficherToastMessage('Échec de l\'envoi de la photo.', 'erreur'); }
+    }
+
+    const res = membre
+      ? await appelApi(`/${window.COMMUNE_SLUG}/conseil-membres/${membre.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees),
+        })
+      : await appelApi(`/${window.COMMUNE_SLUG}/conseil-membres`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(donnees),
+        });
+
+    boutonSubmit.disabled = false;
+    if (res.ok) { fermerModaleFormulaire(overlay); chargerConseilMembres(); }
+    else { const d = await res.json(); afficherToastMessage(d.erreur ? JSON.stringify(d.erreur) : 'Erreur', 'erreur'); }
+  });
 }
 
 // ── Délibérations ──
