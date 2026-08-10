@@ -1,7 +1,8 @@
 // worker/src/routes/profil.ts
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseSelect, supabaseUpdate } from '../db';
+import { supabaseSelect, supabaseUpdate, supabaseInsert } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
 import { xpRequisPourNiveau } from '../lib/gamification';
 import { calculerPalierCourant } from '../lib/points-citoyens';
@@ -34,13 +35,16 @@ app.get('/', async (c) => {
   });
   if (!user) return c.json({ erreur: 'Utilisateur introuvable' }, 404);
 
-  const [badges, contributions_total] = await Promise.all([
+  const [badges, contributions_total, avis] = await Promise.all([
     supabaseSelect(c.env, 'badges_obtenus', {
       select: 'cle_badge,obtenu_at',
       commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
       order: 'obtenu_at.asc',
     }),
     compterContributionsActives(c.env, commune_id, user_id),
+    supabaseSelect(c.env, 'avis_application', {
+      select: 'note,commentaire', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
+    }),
   ]);
 
   const xpNiveauActuel = xpRequisPourNiveau(Math.max(0, user.niveau - 1));
@@ -55,7 +59,38 @@ app.get('/', async (c) => {
     badges,
     contributions_total,
     participation,
+    mon_avis: avis[0] ?? null,
   });
+});
+
+// PUT /avis — le citoyen note l'application (1 à 5) + commentaire optionnel, depuis son profil.
+// Un seul avis par personne (mis à jour s'il existe déjà). Destiné au futur back-office.
+app.put('/avis', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const schema = z.object({
+    note: z.number().int().min(1).max(5),
+    commentaire: z.string().max(1000).optional(),
+  });
+  const body = schema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const commentaire = body.data.commentaire?.trim() || null;
+
+  const [existant] = await supabaseSelect(c.env, 'avis_application', {
+    select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
+  });
+  if (existant) {
+    await supabaseUpdate(c.env, 'avis_application', {
+      note: body.data.note, commentaire, updated_at: new Date().toISOString(),
+    }, { id: `eq.${existant.id}`, commune_id: `eq.${commune_id}` });
+  } else {
+    await supabaseInsert(c.env, 'avis_application', {
+      commune_id, user_id, note: body.data.note, commentaire,
+    });
+  }
+
+  return c.json({ ok: true });
 });
 
 // POST /photo — photo de profil personnelle. Remplace le logo de la commune au centre du

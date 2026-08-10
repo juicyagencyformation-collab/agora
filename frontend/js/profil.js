@@ -129,10 +129,55 @@ async function chargerProfil() {
         ${renderSectionParticipationCitoyenne(data.participation)}
       </div>
     </div>
+
+    <div class="carte-categorie-profil">
+      <button type="button" class="entete-categorie-profil"><span>⭐ Noter l'application</span><span class="chevron">▾</span></button>
+      <div class="corps-categorie-profil" hidden>
+        <p style="font-size:12.5px;color:var(--roseau);margin:0 0 10px;">Ton avis nous aide à améliorer Agora.</p>
+        <div class="etoiles-note" id="etoiles-note-app">
+          ${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="etoile-note" data-note="${n}" aria-label="${n} étoile(s)">★</button>`).join('')}
+        </div>
+        <textarea id="commentaire-avis-app" placeholder="Un petit commentaire (optionnel)" maxlength="1000">${escapeAttr(data.mon_avis?.commentaire || '')}</textarea>
+        <button type="button" id="btn-envoyer-avis" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">Envoyer mon avis</button>
+        <p id="msg-avis-app" style="font-size:12px;margin-top:6px;"></p>
+      </div>
+    </div>
   `;
 
   initUploadsMediaProfil();
+  initNoterApplication(data.mon_avis);
   initReglagesRgpdProfil();
+}
+
+// ── Noter l'application (1 à 5 étoiles + commentaire), destiné au futur back-office ──
+
+function initNoterApplication(monAvis) {
+  const zoneEtoiles = document.getElementById('etoiles-note-app');
+  if (!zoneEtoiles) return;
+  let note = monAvis?.note || 0;
+
+  const peindreEtoiles = () => {
+    zoneEtoiles.querySelectorAll('.etoile-note').forEach((etoile) => {
+      etoile.classList.toggle('active', Number(etoile.dataset.note) <= note);
+    });
+  };
+  peindreEtoiles();
+
+  zoneEtoiles.querySelectorAll('.etoile-note').forEach((etoile) => {
+    etoile.addEventListener('click', () => { note = Number(etoile.dataset.note); peindreEtoiles(); });
+  });
+
+  document.getElementById('btn-envoyer-avis').addEventListener('click', async () => {
+    const msg = document.getElementById('msg-avis-app');
+    if (!note) { msg.style.color = 'var(--rouge)'; msg.textContent = 'Choisis une note (1 à 5 étoiles).'; return; }
+    const commentaire = document.getElementById('commentaire-avis-app').value.trim();
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/profil/avis`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note, commentaire }),
+    });
+    if (res.ok) { msg.style.color = 'var(--prairie)'; msg.textContent = 'Merci pour ton avis ! 🙏'; }
+    else { msg.style.color = 'var(--rouge)'; msg.textContent = 'Erreur, réessaie.'; }
+  });
 }
 
 // ── Photo de profil et bannière personnelles ──
