@@ -124,6 +124,14 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 .apercu-image-modale {
   width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--eauL);
 }
+.vignette-image-editable { position: relative; width: 64px; height: 64px; }
+.vignette-image-editable .apercu-image-modale { width: 64px; height: 64px; }
+.btn-retirer-image {
+  position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; padding: 0;
+  border-radius: 50%; border: none; background: var(--rouge); color: #fff;
+  font-size: 15px; line-height: 22px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+}
 
 .btn-reaction {
   padding: 5px 12px; border-radius: 100px; border: 1.5px solid var(--eauL);

@@ -288,6 +288,11 @@ function ouvrirModaleEditionArticle(article) {
         ).join('')}
       </select>
       <div id="editeur-edition-article-modale"></div>
+      <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Photos actuelles</label>
+      <div id="images-existantes-edition" class="apercu-images-modale"></div>
+      <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Ajouter des photos (jusqu'à 10)</label>
+      <input type="file" id="image-edition-article-modale" accept="image/*" multiple>
+      <div id="apercu-images-edition-modale" class="apercu-images-modale"></div>
       <button type="submit" style="margin-top:12px;">Enregistrer</button>
     </form>
   `;
@@ -296,6 +301,43 @@ function ouvrirModaleEditionArticle(article) {
   const editeur = creerEditeurRiche('editeur-edition-article-modale');
   editeur.setHtml(article.contenu_html);
 
+  // Photos existantes : chacune avec un bouton × qui la marque à supprimer (retrait
+  // effectif à l'enregistrement seulement).
+  const idsSupprimees = new Set();
+  const zoneExistantes = corps.querySelector('#images-existantes-edition');
+  const rendreImagesExistantes = () => {
+    zoneExistantes.innerHTML = '';
+    (article.images || []).forEach((img) => {
+      if (idsSupprimees.has(img.id)) return;
+      const vignette = document.createElement('div');
+      vignette.className = 'vignette-image-editable';
+      vignette.innerHTML = `<img src="${img.url}" class="apercu-image-modale">
+        <button type="button" class="btn-retirer-image" title="Retirer">×</button>`;
+      vignette.querySelector('.btn-retirer-image').addEventListener('click', () => {
+        idsSupprimees.add(img.id);
+        rendreImagesExistantes();
+      });
+      zoneExistantes.appendChild(vignette);
+    });
+    if (!zoneExistantes.children.length) {
+      zoneExistantes.innerHTML = '<p style="font-size:12.5px;color:var(--roseau);margin:0;">Aucune photo.</p>';
+    }
+  };
+  rendreImagesExistantes();
+
+  const inputImages = corps.querySelector('#image-edition-article-modale');
+  const apercu = corps.querySelector('#apercu-images-edition-modale');
+  inputImages.addEventListener('change', () => {
+    apercu.innerHTML = '';
+    [...inputImages.files].slice(0, 10).forEach((fichier) => {
+      const img = document.createElement('img');
+      img.className = 'apercu-image-modale';
+      img.src = URL.createObjectURL(fichier);
+      img.onload = () => URL.revokeObjectURL(img.src);
+      apercu.appendChild(img);
+    });
+  });
+
   corps.querySelector('#form-modale-edition-article').addEventListener('submit', async (e) => {
     e.preventDefault();
     const titre = corps.querySelector('#titre-edition-article-modale').value.trim();
@@ -303,11 +345,30 @@ function ouvrirModaleEditionArticle(article) {
     const contenu_html = editeur.getHtml();
     if (!titre || !contenu_html) return;
 
+    const boutonSubmit = corps.querySelector('button[type="submit"]');
+    boutonSubmit.disabled = true;
+
+    const imageR2Keys = [];
+    for (const fichier of [...inputImages.files].slice(0, 10)) {
+      try {
+        const compresse = await compresserImage(fichier);
+        const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/actus/upload`, {
+          method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+        });
+        if (resUpload.ok) { const { key } = await resUpload.json(); imageR2Keys.push(key); }
+      } catch { console.warn('Upload image échoué.'); }
+    }
+
     const res = await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titre, categorie, contenu_html }),
+      body: JSON.stringify({
+        titre, categorie, contenu_html,
+        image_r2_keys: imageR2Keys,
+        image_ids_supprimees: [...idsSupprimees],
+      }),
     });
+    boutonSubmit.disabled = false;
     if (res.ok) {
       fermerModaleFormulaire(overlay);
       chargerArticles();

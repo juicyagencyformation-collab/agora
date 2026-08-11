@@ -37,6 +37,7 @@ const articleSchema = z.object({
   titre: z.string().min(1).max(200),
   contenu_html: z.string().min(1).max(20000),
   image_r2_keys: z.array(z.string()).max(10).optional(),
+  image_ids_supprimees: z.array(z.string().uuid()).max(20).optional(),
   sondage: sondageSchema.optional().nullable(),
   fichier_pv_url: z.string().url().optional(),
   fichier_pv_type: z.enum(['pdf', 'image']).optional(),
@@ -203,6 +204,35 @@ app.patch('/:id', async (c) => {
   await supabaseUpdate(c.env, 'articles', patch, {
     id: `eq.${article_id}`, commune_id: `eq.${commune_id}`,
   });
+
+  // Suppression des photos retirées : l'objet R2 puis la ligne (filtrée aussi par
+  // article_id/commune_id pour ne jamais toucher les images d'un autre article/tenant).
+  const idsSupprimes = body.data.image_ids_supprimees ?? [];
+  if (idsSupprimes.length) {
+    const aSupprimer = await supabaseSelect(c.env, 'article_images', {
+      select: 'id,r2_key', commune_id: `eq.${commune_id}`,
+      article_id: `eq.${article_id}`, id: `in.(${idsSupprimes.join(',')})`,
+    });
+    await Promise.all(aSupprimer.map((img: any) => deleteObject(c.env, img.r2_key)));
+    if (aSupprimer.length) {
+      await supabaseDelete(c.env, 'article_images', {
+        id: `in.(${aSupprimer.map((img: any) => img.id).join(',')})`,
+        article_id: `eq.${article_id}`, commune_id: `eq.${commune_id}`,
+      });
+    }
+  }
+
+  // Ajout des nouvelles photos, à la suite des existantes (ordre incrémental).
+  if (body.data.image_r2_keys?.length) {
+    const existantes = await supabaseSelect(c.env, 'article_images', {
+      select: 'ordre', commune_id: `eq.${commune_id}`, article_id: `eq.${article_id}`,
+    });
+    const ordreDepart = existantes.length ? Math.max(...existantes.map((i: any) => i.ordre ?? 0)) + 1 : 0;
+    await supabaseInsert(c.env, 'article_images', body.data.image_r2_keys.map((key, i) => ({
+      commune_id, article_id, r2_key: key,
+      url: `${c.env.R2_PUBLIC_BASE}/${key}`, ordre: ordreDepart + i,
+    })));
+  }
 
   return c.json({ ok: true });
 });
