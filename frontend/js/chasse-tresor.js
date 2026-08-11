@@ -2,6 +2,7 @@
 let compteurEtapes = 0;
 let chassesCache = [];
 let idChasseDetailOuverte = null;
+let carteBalade = null;
 
 async function chargerChasses() {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor`);
@@ -60,25 +61,36 @@ function renderDetailChasse(chasse) {
   document.getElementById('vue-liste-chasses').hidden = true;
   const zone = document.getElementById('vue-detail-chasse');
   zone.hidden = false;
+  // On repart d'une carte neuve à chaque rendu (le conteneur est recréé par innerHTML).
+  if (carteBalade) { carteBalade.remove(); carteBalade = null; }
 
   const termine = chasse.etapes_validees >= chasse.total_etapes;
   const estGestionnaireChasse = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
+  const estBalade = chasse.mode === 'balade';
+
+  const controlesChasse = `
+    ${!termine ? '<button class="btn-scanner">Scanner un QR code</button>' : ''}
+    <div id="zone-scanner"></div>
+    ${!termine ? `<form id="form-code-manuel"><input placeholder="Code manuel (si scan impossible)"><button>Valider</button></form>` : ''}
+  `;
+  const controlesBalade = `
+    <div id="carte-balade" style="height:320px;border-radius:14px;overflow:hidden;margin:8px 0;"></div>
+    ${!termine && chasse.etape_suivante ? '<button class="btn-arrive">📍 Je suis arrivé à cette étape</button>' : ''}
+  `;
 
   zone.innerHTML = `
     <button type="button" class="btn-retour-detail">← Retour aux chasses</button>
     <h3>${escapeAttr(chasse.titre)}</h3>
     ${chasse.description ? `<p>${texteAvecLiensCliquables(chasse.description)}</p>` : ''}
     <p>${chasse.etapes_validees} / ${chasse.total_etapes} étapes validées</p>
-    ${!termine && chasse.etape_suivante ? `<p class="indice-etape">Indice : ${escapeAttr(chasse.etape_suivante.indice)}</p>` : ''}
+    ${!termine && chasse.etape_suivante ? `<p class="indice-etape">${estBalade ? 'Prochaine étape' : 'Indice'} : ${escapeAttr(chasse.etape_suivante.indice)}</p>` : ''}
     ${termine ? '<p class="trouve-enigme">Chasse terminée 🎉</p>' : ''}
-    ${!termine ? '<button class="btn-scanner">Scanner un QR code</button>' : ''}
-    <div id="zone-scanner"></div>
-    ${!termine ? `<form id="form-code-manuel"><input placeholder="Code manuel (si scan impossible)"><button>Valider</button></form>` : ''}
+    ${estBalade ? controlesBalade : controlesChasse}
     <button type="button" class="btn-classement-chasse" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);margin-top:10px;">🏆 Classement de cette chasse</button>
     <div id="zone-classement"></div>
     ${estGestionnaireChasse ? `
       <div class="actions-admin" style="margin-top:12px;">
-        <button class="btn-voir-qr">Voir les QR codes</button>
+        ${estBalade ? '' : '<button class="btn-voir-qr">Voir les QR codes</button>'}
         <button class="btn-supprimer-chasse">Supprimer la chasse</button>
       </div>
       <div class="liste-qr-etapes"></div>
@@ -87,6 +99,7 @@ function renderDetailChasse(chasse) {
 
   zone.querySelector('.btn-retour-detail').addEventListener('click', () => fermerDetailChasse());
   zone.querySelector('.btn-scanner')?.addEventListener('click', () => ouvrirScanner());
+  zone.querySelector('.btn-arrive')?.addEventListener('click', () => validerEtapePosition(chasse.etape_suivante.id));
   zone.querySelector('.btn-classement-chasse').addEventListener('click', () => afficherClassement(chasse.id));
   zone.querySelector('.btn-voir-qr')?.addEventListener('click', () => afficherQrEtapes(chasse.id, zone));
   zone.querySelector('.btn-supprimer-chasse')?.addEventListener('click', async () => {
@@ -100,6 +113,89 @@ function renderDetailChasse(chasse) {
     const code = e.target.querySelector('input').value.trim();
     if (code) await validerEtape(code);
     e.target.reset();
+  });
+
+  if (estBalade) initCarteBalade(chasse);
+}
+
+// Carte de la balade : tous les points + itinéraire tracé ; couleur selon l'état
+// (validée / prochaine / à venir).
+function initCarteBalade(chasse) {
+  const etapes = [...(chasse.etapes || [])].sort((a, b) => a.ordre - b.ordre);
+  if (!etapes.length) return;
+
+  carteBalade = L.map('carte-balade', { maxZoom: 20 });
+  L.tileLayer(
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+  ).addTo(carteBalade);
+
+  const prochaineId = chasse.etape_suivante?.id;
+  const points = [];
+  etapes.forEach((e) => {
+    points.push([e.lat, e.lng]);
+    let couleur = '#8A94A6';                              // à venir
+    if (e.validee) couleur = '#4CAF50';                   // validée
+    else if (e.id === prochaineId) couleur = '#2C7BE5';  // prochaine
+    const etat = e.validee ? '✅ validée' : (e.id === prochaineId ? '➡️ prochaine étape' : '🔒 à venir');
+    L.circleMarker([e.lat, e.lng], { radius: 9, color: couleur, fillColor: couleur, fillOpacity: 0.85, weight: 2 })
+      .addTo(carteBalade)
+      .bindPopup(`<strong>Étape ${e.ordre + 1} — ${escapeAttr(e.titre)}</strong><br>${etat}`);
+  });
+  L.polyline(points, { color: '#2C7BE5', weight: 3, opacity: 0.55, dashArray: '6 6' }).addTo(carteBalade);
+  carteBalade.fitBounds(points, { padding: [30, 30], maxZoom: 17 });
+  setTimeout(() => carteBalade && carteBalade.invalidateSize(), 150);
+}
+
+// Validation d'une étape de balade par proximité GPS.
+function validerEtapePosition(etape_id, reponse = null) {
+  if (!navigator.geolocation) {
+    afficherToastMessage('GPS indisponible sur cet appareil.', 'erreur');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider-position`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        etape_id, lat: pos.coords.latitude, lng: pos.coords.longitude,
+        ...(reponse != null ? { reponse } : {}),
+      }),
+    });
+    const data = await res.json();
+
+    if (res.ok && data.reussi === false) {
+      afficherToastMessage(`Trop loin (~${data.distance_metres} m). Rapproche-toi du point.`, 'erreur');
+      return;
+    }
+    if (res.ok && data.etape_enigme) { afficherEnigmeEtapePosition(etape_id, data.question); return; }
+    if (res.ok) {
+      afficherToastMessage('Étape validée ! 🎉', 'succes');
+      if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
+      traiterRecompense(data);
+    } else {
+      afficherToastMessage(data.erreur || 'Erreur', 'erreur');
+    }
+    chargerChasses();
+  }, () => afficherToastMessage('Localisation refusée ou indisponible.', 'erreur'),
+     { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function afficherEnigmeEtapePosition(etape_id, question) {
+  const html = `
+    <form id="form-enigme-balade">
+      <p class="indice-etape">${escapeAttr(question)}</p>
+      <input type="text" id="reponse-enigme-balade" placeholder="Ta réponse" maxlength="200" required>
+      <button type="submit" style="margin-top:10px;">Valider ma réponse</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('🧩 Énigme', html);
+  overlay.querySelector('#form-enigme-balade').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const reponse = overlay.querySelector('#reponse-enigme-balade').value.trim();
+    if (!reponse) return;
+    fermerModaleFormulaire(overlay);
+    validerEtapePosition(etape_id, reponse);
   });
 }
 
@@ -252,6 +348,15 @@ function ouvrirModaleCreationChasse() {
     <form id="form-modale-chasse">
       <input type="text" id="titre-chasse-modale" placeholder="Titre de la chasse" maxlength="150" required>
       <textarea id="description-chasse-modale" placeholder="Description"></textarea>
+      <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Type</label>
+      <select id="mode-chasse-modale">
+        <option value="chasse">Chasse au trésor (QR à scanner sur place)</option>
+        <option value="balade">Balade guidée (carte + validation GPS)</option>
+      </select>
+      <div id="ligne-rayon-balade" style="display:none;margin-top:8px;">
+        <label style="display:block;margin-bottom:4px;font-size:13px;color:var(--roseau);">Rayon de validation autour de chaque point (mètres)</label>
+        <input type="number" id="rayon-chasse-modale" value="50" min="20" max="500">
+      </div>
       <div id="liste-etapes-chasse-modale"></div>
       <button type="button" id="btn-ajouter-etape-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter une étape</button>
       <button type="submit" style="margin-top:12px;">Créer la chasse</button>
@@ -260,6 +365,10 @@ function ouvrirModaleCreationChasse() {
   const overlay = ouvrirModaleFormulaire('Créer une chasse au trésor', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   compteurEtapes = 0;
+
+  corps.querySelector('#mode-chasse-modale').addEventListener('change', (e) => {
+    corps.querySelector('#ligne-rayon-balade').style.display = e.target.value === 'balade' ? 'block' : 'none';
+  });
 
   corps.querySelector('#btn-ajouter-etape-modale').addEventListener('click', () => ajouterLigneEtape(corps));
   ajouterLigneEtape(corps);
@@ -329,6 +438,8 @@ function ajouterLigneEtape(corps) {
 async function soumettreChasse(corps, overlay) {
   const titre = corps.querySelector('#titre-chasse-modale').value.trim();
   const description = corps.querySelector('#description-chasse-modale').value.trim();
+  const mode = corps.querySelector('#mode-chasse-modale').value;
+  const rayon_metres = parseInt(corps.querySelector('#rayon-chasse-modale').value, 10) || 50;
   if (!titre) return;
 
   const etapes = [];
@@ -369,7 +480,7 @@ async function soumettreChasse(corps, overlay) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ titre, description, etapes }),
+    body: JSON.stringify({ titre, description, mode, rayon_metres, etapes }),
   });
 
   if (res.ok) {

@@ -6,6 +6,7 @@ import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier } from '../storage';
 import { genererQrSvg } from '../lib/qrcode';
+import { distanceMetres } from '../lib/geo';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur, gererStreakExploration } from '../lib/gamification';
 import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/push';
 
@@ -37,6 +38,8 @@ const etapeSchema = z.object({
 const creationChasseSchema = z.object({
   titre: z.string().min(1).max(150),
   description: z.string().max(1000).optional(),
+  mode: z.enum(['chasse', 'balade']).default('chasse'),
+  rayon_metres: z.number().int().min(20).max(500).default(50),
   etapes: z.array(etapeSchema).min(1).max(20),
 });
 
@@ -45,7 +48,7 @@ app.get('/', async (c) => {
   const user_id = c.get('user_id');
 
   const chasses = await supabaseSelect(c.env, 'chasses_tresor', {
-    select: 'id,titre,description,actif,created_at',
+    select: 'id,titre,description,actif,mode,rayon_metres,created_at',
     commune_id: `eq.${commune_id}`,
     actif: 'eq.true',
     order: 'created_at.desc',
@@ -55,7 +58,7 @@ app.get('/', async (c) => {
 
   const [etapes, progressions] = await Promise.all([
     supabaseSelect(c.env, 'etapes_chasse', {
-      select: 'id,chasse_id,ordre,titre,indice,lat,lng',
+      select: 'id,chasse_id,ordre,titre,indice,lat,lng,type_contenu',
       commune_id: `eq.${commune_id}`,
       chasse_id: `in.(${ids.join(',')})`,
       order: 'ordre.asc',
@@ -71,12 +74,22 @@ app.get('/', async (c) => {
   const result = chasses.map((ch: any) => {
     const etapesChasse = etapes.filter((e: any) => e.chasse_id === ch.id);
     const etapesValidees = progressions.filter((p: any) => p.chasse_id === ch.id).map((p: any) => p.etape_id);
-    return {
+    const base: any = {
       ...ch,
       total_etapes: etapesChasse.length,
       etapes_validees: etapesValidees.length,
       etape_suivante: etapesChasse.find((e: any) => !etapesValidees.includes(e.id)) ?? null,
     };
+    // En mode balade, on expose toute la liste des points (coordonnées) pour tracer la
+    // carte et l'itinéraire ; en mode chasse, on garde le secret (seul l'indice suivant).
+    if (ch.mode === 'balade') {
+      base.etapes = etapesChasse.map((e: any) => ({
+        id: e.id, ordre: e.ordre, titre: e.titre, indice: e.indice,
+        lat: e.lat, lng: e.lng, type_contenu: e.type_contenu,
+        validee: etapesValidees.includes(e.id),
+      }));
+    }
+    return base;
   });
 
   return c.json({ chasses: result });
@@ -96,6 +109,7 @@ app.post('/', async (c) => {
 
   const [chasse] = await supabaseInsert(c.env, 'chasses_tresor', {
     commune_id, user_id, titre: data.titre, description: data.description ?? null, actif: true,
+    mode: data.mode, rayon_metres: data.rayon_metres,
   });
 
   await supabaseInsert(c.env, 'etapes_chasse', data.etapes.map((e, i) => ({
@@ -173,20 +187,10 @@ app.post('/upload-photo', async (c) => {
   return c.json({ key, url });
 });
 
-app.post('/valider', async (c) => {
-  const commune_id = c.get('commune_id');
-  const user_id = c.get('user_id');
-
-  const schema = z.object({ qr_token: z.string().uuid(), reponse: z.string().max(200).optional() });
-  const body = schema.safeParse(await c.req.json());
-  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
-
-  const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
-    select: 'id,chasse_id,ordre,type_contenu,contenu,photo_url,enigme_reponse',
-    commune_id: `eq.${commune_id}`, qr_token: `eq.${body.data.qr_token}`,
-  });
-  if (!etape) return c.json({ erreur: 'QR code invalide' }, 404);
-
+// Logique commune de validation d'une étape, quel que soit le déclencheur (scan QR ou
+// proximité GPS d'une balade) : contrôle de l'ordre, anti-doublon, énigme, progression,
+// XP et contenu révélé. Renvoie directement la réponse JSON.
+async function finaliserValidationEtape(c: any, commune_id: string, user_id: string, etape: any, reponse?: string) {
   if (etape.ordre > 0) {
     const etapesPrecedentes = await supabaseSelect(c.env, 'etapes_chasse', {
       select: 'id',
@@ -210,7 +214,7 @@ app.post('/valider', async (c) => {
   // Énigme : on renvoie d'abord la question (sans valider) ; l'étape n'est validée que
   // sur une bonne réponse. La réponse attendue n'est JAMAIS renvoyée au client.
   if (etape.type_contenu === 'enigme') {
-    const reponseSaisie = (body.data.reponse ?? '').trim();
+    const reponseSaisie = (reponse ?? '').trim();
     if (!reponseSaisie) {
       return c.json({ ok: true, etape_enigme: true, question: etape.contenu });
     }
@@ -245,6 +249,61 @@ app.post('/valider', async (c) => {
   else if (etape.type_contenu === 'photo') contenu_revele = { type: 'photo', photo_url: etape.photo_url };
 
   return c.json({ ok: true, ...resultatXp, contenu_revele });
+}
+
+// Validation par scan de QR (mode chasse au trésor).
+app.post('/valider', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const schema = z.object({ qr_token: z.string().uuid(), reponse: z.string().max(200).optional() });
+  const body = schema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'id,chasse_id,ordre,type_contenu,contenu,photo_url,enigme_reponse',
+    commune_id: `eq.${commune_id}`, qr_token: `eq.${body.data.qr_token}`,
+  });
+  if (!etape) return c.json({ erreur: 'QR code invalide' }, 404);
+
+  return finaliserValidationEtape(c, commune_id, user_id, etape, body.data.reponse);
+});
+
+// Validation par proximité GPS (mode balade guidée) : pas de QR, on vérifie que le joueur
+// est bien à moins de `rayon_metres` du point.
+app.post('/valider-position', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const schema = z.object({
+    etape_id: z.string().uuid(),
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    reponse: z.string().max(200).optional(),
+  });
+  const body = schema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'id,chasse_id,ordre,lat,lng,type_contenu,contenu,photo_url,enigme_reponse',
+    commune_id: `eq.${commune_id}`, id: `eq.${body.data.etape_id}`,
+  });
+  if (!etape) return c.json({ erreur: 'Étape introuvable' }, 404);
+
+  const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'rayon_metres', commune_id: `eq.${commune_id}`, id: `eq.${etape.chasse_id}`,
+  });
+  const rayon = chasse?.rayon_metres ?? 50;
+  const distance = distanceMetres(body.data.lat, body.data.lng, etape.lat, etape.lng);
+
+  // La proximité n'est contournée que pour la 2e étape d'une énigme (soumission de la
+  // réponse), où elle a déjà été vérifiée au 1er appel — jamais pour texte/photo/aucun.
+  const soumissionReponseEnigme = etape.type_contenu === 'enigme' && !!body.data.reponse;
+  if (distance > rayon && !soumissionReponseEnigme) {
+    return c.json({ ok: true, reussi: false, distance_metres: Math.round(distance) });
+  }
+
+  return finaliserValidationEtape(c, commune_id, user_id, etape, body.data.reponse);
 });
 
 // GET /classement-exploration — score combiné (étapes de chasse validées + énigmes trouvées),
