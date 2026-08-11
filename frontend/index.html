@@ -8,10 +8,10 @@
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260811-4">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260811-4">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260811-4">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260811-4">
+  <link rel="stylesheet" href="/css/base.css?v=20260811-5">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260811-5">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260811-5">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260811-5">
 </head>
 <body>
 
@@ -36,6 +36,7 @@
     <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
     <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
     <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo du jour</span></button>
+    <button data-onglet="memoire"><span class="ic">📖</span><span>Mémoire du village</span></button>
     <button data-onglet="profil"><span class="ic">⭐</span><span>Mon profil</span></button>
     <button data-onglet="moderation"><span class="ic">👑</span><span>Modération</span></button>
   </nav>
@@ -298,6 +299,15 @@
       <button type="button" id="btn-deconnexion" class="bouton-deconnexion-profil">🚪 Se déconnecter</button>
     </section>
 
+    <section id="onglet-memoire" class="onglet-contenu" hidden>
+      <div class="bandeau-onglet">
+        <h3>📖 La mémoire du village</h3>
+        <p>Les habitants racontent : histoires du village, souvenirs d'enfance, métiers d'autrefois, récits des ancêtres… Un patrimoine vivant, à transmettre.</p>
+        <button type="button" id="btn-ouvrir-creation-souvenir" class="bouton-ouvrir-modale">+ Partager un souvenir</button>
+      </div>
+      <div id="liste-souvenirs"></div>
+    </section>
+
     <section id="onglet-moderation" class="onglet-contenu" hidden>
       <div id="recap-stats-moderation" class="recap-stats-moderation"></div>
 
@@ -355,6 +365,8 @@
           <div id="liste-enigmes-attente"></div>
           <h4 style="margin-top:16px;">💬 Mur des voisins</h4>
           <div id="liste-mur-attente"></div>
+          <h4 style="margin-top:16px;">📖 Mémoire du village</h4>
+          <div id="liste-memoire-attente"></div>
         </div>
       </div>
 
@@ -551,6 +563,7 @@
     <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
     <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
     <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo</span></button>
+    <button data-onglet="memoire"><span class="ic">📖</span><span>Mémoire</span></button>
     <button data-onglet="profil"><span class="ic">⭐</span><span>Profil</span></button>
     <button data-onglet="moderation"><span class="ic">👑</span><span>Modération</span></button>
   </nav>
@@ -558,30 +571,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260811-4"></script>
-  <script src="/js/config.js?v=20260811-4"></script>
-  <script src="/js/utils.js?v=20260811-4"></script>
-  <script src="/js/api.js?v=20260811-4"></script>
-  <script src="/js/editeur-riche.js?v=20260811-4"></script>
-  <script src="/js/dashboard.js?v=20260811-4"></script>
-  <script src="/js/articles.js?v=20260811-4"></script>
-  <script src="/js/alertes.js?v=20260811-4"></script>
-  <script src="/js/thermometre.js?v=20260811-4"></script>
-  <script src="/js/mur.js?v=20260811-4"></script>
-  <script src="/js/agenda.js?v=20260811-4"></script>
-  <script src="/js/coups-de-main.js?v=20260811-4"></script>
-  <script src="/js/coups-de-main-form.js?v=20260811-4"></script>
-  <script src="/js/chasse-tresor.js?v=20260811-4"></script>
-  <script src="/js/conseil.js?v=20260811-4"></script>
-  <script src="/js/annuaire.js?v=20260811-4"></script>
-  <script src="/js/bulletin.js?v=20260811-4"></script>
-  <script src="/js/photo-du-jour.js?v=20260811-4"></script>
-  <script src="/js/enigmes.js?v=20260811-4"></script>
-  <script src="/js/profil.js?v=20260811-4"></script>
-  <script src="/js/notifications.js?v=20260811-4"></script>
-  <script src="/js/lois.js?v=20260811-4"></script>
-  <script src="/js/moderation.js?v=20260811-4"></script>
-  <script src="/js/participation-citoyenne.js?v=20260811-4"></script>
-  <script src="/js/navigation.js?v=20260811-4"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260811-5"></script>
+  <script src="/js/config.js?v=20260811-5"></script>
+  <script src="/js/utils.js?v=20260811-5"></script>
+  <script src="/js/api.js?v=20260811-5"></script>
+  <script src="/js/editeur-riche.js?v=20260811-5"></script>
+  <script src="/js/dashboard.js?v=20260811-5"></script>
+  <script src="/js/articles.js?v=20260811-5"></script>
+  <script src="/js/alertes.js?v=20260811-5"></script>
+  <script src="/js/thermometre.js?v=20260811-5"></script>
+  <script src="/js/mur.js?v=20260811-5"></script>
+  <script src="/js/agenda.js?v=20260811-5"></script>
+  <script src="/js/coups-de-main.js?v=20260811-5"></script>
+  <script src="/js/coups-de-main-form.js?v=20260811-5"></script>
+  <script src="/js/chasse-tresor.js?v=20260811-5"></script>
+  <script src="/js/conseil.js?v=20260811-5"></script>
+  <script src="/js/annuaire.js?v=20260811-5"></script>
+  <script src="/js/bulletin.js?v=20260811-5"></script>
+  <script src="/js/photo-du-jour.js?v=20260811-5"></script>
+  <script src="/js/memoire.js?v=20260811-5"></script>
+  <script src="/js/enigmes.js?v=20260811-5"></script>
+  <script src="/js/profil.js?v=20260811-5"></script>
+  <script src="/js/notifications.js?v=20260811-5"></script>
+  <script src="/js/lois.js?v=20260811-5"></script>
+  <script src="/js/moderation.js?v=20260811-5"></script>
+  <script src="/js/participation-citoyenne.js?v=20260811-5"></script>
+  <script src="/js/navigation.js?v=20260811-5"></script>
 </body>
 </html>

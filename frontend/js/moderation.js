@@ -4,6 +4,7 @@ const LABELS_ONGLET = {
   mur: 'Mur des voisins', agenda: 'Agenda', coups_de_main: 'Coup de main',
   chasse_tresor: 'Chasse au trésor', conseil: 'Conseil', profil: 'Mon profil',
   annuaire: 'Annuaire', bulletin: 'Bulletin municipal', photo_du_jour: 'Photo du jour', enigmes: 'Trouve la photo',
+  lois: 'Lois', memoire: 'Mémoire du village',
 };
 
 const LABELS_DECHET_MOD = {
@@ -99,6 +100,7 @@ async function chargerPanneauModeration() {
   chargerPhotosEnAttente();
   chargerEnigmesEnAttente();
   chargerMurEnAttente();
+  chargerMemoireEnAttente();
   chargerReglageSeuilPhoto();
   chargerReglageCouleurs();
   chargerReglageRayonEnigme();
@@ -448,6 +450,44 @@ async function chargerEnigmesEnAttente() {
       if (!confirm('Supprimer définitivement cette énigme ?')) return;
       await appelApi(`/${window.COMMUNE_SLUG}/enigmes/${e.id}`, { method: 'DELETE' });
       chargerEnigmesEnAttente();
+    });
+    zone.appendChild(carte);
+  });
+}
+
+async function chargerMemoireEnAttente() {
+  const zone = document.getElementById('liste-memoire-attente');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/memoire/moderation/en-attente`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { souvenirs } = await res.json();
+
+  if (!souvenirs.length) {
+    zone.innerHTML = `<p class="dechets-vide">Aucun souvenir en attente de revue.</p>`;
+    return;
+  }
+
+  zone.innerHTML = '';
+  souvenirs.forEach((s) => {
+    const carte = document.createElement('div');
+    carte.className = 'carte-dashboard';
+    carte.innerHTML = `
+      <strong>${escapeAttr(s.titre)}</strong>
+      <p style="font-size:13px;margin:4px 0;">${escapeAttr((s.recit || '🎙️ Témoignage audio').slice(0, 200))}</p>
+      <p style="font-size:12.5px;color:var(--roseau);">${s.total_signalements} signalement(s)</p>
+      <div class="actions-admin">
+        <button data-action="restaurer">Restaurer</button>
+        <button data-action="supprimer">Supprimer définitivement</button>
+      </div>
+    `;
+    carte.querySelector('[data-action="restaurer"]').addEventListener('click', async () => {
+      await appelApi(`/${window.COMMUNE_SLUG}/memoire/${s.id}/restaurer`, { method: 'PATCH' });
+      chargerMemoireEnAttente();
+    });
+    carte.querySelector('[data-action="supprimer"]').addEventListener('click', async () => {
+      if (!confirm('Supprimer définitivement ce souvenir ?')) return;
+      await appelApi(`/${window.COMMUNE_SLUG}/memoire/${s.id}`, { method: 'DELETE' });
+      chargerMemoireEnAttente();
     });
     zone.appendChild(carte);
   });

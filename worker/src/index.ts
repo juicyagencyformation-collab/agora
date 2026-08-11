@@ -25,6 +25,7 @@ import conseilMembres from './routes/conseil_membres';
 import annuaire from './routes/annuaire';
 import bulletin from './routes/bulletin';
 import photoDuJour from './routes/photo_du_jour';
+import memoire from './routes/memoire';
 import decouverte from './routes/decouverte';
 import lois from './routes/lois';
 import { synchroniserToutesLesLois } from './lib/sync-lois';
@@ -118,6 +119,10 @@ app.route('/:slug/bulletin', bulletin);
 // Photo du jour
 app.use('/:slug/photo-du-jour/*', jwtMiddleware, requireOngletActif('photo_du_jour'));
 app.route('/:slug/photo-du-jour', photoDuJour);
+
+// La mémoire du village (récits patrimoniaux : texte + photos + audio)
+app.use('/:slug/memoire/*', jwtMiddleware, requireOngletActif('memoire'));
+app.route('/:slug/memoire', memoire);
 
 // Filet de sécurité : sans ça, toute exception non rattrapée dans une route (ex: colonne
 // manquante en base, jamais migrée) remonte en 500 brut non-JSON — le frontend plante alors

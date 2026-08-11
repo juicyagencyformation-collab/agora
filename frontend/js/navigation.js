@@ -40,7 +40,7 @@ async function initVisibiliteOnglets() {
       mur: 'mur', agenda: 'agenda', coups_de_main: 'coups-de-main',
       chasse_tresor: 'chasse-tresor', conseil: 'conseil', profil: 'profil',
       annuaire: 'annuaire', bulletin: 'bulletin', photo_du_jour: 'photo-du-jour', enigmes: 'enigmes',
-      lois: 'lois',
+      lois: 'lois', memoire: 'memoire',
     };
 
     onglets.forEach(({ cle, actif }) => {
@@ -85,6 +85,7 @@ const CHARGEURS = {
   annuaire: () => chargerAnnuaire(),
   bulletin: () => chargerBulletin(),
   'photo-du-jour': () => chargerPhotoDuJour(),
+  memoire: () => chargerMemoire(),
   profil: () => { chargerProfil(); initReglagesNotificationsProfil(); initSectionInstallationProfil(); },
   lois: () => chargerLois(),
   moderation: () => chargerPanneauModeration(),
@@ -132,6 +133,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireAnnuaire();
   initFormulaireBulletin();
   initFormulairePhotoDuJour();
+  initFormulaireMemoire();
   initFormulaireEnigme();
   initSousOngletsChasse();
   initVoletSeuilPhoto();

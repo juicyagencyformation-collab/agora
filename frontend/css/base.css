@@ -119,6 +119,13 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 }
 .zone-edition:focus { outline: none; border-color: var(--eau); }
 
+/* Enregistreur audio (Mémoire du village) */
+.zone-audio-souvenir { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.zone-audio-souvenir button {
+  padding: 8px 14px; border-radius: 100px; border: 1.5px solid var(--eauL);
+  background: #fff; color: var(--eau); font-size: 13.5px; cursor: pointer;
+}
+
 /* Aperçu des photos sélectionnées dans le formulaire d'article */
 .apercu-images-modale { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .apercu-image-modale {

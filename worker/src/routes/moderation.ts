@@ -11,7 +11,7 @@ app.use('*', jwtMiddleware);
 
 const ONGLETS_VALIDES = [
   'actualites', 'alertes', 'thermometre', 'mur', 'agenda',
-  'coups_de_main', 'chasse_tresor', 'conseil', 'profil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes', 'lois',
+  'coups_de_main', 'chasse_tresor', 'conseil', 'profil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes', 'lois', 'memoire',
 ] as const;
 
 // Déclencheurs valides pour un badge citoyen — les 5 "événement" sont des conditions fixes
