@@ -121,20 +121,70 @@ async function ouvrirScanner() {
   await demarrerScannerQr('zone-scanner', validerEtape);
 }
 
-async function validerEtape(qr_token) {
+async function validerEtape(qr_token, reponse = null) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ qr_token }),
+    body: JSON.stringify({ qr_token, ...(reponse != null ? { reponse } : {}) }),
   });
   const data = await res.json();
+
+  // Étape énigme : le serveur renvoie la question sans valider → on demande la réponse.
+  if (res.ok && data.etape_enigme) {
+    afficherEnigmeEtape(qr_token, data.question);
+    return;
+  }
+
   if (res.ok) {
     afficherToastMessage('Étape validée ! 🎉', 'succes');
+    if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
     traiterRecompense(data);
   } else {
     afficherToastMessage(data.erreur || 'Erreur', 'erreur');
   }
   chargerChasses(); // l'écran de détail reste ouvert (idChasseDetailOuverte inchangé), juste rafraîchi
+}
+
+// Modale d'énigme : la réponse est vérifiée côté serveur ; on garde la modale ouverte
+// tant que la réponse est fausse pour permettre de réessayer.
+function afficherEnigmeEtape(qr_token, question) {
+  const html = `
+    <form id="form-enigme-etape">
+      <p class="indice-etape">${escapeAttr(question)}</p>
+      <input type="text" id="reponse-enigme-etape" placeholder="Ta réponse" maxlength="200" required>
+      <button type="submit" style="margin-top:10px;">Valider ma réponse</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('🧩 Énigme', html);
+  overlay.querySelector('#form-enigme-etape').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const reponse = overlay.querySelector('#reponse-enigme-etape').value.trim();
+    if (!reponse) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qr_token, reponse }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      fermerModaleFormulaire(overlay);
+      afficherToastMessage('Bonne réponse ! Étape validée 🎉', 'succes');
+      if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
+      traiterRecompense(data);
+      chargerChasses();
+    } else {
+      afficherToastMessage(data.erreur || 'Mauvaise réponse', 'erreur');
+    }
+  });
+}
+
+// Révèle le contenu d'une étape validée (texte descriptif ou photo).
+function afficherContenuRevele(contenu) {
+  if (contenu.type === 'texte' && contenu.texte) {
+    ouvrirModaleFormulaire('📖 Découverte', `<p>${texteAvecLiensCliquables(contenu.texte)}</p>`);
+  } else if (contenu.type === 'photo' && contenu.photo_url) {
+    ouvrirModaleFormulaire('📸 Découverte', `<img src="${contenu.photo_url}" style="width:100%;border-radius:12px;">`);
+  }
 }
 
 async function afficherClassement(chasseId) {
@@ -231,12 +281,20 @@ function ajouterLigneEtape(corps) {
   ligne.innerHTML = `
     <strong>Étape ${n}</strong>
     <input type="text" class="etape-titre" placeholder="Titre de l'étape" maxlength="150">
-    <textarea class="etape-indice" placeholder="Indice donné au joueur" maxlength="500"></textarea>
+    <textarea class="etape-indice" placeholder="Indice pour trouver le lieu" maxlength="500"></textarea>
     <div style="display:flex;gap:6px;">
       <input type="number" step="any" class="etape-lat" placeholder="Latitude">
       <input type="number" step="any" class="etape-lng" placeholder="Longitude">
       <button type="button" class="btn-position-etape">📍 Ma position</button>
     </div>
+    <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Au scan sur place, déclencher :</label>
+    <select class="etape-type">
+      <option value="aucun">Rien (valider simplement)</option>
+      <option value="texte">Un texte descriptif</option>
+      <option value="photo">Une photo</option>
+      <option value="enigme">Une énigme (réponse à saisir)</option>
+    </select>
+    <div class="etape-champs-contenu"></div>
     <button type="button" class="btn-supprimer-etape">Retirer cette étape</button>
   `;
   ligne.querySelector('.btn-position-etape').addEventListener('click', () => {
@@ -246,6 +304,24 @@ function ajouterLigneEtape(corps) {
       ligne.querySelector('.etape-lng').value = pos.coords.longitude;
     });
   });
+
+  const zoneContenu = ligne.querySelector('.etape-champs-contenu');
+  const selectType = ligne.querySelector('.etape-type');
+  selectType.addEventListener('change', () => {
+    const t = selectType.value;
+    if (t === 'texte') {
+      zoneContenu.innerHTML = `<textarea class="etape-contenu" placeholder="Texte affiché au joueur à son arrivée" maxlength="2000"></textarea>`;
+    } else if (t === 'photo') {
+      zoneContenu.innerHTML = `<input type="file" class="etape-photo" accept="image/*">`;
+    } else if (t === 'enigme') {
+      zoneContenu.innerHTML = `
+        <textarea class="etape-contenu" placeholder="Question de l'énigme" maxlength="2000"></textarea>
+        <input type="text" class="etape-reponse" placeholder="Réponse attendue" maxlength="200">`;
+    } else {
+      zoneContenu.innerHTML = '';
+    }
+  });
+
   ligne.querySelector('.btn-supprimer-etape').addEventListener('click', () => ligne.remove());
   conteneur.appendChild(ligne);
 }
@@ -255,12 +331,35 @@ async function soumettreChasse(corps, overlay) {
   const description = corps.querySelector('#description-chasse-modale').value.trim();
   if (!titre) return;
 
-  const etapes = [...corps.querySelectorAll('.ligne-etape-chasse')].map((ligne) => ({
-    titre: ligne.querySelector('.etape-titre').value.trim(),
-    indice: ligne.querySelector('.etape-indice').value.trim(),
-    lat: parseFloat(ligne.querySelector('.etape-lat').value),
-    lng: parseFloat(ligne.querySelector('.etape-lng').value),
-  })).filter((e) => e.titre && e.indice && !isNaN(e.lat) && !isNaN(e.lng));
+  const etapes = [];
+  for (const ligne of corps.querySelectorAll('.ligne-etape-chasse')) {
+    const titre = ligne.querySelector('.etape-titre').value.trim();
+    const indice = ligne.querySelector('.etape-indice').value.trim();
+    const lat = parseFloat(ligne.querySelector('.etape-lat').value);
+    const lng = parseFloat(ligne.querySelector('.etape-lng').value);
+    if (!titre || !indice || isNaN(lat) || isNaN(lng)) continue;
+
+    const type_contenu = ligne.querySelector('.etape-type').value;
+    const etape = { titre, indice, lat, lng, type_contenu };
+    if (type_contenu === 'texte') {
+      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+    } else if (type_contenu === 'enigme') {
+      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+      etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
+    } else if (type_contenu === 'photo') {
+      const fichier = ligne.querySelector('.etape-photo').files[0];
+      if (fichier) {
+        try {
+          const compresse = await compresserImage(fichier);
+          const resUp = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/upload-photo`, {
+            method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+          });
+          if (resUp.ok) { const { key } = await resUp.json(); etape.photo_r2_key = key; }
+        } catch { console.warn('Upload photo étape échoué.'); }
+      }
+    }
+    etapes.push(etape);
+  }
 
   if (!etapes.length) {
     afficherToastMessage('Ajoute au moins une étape complète (titre, indice, position).', 'erreur');
