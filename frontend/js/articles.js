@@ -170,8 +170,9 @@ function htmlFormulaireArticle() {
         ${Object.entries(LABELS_CATEGORIE_ARTICLE).map(([cle, label]) => `<option value="${cle}">${label}</option>`).join('')}
       </select>
       <div id="editeur-article-modale"></div>
-      <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Image (optionnel)</label>
-      <input type="file" id="image-article-modale" accept="image/*">
+      <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Photos (optionnel — jusqu'à 10)</label>
+      <input type="file" id="image-article-modale" accept="image/*" multiple>
+      <div id="apercu-images-article-modale" class="apercu-images-modale"></div>
       <button type="button" id="btn-ajouter-sondage-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter un sondage</button>
       <div id="zone-sondage-article-modale" style="display:none;margin-top:10px;">
         <input type="text" id="question-sondage-article-modale" placeholder="Question du sondage" maxlength="200">
@@ -189,6 +190,19 @@ function ouvrirModaleCreationArticle() {
   const corps = overlay.querySelector('.corps-modale-formulaire');
   editeurArticleActuel = creerEditeurRiche('editeur-article-modale');
   choixSondageCompteur = 0;
+
+  const inputImages = corps.querySelector('#image-article-modale');
+  const apercu = corps.querySelector('#apercu-images-article-modale');
+  inputImages.addEventListener('change', () => {
+    apercu.innerHTML = '';
+    [...inputImages.files].slice(0, 10).forEach((fichier) => {
+      const img = document.createElement('img');
+      img.className = 'apercu-image-modale';
+      img.src = URL.createObjectURL(fichier);
+      img.onload = () => URL.revokeObjectURL(img.src);
+      apercu.appendChild(img);
+    });
+  });
 
   corps.querySelector('#btn-ajouter-sondage-modale').addEventListener('click', () => {
     const zone = corps.querySelector('#zone-sondage-article-modale');
@@ -224,15 +238,15 @@ async function soumettreArticleModale(corps, overlay) {
   const boutonSubmit = corps.querySelector('button[type="submit"]');
   boutonSubmit.disabled = true;
 
-  let imageR2Keys = [];
-  const fichierImage = corps.querySelector('#image-article-modale').files[0];
-  if (fichierImage) {
+  const imageR2Keys = [];
+  const fichiers = [...corps.querySelector('#image-article-modale').files].slice(0, 10);
+  for (const fichier of fichiers) {
     try {
-      const compresse = await compresserImage(fichierImage);
+      const compresse = await compresserImage(fichier);
       const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/actus/upload`, {
         method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
       });
-      if (resUpload.ok) { const { key } = await resUpload.json(); imageR2Keys = [key]; }
+      if (resUpload.ok) { const { key } = await resUpload.json(); imageR2Keys.push(key); }
     } catch { console.warn('Upload image échoué.'); }
   }
 

@@ -102,14 +102,27 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 .badge-resolue { background: rgba(92,122,78,.15); color: var(--prairie); }
 
 /* ─── Éditeur riche ─── */
-.toolbar-editeur { display: flex; gap: 4px; margin-bottom: 6px; }
+.toolbar-editeur { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; align-items: center; }
 .toolbar-editeur button {
   padding: 5px 10px; border: 1.5px solid var(--eauL); border-radius: 8px;
   background: #fff; color: var(--eau); font-family: 'DM Mono', monospace; font-size: 12px;
+  min-width: 34px; cursor: pointer;
+}
+.toolbar-editeur button.actif { background: var(--eau); color: #fff; border-color: var(--eau); }
+.toolbar-editeur input[type="color"] {
+  width: 34px; height: 30px; padding: 2px; border: 1.5px solid var(--eauL);
+  border-radius: 8px; background: #fff; cursor: pointer;
 }
 .zone-edition {
   border: 1.5px solid var(--eauL); border-radius: var(--r); padding: 10px;
   min-height: 90px; font-family: 'DM Sans', sans-serif; font-size: 16px;
+}
+.zone-edition:focus { outline: none; border-color: var(--eau); }
+
+/* Aperçu des photos sélectionnées dans le formulaire d'article */
+.apercu-images-modale { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.apercu-image-modale {
+  width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--eauL);
 }
 
 .btn-reaction {
