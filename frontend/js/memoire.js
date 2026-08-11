@@ -1,5 +1,6 @@
 // frontend/js/memoire.js
 // "La mémoire du village" : récits patrimoniaux des habitants (texte + photos + audio).
+const DUREE_MAX_AUDIO_SEC = 300; // 5 min : évite les enregistrements géants qui saturent R2
 const LABELS_THEME_MEMOIRE = {
   ecole: "L'école d'autrefois", metiers: 'Les métiers', guerre: 'La guerre',
   fetes: 'Les fêtes', quartier: 'Mon quartier', famille: 'Familles & ancêtres',
@@ -128,6 +129,8 @@ function ouvrirModaleSouvenir(souvenir = null) {
   let blobAudio = null;
   let mediaRecorder = null;
   let morceaux = [];
+  let minuterieAudio = null;
+  let arretAutoAudio = null;
   if (!souvenir) {
     initApercuPhotosSouvenir(corps);
     const btnRec = corps.querySelector('#btn-enregistrer-audio');
@@ -148,6 +151,8 @@ function ouvrirModaleSouvenir(souvenir = null) {
         morceaux = [];
         mediaRecorder.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
         mediaRecorder.onstop = () => {
+          clearInterval(minuterieAudio);
+          clearTimeout(arretAutoAudio);
           stream.getTracks().forEach((t) => t.stop());
           blobAudio = new Blob(morceaux, { type: mediaRecorder.mimeType });
           btnRec.textContent = '🎙️ Refaire';
@@ -156,7 +161,20 @@ function ouvrirModaleSouvenir(souvenir = null) {
         };
         mediaRecorder.start();
         btnRec.textContent = '⏹️ Arrêter';
-        statut.textContent = 'Enregistrement en cours…';
+        // Minuteur visible + arrêt automatique à 5 min (plafond anti-saturation R2).
+        const debut = Date.now();
+        const dureeMax = `${Math.floor(DUREE_MAX_AUDIO_SEC / 60)}:00`;
+        statut.textContent = `0:00 / ${dureeMax}`;
+        minuterieAudio = setInterval(() => {
+          const s = Math.floor((Date.now() - debut) / 1000);
+          statut.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} / ${dureeMax}`;
+        }, 1000);
+        arretAutoAudio = setTimeout(() => {
+          if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            afficherToastMessage('Durée maximale atteinte (5 min).', 'succes');
+          }
+        }, DUREE_MAX_AUDIO_SEC * 1000);
       } catch {
         afficherToastMessage('Micro refusé ou indisponible.', 'erreur');
       }

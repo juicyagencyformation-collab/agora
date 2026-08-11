@@ -72,6 +72,52 @@ export async function purgerMur(env: any) {
   }
 }
 
+// Récupère TOUTES les clés R2 référencées dans une colonne d'une table, en paginant pour
+// ne jamais tronquer (une clé oubliée = un fichier vivant supprimé par erreur : à éviter).
+async function ajouterClesReferencees(env: any, table: string, colonne: string, cles: Set<string>) {
+  const page = 1000;
+  let offset = 0;
+  for (;;) {
+    const lignes = await supabaseSelect(env, table, { select: colonne, limit: String(page), offset: String(offset) });
+    for (const l of lignes) { if (l[colonne]) cles.add(l[colonne]); }
+    if (lignes.length < page) break;
+    offset += page;
+  }
+}
+
+// Purge des fichiers R2 orphelins du module "Mémoire du village" : un habitant peut
+// choisir une photo / un audio puis abandonner le formulaire → l'objet reste sur R2 sans
+// jamais être rattaché en base. On supprime uniquement les objets du préfixe .../memoire/
+// vieux de plus de 2 jours ET absents de la base (délai de grâce large : un formulaire est
+// toujours soumis en quelques minutes). Volontairement limité à ce module pour rester sûr —
+// extensible aux autres préfixes une fois éprouvé.
+export async function purgerOrphelinsMemoire(env: any) {
+  if (!env.BUCKET_R2) return;
+
+  const clesReferencees = new Set<string>();
+  await ajouterClesReferencees(env, 'souvenir_images', 'r2_key', clesReferencees);
+  await ajouterClesReferencees(env, 'souvenirs', 'audio_r2_key', clesReferencees);
+
+  const graceMs = 2 * 24 * 3600 * 1000;
+  const maintenant = Date.now();
+  const communes = await supabaseSelect(env, 'communes', { select: 'id' });
+
+  for (const commune of communes) {
+    let cursor: string | undefined;
+    for (;;) {
+      const res: any = await env.BUCKET_R2.list({ prefix: `${commune.id}/memoire/`, cursor, limit: 1000 });
+      for (const obj of res.objects) {
+        const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
+        if (maintenant - uploaded < graceMs) continue;      // trop récent, peut-être en cours d'attache
+        if (clesReferencees.has(obj.key)) continue;          // référencé en base → on garde
+        await deleteObject(env, obj.key);
+      }
+      if (!res.truncated) break;
+      cursor = res.cursor;
+    }
+  }
+}
+
 // Clôture quotidienne des actions civiques (participation citoyenne — voir
 // worker/src/lib/points-citoyens.ts) :
 // 1. Scanné mais jamais validé par l'organisateur, 48h après la fin -> "non confirmé"
