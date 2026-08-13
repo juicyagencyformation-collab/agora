@@ -82,6 +82,19 @@ app.get('/prospects', async (c) => {
   return c.json({ prospects });
 });
 
+// — Carte : uniquement les prospects géolocalisés (lat renseignée). Se remplit au fil de
+//   l'enrichissement. Filtre département optionnel. —
+app.get('/carte', async (c) => {
+  const filtres: Record<string, string> = {
+    select: 'id,nom,statut,lat,lng,departement',
+    lat: 'not.is.null',
+  };
+  const departement = c.req.query('departement');
+  if (departement) filtres.departement = `eq.${departement.toUpperCase()}`;
+  const prospects = await supabaseSelect(c.env, 'prospects', filtres);
+  return c.json({ prospects });
+});
+
 // — Aperçu : compteurs par statut + relances dues aujourd'hui —
 app.get('/apercu', async (c) => {
   const prospects = await supabaseSelect(c.env, 'prospects', { select: 'statut,prochaine_relance_le' });
@@ -131,6 +144,18 @@ export function formaterAdresse(champJson: string | null | undefined): string | 
   } catch { return null; }
 }
 
+// Coordonnées [lng, lat] depuis l'adresse annuaire (les champs y sont des chaînes). null si absent.
+export function coordsDepuisAdresse(champJson: string | null | undefined): { lat: number; lng: number } | null {
+  if (!champJson) return null;
+  try {
+    const a = JSON.parse(champJson)?.[0];
+    const lat = parseFloat(a?.latitude);
+    const lng = parseFloat(a?.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+  } catch { /* ignore */ }
+  return null;
+}
+
 // Récupère le contact mairie depuis l'annuaire, met à jour le prospect et renvoie la ligne à
 // jour. Renvoie null si l'annuaire n'a pas de fiche. Partagé par /enrichir et /prospecter.
 async function enrichirDepuisAnnuaire(env: any, id: string, codeInsee: string): Promise<any | null> {
@@ -142,7 +167,8 @@ async function enrichirDepuisAnnuaire(env: any, id: string, codeInsee: string): 
   const fiche = ((await res.json()) as any)?.results?.[0];
   if (!fiche) return null;
 
-  const patch = {
+  const coords = coordsDepuisAdresse(fiche.adresse);
+  const patch: Record<string, unknown> = {
     contact_email: fiche.adresse_courriel || null,
     contact_telephone: premiereValeur(fiche.telephone),
     site_web: premiereValeur(fiche.site_internet),
@@ -150,6 +176,8 @@ async function enrichirDepuisAnnuaire(env: any, id: string, codeInsee: string): 
     enrichi_le: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
+  // Coordonnées récupérées « gratuitement » depuis l'annuaire : alimentent la carte au fil de l'eau.
+  if (coords) { patch.lat = coords.lat; patch.lng = coords.lng; }
   const [maj] = await supabaseUpdate(env, 'prospects', patch, { id: `eq.${id}` });
   return maj;
 }

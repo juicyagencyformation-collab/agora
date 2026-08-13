@@ -1,4 +1,14 @@
 // frontend/backoffice/js/app.js — logique Alpine du tableau de bord backoffice.
+
+// Instance Leaflet gardée hors de l'état réactif Alpine (un proxy réactif casserait Leaflet).
+let carteLeaflet = null;
+let couchePoints = null;
+
+const COULEURS_STATUT = {
+  a_contacter: '#94a3b8', contacte: '#38bdf8', relance: '#fbbf24',
+  rdv: '#a78bfa', gagne: '#34d399', perdu: '#f87171',
+};
+
 function backoffice() {
   return {
     vue: 'communes',      // 'communes' | 'fiche'
@@ -44,6 +54,7 @@ function backoffice() {
     filtreDep: '',
     filtreRecherche: '',
     filtreTri: 'nom',
+    sousVueProspection: 'liste', // 'liste' | 'carte'
     importDep: '',
     importPopMax: '',
     importEnCours: false,
@@ -259,7 +270,49 @@ function backoffice() {
     async allerProspection() {
       this.vue = 'prospection';
       this.prospect = null;
+      this.sousVueProspection = 'liste';
       await this.chargerProspects();
+    },
+
+    async afficherCarte() {
+      this.sousVueProspection = 'carte';
+      await this.$nextTick();
+      this.initCarte();
+      await this.chargerMarqueurs();
+      if (carteLeaflet) carteLeaflet.invalidateSize();
+    },
+
+    initCarte() {
+      const el = document.getElementById('carte-prospection');
+      if (!el) return;
+      // Recrée la carte si l'ancienne instance pointe vers un DOM disparu (vue re-montée).
+      if (carteLeaflet && carteLeaflet._container !== el) { carteLeaflet.remove(); carteLeaflet = null; }
+      if (carteLeaflet) return;
+      carteLeaflet = L.map(el, { scrollWheelZoom: true }).setView([46.6, 2.4], 6); // centre France
+      L.tileLayer(
+        'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+        { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+      ).addTo(carteLeaflet);
+      couchePoints = L.layerGroup().addTo(carteLeaflet);
+    },
+
+    async chargerMarqueurs() {
+      if (!carteLeaflet || !couchePoints) return;
+      const params = new URLSearchParams();
+      if (this.filtreDep) params.set('departement', this.filtreDep);
+      const { prospects } = await boFetch('/prospection/carte' + (params.toString() ? '?' + params : ''));
+      couchePoints.clearLayers();
+      const points = [];
+      prospects.forEach((p) => {
+        if (p.lat == null || p.lng == null) return;
+        const couleur = COULEURS_STATUT[p.statut] || '#94a3b8';
+        const marqueur = L.circleMarker([p.lat, p.lng], { radius: 7, color: '#fff', weight: 1, fillColor: couleur, fillOpacity: 0.9 });
+        marqueur.bindTooltip(p.nom);
+        marqueur.on('click', () => this.ouvrirProspect(p.id));
+        marqueur.addTo(couchePoints);
+        points.push([p.lat, p.lng]);
+      });
+      if (points.length) carteLeaflet.fitBounds(points, { padding: [30, 30], maxZoom: 12 });
     },
 
     async chargerProspects() {

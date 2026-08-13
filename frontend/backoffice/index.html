@@ -6,7 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-14" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-15" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-15" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -300,8 +301,15 @@
             </select>
           </div>
 
+          <!-- Bascule Liste / Carte -->
+          <div class="bo-outils" style="margin-bottom:14px">
+            <button class="bo-btn bo-btn--compact" :class="{ 'bo-btn--sec': sousVueProspection !== 'liste' }" @click="sousVueProspection = 'liste'">Liste</button>
+            <button class="bo-btn bo-btn--compact" :class="{ 'bo-btn--sec': sousVueProspection !== 'carte' }" @click="afficherCarte()">Carte</button>
+            <span class="bo-info" x-show="sousVueProspection === 'carte'">Seules les communes déjà enrichies (avec coordonnées) apparaissent — la carte se remplit au fil de la prospection.</span>
+          </div>
+
           <!-- Barre d'action groupée -->
-          <div class="bo-outils" x-show="nbSelection() > 0" style="justify-content:space-between">
+          <div class="bo-outils" x-show="sousVueProspection === 'liste' && nbSelection() > 0" style="justify-content:space-between">
             <span class="bo-info" x-text="nbSelection() + ' commune(s) sélectionnée(s)' + (nbSelection() > 40 ? ' — max 40 par envoi' : '')"></span>
             <div style="display:flex; align-items:center; gap:10px">
               <span class="bo-info" x-text="lotMsg"></span>
@@ -310,7 +318,7 @@
             </div>
           </div>
 
-          <div class="bo-carte">
+          <div class="bo-carte" x-show="sousVueProspection === 'liste'">
             <table>
               <thead>
                 <tr>
@@ -335,6 +343,19 @@
                 </template>
               </tbody>
             </table>
+          </div>
+
+          <!-- Vue carte -->
+          <div class="bo-carte" x-show="sousVueProspection === 'carte'" style="padding:0; overflow:hidden">
+            <div id="carte-prospection" style="height:560px; width:100%"></div>
+            <div style="display:flex; flex-wrap:wrap; gap:14px; padding:12px 16px; font-size:12px">
+              <span><span class="bo-pastille" style="background:#94a3b8"></span> À contacter</span>
+              <span><span class="bo-pastille" style="background:#38bdf8"></span> Contacté</span>
+              <span><span class="bo-pastille" style="background:#fbbf24"></span> Relancé</span>
+              <span><span class="bo-pastille" style="background:#a78bfa"></span> RDV</span>
+              <span><span class="bo-pastille" style="background:#34d399"></span> Gagné</span>
+              <span><span class="bo-pastille" style="background:#f87171"></span> Perdu</span>
+            </div>
           </div>
         </div>
       </template>
@@ -482,8 +503,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-14"></script>
-  <script src="/backoffice/js/app.js?v=20260813-14"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-14" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-15"></script>
+  <script src="/backoffice/js/api.js?v=20260813-15"></script>
+  <script src="/backoffice/js/app.js?v=20260813-15"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-15" defer></script>
 </body>
 </html>
