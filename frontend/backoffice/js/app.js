@@ -17,9 +17,11 @@ function backoffice() {
     forfaitMsg: '',
     presentEnCours: false,
     presentMsg: '',
-    modele: { objet: '', corps_html: '' },
+    modele: { objet: '', corps_html: '', signature_image_url: null },
     modeleEnCours: false,
     modeleMsg: '',
+    signatureEnCours: false,
+    signatureMsg: '',
     testEmailDest: '',
     testEmailEnCours: false,
     testEmailMsg: '',
@@ -36,6 +38,7 @@ function backoffice() {
     filtreStatut: '',
     filtreDep: '',
     filtreRecherche: '',
+    filtreTri: 'nom',
     importDep: '',
     importPopMax: '',
     importEnCours: false,
@@ -111,6 +114,25 @@ function backoffice() {
         this.presentMsg = e.message || 'Envoi impossible';
       } finally {
         this.presentEnCours = false;
+      }
+    },
+
+    async uploaderSignature(e) {
+      const fichier = e.target.files && e.target.files[0];
+      if (!fichier) return;
+      this.signatureEnCours = true;
+      this.signatureMsg = '';
+      try {
+        const r = await boFetch('/administration/signature', {
+          method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+        });
+        this.modele.signature_image_url = r.url;
+        this.signatureMsg = 'Photo enregistrée.';
+      } catch (err) {
+        this.signatureMsg = err.message || 'Échec de l\'envoi';
+      } finally {
+        this.signatureEnCours = false;
+        e.target.value = '';
       }
     },
 
@@ -205,6 +227,7 @@ function backoffice() {
       if (this.filtreStatut) params.set('statut', this.filtreStatut);
       if (this.filtreDep) params.set('departement', this.filtreDep);
       if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
+      if (this.filtreTri && this.filtreTri !== 'nom') params.set('tri', this.filtreTri);
       const [apercu, liste] = await Promise.all([
         boFetch('/prospection/apercu'),
         boFetch('/prospection/prospects' + (params.toString() ? '?' + params : '')),

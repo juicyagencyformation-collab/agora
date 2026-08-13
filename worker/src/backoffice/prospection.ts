@@ -58,10 +58,17 @@ app.post('/importer', async (c) => {
 });
 
 // — Liste (filtres sobres : statut, département, recherche) —
+const TRIS: Record<string, string> = {
+  nom: 'nom.asc',
+  population_desc: 'population.desc.nullslast',
+  population_asc: 'population.asc.nullslast',
+};
+
 app.get('/prospects', async (c) => {
+  const tri = c.req.query('tri');
   const filtres: Record<string, string> = {
     select: 'id,code_insee,nom,departement,population,statut,contact_email,prochaine_relance_le',
-    order: 'nom.asc',
+    order: (tri && TRIS[tri]) || TRIS.nom,
   };
   const statut = c.req.query('statut');
   const departement = c.req.query('departement');

@@ -110,38 +110,49 @@ export const MODELE_PRESENTATION_DEFAUT = {
     </p>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
-    <div style="font-size:12px;color:#5b6b5c">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
-      Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
-      email, je vous rappelle avec plaisir.
+    <div style="font-size:12px;color:#5b6b5c;display:flex;align-items:center;gap:12px">
+      {{signature_photo}}
+      <div>
+        Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+        Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
+        email, je vous rappelle avec plaisir.
+      </div>
     </div>
   </div>`,
 };
 
 export interface ContextePresentation {
-  commune: string;      // nom de la commune
-  url: string;          // URL de l'app (client) ou de la démo (prospect)
-  lienFiche: string;    // lien vers la fiche de présentation
+  commune: string;         // nom de la commune
+  url: string;             // URL de l'app (client) ou de la démo (prospect)
+  lienFiche: string;       // lien vers la fiche de présentation
+  signaturePhoto?: string; // balise <img> de la photo de signature, ou '' (injecté à l'envoi)
 }
 
-// Substitue les variables du modèle. {{commune}} est échappé (contenu utilisateur) ; url et
-// lien_fiche sont construits côté serveur, insérés tels quels.
+// Substitue les variables du modèle. {{commune}} est échappé (contenu utilisateur) ; les autres
+// (url, lien_fiche, signature_photo) sont construits côté serveur, insérés tels quels.
 export function rendrePresentation(modele: string, ctx: ContextePresentation): string {
   return modele
     .replace(/\{\{commune\}\}/g, echapper(ctx.commune))
     .replace(/\{\{url\}\}/g, ctx.url)
-    .replace(/\{\{lien_fiche\}\}/g, ctx.lienFiche);
+    .replace(/\{\{lien_fiche\}\}/g, ctx.lienFiche)
+    .replace(/\{\{signature_photo\}\}/g, ctx.signaturePhoto || '');
 }
 
 // Charge le modèle enregistré (ou le défaut de secours si aucun n'existe / lecture échouée).
-export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string }> {
+export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string; signature_image_url?: string | null }> {
   try {
     const [row] = await supabaseSelect(env, 'modeles_email', {
-      select: 'objet,corps_html', cle: 'eq.presentation',
+      select: 'objet,corps_html,signature_image_url', cle: 'eq.presentation',
     });
     if (row?.objet && row?.corps_html) return row;
   } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
   return MODELE_PRESENTATION_DEFAUT;
+}
+
+// Balise <img> de signature à partir de l'URL stockée (vide si aucune photo).
+function baliseSignature(url: string | null | undefined): string {
+  if (!url) return '';
+  return `<img src="${url}" alt="" width="56" height="56" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" />`;
 }
 
 // Construit le contexte de variables pour une commune (client → son app ; prospect → la démo).
@@ -153,8 +164,10 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
   };
 }
 
-// Envoie l'email de présentation à partir du modèle enregistré, variables substituées.
+// Envoie l'email de présentation à partir du modèle enregistré, variables substituées (dont la
+// photo de signature stockée dans le modèle).
 export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<void> {
   const modele = await chargerModelePresentation(env);
-  await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), rendrePresentation(modele.corps_html, ctx));
+  const ctxComplet = { ...ctx, signaturePhoto: baliseSignature(modele.signature_image_url) };
+  await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), rendrePresentation(modele.corps_html, ctxComplet));
 }

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-10" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-11" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -88,13 +88,22 @@
           <div class="bo-carte" style="padding:16px 18px">
             <div class="bo-info" style="margin-bottom:12px">
               Email envoyé aux prospects et aux communes. Variables disponibles :
-              <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo), <code>{{lien_fiche}}</code>.
+              <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo), <code>{{lien_fiche}}</code>,
+              <code>{{signature_photo}}</code>.
             </div>
             <label style="margin-top:0">Objet</label>
             <input type="text" x-model="modele.objet" />
             <label>Corps (HTML)</label>
             <textarea x-model="modele.corps_html" style="min-height:220px; font-family:monospace; font-size:12.5px"></textarea>
-            <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
+
+            <label>Photo de signature</label>
+            <div style="display:flex; align-items:center; gap:14px">
+              <img x-show="modele.signature_image_url" :src="modele.signature_image_url" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover" />
+              <input type="file" accept="image/jpeg,image/png" @change="uploaderSignature($event)" style="width:auto; padding:6px" />
+              <span class="bo-info" x-text="signatureEnCours ? 'Envoi…' : signatureMsg"></span>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModele()" :disabled="modeleEnCours"
                       x-text="modeleEnCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
               <span class="bo-info" x-text="modeleMsg"></span>
@@ -261,6 +270,11 @@
             </select>
             <input type="text" x-model="filtreDep" @input.debounce.400ms="chargerProspects()" placeholder="Département" style="max-width:130px" />
             <input type="text" x-model="filtreRecherche" @input.debounce.400ms="chargerProspects()" placeholder="Rechercher une commune" />
+            <select x-model="filtreTri" @change="chargerProspects()">
+              <option value="nom">Tri : Nom (A→Z)</option>
+              <option value="population_desc">Population (décroissant)</option>
+              <option value="population_asc">Population (croissant)</option>
+            </select>
           </div>
 
           <!-- Barre d'action groupée -->
@@ -445,8 +459,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-10"></script>
-  <script src="/backoffice/js/app.js?v=20260813-10"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-10" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-11"></script>
+  <script src="/backoffice/js/app.js?v=20260813-11"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-11" defer></script>
 </body>
 </html>

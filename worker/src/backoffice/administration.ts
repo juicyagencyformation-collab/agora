@@ -11,7 +11,9 @@ import { hasherMotDePasse } from '../lib/password';
 import {
   envoyerEmailBienvenue, genererMotDePasseTemporaire,
   envoyerPresentation, contextePresentation, chargerModelePresentation,
+  MODELE_PRESENTATION_DEFAUT,
 } from './email-commune';
+import { uploaderFichier, deleteObject } from '../storage';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -259,6 +261,35 @@ app.put('/modele-email', async (c) => {
   if (existant) await supabaseUpdate(c.env, 'modeles_email', donnees, { cle: 'eq.presentation' });
   else await supabaseInsert(c.env, 'modeles_email', { cle: 'presentation', ...donnees });
   return c.json({ ok: true });
+});
+
+// POST /signature — upload de la photo de signature (R2), stockée dans le modèle. Le corps de
+// la requête est l'image brute (image/jpeg ou image/png).
+app.post('/signature', async (c) => {
+  const contentType = c.req.header('Content-Type') || '';
+  if (!/^image\/(jpeg|png)$/.test(contentType)) {
+    return c.json({ erreur: 'Format non autorisé (JPEG ou PNG uniquement)' }, 400);
+  }
+  const donnees = await c.req.arrayBuffer();
+  if (donnees.byteLength > 2 * 1024 * 1024) return c.json({ erreur: 'Image trop lourde (max 2 Mo)' }, 400);
+
+  // Supprime l'ancienne photo si présente (évite l'accumulation dans R2).
+  const [modele] = await supabaseSelect(c.env, 'modeles_email', { select: 'signature_image_url', cle: 'eq.presentation' });
+  if (modele?.signature_image_url && c.env.R2_PUBLIC_BASE) {
+    const ancienneCle = modele.signature_image_url.replace(`${c.env.R2_PUBLIC_BASE}/`, '');
+    if (ancienneCle && ancienneCle !== modele.signature_image_url) await deleteObject(c.env, ancienneCle);
+  }
+
+  const extension = contentType.split('/')[1];
+  const cle = `backoffice/signature-${crypto.randomUUID()}.${extension}`;
+  const url = await uploaderFichier(c.env, cle, donnees, contentType);
+
+  // Upsert : crée le modèle avec les valeurs par défaut s'il n'existe pas encore.
+  const patch = { signature_image_url: url, updated_at: new Date().toISOString() };
+  if (modele) await supabaseUpdate(c.env, 'modeles_email', patch, { cle: 'eq.presentation' });
+  else await supabaseInsert(c.env, 'modeles_email', { cle: 'presentation', ...MODELE_PRESENTATION_DEFAUT, ...patch });
+
+  return c.json({ ok: true, url });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
