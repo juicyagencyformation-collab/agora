@@ -297,6 +297,18 @@ async function uploaderImageModele(c: any, colonne: 'signature_image_url' | 'log
 app.post('/signature', (c) => uploaderImageModele(c, 'signature_image_url', 'signature'));
 app.post('/logo-email', (c) => uploaderImageModele(c, 'logo_image_url', 'logo'));
 
+// PUT /modele-fiche — contenu HTML de la fiche de présentation (upsert sur cle='fiche').
+app.put('/modele-fiche', async (c) => {
+  const body = z.object({ contenu_html: z.string().min(1).max(40000) }).safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const donnees = { objet: 'Fiche de présentation', corps_html: body.data.contenu_html, updated_at: new Date().toISOString() };
+  const [existant] = await supabaseSelect(c.env, 'modeles_email', { select: 'cle', cle: 'eq.fiche' });
+  if (existant) await supabaseUpdate(c.env, 'modeles_email', donnees, { cle: 'eq.fiche' });
+  else await supabaseInsert(c.env, 'modeles_email', { cle: 'fiche', ...donnees });
+  return c.json({ ok: true });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {

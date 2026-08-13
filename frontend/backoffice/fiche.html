@@ -75,56 +75,10 @@
     <button class="btn" onclick="window.print()">Imprimer / PDF</button>
   </div>
 
-  <div class="feuille">
-    <header>
-      <div>
-        <div class="marque">Agora<span>.</span></div>
-        <div class="baseline">La plateforme citoyenne de votre commune</div>
-      </div>
-      <div class="editeur">
-        Édité par <strong>Juicy Solutions</strong><br />
-        Léandre Sallé
-      </div>
-    </header>
+  <!-- Contenu injecté par fiche.js à partir du modèle éditable (backoffice). -->
+  <div class="feuille" id="feuille"></div>
 
-    <div class="hero">
-      <h1>Une application mobile <em>rien que pour</em> <span id="nom-commune">votre commune</span></h1>
-      <p>Informer, alerter et faire participer vos habitants — depuis un seul outil simple,
-         souverain et 100 % français, que la mairie pilote elle-même sans compétence technique.</p>
-    </div>
-
-    <div class="grille">
-      <div class="mod"><h3><span class="puce"></span>Actualités &amp; bulletin</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Agenda &amp; événements</h3><p>Le calendrier de la vie locale, avec rappels et inscriptions en un geste.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Conseil municipal</h3><p>Délibérations, comptes-rendus et trombinoscope des élus, en toute transparence.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Sondages &amp; participation</h3><p>Prenez le pouls des habitants sur les décisions qui les concernent.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Coups de main &amp; entraide</h3><p>Une commune qui s'entraide : services, prêts et solidarité entre voisins.</p></div>
-    </div>
-
-    <div class="atouts">
-      <div class="atout"><b>Souverain</b><span>Vos données restent les vôtres</span></div>
-      <div class="atout"><b>RGPD</b><span>Conforme, hébergé en Europe</span></div>
-      <div class="atout"><b>Sans engagement technique</b><span>Géré par la mairie seule</span></div>
-      <div class="atout"><b>Mobile-first</b><span>Aucune installation lourde</span></div>
-    </div>
-
-    <div class="acces">
-      <div class="acces__qr" id="qr"></div>
-      <div class="acces__txt">
-        <h2>Découvrez l'application en direct</h2>
-        <p>Scannez ce QR code avec l'appareil photo de votre téléphone pour ouvrir immédiatement l'application de la commune.</p>
-        <span class="acces__url" id="url-app">plateforme-agora.fr</span>
-      </div>
-    </div>
-
-    <footer>
-      <span>Juicy Solutions — plateforme-agora.fr</span>
-      <span>Contact : juicy.agency.formation@gmail.com</span>
-    </footer>
-  </div>
-
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-3"></script>
-  <script src="/backoffice/js/fiche.js?v=20260813-3"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-12"></script>
+  <script src="/backoffice/js/fiche.js?v=20260813-12"></script>
 </body>
 </html>

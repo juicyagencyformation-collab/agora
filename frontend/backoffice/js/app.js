@@ -24,6 +24,9 @@ function backoffice() {
     signatureMsg: '',
     logoEnCours: false,
     logoMsg: '',
+    modeleFiche: { contenu_html: '' },
+    modeleFicheEnCours: false,
+    modeleFicheMsg: '',
     testEmailDest: '',
     testEmailEnCours: false,
     testEmailMsg: '',
@@ -59,6 +62,7 @@ function backoffice() {
         this.staff = staff;
         this.testEmailDest = staff.email || '';
         try { this.modele = (await boFetch('/administration/modele-email')).modele; } catch {}
+        try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
       } catch {
         redirigerVersConnexion();
         return;
@@ -135,6 +139,21 @@ function backoffice() {
       } finally {
         this.signatureEnCours = false;
         e.target.value = '';
+      }
+    },
+
+    async enregistrerModeleFiche() {
+      this.modeleFicheEnCours = true;
+      this.modeleFicheMsg = '';
+      try {
+        await boFetch('/administration/modele-fiche', {
+          method: 'PUT', body: JSON.stringify({ contenu_html: this.modeleFiche.contenu_html }),
+        });
+        this.modeleFicheMsg = 'Fiche enregistrée.';
+      } catch (e) {
+        this.modeleFicheMsg = e.message || 'Échec';
+      } finally {
+        this.modeleFicheEnCours = false;
       }
     },
 
