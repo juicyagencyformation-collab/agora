@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<!-- frontend/backoffice/index.html — tableau de bord du backoffice interne Juicy Solutions -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Backoffice Agora</title>
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813" />
+</head>
+<body>
+  <div class="bo-app" x-data="backoffice()" x-init="init()">
+    <!-- Navigation -->
+    <nav class="bo-nav">
+      <div class="bo-nav__marque">Agora <span>Backoffice</span></div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
+      <div class="bo-nav__lien" data-inactif title="À venir (Phase 2)">Prospection</div>
+      <div class="bo-nav__lien" data-inactif title="À venir (Phase 3)">Onboarding</div>
+      <div class="bo-nav__pied">
+        <div x-text="staff.nom"></div>
+        <div style="margin-top:8px"><a @click.prevent="deconnexion()" href="#">Se déconnecter</a></div>
+      </div>
+    </nav>
+
+    <!-- Contenu -->
+    <main class="bo-main">
+      <template x-if="chargement">
+        <div class="bo-chargement">Chargement…</div>
+      </template>
+
+      <!-- Vue : liste des communes -->
+      <template x-if="!chargement && vue === 'communes'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">Communes clientes</div>
+              <div class="bo-sous">Suivi des communes actives sur la plateforme.</div>
+            </div>
+          </div>
+
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_communes ?? '—'"></div><div class="bo-stat__lib">Communes</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_citoyens ?? '—'"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.note_moyenne ?? '—'"></div><div class="bo-stat__lib">Note moyenne app</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_avis ?? '—'"></div><div class="bo-stat__lib">Avis déposés</div></div>
+          </div>
+
+          <div class="bo-carte">
+            <table>
+              <thead>
+                <tr><th>Commune</th><th>Population</th><th>Citoyens</th><th>Note app</th><th>Cliente depuis</th></tr>
+              </thead>
+              <tbody>
+                <template x-for="c in communes" :key="c.id">
+                  <tr @click="ouvrirFiche(c.id)">
+                    <td class="bo-nom-commune" x-text="c.nom"></td>
+                    <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
+                    <td x-text="c.nb_citoyens"></td>
+                    <td>
+                      <template x-if="c.note_moyenne !== null">
+                        <span class="bo-note" :class="classeNote(c.note_moyenne)" x-text="'★ ' + c.note_moyenne + ' (' + c.nb_avis + ')'"></span>
+                      </template>
+                      <template x-if="c.note_moyenne === null"><span class="bo-vide">—</span></template>
+                    </td>
+                    <td x-text="formatDate(c.created_at)"></td>
+                  </tr>
+                </template>
+                <template x-if="communes.length === 0">
+                  <tr><td colspan="5" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
+      <!-- Vue : fiche d'une commune -->
+      <template x-if="!chargement && vue === 'fiche' && fiche">
+        <div>
+          <div class="bo-retour" @click="allerCommunes()">← Retour aux communes</div>
+
+          <div class="bo-fiche-entete">
+            <img class="bo-logo" :src="fiche.commune.logo_url || '/icons/icon-192.png'" alt="" />
+            <div>
+              <div class="bo-titre" x-text="fiche.commune.nom"></div>
+              <div class="bo-sous">
+                <span x-text="'/' + fiche.commune.slug"></span>
+                <template x-if="fiche.commune.email_mairie"><span> · <span x-text="fiche.commune.email_mairie"></span></span></template>
+              </div>
+            </div>
+          </div>
+
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.citoyens.total"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.avis.note_moyenne ?? '—'"></div><div class="bo-stat__lib" x-text="'Note app (' + fiche.avis.nb + ' avis)'"></div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche.stockage.nb_fichiers + ' fichiers R2'"></div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
+          </div>
+
+          <div class="bo-section-titre">Répartition des rôles</div>
+          <div class="bo-repartition">
+            <template x-for="(nb, role) in fiche.citoyens.par_role" :key="role">
+              <span class="bo-badge" x-text="role + ' · ' + nb"></span>
+            </template>
+            <template x-if="Object.keys(fiche.citoyens.par_role).length === 0"><span class="bo-vide">Aucun compte.</span></template>
+          </div>
+
+          <div class="bo-section-titre" x-text="'Avis des citoyens (' + fiche.avis.nb + ')'"></div>
+          <div class="bo-carte" style="padding:0 18px">
+            <template x-for="(a, i) in fiche.avis.liste" :key="i">
+              <div class="bo-avis-item">
+                <div class="bo-avis-item__tete">
+                  <span class="bo-note" :class="classeNote(a.note)" x-text="'★ ' + a.note + '/5'"></span>
+                  <span class="bo-avis-item__date" x-text="formatDate(a.created_at)"></span>
+                </div>
+                <div x-text="a.commentaire || '(sans commentaire)'" :class="{ 'bo-vide': !a.commentaire }"></div>
+              </div>
+            </template>
+            <template x-if="fiche.avis.nb === 0">
+              <div class="bo-avis-item bo-vide">Aucun avis déposé.</div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </main>
+  </div>
+
+  <script src="/backoffice/js/api.js?v=20260813"></script>
+  <script src="/backoffice/js/app.js?v=20260813"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813" defer></script>
+</body>
+</html>

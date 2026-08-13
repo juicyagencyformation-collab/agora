@@ -28,6 +28,7 @@ import photoDuJour from './routes/photo_du_jour';
 import memoire from './routes/memoire';
 import decouverte from './routes/decouverte';
 import lois from './routes/lois';
+import backoffice from './backoffice';
 import { synchroniserToutesLesLois } from './lib/sync-lois';
 
 const app = new Hono();
@@ -47,6 +48,10 @@ app.use('*', cors({
 // Découverte régionale — route publique, AVANT la résolution de tenant, sinon
 // "decouverte" serait interprété à tort comme un slug de commune.
 app.route('/decouverte', decouverte);
+
+// Backoffice interne Juicy Solutions — transverse, hors résolution de tenant (mêmes raisons
+// que /decouverte). Sa propre garde d'accès (scope 'backoffice') est appliquée dans ses routes.
+app.route('/backoffice', backoffice);
 
 // Résolution tenant : chaque route commence par /:slug/...
 app.use('/:slug/*', tenantMiddleware);

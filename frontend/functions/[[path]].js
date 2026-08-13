@@ -64,6 +64,24 @@ export async function onRequest(context) {
     return relayerVersWorker(context.request, segments);
   }
 
+  // Backoffice interne (frontend/backoffice/*) : outil séparé de l'app citoyenne, avec son
+  // propre routage. Les fichiers (js/css/vendor, tout ce qui contient un point) sont servis
+  // tels quels ; les chemins "propres" sont mappés vers leur .html (/backoffice -> index,
+  // /backoffice/connexion -> connexion.html). Rien ici ne passe par la logique de commune.
+  if (premier === 'backoffice') {
+    const dernierSeg = segments[segments.length - 1];
+    if (dernierSeg.includes('.')) {
+      const asset = await recupererAssetSansRedirection(context.env, url);
+      if (asset) return new Response(asset.body, { status: asset.status, headers: asset.headers });
+      return context.env.ASSETS.fetch(context.request);
+    }
+    const nom = segments.length === 1 ? 'index' : dernierSeg;
+    const pageCible = ['index', 'connexion'].includes(nom) ? nom : 'index';
+    const page = await recupererAssetSansRedirection(context.env, new URL(`/backoffice/${pageCible}.html`, url.origin));
+    if (page) return new Response(page.body, { status: page.status, headers: page.headers });
+    return context.env.ASSETS.fetch(context.request);
+  }
+
   if (DOSSIERS_STATIQUES.includes(premier) || (segments.length === 1 && premier.includes('.'))) {
     // Comme pour le reste du fichier : on absorbe nous-mêmes toute redirection interne que
     // Cloudflare pourrait renvoyer (ex: /reinitialiser.html → /reinitialiser sans extension),

@@ -1,0 +1,143 @@
+/* frontend/backoffice/css/backoffice.css
+   Style de l'outil interne Juicy Solutions. Volontairement distinct de la PWA citoyenne :
+   sobre, dense, orienté données. Aucune dépendance externe. */
+
+:root {
+  --bo-bg: #0f172a;
+  --bo-surface: #1e293b;
+  --bo-surface-2: #334155;
+  --bo-border: #334155;
+  --bo-text: #e2e8f0;
+  --bo-text-faible: #94a3b8;
+  --bo-accent: #38bdf8;
+  --bo-accent-fort: #0ea5e9;
+  --bo-vert: #34d399;
+  --bo-rouge: #f87171;
+  --bo-jaune: #fbbf24;
+  --bo-radius: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bo-bg);
+  color: var(--bo-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--bo-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.bo-cache { display: none !important; }
+
+/* — Connexion — */
+.bo-login {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.bo-login__carte {
+  width: 100%; max-width: 380px;
+  background: var(--bo-surface);
+  border: 1px solid var(--bo-border);
+  border-radius: 16px;
+  padding: 32px;
+}
+.bo-login__titre { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.bo-login__sous { color: var(--bo-text-faible); font-size: 13px; margin-bottom: 24px; }
+
+label { display: block; font-size: 13px; color: var(--bo-text-faible); margin: 14px 0 6px; }
+input {
+  width: 100%; padding: 11px 12px;
+  background: var(--bo-bg);
+  border: 1px solid var(--bo-border);
+  border-radius: 8px; color: var(--bo-text); font-size: 15px;
+}
+input:focus { outline: none; border-color: var(--bo-accent); }
+
+.bo-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 16px; border: none; border-radius: 8px;
+  background: var(--bo-accent-fort); color: #04121e; font-weight: 600; font-size: 15px;
+  cursor: pointer; width: 100%; margin-top: 20px;
+}
+.bo-btn:hover { background: var(--bo-accent); }
+.bo-btn:disabled { opacity: .55; cursor: default; }
+.bo-btn--sec {
+  width: auto; background: transparent; color: var(--bo-text);
+  border: 1px solid var(--bo-border); font-weight: 500; margin: 0;
+}
+.bo-erreur { color: var(--bo-rouge); font-size: 13px; margin-top: 14px; min-height: 18px; }
+
+/* — Layout app — */
+.bo-app { display: flex; min-height: 100vh; }
+.bo-nav {
+  width: 240px; flex-shrink: 0;
+  background: var(--bo-surface);
+  border-right: 1px solid var(--bo-border);
+  display: flex; flex-direction: column;
+  padding: 20px 14px;
+}
+.bo-nav__marque { font-weight: 800; font-size: 17px; padding: 6px 10px 20px; }
+.bo-nav__marque span { color: var(--bo-accent); }
+.bo-nav__lien {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; color: var(--bo-text-faible);
+  font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.bo-nav__lien:hover { background: var(--bo-surface-2); color: var(--bo-text); text-decoration: none; }
+.bo-nav__lien.actif { background: var(--bo-surface-2); color: var(--bo-text); }
+.bo-nav__lien[data-inactif] { opacity: .4; cursor: not-allowed; }
+.bo-nav__pied { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--bo-border); font-size: 13px; color: var(--bo-text-faible); }
+
+.bo-main { flex: 1; padding: 28px 32px; overflow-x: auto; }
+.bo-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+.bo-titre { font-size: 22px; font-weight: 700; }
+.bo-sous { color: var(--bo-text-faible); font-size: 14px; }
+
+/* — Cartes / stats — */
+.bo-grille-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.bo-stat { background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: var(--bo-radius); padding: 18px 20px; }
+.bo-stat__val { font-size: 28px; font-weight: 700; }
+.bo-stat__lib { color: var(--bo-text-faible); font-size: 13px; margin-top: 2px; }
+
+/* — Tableau — */
+.bo-carte { background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: var(--bo-radius); overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead th { text-align: left; padding: 13px 18px; color: var(--bo-text-faible); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--bo-border); }
+tbody td { padding: 14px 18px; border-bottom: 1px solid var(--bo-border); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--bo-surface-2); }
+.bo-nom-commune { font-weight: 600; color: var(--bo-text); }
+
+.bo-note { display: inline-flex; align-items: center; gap: 4px; }
+.bo-note--haute { color: var(--bo-vert); }
+.bo-note--moyenne { color: var(--bo-jaune); }
+.bo-note--basse { color: var(--bo-rouge); }
+.bo-vide { color: var(--bo-text-faible); }
+
+.bo-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; background: var(--bo-surface-2); color: var(--bo-text-faible); font-size: 12px; font-weight: 600; }
+
+/* — Fiche commune — */
+.bo-retour { display: inline-flex; align-items: center; gap: 6px; color: var(--bo-text-faible); font-size: 14px; margin-bottom: 16px; cursor: pointer; }
+.bo-retour:hover { color: var(--bo-text); }
+.bo-fiche-entete { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.bo-logo { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; background: var(--bo-surface-2); }
+.bo-avis-item { padding: 14px 0; border-bottom: 1px solid var(--bo-border); }
+.bo-avis-item:last-child { border-bottom: none; }
+.bo-avis-item__tete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.bo-avis-item__date { color: var(--bo-text-faible); font-size: 12px; }
+.bo-section-titre { font-size: 15px; font-weight: 700; margin: 28px 0 12px; }
+.bo-repartition { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.bo-chargement { color: var(--bo-text-faible); padding: 40px; text-align: center; }
+
+@media (max-width: 720px) {
+  .bo-app { flex-direction: column; }
+  .bo-nav { width: 100%; flex-direction: row; overflow-x: auto; padding: 12px; }
+  .bo-nav__pied { display: none; }
+  .bo-main { padding: 20px 16px; }
+}
