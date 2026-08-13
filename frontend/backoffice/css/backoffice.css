@@ -187,7 +187,24 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 
 @media (max-width: 720px) {
   .bo-app { flex-direction: column; }
-  .bo-nav { width: 100%; flex-direction: row; overflow-x: auto; padding: 12px; }
-  .bo-nav__pied { display: none; }
-  .bo-main { padding: 20px 16px; }
+
+  /* Barre de navigation en haut : marque + liens + déconnexion, sur une ligne qui peut passer à la ligne. */
+  .bo-nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 10px 14px; }
+  .bo-nav__marque { padding: 0 6px 0 0; font-size: 16px; }
+  .bo-nav__lien { padding: 8px 10px; }
+  .bo-nav__pied { display: flex; align-items: center; gap: 12px; margin: 0 0 0 auto; padding: 0; border-top: none; }
+  .bo-nav__pied > div { margin: 0 !important; }
+
+  .bo-main { padding: 18px 14px; }
+
+  /* Tableaux : défilement horizontal contenu dans leur carte plutôt que de déborder la page. */
+  .bo-carte { overflow-x: auto; }
+  table { min-width: 560px; }
+
+  /* Statistiques : 2 colonnes plutôt que 4. */
+  .bo-grille-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .bo-entete { flex-direction: column; align-items: flex-start; }
+  .bo-fiche-entete { flex-wrap: wrap; }
+  .bo-titre { font-size: 19px; }
 }

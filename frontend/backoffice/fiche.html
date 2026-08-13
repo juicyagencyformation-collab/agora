@@ -61,6 +61,20 @@
 
     footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; font-size: 12px; color: var(--gris); }
 
+    @media (max-width: 720px) {
+      .barre-actions { max-width: 100%; }
+      .feuille { width: auto; min-height: auto; padding: 20px 16px; margin: 0 8px 16px; }
+      header { flex-direction: column; gap: 10px; }
+      .editeur { text-align: left; }
+      .hero h1 { font-size: 22px; }
+      .hero p { max-width: 100%; }
+      .grille { grid-template-columns: 1fr; }
+      .atouts { flex-wrap: wrap; }
+      .atout { flex: 1 1 45%; }
+      .acces { flex-direction: column; text-align: center; }
+      footer { flex-direction: column; gap: 6px; }
+    }
+
     @media print {
       body { background: #fff; }
       .barre-actions { display: none; }
