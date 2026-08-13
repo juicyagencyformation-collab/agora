@@ -168,6 +168,15 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 
 .bo-chargement { color: var(--bo-text-faible); padding: 40px; text-align: center; }
 
+/* Jauge de stockage */
+.bo-jauge { height: 10px; background: var(--bo-surface-2); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+.bo-jauge__rempli { height: 100%; background: var(--bo-vert); border-radius: 999px; transition: width .3s; }
+.bo-jauge__rempli--alerte { background: var(--bo-jaune); }
+.bo-jauge__rempli--plein { background: var(--bo-rouge); }
+.bo-champ-inline { display: flex; flex-direction: column; }
+.bo-champ-inline input { width: 200px; }
+.bo-champ-inline input[type=number] { width: 120px; }
+
 @media (max-width: 720px) {
   .bo-app { flex-direction: column; }
   .bo-nav { width: 100%; flex-direction: row; overflow-x: auto; padding: 12px; }

@@ -4,6 +4,7 @@
 // On lit directement les tables existantes (communes, users, avis_application) et on calcule
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { supabaseSelect, supabaseUpdate } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
@@ -36,7 +37,7 @@ async function calculerStockageR2(env: any, commune_id: string): Promise<{ octet
 // La commune "nationale" (niveau_national=true) n'est pas une cliente : on l'exclut.
 app.get('/communes', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,created_at',
     niveau_national: 'eq.false',
     order: 'nom.asc',
   });
@@ -73,7 +74,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -99,6 +100,27 @@ app.get('/communes/:id', async (c) => {
     avis: { note_moyenne, nb: avis.length, liste: avis },
     stockage,
   });
+});
+
+// PATCH /communes/:id/forfait — définit le forfait (nom libre) et le quota de stockage (Go).
+// Chaîne/valeur vide → efface le champ (null).
+const forfaitSchema = z.object({
+  forfait: z.string().max(60).optional().nullable(),
+  quota_go: z.number().min(0).max(10000).optional().nullable(),
+});
+
+app.patch('/communes/:id/forfait', async (c) => {
+  const id = c.req.param('id');
+  const body = forfaitSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const patch: Record<string, unknown> = {};
+  if (body.data.forfait !== undefined) patch.forfait = body.data.forfait?.trim() || null;
+  if (body.data.quota_go !== undefined) patch.quota_go = body.data.quota_go ?? null;
+  if (Object.keys(patch).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+
+  await supabaseUpdate(c.env, 'communes', patch, { id: `eq.${id}` });
+  return c.json({ ok: true, ...patch });
 });
 
 // POST /communes/:id/coordonnees — (re)renseigne lat/lng d'une commune depuis geo.api.gouv.fr.

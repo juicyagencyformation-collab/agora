@@ -11,6 +11,10 @@ function backoffice() {
     coordsMsg: '',
     accesEnCours: false,
     accesMsg: '',
+    forfaitNom: '',
+    forfaitQuota: '',
+    forfaitEnCours: false,
+    forfaitMsg: '',
     testEmailDest: '',
     testEmailEnCours: false,
     testEmailMsg: '',
@@ -70,11 +74,44 @@ function backoffice() {
       this.vue = 'fiche';
       this.coordsMsg = '';
       this.accesMsg = '';
+      this.forfaitMsg = '';
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
+        this.forfaitNom = this.fiche.commune.forfait || '';
+        this.forfaitQuota = this.fiche.commune.quota_go ?? '';
       } finally {
         this.chargement = false;
       }
+    },
+
+    async enregistrerForfait() {
+      this.forfaitEnCours = true;
+      this.forfaitMsg = '';
+      try {
+        const quota = this.forfaitQuota === '' || this.forfaitQuota === null ? null : Number(this.forfaitQuota);
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/forfait', {
+          method: 'PATCH', body: JSON.stringify({ forfait: this.forfaitNom || null, quota_go: quota }),
+        });
+        this.fiche.commune.forfait = r.forfait ?? null;
+        this.fiche.commune.quota_go = r.quota_go ?? null;
+        this.forfaitMsg = 'Enregistré.';
+      } catch (e) {
+        this.forfaitMsg = e.message || 'Échec';
+      } finally {
+        this.forfaitEnCours = false;
+      }
+    },
+
+    pourcentageStockage() {
+      const q = this.fiche.commune.quota_go;
+      if (!q) return 0;
+      return Math.round((this.fiche.stockage.octets / (q * 1024 ** 3)) * 100);
+    },
+    classeJauge() {
+      const p = this.pourcentageStockage();
+      if (p >= 100) return 'bo-jauge__rempli--plein';
+      if (p >= 80) return 'bo-jauge__rempli--alerte';
+      return '';
     },
 
     async renvoyerAcces() {

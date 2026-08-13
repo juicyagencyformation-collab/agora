@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-8" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-9" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -47,7 +47,7 @@
           <div class="bo-carte">
             <table>
               <thead>
-                <tr><th>Commune</th><th>Population</th><th>Citoyens</th><th>Note app</th><th>Cliente depuis</th></tr>
+                <tr><th>Commune</th><th>Population</th><th>Citoyens</th><th>Forfait</th><th>Note app</th><th>Cliente depuis</th></tr>
               </thead>
               <tbody>
                 <template x-for="c in communes" :key="c.id">
@@ -55,6 +55,7 @@
                     <td class="bo-nom-commune" x-text="c.nom"></td>
                     <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
                     <td x-text="c.nb_citoyens"></td>
+                    <td><span :class="{ 'bo-vide': !c.forfait }" x-text="c.forfait ? (c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')) : '—'"></span></td>
                     <td>
                       <template x-if="c.note_moyenne !== null">
                         <span class="bo-note" :class="classeNote(c.note_moyenne)" x-text="'★ ' + c.note_moyenne + ' (' + c.nb_avis + ')'"></span>
@@ -65,7 +66,7 @@
                   </tr>
                 </template>
                 <template x-if="communes.length === 0">
-                  <tr><td colspan="5" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
+                  <tr><td colspan="6" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
                 </template>
               </tbody>
             </table>
@@ -128,6 +129,33 @@
               <span class="bo-info" x-text="accesMsg"></span>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
                       x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
+            </div>
+          </div>
+
+          <div class="bo-section-titre">Forfait &amp; stockage</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Forfait</label>
+                <input type="text" x-model="forfaitNom" placeholder="ex. Essentiel" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Quota (Go)</label>
+                <input type="number" x-model="forfaitQuota" min="0" step="0.5" placeholder="illimité" />
+              </div>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerForfait()" :disabled="forfaitEnCours"
+                      x-text="forfaitEnCours ? 'Enregistrement…' : 'Enregistrer'"></button>
+              <span class="bo-info" x-text="forfaitMsg"></span>
+            </div>
+
+            <div style="margin-top:16px">
+              <div style="display:flex; justify-content:space-between; font-size:14px">
+                <span x-text="'Stockage utilisé : ' + formatOctets(fiche.stockage.octets) + (fiche.commune.quota_go ? ' / ' + fiche.commune.quota_go + ' Go' : ' (aucun quota défini)')"></span>
+                <span class="bo-info" x-show="fiche.commune.quota_go" x-text="pourcentageStockage() + ' %'"></span>
+              </div>
+              <div class="bo-jauge" x-show="fiche.commune.quota_go">
+                <div class="bo-jauge__rempli" :class="classeJauge()" :style="'width:' + Math.min(100, pourcentageStockage()) + '%'"></div>
+              </div>
             </div>
           </div>
 
@@ -380,8 +408,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-8"></script>
-  <script src="/backoffice/js/app.js?v=20260813-8"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-8" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-9"></script>
+  <script src="/backoffice/js/app.js?v=20260813-9"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-9" defer></script>
 </body>
 </html>
