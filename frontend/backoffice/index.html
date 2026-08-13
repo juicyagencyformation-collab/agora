@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-15" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-15" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-16" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-16" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -323,7 +323,7 @@
               <thead>
                 <tr>
                   <th style="width:34px"><input type="checkbox" style="width:auto" :checked="toutSelectionne()" @change="basculerTout()" /></th>
-                  <th>Commune</th><th>Dépt</th><th>Population</th><th>Statut</th><th>Contact</th><th>Relance</th>
+                  <th>Commune</th><th>Dépt</th><th>Population</th><th>Statut</th><th>Contact</th><th>Relance</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -336,10 +336,16 @@
                     <td><span class="bo-statut" :class="'bo-statut--' + p.statut" x-text="libelleStatut(p.statut)"></span></td>
                     <td><span :class="{ 'bo-vide': !p.contact_email }" x-text="p.contact_email || 'non enrichi'"></span></td>
                     <td><span :class="relanceEnRetard(p) ? 'bo-note--basse' : ''" x-text="p.prochaine_relance_le ? formatDate(p.prochaine_relance_le) : '—'"></span></td>
+                    <td @click.stop style="white-space:nowrap">
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerPresentationLigne(p)" :disabled="envoiLigneId === p.id"
+                              :title="'Envoyer la présentation à ' + p.nom"
+                              x-text="envoiLigneId === p.id ? '…' : '✉'"></button>
+                      <span x-show="dernierEnvoiId === p.id" style="color:var(--bo-vert); margin-left:6px" title="Présentation envoyée">✓</span>
+                    </td>
                   </tr>
                 </template>
                 <template x-if="prospects.length === 0">
-                  <tr><td colspan="7" class="bo-vide" style="text-align:center">Aucun prospect. Importe un département ci-dessus.</td></tr>
+                  <tr><td colspan="8" class="bo-vide" style="text-align:center">Aucun prospect. Importe un département ci-dessus.</td></tr>
                 </template>
               </tbody>
             </table>
@@ -503,9 +509,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-15"></script>
-  <script src="/backoffice/js/api.js?v=20260813-15"></script>
-  <script src="/backoffice/js/app.js?v=20260813-15"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-15" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-16"></script>
+  <script src="/backoffice/js/api.js?v=20260813-16"></script>
+  <script src="/backoffice/js/app.js?v=20260813-16"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-16" defer></script>
 </body>
 </html>

@@ -50,6 +50,8 @@ function backoffice() {
     selectionProspects: {}, // id -> true
     lotEnCours: false,
     lotMsg: '',
+    envoiLigneId: null,   // id du prospect dont l'envoi ligne est en cours
+    dernierEnvoiId: null, // id du dernier prospect envoyé (pour le ✓)
     filtreStatut: '',
     filtreDep: '',
     filtreRecherche: '',
@@ -380,6 +382,22 @@ function backoffice() {
         this.importMsg = e.message || 'Import impossible';
       } finally {
         this.importEnCours = false;
+      }
+    },
+
+    // Envoi direct depuis une ligne de la liste (sans ouvrir la fiche).
+    async envoyerPresentationLigne(p) {
+      this.envoiLigneId = p.id;
+      try {
+        await boFetch('/prospection/prospects/' + p.id + '/prospecter', { method: 'POST' });
+        // Reflète côté liste : statut → contacté (si à contacter) + relance à +7 jours.
+        if (p.statut === 'a_contacter') p.statut = 'contacte';
+        p.prochaine_relance_le = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+        this.dernierEnvoiId = p.id;
+      } catch (e) {
+        alert(e.message || 'Envoi impossible');
+      } finally {
+        this.envoiLigneId = null;
       }
     },
 
