@@ -53,6 +53,12 @@ function renderSouvenir(s) {
 
 function remplirSouvenir(zone, s) {
   let html = '';
+  if (s.personne_nom) {
+    const debut = s.personne_date_naissance ? new Date(s.personne_date_naissance).getFullYear() : null;
+    const fin = s.personne_date_deces ? new Date(s.personne_date_deces).getFullYear() : null;
+    const dates = debut ? ` (${debut} – ${fin || ''})` : '';
+    html += `<p class="detail-annonce">👤 <strong>${escapeAttr(s.personne_nom)}</strong>${dates}</p>`;
+  }
   if (s.recit) html += `<p>${texteAvecLiensCliquables(s.recit)}</p>`;
   if (s.audio_url) html += `<audio controls preload="none" src="${s.audio_url}" style="width:100%;margin:8px 0;"></audio>`;
   html += '<div class="images-article"></div>';
@@ -96,6 +102,74 @@ function initFormulaireMemoire() {
   const btn = document.getElementById('btn-ouvrir-creation-souvenir');
   if (!btn) return;
   btn.addEventListener('click', () => ouvrirModaleSouvenir());
+  initSousOngletsMemoire();
+}
+
+// ── Sous-onglets Récits / Frise des ancêtres ──
+
+function initSousOngletsMemoire() {
+  document.querySelectorAll('.sous-onglet-memoire-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sous-onglet-memoire-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const estFrise = btn.dataset.sousonglet === 'frise';
+      document.getElementById('sous-contenu-recits-memoire').hidden = estFrise;
+      document.getElementById('sous-contenu-frise-memoire').hidden = !estFrise;
+      if (estFrise) chargerFriseAncetres();
+    });
+  });
+}
+
+// Ouvre un souvenir précis depuis la frise : revient sur "Récits", recharge la liste,
+// déplie la carte et y fait défiler.
+async function ouvrirSouvenirParId(id) {
+  document.querySelectorAll('.sous-onglet-memoire-btn').forEach((b) => b.classList.toggle('active', b.dataset.sousonglet === 'recits'));
+  document.getElementById('sous-contenu-recits-memoire').hidden = false;
+  document.getElementById('sous-contenu-frise-memoire').hidden = true;
+  await chargerMemoire();
+  const carte = document.querySelector(`[data-souvenir-id="${id}"]`);
+  if (!carte) return;
+  carte.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const zoneDepliee = carte.querySelector('.contenu-article-deplie');
+  if (zoneDepliee?.hidden) carte.querySelector('.entete-article-compact').click();
+}
+
+// Frise chronologique : souvenirs du thème "famille" avec une date de naissance renseignée,
+// triés du plus ancien au plus récent.
+async function chargerFriseAncetres() {
+  const zone = document.getElementById('frise-ancetres');
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/memoire`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { souvenirs } = await res.json();
+
+  const ancetres = souvenirs
+    .filter((s) => s.theme === 'famille' && s.personne_date_naissance)
+    .sort((a, b) => a.personne_date_naissance.localeCompare(b.personne_date_naissance));
+
+  if (!ancetres.length) {
+    zone.innerHTML = `<p class="dechets-vide">Aucun ancêtre sur la frise pour l'instant. Partagez un souvenir du thème "Familles & ancêtres" avec une date de naissance !</p>`;
+    return;
+  }
+
+  zone.innerHTML = '';
+  zone.className = 'frise-ancetres';
+  ancetres.forEach((s) => zone.appendChild(renderCarteAncetre(s)));
+}
+
+function renderCarteAncetre(s) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'carte-ancetre';
+  const portrait = s.images?.[0]?.url;
+  const debut = new Date(s.personne_date_naissance).getFullYear();
+  const fin = s.personne_date_deces ? new Date(s.personne_date_deces).getFullYear() : null;
+  el.innerHTML = `
+    ${portrait ? `<img src="${portrait}" class="portrait-ancetre">` : '<div class="portrait-ancetre-vide">👤</div>'}
+    <span class="nom-ancetre">${escapeAttr(s.personne_nom || s.titre)}</span>
+    <span class="dates-ancetre">${debut} – ${fin ?? ''}</span>
+  `;
+  el.addEventListener('click', () => ouvrirSouvenirParId(s.id));
+  return el;
 }
 
 // souvenir fourni = édition (titre/récit/thème seulement ; photos et audio non modifiables ici).
@@ -107,6 +181,20 @@ function ouvrirModaleSouvenir(souvenir = null) {
     <form id="form-souvenir">
       <input type="text" id="titre-souvenir" placeholder="Titre du souvenir" maxlength="150" required value="${souvenir ? escapeAttr(souvenir.titre) : ''}">
       <select id="theme-souvenir">${optionsTheme}</select>
+      <div id="champs-personne-souvenir" style="display:none;margin-top:8px;">
+        <input type="text" id="personne-nom-souvenir" placeholder="Nom de la personne (ex : Jean Dupont)" maxlength="100" value="${souvenir ? escapeAttr(souvenir.personne_nom || '') : ''}">
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:12px;color:var(--roseau);margin-bottom:3px;">Date de naissance</label>
+            <input type="date" id="personne-naissance-souvenir" value="${souvenir?.personne_date_naissance || ''}">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:12px;color:var(--roseau);margin-bottom:3px;">Date de décès (si applicable)</label>
+            <input type="date" id="personne-deces-souvenir" value="${souvenir?.personne_date_deces || ''}">
+          </div>
+        </div>
+        <p style="font-size:11.5px;color:var(--roseau);margin:4px 0 0;">Avec une photo et une date de naissance, cette personne apparaît sur la frise des ancêtres.</p>
+      </div>
       <textarea id="recit-souvenir" placeholder="Racontez votre souvenir, l'histoire du lieu, de vos ancêtres…" maxlength="10000">${souvenir ? escapeAttr(souvenir.recit || '') : ''}</textarea>
       ${souvenir ? '' : `
         <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Photos d'époque (optionnel)</label>
@@ -124,6 +212,13 @@ function ouvrirModaleSouvenir(souvenir = null) {
   `;
   const overlay = ouvrirModaleFormulaire(souvenir ? 'Modifier le souvenir' : 'Partager un souvenir', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  // Champs "personne" affichés uniquement pour le thème Familles & ancêtres.
+  const selectTheme = corps.querySelector('#theme-souvenir');
+  const champsPersonne = corps.querySelector('#champs-personne-souvenir');
+  const majAffichagePersonne = () => { champsPersonne.style.display = selectTheme.value === 'famille' ? 'block' : 'none'; };
+  selectTheme.addEventListener('change', majAffichagePersonne);
+  majAffichagePersonne();
 
   // État audio (création uniquement).
   let blobAudio = null;
@@ -188,13 +283,20 @@ function ouvrirModaleSouvenir(souvenir = null) {
     const recit = corps.querySelector('#recit-souvenir').value.trim();
     if (!titre) return;
 
+    const personne_nom = corps.querySelector('#personne-nom-souvenir').value.trim();
+    const personne_date_naissance = corps.querySelector('#personne-naissance-souvenir').value;
+    const personne_date_deces = corps.querySelector('#personne-deces-souvenir').value;
+    const champsPersonneUtiles = theme === 'famille'
+      ? { ...(personne_nom ? { personne_nom } : {}), ...(personne_date_naissance ? { personne_date_naissance } : {}), ...(personne_date_deces ? { personne_date_deces } : {}) }
+      : {};
+
     const boutonSubmit = corps.querySelector('button[type="submit"]');
     boutonSubmit.disabled = true;
 
     if (souvenir) {
       const res = await appelApi(`/${window.COMMUNE_SLUG}/memoire/${souvenir.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ titre, theme, recit }),
+        body: JSON.stringify({ titre, theme, recit, ...champsPersonneUtiles }),
       });
       boutonSubmit.disabled = false;
       if (res.ok) { fermerModaleFormulaire(overlay); chargerMemoire(); }
@@ -234,7 +336,7 @@ function ouvrirModaleSouvenir(souvenir = null) {
 
     const res = await appelApi(`/${window.COMMUNE_SLUG}/memoire`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ titre, theme, recit, image_r2_keys, audio_r2_key }),
+      body: JSON.stringify({ titre, theme, recit, image_r2_keys, audio_r2_key, ...champsPersonneUtiles }),
     });
     boutonSubmit.disabled = false;
     if (res.ok) {

@@ -20,7 +20,7 @@ app.get('/', async (c) => {
   const user_id = c.get('user_id');
 
   const souvenirs = await supabaseSelect(c.env, 'souvenirs', {
-    select: 'id,user_id,titre,recit,theme,audio_url,created_at',
+    select: 'id,user_id,titre,recit,theme,audio_url,personne_nom,personne_date_naissance,personne_date_deces,created_at',
     commune_id: `eq.${commune_id}`, statut: 'eq.visible', order: 'created_at.desc',
   });
   if (!souvenirs.length) return c.json({ souvenirs: [] });
@@ -84,12 +84,20 @@ app.post('/upload-audio', async (c) => {
   return c.json({ key, url });
 });
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
 const creationSchema = z.object({
   titre: z.string().min(1).max(150),
   recit: z.string().max(10000).optional(),
   theme: z.enum(THEMES_VALIDES).default('autre'),
   image_r2_keys: z.array(z.string()).max(10).optional(),
   audio_r2_key: z.string().max(300).optional(),
+  // Thème "famille" : la personne représentée par ce souvenir (portrait = 1re photo),
+  // pour la frise chronologique des ancêtres — tous optionnels, une histoire de famille
+  // n'a pas forcément besoin de dates précises.
+  personne_nom: z.string().max(100).optional(),
+  personne_date_naissance: z.string().regex(DATE_REGEX).optional(),
+  personne_date_deces: z.string().regex(DATE_REGEX).optional(),
 }).refine((d) => !!d.recit?.trim() || !!d.audio_r2_key, {
   message: 'Ajoute un récit écrit ou un enregistrement audio.',
 });
@@ -106,6 +114,9 @@ app.post('/', async (c) => {
     commune_id, user_id, titre: data.titre, recit: data.recit?.trim() || null, theme: data.theme,
     audio_url: data.audio_r2_key ? `${c.env.R2_PUBLIC_BASE}/${data.audio_r2_key}` : null,
     audio_r2_key: data.audio_r2_key || null, statut: 'visible',
+    personne_nom: data.personne_nom?.trim() || null,
+    personne_date_naissance: data.personne_date_naissance || null,
+    personne_date_deces: data.personne_date_deces || null,
   });
 
   if (data.image_r2_keys?.length) {
@@ -124,6 +135,9 @@ const editionSchema = z.object({
   titre: z.string().min(1).max(150).optional(),
   recit: z.string().max(10000).optional(),
   theme: z.enum(THEMES_VALIDES).optional(),
+  personne_nom: z.string().max(100).optional(),
+  personne_date_naissance: z.string().regex(DATE_REGEX).optional(),
+  personne_date_deces: z.string().regex(DATE_REGEX).optional(),
 });
 
 app.patch('/:id', async (c) => {
@@ -148,6 +162,9 @@ app.patch('/:id', async (c) => {
   if (data.titre) patch.titre = data.titre;
   if (data.recit !== undefined) patch.recit = data.recit.trim() || null;
   if (data.theme) patch.theme = data.theme;
+  if (data.personne_nom !== undefined) patch.personne_nom = data.personne_nom.trim() || null;
+  if (data.personne_date_naissance !== undefined) patch.personne_date_naissance = data.personne_date_naissance;
+  if (data.personne_date_deces !== undefined) patch.personne_date_deces = data.personne_date_deces;
   if (Object.keys(patch).length === 0) return c.json({ erreur: 'Aucun champ à modifier' }, 400);
 
   await supabaseUpdate(c.env, 'souvenirs', patch, { id: `eq.${souvenir_id}`, commune_id: `eq.${commune_id}` });

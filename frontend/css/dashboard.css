@@ -636,12 +636,38 @@ h1, h2, h3, h4, p, span, a, button {
 
 /* ─── Sous-onglets fusionnés (Chasse au trésor / Trouve la photo) ─── */
 .sous-onglets-chasse { display: flex; gap: 8px; margin-bottom: 4px; }
-.sous-onglet-btn, .sous-onglet-agenda-btn {
+.sous-onglet-btn, .sous-onglet-agenda-btn, .sous-onglet-memoire-btn {
   flex: 1; padding: 9px 8px; border-radius: 100px; border: 1.5px solid var(--eauL);
   background: #fff; color: var(--roseau); font-family: 'DM Sans', sans-serif;
   font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
-.sous-onglet-btn.active, .sous-onglet-agenda-btn.active { background: var(--eau); color: #fff; border-color: var(--eau); }
+.sous-onglet-btn.active, .sous-onglet-agenda-btn.active, .sous-onglet-memoire-btn.active { background: var(--eau); color: #fff; border-color: var(--eau); }
+
+/* Frise chronologique des ancêtres (Mémoire du village) : scroll horizontal natif, portraits
+   reliés par une ligne, triés du plus ancien au plus récent. Zéro librairie. */
+.frise-ancetres {
+  display: flex; gap: 22px; overflow-x: auto; padding: 22px 8px 14px;
+  scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+}
+.carte-ancetre {
+  scroll-snap-align: start; flex: 0 0 auto; width: 104px; position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; padding: 0;
+}
+.carte-ancetre:not(:last-child)::after {
+  content: ''; position: absolute; top: 38px; left: 100%; width: 22px; height: 2px;
+  background: var(--eauL);
+}
+.portrait-ancetre {
+  width: 76px; height: 76px; border-radius: 50%; object-fit: cover;
+  border: 3px solid var(--eau); background: var(--eauXL);
+}
+.portrait-ancetre-vide {
+  width: 76px; height: 76px; border-radius: 50%; background: var(--eauXL);
+  border: 3px solid var(--eauL); display: flex; align-items: center; justify-content: center; font-size: 28px;
+}
+.nom-ancetre { font-size: 12.5px; font-weight: 600; color: var(--boue); line-height: 1.25; text-align: center; }
+.dates-ancetre { font-size: 11px; color: var(--roseau); font-family: 'DM Mono', monospace; }
 
 /* ─── Actualités — vue compacte, filtres, dépliage ─── */
 .filtres-categorie-articles {
