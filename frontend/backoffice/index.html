@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-6" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-7" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -69,6 +69,17 @@
                 </template>
               </tbody>
             </table>
+          </div>
+
+          <div class="bo-section-titre">Diagnostic email</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div class="bo-info" style="margin-bottom:12px">Vérifie que l'envoi via Resend fonctionne (clé + domaine). Aucun prospect n'est affecté.</div>
+            <div class="bo-outils" style="margin-bottom:10px">
+              <input type="email" x-model="testEmailDest" placeholder="destinataire" style="min-width:240px" />
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerEmailTest()" :disabled="testEmailEnCours"
+                      x-text="testEmailEnCours ? 'Envoi…' : 'Envoyer un email de test'"></button>
+            </div>
+            <div x-show="testEmailMsg" :class="testEmailOk ? '' : 'bo-erreur'" style="margin:0" x-text="testEmailMsg"></div>
           </div>
         </div>
       </template>
@@ -355,8 +366,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-6"></script>
-  <script src="/backoffice/js/app.js?v=20260813-6"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-6" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-7"></script>
+  <script src="/backoffice/js/app.js?v=20260813-7"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-7" defer></script>
 </body>
 </html>

@@ -11,6 +11,10 @@ function backoffice() {
     coordsMsg: '',
     accesEnCours: false,
     accesMsg: '',
+    testEmailDest: '',
+    testEmailEnCours: false,
+    testEmailMsg: '',
+    testEmailOk: false,
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
@@ -36,6 +40,7 @@ function backoffice() {
       try {
         const { staff } = await boFetch('/auth/me');
         this.staff = staff;
+        this.testEmailDest = staff.email || '';
       } catch {
         redirigerVersConnexion();
         return;
@@ -273,6 +278,23 @@ function backoffice() {
         this.nouvInteraction = { type: 'note', contenu: '' };
       } catch (e) {
         alert(e.message || 'Ajout impossible');
+      }
+    },
+
+    async envoyerEmailTest() {
+      this.testEmailEnCours = true;
+      this.testEmailMsg = '';
+      this.testEmailOk = false;
+      try {
+        const r = await boFetch('/administration/email-test', {
+          method: 'POST', body: JSON.stringify({ destinataire: this.testEmailDest }),
+        });
+        this.testEmailOk = true;
+        this.testEmailMsg = `Email envoyé à ${r.destinataire} (depuis ${r.from}). Vérifie ta boîte de réception et les logs Resend.`;
+      } catch (e) {
+        this.testEmailMsg = e.message || 'Échec de l\'envoi';
+      } finally {
+        this.testEmailEnCours = false;
       }
     },
 

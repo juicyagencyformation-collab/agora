@@ -154,6 +154,40 @@ app.post('/communes/:id/renvoyer-acces', async (c) => {
   return c.json({ ok: true, email: maire.email });
 });
 
+// POST /email-test — diagnostic d'envoi. Appelle Resend EN DIRECT (pas via envoyerEmail, qui
+// échoue silencieusement) pour remonter la vraie cause d'un échec : clé absente, domaine non
+// vérifié, etc. Envoie à l'adresse fournie, ou par défaut à l'email du staff connecté.
+app.post('/email-test', async (c) => {
+  const staff_id = c.get('staff_id');
+  const body: any = await c.req.json().catch(() => ({}));
+  let destinataire = (body?.destinataire || '').trim();
+  if (!destinataire) {
+    const [staff] = await supabaseSelect(c.env, 'staff_backoffice', { select: 'email', id: `eq.${staff_id}` });
+    destinataire = staff?.email || '';
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinataire)) return c.json({ erreur: 'Adresse email invalide.' }, 400);
+
+  if (!c.env.RESEND_API_KEY) {
+    return c.json({ erreur: 'RESEND_API_KEY absente : la clé n\'est pas configurée côté Worker (Cloudflare).' }, 400);
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: c.env.EMAIL_FROM || 'Agora <onboarding@resend.dev>',
+      to: destinataire,
+      subject: 'Test d\'envoi — Backoffice Agora',
+      html: '<p>Cet email confirme que l\'envoi d\'emails via Resend fonctionne. 🎉</p><p>— Backoffice Agora</p>',
+    }),
+  });
+  const data: any = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return c.json({ erreur: `Resend a refusé l'envoi (${res.status}) : ${data?.message || data?.name || 'erreur inconnue'}` }, 502);
+  }
+  return c.json({ ok: true, destinataire, from: c.env.EMAIL_FROM || 'onboarding@resend.dev' });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
