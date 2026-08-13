@@ -187,6 +187,10 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 .bo-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); padding: 0; cursor: pointer; }
 .bo-swatch--vide { background: #fff; position: relative; }
 .bo-swatch--vide::after { content: '✕'; color: #c0392b; font-size: 11px; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.bo-swatch-input { width: 22px; height: 22px; padding: 0; border: 1px solid var(--bo-border); border-radius: 4px; cursor: pointer; background: none; }
+.bo-swatch-input::-webkit-color-swatch-wrapper { padding: 0; }
+.bo-swatch-input::-webkit-color-swatch { border: none; border-radius: 3px; }
+.bo-swatch-input::-moz-color-swatch { border: none; border-radius: 3px; }
 
 /* Aperçu stylé de la fiche de présentation dans son éditeur visuel */
 #editeur-fiche { background: #fff; color: #1b2a1c; }

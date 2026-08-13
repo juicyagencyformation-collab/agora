@@ -4,6 +4,9 @@
 let carteLeaflet = null;
 let couchePoints = null;
 
+// Sélection sauvegardée avant l'ouverture d'un sélecteur de couleur natif (qui la fait perdre).
+let selectionSauvegardee = null;
+
 const COULEURS_STATUT = {
   a_contacter: '#94a3b8', contacte: '#38bdf8', relance: '#fbbf24',
   rdv: '#a78bfa', gagne: '#34d399', perdu: '#f87171',
@@ -231,6 +234,26 @@ function backoffice() {
     surligner(couleur) {
       document.execCommand('styleWithCSS', false, true);
       document.execCommand('hiliteColor', false, couleur);
+    },
+    // Sélecteur de couleur natif : on mémorise la sélection avant l'ouverture du sélecteur…
+    sauvegarderSelection() {
+      const sel = window.getSelection();
+      selectionSauvegardee = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    },
+    // …puis on la restaure avant d'appliquer la couleur choisie.
+    restaurerSelection() {
+      if (!selectionSauvegardee) return;
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(selectionSauvegardee);
+    },
+    couleurTexteLibre(couleur) {
+      this.restaurerSelection();
+      this.couleurTexte(couleur);
+    },
+    surlignerLibre(couleur) {
+      this.restaurerSelection();
+      this.surligner(couleur);
     },
     insererVariable(texte) {
       document.execCommand('insertText', false, texte);

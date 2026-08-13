@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-21" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-21" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-22" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-22" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -135,16 +135,24 @@
                   <span class="sep"></span>
                   <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
                     <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                    <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
                     <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                    <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
                     <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                    <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                    <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
                     <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
                     <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                    <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
                   </span>
                   <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
                     <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                    <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
                     <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
                     <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                    <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
                     <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                    <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
                     <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
                   </span>
                   <span class="sep"></span>
@@ -602,9 +610,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-21"></script>
-  <script src="/backoffice/js/api.js?v=20260813-21"></script>
-  <script src="/backoffice/js/app.js?v=20260813-21"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-21" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-22"></script>
+  <script src="/backoffice/js/api.js?v=20260813-22"></script>
+  <script src="/backoffice/js/app.js?v=20260813-22"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-22" defer></script>
 </body>
 </html>
