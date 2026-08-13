@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-3" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-4" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -95,6 +95,18 @@
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.avis.note_moyenne ?? '—'"></div><div class="bo-stat__lib" x-text="'Note app (' + fiche.avis.nb + ' avis)'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche.stockage.nb_fichiers + ' fichiers R2'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
+          </div>
+
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+            <div>
+              <div style="font-weight:600">Coordonnées GPS</div>
+              <div class="bo-info" x-text="(fiche.commune.lat && fiche.commune.lng) ? (fiche.commune.lat.toFixed(4) + ', ' + fiche.commune.lng.toFixed(4)) : 'Non renseignées — la météo affichée est erronée sans elles.'"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px">
+              <span class="bo-info" x-text="coordsMsg"></span>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="recupererCoords()" :disabled="coordsEnCours"
+                      x-text="coordsEnCours ? 'Récupération…' : 'Récupérer les coordonnées'"></button>
+            </div>
           </div>
 
           <div class="bo-section-titre">Répartition des rôles</div>
@@ -323,8 +335,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-3"></script>
-  <script src="/backoffice/js/app.js?v=20260813-3"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-3" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-4"></script>
+  <script src="/backoffice/js/app.js?v=20260813-4"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-4" defer></script>
 </body>
 </html>

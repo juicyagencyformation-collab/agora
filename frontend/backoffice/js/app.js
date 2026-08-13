@@ -7,6 +7,8 @@ function backoffice() {
     apercu: {},
     communes: [],
     fiche: null,
+    coordsEnCours: false,
+    coordsMsg: '',
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
@@ -54,10 +56,26 @@ function backoffice() {
     async ouvrirFiche(id) {
       this.chargement = true;
       this.vue = 'fiche';
+      this.coordsMsg = '';
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
       } finally {
         this.chargement = false;
+      }
+    },
+
+    async recupererCoords() {
+      this.coordsEnCours = true;
+      this.coordsMsg = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/coordonnees', { method: 'POST' });
+        this.fiche.commune.lat = r.lat;
+        this.fiche.commune.lng = r.lng;
+        this.coordsMsg = 'Coordonnées mises à jour.';
+      } catch (e) {
+        this.coordsMsg = e.message || 'Introuvables';
+      } finally {
+        this.coordsEnCours = false;
       }
     },
 

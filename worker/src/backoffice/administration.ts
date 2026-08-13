@@ -4,7 +4,7 @@
 // On lit directement les tables existantes (communes, users, avis_application) et on calcule
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
-import { supabaseSelect } from '../db';
+import { supabaseSelect, supabaseUpdate } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 
 const app = new Hono();
@@ -71,7 +71,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -97,6 +97,36 @@ app.get('/communes/:id', async (c) => {
     avis: { note_moyenne, nb: avis.length, liste: avis },
     stockage,
   });
+});
+
+// POST /communes/:id/coordonnees — (re)renseigne lat/lng d'une commune depuis geo.api.gouv.fr.
+// La table communes ne stocke pas le code INSEE : on le retrouve via le prospect lié (fiable),
+// avec repli sur une recherche par nom. Utile pour les communes créées avant l'auto-remplissage
+// des coordonnées à l'onboarding (sinon la météo retombe sur une position par défaut erronée).
+app.post('/communes/:id/coordonnees', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  let centre: any = null;
+  const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'code_insee', commune_id: `eq.${id}` });
+  if (prospect?.code_insee) {
+    const res = await fetch(`https://geo.api.gouv.fr/communes/${prospect.code_insee}?fields=centre&format=json`);
+    if (res.ok) centre = ((await res.json()) as any)?.centre;
+  }
+  if (!centre) {
+    // Repli : recherche par nom, on prend la commune la plus peuplée qui correspond.
+    const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(commune.nom)}&fields=centre&boost=population&limit=1`);
+    if (res.ok) centre = ((await res.json()) as any)?.[0]?.centre;
+  }
+
+  const coords = centre?.coordinates; // [lng, lat]
+  if (!Array.isArray(coords) || coords.length !== 2) {
+    return c.json({ erreur: 'Coordonnées introuvables pour cette commune.' }, 404);
+  }
+  const [lng, lat] = coords;
+  await supabaseUpdate(c.env, 'communes', { lat, lng }, { id: `eq.${id}` });
+  return c.json({ ok: true, lat, lng });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
