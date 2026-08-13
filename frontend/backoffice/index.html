@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-17" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-17" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-18" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-18" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -37,6 +37,7 @@
               <div class="bo-sous">Suivi des communes actives sur la plateforme.</div>
             </div>
           </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
 
           <div class="bo-grille-stats">
             <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_communes ?? '—'"></div><div class="bo-stat__lib">Communes</div></div>
@@ -286,6 +287,7 @@
               <div class="bo-sous">Communes françaises à démarcher, importées depuis l'open data officiel.</div>
             </div>
           </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
 
           <div class="bo-grille-stats">
             <div class="bo-stat"><div class="bo-stat__val" x-text="apProsp.total ?? '—'"></div><div class="bo-stat__lib">Prospects</div></div>
@@ -535,9 +537,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-17"></script>
-  <script src="/backoffice/js/api.js?v=20260813-17"></script>
-  <script src="/backoffice/js/app.js?v=20260813-17"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-17" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-18"></script>
+  <script src="/backoffice/js/api.js?v=20260813-18"></script>
+  <script src="/backoffice/js/app.js?v=20260813-18"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-18" defer></script>
 </body>
 </html>

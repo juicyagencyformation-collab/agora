@@ -17,6 +17,7 @@ function backoffice() {
     apercu: {},
     communes: [],
     fiche: null,
+    erreurChargement: '',
     coordsEnCours: false,
     coordsMsg: '',
     accesEnCours: false,
@@ -86,6 +87,7 @@ function backoffice() {
 
     async chargerCommunes() {
       this.chargement = true;
+      this.erreurChargement = '';
       try {
         const [apercu, liste] = await Promise.all([
           boFetch('/administration/apercu'),
@@ -94,6 +96,9 @@ function backoffice() {
         this.apercu = apercu;
         this.communes = liste.communes;
         try { this.emailsRejetes = (await boFetch('/administration/emails-rejetes')).emails; } catch {}
+      } catch (e) {
+        // Ne pas rester silencieusement vide : afficher la cause (souvent une migration manquante).
+        this.erreurChargement = e.message || 'Erreur de chargement des communes';
       } finally {
         this.chargement = false;
       }
@@ -320,19 +325,24 @@ function backoffice() {
     },
 
     async chargerProspects() {
+      this.erreurChargement = '';
       const params = new URLSearchParams();
       if (this.filtreStatut) params.set('statut', this.filtreStatut);
       if (this.filtreDep) params.set('departement', this.filtreDep);
       if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
       if (this.filtreTri && this.filtreTri !== 'nom') params.set('tri', this.filtreTri);
-      const [apercu, liste] = await Promise.all([
-        boFetch('/prospection/apercu'),
-        boFetch('/prospection/prospects' + (params.toString() ? '?' + params : '')),
-      ]);
-      this.apProsp = apercu;
-      this.prospects = liste.prospects;
-      this.selectionProspects = {};
-      this.lotMsg = '';
+      try {
+        const [apercu, liste] = await Promise.all([
+          boFetch('/prospection/apercu'),
+          boFetch('/prospection/prospects' + (params.toString() ? '?' + params : '')),
+        ]);
+        this.apProsp = apercu;
+        this.prospects = liste.prospects;
+        this.selectionProspects = {};
+        this.lotMsg = '';
+      } catch (e) {
+        this.erreurChargement = e.message || 'Erreur de chargement des prospects';
+      }
     },
 
     // — Sélection groupée —
