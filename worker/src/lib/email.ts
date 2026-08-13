@@ -4,7 +4,10 @@
 // faire planter le flux appelant — un email non envoyé ne doit jamais bloquer une réponse
 // utilisateur (ex: mot de passe oublié doit toujours répondre "ok" pour ne pas révéler
 // si un compte existe, même si l'envoi réel échoue derrière).
-export async function envoyerEmail(env: any, to: string, subject: string, html: string) {
+// attachments (optionnel) : pièces jointes Resend. Pour les images INLINE (affichées sans que
+// le destinataire ait à « autoriser les images »), passer un content_id et référencer l'image
+// dans le HTML via src="cid:<content_id>".
+export async function envoyerEmail(env: any, to: string, subject: string, html: string, attachments?: any[]) {
   if (!env.RESEND_API_KEY) {
     console.error('RESEND_API_KEY manquant — email non envoyé.');
     return;
@@ -19,6 +22,7 @@ export async function envoyerEmail(env: any, to: string, subject: string, html: 
       body: JSON.stringify({
         from: env.EMAIL_FROM || 'Agora <onboarding@resend.dev>',
         to, subject, html,
+        ...(attachments && attachments.length ? { attachments } : {}),
       }),
     });
     if (!res.ok) console.error('Échec envoi email Resend :', await res.text());
