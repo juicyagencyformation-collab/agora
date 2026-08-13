@@ -24,6 +24,7 @@ function backoffice() {
     interactions: [],
     enrichEnCours: false,
     nouvInteraction: { type: 'note', contenu: '' },
+    conversion: { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' },
 
     async init() {
       try {
@@ -105,13 +106,72 @@ function backoffice() {
     async ouvrirProspect(id) {
       this.chargement = true;
       this.vue = 'prospect';
+      this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
       try {
         const d = await boFetch('/prospection/prospects/' + id);
         this.prospect = d.prospect;
         this.interactions = d.interactions;
+        // Prospect déjà client : on récupère le slug de sa commune pour les liens app/fiche.
+        if (this.prospect.commune_id) {
+          try {
+            const c = await boFetch('/administration/communes/' + this.prospect.commune_id);
+            this.conversion.slug = c.commune.slug;
+          } catch {}
+        }
       } finally {
         this.chargement = false;
       }
+    },
+
+    slugify(s) {
+      return (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    },
+
+    ouvrirConversion() {
+      this.conversion = {
+        ouvert: true, enCours: false, succes: false, erreur: '',
+        nom: this.prospect.nom, slug: this.slugify(this.prospect.nom),
+        maireEmail: this.prospect.contact_email || '', mairePrenom: '', maireNom: '', mairePassword: '', url: '',
+      };
+    },
+
+    async convertir() {
+      this.conversion.enCours = true;
+      this.conversion.erreur = '';
+      try {
+        const r = await boFetch('/onboarding/creer', {
+          method: 'POST',
+          body: JSON.stringify({
+            prospect_id: this.prospect.id,
+            nom: this.conversion.nom,
+            slug: this.conversion.slug,
+            population: this.prospect.population || null,
+            maire: {
+              email: this.conversion.maireEmail,
+              prenom: this.conversion.mairePrenom,
+              nom: this.conversion.maireNom,
+              password: this.conversion.mairePassword,
+            },
+          }),
+        });
+        // On ne touche pas à prospect.commune_id ici : le laisser nul maintient l'affichage du
+        // bloc de succès (célébration + liens). Au prochain chargement de la fiche, la commune
+        // liée est relue et l'état « déjà cliente » s'affiche normalement.
+        this.conversion.succes = true;
+        this.conversion.ouvert = false;
+        this.conversion.url = r.url;
+        this.conversion.slug = r.commune.slug;
+        this.prospect.statut = 'gagne';
+      } catch (e) {
+        this.conversion.erreur = e.message || 'Création impossible';
+      } finally {
+        this.conversion.enCours = false;
+      }
+    },
+
+    lienFiche(slug, nom) {
+      return '/backoffice/fiche?slug=' + encodeURIComponent(slug) + '&nom=' + encodeURIComponent(nom);
     },
 
     async enrichir() {

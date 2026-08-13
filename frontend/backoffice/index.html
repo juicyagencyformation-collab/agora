@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-2" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-3" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -255,13 +255,76 @@
               </div>
             </div>
           </div>
+
+          <!-- Onboarding : convertir le prospect en commune cliente -->
+          <div class="bo-section-titre">Onboarding</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <!-- Déjà cliente -->
+            <template x-if="prospect.commune_id">
+              <div>
+                <div class="bo-statut bo-statut--gagne" style="margin-bottom:12px">Commune cliente</div>
+                <div class="bo-info" style="margin-bottom:12px">Cette commune est active sur la plateforme.</div>
+                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/' + conversion.slug + '/'" target="_blank" x-show="conversion.slug">Ouvrir l'app</a>
+                <a class="bo-btn bo-btn--compact" :href="lienFiche(conversion.slug, prospect.nom)" target="_blank" x-show="conversion.slug" style="margin-left:8px">Fiche de présentation</a>
+              </div>
+            </template>
+
+            <!-- Pas encore cliente -->
+            <template x-if="!prospect.commune_id">
+              <div>
+                <template x-if="!conversion.ouvert && !conversion.succes">
+                  <button class="bo-btn bo-btn--compact" @click="ouvrirConversion()">Convertir en commune cliente</button>
+                </template>
+
+                <!-- Formulaire de conversion -->
+                <template x-if="conversion.ouvert && !conversion.succes">
+                  <form @submit.prevent="convertir()">
+                    <div class="bo-grille-2">
+                      <div>
+                        <label>Nom de la commune</label>
+                        <input type="text" x-model="conversion.nom" required />
+                        <label>Slug (adresse de l'app)</label>
+                        <input type="text" x-model="conversion.slug" required />
+                        <div class="bo-info" x-text="'plateforme-agora.fr/' + (conversion.slug || '…') + '/'"></div>
+                      </div>
+                      <div>
+                        <label>Email du maire</label>
+                        <input type="email" x-model="conversion.maireEmail" required />
+                        <div class="bo-grille-2" style="gap:10px">
+                          <div><label>Prénom</label><input type="text" x-model="conversion.mairePrenom" required /></div>
+                          <div><label>Nom</label><input type="text" x-model="conversion.maireNom" required /></div>
+                        </div>
+                        <label>Mot de passe temporaire</label>
+                        <input type="text" x-model="conversion.mairePassword" required minlength="6" />
+                      </div>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; margin-top:14px">
+                      <button class="bo-btn bo-btn--compact" type="submit" :disabled="conversion.enCours" x-text="conversion.enCours ? 'Création…' : 'Créer la commune cliente'"></button>
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" type="button" @click="conversion.ouvert = false">Annuler</button>
+                      <span class="bo-erreur" style="margin:0" x-text="conversion.erreur"></span>
+                    </div>
+                  </form>
+                </template>
+
+                <!-- Succès -->
+                <template x-if="conversion.succes">
+                  <div>
+                    <div class="bo-statut bo-statut--gagne" style="margin-bottom:12px">Commune créée 🎉</div>
+                    <div class="bo-info" style="margin-bottom:12px" x-text="'App accessible sur ' + conversion.url"></div>
+                    <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/' + conversion.slug + '/'" target="_blank">Ouvrir l'app</a>
+                    <a class="bo-btn bo-btn--compact" :href="lienFiche(conversion.slug, conversion.nom)" target="_blank" style="margin-left:8px">Fiche de présentation + QR</a>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
         </div>
       </template>
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-2"></script>
-  <script src="/backoffice/js/app.js?v=20260813-2"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-2" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-3"></script>
+  <script src="/backoffice/js/app.js?v=20260813-3"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-3" defer></script>
 </body>
 </html>

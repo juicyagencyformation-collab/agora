@@ -6,11 +6,13 @@ import { Hono } from 'hono';
 import auth from './auth';
 import administration from './administration';
 import prospection from './prospection';
+import onboarding from './onboarding';
 
 const app = new Hono();
 
 app.route('/auth', auth);
 app.route('/administration', administration);
 app.route('/prospection', prospection);
+app.route('/onboarding', onboarding);
 
 export default app;

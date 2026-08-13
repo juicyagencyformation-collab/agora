@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<!-- frontend/backoffice/fiche.html — fiche de présentation imprimable (A4) d'une commune,
+     personnalisée au nom de la commune + QR vers l'app en direct. Outil de prospection.
+     Paramètres d'URL : ?slug=eaucourt&nom=Eaucourt-sur-Somme -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Agora — Fiche de présentation</title>
+  <style>
+    :root {
+      --vert: #2c5f2d;
+      --vert-clair: #4a8c4a;
+      --encre: #1b2a1c;
+      --gris: #5b6b5c;
+      --bord: #dfe7df;
+      --fond-doux: #f4f8f4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--encre); background: #e9ede9; line-height: 1.5; }
+
+    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 10px; justify-content: flex-end; padding: 0 12px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--vert); color: #fff; }
+    .btn--sec { background: #fff; color: var(--vert); border: 1px solid var(--vert); }
+
+    .feuille {
+      width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; padding: 20mm 18mm;
+      box-shadow: 0 8px 30px rgba(0,0,0,.12);
+    }
+
+    header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid var(--vert); padding-bottom: 16px; }
+    .marque { font-size: 30px; font-weight: 800; color: var(--vert); letter-spacing: -.5px; }
+    .marque span { color: var(--vert-clair); }
+    .baseline { color: var(--gris); font-size: 14px; margin-top: 2px; }
+    .editeur { text-align: right; font-size: 12px; color: var(--gris); }
+    .editeur strong { color: var(--encre); }
+
+    .hero { margin: 26px 0 8px; }
+    .hero h1 { font-size: 26px; line-height: 1.25; }
+    .hero h1 em { color: var(--vert); font-style: normal; }
+    .hero p { color: var(--gris); font-size: 15px; margin-top: 10px; max-width: 70%; }
+
+    .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 24px 0; }
+    .mod { border: 1px solid var(--bord); border-radius: 10px; padding: 14px 16px; background: var(--fond-doux); }
+    .mod h3 { font-size: 15px; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; }
+    .mod p { font-size: 13px; color: var(--gris); }
+    .puce { width: 9px; height: 9px; border-radius: 3px; background: var(--vert-clair); flex-shrink: 0; }
+
+    .atouts { display: flex; gap: 10px; margin: 22px 0; }
+    .atout { flex: 1; text-align: center; padding: 14px 8px; border-radius: 10px; background: var(--vert); color: #fff; }
+    .atout b { display: block; font-size: 13px; }
+    .atout span { font-size: 11px; opacity: .85; }
+
+    .acces { display: flex; align-items: center; gap: 24px; margin-top: 26px; padding: 20px; border: 2px dashed var(--vert-clair); border-radius: 14px; background: var(--fond-doux); }
+    .acces__qr { width: 150px; height: 150px; flex-shrink: 0; background: #fff; border-radius: 8px; padding: 8px; display: flex; align-items: center; justify-content: center; }
+    .acces__qr svg { width: 100%; height: 100%; }
+    .acces__txt h2 { font-size: 19px; color: var(--vert); }
+    .acces__txt p { font-size: 14px; color: var(--gris); margin-top: 4px; }
+    .acces__url { display: inline-block; margin-top: 10px; font-weight: 700; font-size: 15px; color: var(--encre); word-break: break-all; }
+
+    footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; font-size: 12px; color: var(--gris); }
+
+    @media print {
+      body { background: #fff; }
+      .barre-actions { display: none; }
+      .feuille { box-shadow: none; margin: 0; width: auto; min-height: auto; padding: 12mm; }
+      @page { size: A4; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="barre-actions">
+    <button class="btn btn--sec" onclick="history.back()">← Retour</button>
+    <button class="btn" onclick="window.print()">Imprimer / PDF</button>
+  </div>
+
+  <div class="feuille">
+    <header>
+      <div>
+        <div class="marque">Agora<span>.</span></div>
+        <div class="baseline">La plateforme citoyenne de votre commune</div>
+      </div>
+      <div class="editeur">
+        Édité par <strong>Juicy Solutions</strong><br />
+        Léandre Sallé
+      </div>
+    </header>
+
+    <div class="hero">
+      <h1>Une application mobile <em>rien que pour</em> <span id="nom-commune">votre commune</span></h1>
+      <p>Informer, alerter et faire participer vos habitants — depuis un seul outil simple,
+         souverain et 100 % français, que la mairie pilote elle-même sans compétence technique.</p>
+    </div>
+
+    <div class="grille">
+      <div class="mod"><h3><span class="puce"></span>Actualités &amp; bulletin</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Agenda &amp; événements</h3><p>Le calendrier de la vie locale, avec rappels et inscriptions en un geste.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Conseil municipal</h3><p>Délibérations, comptes-rendus et trombinoscope des élus, en toute transparence.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Sondages &amp; participation</h3><p>Prenez le pouls des habitants sur les décisions qui les concernent.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Coups de main &amp; entraide</h3><p>Une commune qui s'entraide : services, prêts et solidarité entre voisins.</p></div>
+    </div>
+
+    <div class="atouts">
+      <div class="atout"><b>Souverain</b><span>Vos données restent les vôtres</span></div>
+      <div class="atout"><b>RGPD</b><span>Conforme, hébergé en Europe</span></div>
+      <div class="atout"><b>Sans engagement technique</b><span>Géré par la mairie seule</span></div>
+      <div class="atout"><b>Mobile-first</b><span>Aucune installation lourde</span></div>
+    </div>
+
+    <div class="acces">
+      <div class="acces__qr" id="qr"></div>
+      <div class="acces__txt">
+        <h2>Découvrez l'application en direct</h2>
+        <p>Scannez ce QR code avec l'appareil photo de votre téléphone pour ouvrir immédiatement l'application de la commune.</p>
+        <span class="acces__url" id="url-app">plateforme-agora.fr</span>
+      </div>
+    </div>
+
+    <footer>
+      <span>Juicy Solutions — plateforme-agora.fr</span>
+      <span>Contact : juicy.agency.formation@gmail.com</span>
+    </footer>
+  </div>
+
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-3"></script>
+  <script src="/backoffice/js/fiche.js?v=20260813-3"></script>
+</body>
+</html>
