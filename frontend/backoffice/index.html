@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-16" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-16" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-17" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-17" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -83,6 +83,29 @@
                       x-text="testEmailEnCours ? 'Envoi…' : 'Envoyer un email de test'"></button>
             </div>
             <div x-show="testEmailMsg" :class="testEmailOk ? '' : 'bo-erreur'" style="margin:0" x-text="testEmailMsg"></div>
+          </div>
+
+          <div class="bo-section-titre" x-text="'Emails rejetés (bounces)' + (emailsRejetes.length ? ' — ' + emailsRejetes.length : '')"></div>
+          <div class="bo-carte">
+            <template x-if="emailsRejetes.length === 0">
+              <div style="padding:16px 18px" class="bo-info">Aucun email rejeté capté. (Capture automatique via le webhook Resend.)</div>
+            </template>
+            <template x-if="emailsRejetes.length > 0">
+              <table>
+                <thead><tr><th>Adresse</th><th>Commune</th><th>Type</th><th>Raison</th><th>Date</th></tr></thead>
+                <tbody>
+                  <template x-for="(e, i) in emailsRejetes" :key="i">
+                    <tr style="cursor:default">
+                      <td x-text="e.email"></td>
+                      <td><span :class="{ 'bo-vide': !e.commune_nom }" x-text="e.commune_nom || '—'"></span></td>
+                      <td><span class="bo-statut bo-statut--perdu" x-text="e.type === 'email.complained' ? 'Plainte' : 'Bounce'"></span></td>
+                      <td><span :class="{ 'bo-vide': !e.raison }" x-text="e.raison || '—'"></span></td>
+                      <td x-text="formatDate(e.created_at)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </template>
           </div>
 
           <div class="bo-section-titre">Modèle d'email de présentation</div>
@@ -334,7 +357,10 @@
                     <td x-text="p.departement"></td>
                     <td x-text="p.population ? p.population.toLocaleString('fr-FR') : '—'"></td>
                     <td><span class="bo-statut" :class="'bo-statut--' + p.statut" x-text="libelleStatut(p.statut)"></span></td>
-                    <td><span :class="{ 'bo-vide': !p.contact_email }" x-text="p.contact_email || 'non enrichi'"></span></td>
+                    <td>
+                      <template x-if="p.email_invalide"><span class="bo-note--basse" title="Adresse rejetée (bounce)" x-text="'⚠ ' + (p.contact_email || 'email invalide')"></span></template>
+                      <template x-if="!p.email_invalide"><span :class="{ 'bo-vide': !p.contact_email }" x-text="p.contact_email || 'non enrichi'"></span></template>
+                    </td>
                     <td><span :class="relanceEnRetard(p) ? 'bo-note--basse' : ''" x-text="p.prochaine_relance_le ? formatDate(p.prochaine_relance_le) : '—'"></span></td>
                     <td @click.stop style="white-space:nowrap">
                       <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerPresentationLigne(p)" :disabled="envoiLigneId === p.id"
@@ -509,9 +535,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-16"></script>
-  <script src="/backoffice/js/api.js?v=20260813-16"></script>
-  <script src="/backoffice/js/app.js?v=20260813-16"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-16" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-17"></script>
+  <script src="/backoffice/js/api.js?v=20260813-17"></script>
+  <script src="/backoffice/js/app.js?v=20260813-17"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-17" defer></script>
 </body>
 </html>

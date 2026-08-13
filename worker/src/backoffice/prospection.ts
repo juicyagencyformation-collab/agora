@@ -68,7 +68,7 @@ const TRIS: Record<string, string> = {
 app.get('/prospects', async (c) => {
   const tri = c.req.query('tri');
   const filtres: Record<string, string> = {
-    select: 'id,code_insee,nom,departement,population,statut,contact_email,prochaine_relance_le',
+    select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le',
     order: (tri && TRIS[tri]) || TRIS.nom,
   };
   const statut = c.req.query('statut');

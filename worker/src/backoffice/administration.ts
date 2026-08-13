@@ -309,6 +309,14 @@ app.put('/modele-fiche', async (c) => {
   return c.json({ ok: true });
 });
 
+// GET /emails-rejetes — bounces/plaintes captés via le webhook Resend (les plus récents).
+app.get('/emails-rejetes', async (c) => {
+  const emails = await supabaseSelect(c.env, 'emails_rejetes', {
+    select: 'email,commune_nom,type,raison,created_at', order: 'created_at.desc', limit: '200',
+  });
+  return c.json({ emails });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {

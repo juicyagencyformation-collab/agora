@@ -41,6 +41,7 @@ function backoffice() {
     testEmailEnCours: false,
     testEmailMsg: '',
     testEmailOk: false,
+    emailsRejetes: [],
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
@@ -92,6 +93,7 @@ function backoffice() {
         ]);
         this.apercu = apercu;
         this.communes = liste.communes;
+        try { this.emailsRejetes = (await boFetch('/administration/emails-rejetes')).emails; } catch {}
       } finally {
         this.chargement = false;
       }
