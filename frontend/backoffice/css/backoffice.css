@@ -182,6 +182,36 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 .bo-wysiwyg:focus { outline: none; border-color: var(--bo-accent); }
 .bo-wysiwyg a { color: #2c5f2d; }
 .bo-wysiwyg h1, .bo-wysiwyg h2 { color: #2c5f2d; }
+.bo-toolbar__grp { display: inline-flex; align-items: center; gap: 3px; }
+.bo-toolbar__label { font-size: 11px; color: var(--bo-text-faible); margin: 0 1px; }
+.bo-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); padding: 0; cursor: pointer; }
+.bo-swatch--vide { background: #fff; position: relative; }
+.bo-swatch--vide::after { content: '✕'; color: #c0392b; font-size: 11px; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+
+/* Aperçu stylé de la fiche de présentation dans son éditeur visuel */
+#editeur-fiche { background: #fff; color: #1b2a1c; }
+#editeur-fiche header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid #2c5f2d; padding-bottom: 16px; }
+#editeur-fiche .marque { font-size: 28px; font-weight: 800; color: #2c5f2d; }
+#editeur-fiche .baseline { color: #5b6b5c; font-size: 14px; margin-top: 2px; }
+#editeur-fiche .editeur { text-align: right; font-size: 12px; color: #5b6b5c; }
+#editeur-fiche .hero { margin: 22px 0 8px; }
+#editeur-fiche .hero h1 { font-size: 24px; line-height: 1.25; }
+#editeur-fiche .hero h1 em { color: #2c5f2d; font-style: normal; }
+#editeur-fiche .hero p { color: #5b6b5c; font-size: 15px; margin-top: 10px; }
+#editeur-fiche .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 22px 0; }
+#editeur-fiche .mod { border: 1px solid #dfe7df; border-radius: 10px; padding: 14px 16px; background: #f4f8f4; }
+#editeur-fiche .mod h3 { font-size: 15px; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; }
+#editeur-fiche .mod p { font-size: 13px; color: #5b6b5c; }
+#editeur-fiche .puce { width: 9px; height: 9px; border-radius: 3px; background: #4a8c4a; flex-shrink: 0; display: inline-block; }
+#editeur-fiche .atouts { display: flex; gap: 10px; margin: 22px 0; }
+#editeur-fiche .atout { flex: 1; text-align: center; padding: 14px 8px; border-radius: 10px; background: #2c5f2d; color: #fff; }
+#editeur-fiche .atout b { display: block; font-size: 13px; }
+#editeur-fiche .atout span { font-size: 11px; opacity: .85; }
+#editeur-fiche .acces { display: flex; align-items: center; gap: 24px; margin-top: 22px; padding: 20px; border: 2px dashed #4a8c4a; border-radius: 14px; background: #f4f8f4; }
+#editeur-fiche .acces__txt h2 { font-size: 19px; color: #2c5f2d; }
+#editeur-fiche .acces__txt p { font-size: 14px; color: #5b6b5c; margin-top: 4px; }
+#editeur-fiche .acces__url { display: inline-block; margin-top: 10px; font-weight: 700; font-size: 15px; color: #1b2a1c; }
+#editeur-fiche footer { margin-top: 22px; padding-top: 14px; border-top: 1px solid #dfe7df; display: flex; justify-content: space-between; font-size: 12px; color: #5b6b5c; }
 /* La carte Leaflet garde ses couleurs claires même en thème sombre. */
 .leaflet-popup-content { font-size: 13px; }
 .leaflet-popup-content a { color: var(--bo-accent-fort); font-weight: 600; }

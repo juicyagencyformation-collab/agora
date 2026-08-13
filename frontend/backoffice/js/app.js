@@ -37,6 +37,7 @@ function backoffice() {
     logoEnCours: false,
     logoMsg: '',
     modeleFiche: { contenu_html: '' },
+    modeEditeurFiche: 'visuel', // 'visuel' | 'code'
     modeleFicheEnCours: false,
     modeleFicheMsg: '',
     testEmailDest: '',
@@ -163,7 +164,24 @@ function backoffice() {
       }
     },
 
+    initEditeurFiche() {
+      const ed = document.getElementById('editeur-fiche');
+      if (ed) ed.innerHTML = this.modeleFiche.contenu_html || '';
+    },
+    basculerModeFiche() {
+      const ed = document.getElementById('editeur-fiche');
+      if (this.modeEditeurFiche === 'visuel') {
+        if (ed) this.modeleFiche.contenu_html = ed.innerHTML;
+        this.modeEditeurFiche = 'code';
+      } else {
+        this.modeEditeurFiche = 'visuel';
+        if (ed) ed.innerHTML = this.modeleFiche.contenu_html || '';
+      }
+    },
+
     async enregistrerModeleFiche() {
+      const ed = document.getElementById('editeur-fiche');
+      if (this.modeEditeurFiche === 'visuel' && ed) this.modeleFiche.contenu_html = ed.innerHTML;
       this.modeleFicheEnCours = true;
       this.modeleFicheMsg = '';
       try {
@@ -197,24 +215,34 @@ function backoffice() {
       }
     },
 
-    // — Éditeur visuel du corps de l'email (WYSIWYG, sans HTML pour l'utilisateur) —
+    // — Éditeurs visuels (WYSIWYG). Les commandes agissent sur l'éditeur qui a le focus
+    //   (grâce à @mousedown.prevent sur les boutons), donc valables pour l'email ET la fiche. —
     initEditeurEmail() {
       const ed = document.getElementById('editeur-email');
       if (ed) ed.innerHTML = this.modele.corps_html || '';
     },
     exec(commande, valeur = null) {
-      const ed = document.getElementById('editeur-email');
-      if (ed) ed.focus();
       document.execCommand(commande, false, valeur);
     },
+    couleurTexte(couleur) {
+      document.execCommand('styleWithCSS', false, true);
+      document.execCommand('foreColor', false, couleur);
+    },
+    surligner(couleur) {
+      document.execCommand('styleWithCSS', false, true);
+      document.execCommand('hiliteColor', false, couleur);
+    },
     insererVariable(texte) {
-      const ed = document.getElementById('editeur-email');
-      if (ed) ed.focus();
       document.execCommand('insertText', false, texte);
     },
     insererLien() {
+      // Le prompt fait perdre la sélection dans l'éditeur : on la sauvegarde puis on la restaure.
+      const sel = window.getSelection();
+      const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
       const url = prompt('Adresse du lien (https://…) :');
-      if (url) this.exec('createLink', url);
+      if (!url) return;
+      if (range) { sel.removeAllRanges(); sel.addRange(range); }
+      document.execCommand('createLink', false, url);
     },
     insererBoutonCta() {
       const bouton = '<a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block">Découvrir l\'application</a>&nbsp;';
