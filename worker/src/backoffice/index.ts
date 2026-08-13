@@ -5,10 +5,12 @@
 import { Hono } from 'hono';
 import auth from './auth';
 import administration from './administration';
+import prospection from './prospection';
 
 const app = new Hono();
 
 app.route('/auth', auth);
 app.route('/administration', administration);
+app.route('/prospection', prospection);
 
 export default app;

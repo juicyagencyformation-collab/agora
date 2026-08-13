@@ -8,6 +8,23 @@ function backoffice() {
     communes: [],
     fiche: null,
 
+    // — Prospection —
+    statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
+    typesInteraction: ['note', 'appel', 'email', 'courrier', 'rdv'],
+    prospects: [],
+    apProsp: {},
+    filtreStatut: '',
+    filtreDep: '',
+    filtreRecherche: '',
+    importDep: '',
+    importPopMax: '',
+    importEnCours: false,
+    importMsg: '',
+    prospect: null,
+    interactions: [],
+    enrichEnCours: false,
+    nouvInteraction: { type: 'note', contenu: '' },
+
     async init() {
       try {
         const { staff } = await boFetch('/auth/me');
@@ -48,6 +65,93 @@ function backoffice() {
       this.fiche = null;
     },
 
+    // — Prospection —
+    async allerProspection() {
+      this.vue = 'prospection';
+      this.prospect = null;
+      await this.chargerProspects();
+    },
+
+    async chargerProspects() {
+      const params = new URLSearchParams();
+      if (this.filtreStatut) params.set('statut', this.filtreStatut);
+      if (this.filtreDep) params.set('departement', this.filtreDep);
+      if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
+      const [apercu, liste] = await Promise.all([
+        boFetch('/prospection/apercu'),
+        boFetch('/prospection/prospects' + (params.toString() ? '?' + params : '')),
+      ]);
+      this.apProsp = apercu;
+      this.prospects = liste.prospects;
+    },
+
+    async importer() {
+      if (!this.importDep.trim()) { this.importMsg = 'Indique un département.'; return; }
+      this.importEnCours = true;
+      this.importMsg = '';
+      try {
+        const corps = { departement: this.importDep.trim() };
+        if (this.importPopMax) corps.population_max = Number(this.importPopMax);
+        const r = await boFetch('/prospection/importer', { method: 'POST', body: JSON.stringify(corps) });
+        this.importMsg = `${r.importes} commune(s) importée(s), ${r.deja_presents} déjà présente(s).`;
+        await this.chargerProspects();
+      } catch (e) {
+        this.importMsg = e.message || 'Import impossible';
+      } finally {
+        this.importEnCours = false;
+      }
+    },
+
+    async ouvrirProspect(id) {
+      this.chargement = true;
+      this.vue = 'prospect';
+      try {
+        const d = await boFetch('/prospection/prospects/' + id);
+        this.prospect = d.prospect;
+        this.interactions = d.interactions;
+      } finally {
+        this.chargement = false;
+      }
+    },
+
+    async enrichir() {
+      this.enrichEnCours = true;
+      try {
+        const r = await boFetch('/prospection/prospects/' + this.prospect.id + '/enrichir', { method: 'POST' });
+        this.prospect = { ...this.prospect, ...r.prospect };
+      } catch (e) {
+        alert(e.message || 'Enrichissement impossible');
+      } finally {
+        this.enrichEnCours = false;
+      }
+    },
+
+    async majProspect(patch) {
+      try {
+        await boFetch('/prospection/prospects/' + this.prospect.id, { method: 'PATCH', body: JSON.stringify(patch) });
+        // Un changement de statut ajoute une entrée automatique à l'historique : on recharge.
+        if (patch.statut !== undefined) {
+          const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+          this.interactions = d.interactions;
+        }
+      } catch (e) {
+        alert(e.message || 'Mise à jour impossible');
+      }
+    },
+
+    async ajouterInteraction() {
+      if (!this.nouvInteraction.contenu.trim()) return;
+      try {
+        const r = await boFetch('/prospection/prospects/' + this.prospect.id + '/interactions', {
+          method: 'POST', body: JSON.stringify(this.nouvInteraction),
+        });
+        this.interactions.unshift(r.interaction);
+        this.nouvInteraction = { type: 'note', contenu: '' };
+      } catch (e) {
+        alert(e.message || 'Ajout impossible');
+      }
+    },
+
     async deconnexion() {
       try { await boFetch('/auth/logout', { method: 'POST' }); } catch {}
       location.href = '/backoffice/connexion';
@@ -68,6 +172,20 @@ function backoffice() {
       const unites = ['o', 'Ko', 'Mo', 'Go'];
       const i = Math.floor(Math.log(o) / Math.log(1024));
       return Math.round((o / Math.pow(1024, i)) * 10) / 10 + ' ' + unites[i];
+    },
+    formatDateHeure(iso) {
+      if (!iso) return '';
+      return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    },
+    libelleStatut(s) {
+      return { a_contacter: 'À contacter', contacte: 'Contacté', relance: 'Relancé', rdv: 'RDV', gagne: 'Gagné', perdu: 'Perdu' }[s] || s;
+    },
+    libelleType(t) {
+      return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut' }[t] || t;
+    },
+    relanceEnRetard(p) {
+      if (!p.prochaine_relance_le || p.statut === 'gagne' || p.statut === 'perdu') return false;
+      return p.prochaine_relance_le <= new Date().toISOString().slice(0, 10);
     },
   };
 }
