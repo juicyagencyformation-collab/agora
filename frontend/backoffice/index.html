@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-13" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-14" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -294,6 +294,7 @@
             <input type="text" x-model="filtreRecherche" @input.debounce.400ms="chargerProspects()" placeholder="Rechercher une commune" />
             <select x-model="filtreTri" @change="chargerProspects()">
               <option value="nom">Tri : Nom (A→Z)</option>
+              <option value="departement">Département</option>
               <option value="population_desc">Population (décroissant)</option>
               <option value="population_asc">Population (croissant)</option>
             </select>
@@ -481,8 +482,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-13"></script>
-  <script src="/backoffice/js/app.js?v=20260813-13"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-13" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-14"></script>
+  <script src="/backoffice/js/app.js?v=20260813-14"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-14" defer></script>
 </body>
 </html>

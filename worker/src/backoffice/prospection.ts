@@ -60,6 +60,7 @@ app.post('/importer', async (c) => {
 // — Liste (filtres sobres : statut, département, recherche) —
 const TRIS: Record<string, string> = {
   nom: 'nom.asc',
+  departement: 'departement.asc,nom.asc',
   population_desc: 'population.desc.nullslast',
   population_asc: 'population.asc.nullslast',
 };
