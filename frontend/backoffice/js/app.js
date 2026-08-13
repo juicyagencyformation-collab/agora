@@ -21,6 +21,9 @@ function backoffice() {
     typesInteraction: ['note', 'appel', 'email', 'courrier', 'rdv'],
     prospects: [],
     apProsp: {},
+    selectionProspects: {}, // id -> true
+    lotEnCours: false,
+    lotMsg: '',
     filtreStatut: '',
     filtreDep: '',
     filtreRecherche: '',
@@ -126,6 +129,43 @@ function backoffice() {
       ]);
       this.apProsp = apercu;
       this.prospects = liste.prospects;
+      this.selectionProspects = {};
+      this.lotMsg = '';
+    },
+
+    // — Sélection groupée —
+    estSelectionne(id) { return !!this.selectionProspects[id]; },
+    basculer(id) {
+      if (this.selectionProspects[id]) delete this.selectionProspects[id];
+      else this.selectionProspects[id] = true;
+      this.selectionProspects = { ...this.selectionProspects };
+    },
+    toutSelectionne() { return this.prospects.length > 0 && this.prospects.every((p) => this.selectionProspects[p.id]); },
+    basculerTout() {
+      if (this.toutSelectionne()) { this.selectionProspects = {}; return; }
+      const s = { ...this.selectionProspects };
+      this.prospects.forEach((p) => { s[p.id] = true; });
+      this.selectionProspects = s;
+    },
+    nbSelection() { return Object.keys(this.selectionProspects).length; },
+
+    async envoyerLot() {
+      const ids = Object.keys(this.selectionProspects);
+      if (!ids.length) return;
+      if (ids.length > 40) { this.lotMsg = 'Maximum 40 communes par envoi.'; return; }
+      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ?`)) return;
+      this.lotEnCours = true;
+      this.lotMsg = '';
+      try {
+        const r = await boFetch('/prospection/prospecter-lot', { method: 'POST', body: JSON.stringify({ ids }) });
+        this.lotMsg = `${r.envoyes} envoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s).`;
+        await this.chargerProspects();
+        this.lotMsg = `${r.envoyes} envoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s).`;
+      } catch (e) {
+        this.lotMsg = e.message || 'Envoi impossible';
+      } finally {
+        this.lotEnCours = false;
+      }
     },
 
     async importer() {

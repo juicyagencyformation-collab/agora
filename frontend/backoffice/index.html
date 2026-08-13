@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-7" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-8" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -198,14 +198,28 @@
             <input type="text" x-model="filtreRecherche" @input.debounce.400ms="chargerProspects()" placeholder="Rechercher une commune" />
           </div>
 
+          <!-- Barre d'action groupée -->
+          <div class="bo-outils" x-show="nbSelection() > 0" style="justify-content:space-between">
+            <span class="bo-info" x-text="nbSelection() + ' commune(s) sélectionnée(s)' + (nbSelection() > 40 ? ' — max 40 par envoi' : '')"></span>
+            <div style="display:flex; align-items:center; gap:10px">
+              <span class="bo-info" x-text="lotMsg"></span>
+              <button class="bo-btn bo-btn--compact" @click="envoyerLot()" :disabled="lotEnCours || nbSelection() > 40"
+                      x-text="lotEnCours ? 'Envoi…' : ('✉ Envoyer la présentation aux ' + nbSelection() + ' sélectionnés')"></button>
+            </div>
+          </div>
+
           <div class="bo-carte">
             <table>
               <thead>
-                <tr><th>Commune</th><th>Dépt</th><th>Population</th><th>Statut</th><th>Contact</th><th>Relance</th></tr>
+                <tr>
+                  <th style="width:34px"><input type="checkbox" style="width:auto" :checked="toutSelectionne()" @change="basculerTout()" /></th>
+                  <th>Commune</th><th>Dépt</th><th>Population</th><th>Statut</th><th>Contact</th><th>Relance</th>
+                </tr>
               </thead>
               <tbody>
                 <template x-for="p in prospects" :key="p.id">
                   <tr @click="ouvrirProspect(p.id)">
+                    <td @click.stop><input type="checkbox" style="width:auto" :checked="estSelectionne(p.id)" @change="basculer(p.id)" /></td>
                     <td class="bo-nom-commune" x-text="p.nom"></td>
                     <td x-text="p.departement"></td>
                     <td x-text="p.population ? p.population.toLocaleString('fr-FR') : '—'"></td>
@@ -215,7 +229,7 @@
                   </tr>
                 </template>
                 <template x-if="prospects.length === 0">
-                  <tr><td colspan="6" class="bo-vide" style="text-align:center">Aucun prospect. Importe un département ci-dessus.</td></tr>
+                  <tr><td colspan="7" class="bo-vide" style="text-align:center">Aucun prospect. Importe un département ci-dessus.</td></tr>
                 </template>
               </tbody>
             </table>
@@ -366,8 +380,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-7"></script>
-  <script src="/backoffice/js/app.js?v=20260813-7"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-7" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-8"></script>
+  <script src="/backoffice/js/app.js?v=20260813-8"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-8" defer></script>
 </body>
 </html>

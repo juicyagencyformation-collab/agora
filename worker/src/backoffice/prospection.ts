@@ -158,39 +158,67 @@ app.post('/prospects/:id/enrichir', async (c) => {
 
 // — Prospecter en un clic : enrichit si besoin, envoie l'email de présentation à la mairie,
 //   journalise l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
-app.post('/prospects/:id/prospecter', async (c) => {
-  const id = c.req.param('id');
-  let [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,statut', id: `eq.${id}`,
-  });
-  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+// Traite un prospect : enrichit si besoin, envoie l'email, journalise, met à jour statut/relance.
+// Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
+async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{ resultat: 'envoye' | 'sans_email' | 'saute'; email?: string }> {
+  if (prospect.statut === 'gagne' || prospect.statut === 'perdu') return { resultat: 'saute' };
 
-  // Enrichissement automatique si l'email de contact manque encore.
-  if (!prospect.contact_email) {
-    const maj = await enrichirDepuisAnnuaire(c.env, id, prospect.code_insee);
-    if (maj) prospect = { ...prospect, ...maj };
+  let email = prospect.contact_email;
+  if (!email) {
+    const maj = await enrichirDepuisAnnuaire(env, prospect.id, prospect.code_insee);
+    if (maj?.contact_email) email = maj.contact_email;
   }
-  if (!prospect.contact_email) {
-    return c.json({ erreur: 'Aucun email de contact trouvé pour cette commune (annuaire incomplet).' }, 422);
-  }
+  if (!email) return { resultat: 'sans_email' };
 
-  await envoyerEmailProspection(c.env, {
-    nomCommune: prospect.nom,
-    contactEmail: prospect.contact_email,
-    frontendUrl: c.env.FRONTEND_URL,
-  });
+  await envoyerEmailProspection(env, { nomCommune: prospect.nom, contactEmail: email, frontendUrl: env.FRONTEND_URL });
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
-  await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
+  await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
 
-  await supabaseInsert(c.env, 'prospect_interactions', {
-    prospect_id: id, staff_id: c.get('staff_id'),
-    type: 'email', contenu: `Email de présentation envoyé à ${prospect.contact_email}`,
+  await supabaseInsert(env, 'prospect_interactions', {
+    prospect_id: prospect.id, staff_id: staffId,
+    type: 'email', contenu: `Email de présentation envoyé à ${email}`,
+  });
+  return { resultat: 'envoye', email };
+}
+
+app.post('/prospects/:id/prospecter', async (c) => {
+  const id = c.req.param('id');
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,code_insee,contact_email,statut', id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+
+  const r = await prospecterUn(c.env, c.get('staff_id'), prospect);
+  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email de contact trouvé pour cette commune (annuaire incomplet).' }, 422);
+  if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400);
+  return c.json({ ok: true, email: r.email });
+});
+
+// — Envoi groupé : prospecte plusieurs communes sélectionnées en une fois. Plafonné (limites
+//   Resend + sous-requêtes Worker + délivrabilité) et traité en séquence. —
+const lotSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(40) });
+
+app.post('/prospecter-lot', async (c) => {
+  const body = lotSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 communes par envoi).' }, 400);
+
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,code_insee,contact_email,statut',
+    id: `in.(${body.data.ids.join(',')})`,
   });
 
-  return c.json({ ok: true, email: prospect.contact_email, statut: patch.statut ?? prospect.statut, prochaine_relance_le: relance });
+  const staffId = c.get('staff_id');
+  let envoyes = 0, sans_email = 0, ignores = 0;
+  for (const prospect of prospects) {
+    const r = await prospecterUn(c.env, staffId, prospect);
+    if (r.resultat === 'envoye') envoyes += 1;
+    else if (r.resultat === 'sans_email') sans_email += 1;
+    else ignores += 1;
+  }
+  return c.json({ ok: true, envoyes, sans_email, ignores });
 });
 
 // — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —

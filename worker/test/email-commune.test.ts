@@ -6,7 +6,8 @@ describe('genererMotDePasseTemporaire', () => {
   it('génère 10 caractères sans symboles ambigus', () => {
     const mdp = genererMotDePasseTemporaire();
     expect(mdp).toHaveLength(10);
-    expect(mdp).toMatch(/^[A-HJ-NP-Za-hj-np-z2-9]+$/); // pas de 0,O,1,l,I
+    expect(mdp).toMatch(/^[A-Za-z2-9]+$/);     // lettres (hors caractères retirés) + chiffres 2-9
+    expect(mdp).not.toMatch(/[0O1Ilio]/);       // aucun caractère ambigu
   });
 });
 

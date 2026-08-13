@@ -4,9 +4,9 @@
 // par administration (bouton « Renvoyer les accès », qui régénère un mot de passe temporaire).
 import { envoyerEmail } from '../lib/email';
 
-// Mot de passe temporaire lisible (sans caractères ambigus 0/O/1/l/I).
+// Mot de passe temporaire lisible : sans caractères ambigus (0, O, o, 1, l, I, i).
 export function genererMotDePasseTemporaire(): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   const octets = crypto.getRandomValues(new Uint8Array(10));
   return [...octets].map((b) => chars[b % chars.length]).join('');
 }
