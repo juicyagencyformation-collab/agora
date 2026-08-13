@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conditions générales d'utilisation — Agora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/base.css?v=20260813-1">
+  <style>
+    body { padding: 24px 18px 60px; max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 16px; color: var(--eau); margin-top: 24px; }
+    p, li { font-size: 14px; line-height: 1.6; color: var(--boue); }
+    .encart-avis {
+      background: rgba(226,201,126,.2); border: 1px solid var(--aube); border-radius: 10px;
+      padding: 12px 14px; font-size: 12.5px; color: var(--boue); margin: 16px 0;
+    }
+    .a-completer { color: var(--roseau); font-style: italic; }
+    a { color: var(--eau); }
+    .retour { display: inline-block; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Conditions générales d'utilisation</h1>
+  <p id="nom-commune-cgu" style="color:var(--roseau);"></p>
+
+  <div class="encart-avis">
+    ℹ️ Document contractuel. Ce gabarit fournit la structure des CGU ; les sections marquées
+    <span class="a-completer">[À COMPLÉTER]</span> doivent être rédigées et validées
+    (juriste / éditeur) avant toute mise en ligne publique définitive. Aucune clause n'y est
+    présumée : le contenu engage l'éditeur du service.
+  </div>
+
+  <h2>1. Objet</h2>
+  <p>Les présentes conditions générales d'utilisation (« CGU ») définissent les modalités
+    d'accès et d'utilisation de l'application citoyenne mise à disposition des habitants de
+    <strong id="nom-commune-texte-cgu">votre commune</strong>.</p>
+  <p class="a-completer">[À COMPLÉTER : périmètre exact du service, public visé.]</p>
+
+  <h2>2. Éditeur du service</h2>
+  <p>Le service est édité et exploité par Juicy Solutions, en lien avec la mairie éditrice.
+    Voir les <a href="mentions-legales.html">mentions légales</a> pour l'identité complète de
+    l'éditeur et de l'hébergeur.</p>
+
+  <h2>3. Acceptation des conditions</h2>
+  <p>L'utilisation de l'application vaut acceptation des présentes CGU. L'utilisateur qui ne
+    les accepte pas doit renoncer à utiliser le service.</p>
+  <p class="a-completer">[À COMPLÉTER : modalités exactes de recueil de l'acceptation, version
+    en vigueur, date d'entrée en vigueur.]</p>
+
+  <h2>4. Accès au service</h2>
+  <p>L'accès à certaines fonctionnalités nécessite la création d'un compte. L'application est
+    fournie « en l'état », sans garantie de disponibilité permanente.</p>
+  <p class="a-completer">[À COMPLÉTER : conditions d'accès, prérequis techniques, gratuité ou
+    non pour l'utilisateur, interruptions de service.]</p>
+
+  <h2>5. Compte utilisateur</h2>
+  <p>L'utilisateur est responsable de la confidentialité de ses identifiants et des actions
+    réalisées depuis son compte.</p>
+  <p class="a-completer">[À COMPLÉTER : conditions d'inscription, exactitude des informations,
+    suppression/suspension de compte.]</p>
+
+  <h2>6. Contenus publiés par les utilisateurs</h2>
+  <p>Certaines fonctionnalités permettent aux habitants de publier du contenu (messages,
+    photos, entraide…). Tout contenu signalé fait l'objet d'un masquage immédiat puis d'une
+    revue par la mairie.</p>
+  <p class="a-completer">[À COMPLÉTER : règles de bonne conduite, contenus interdits, licence
+    d'utilisation accordée à l'éditeur, responsabilité de l'auteur.]</p>
+
+  <h2>7. Responsabilités</h2>
+  <p class="a-completer">[À COMPLÉTER : limites de responsabilité de l'éditeur et de la mairie,
+    responsabilité de l'utilisateur.]</p>
+
+  <h2>8. Propriété intellectuelle</h2>
+  <p>Les contenus publiés par les habitants restent la propriété de leurs auteurs. La
+    structure et le code de l'application sont la propriété de leur éditeur.</p>
+
+  <h2>9. Données personnelles</h2>
+  <p>Le traitement des données personnelles est décrit dans la
+    <a href="confidentialite.html">politique de confidentialité</a>.</p>
+
+  <h2>10. Modification des CGU</h2>
+  <p>L'éditeur peut faire évoluer les présentes CGU. Les utilisateurs sont informés de toute
+    modification substantielle.</p>
+  <p class="a-completer">[À COMPLÉTER : modalités et délai d'information, effet des
+    modifications.]</p>
+
+  <h2>11. Droit applicable et litiges</h2>
+  <p>Les présentes CGU sont soumises au droit français.</p>
+  <p class="a-completer">[À COMPLÉTER : juridiction compétente, médiation éventuelle.]</p>
+
+  <h2>12. Contact</h2>
+  <p>Pour toute question relative aux présentes conditions :
+    <a id="lien-contact-cgu" href="#">contact non renseigné pour le moment</a>.</p>
+
+  <a class="retour" href="connexion.html">← Retour à la connexion</a>
+
+  <script src="/js/config.js?v=20260813-1"></script>
+  <script>
+    fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data?.commune) return;
+        document.getElementById('nom-commune-cgu').textContent = `Commune de ${data.commune.nom}`;
+        document.getElementById('nom-commune-texte-cgu').textContent = data.commune.nom;
+        const lien = document.getElementById('lien-contact-cgu');
+        if (data.commune.contact_email) {
+          lien.href = `mailto:${data.commune.contact_email}`;
+          lien.textContent = data.commune.contact_email;
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

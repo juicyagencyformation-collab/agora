@@ -15,7 +15,7 @@ window.COMMUNE_SLUG = (() => {
   // car Cloudflare retire le .html (/connexion.html servi comme /connexion) : sans ça, "connexion"
   // serait pris pour un slug, l'API appelée sur /api/connexion/... et le serveur répondrait
   // "Commune introuvable". On s'en sert aussi pour ignorer une valeur polluée déjà en localStorage.
-  const pagesNonCommune = ['index', 'connexion', 'reinitialiser', 'confidentialite', 'mentions-legales', 'decouverte', 'manifest', 'sw'];
+  const pagesNonCommune = ['index', 'connexion', 'reinitialiser', 'confidentialite', 'mentions-legales', 'conditions-utilisation', 'decouverte', 'manifest', 'sw'];
   const estPage = (s) => !!s && pagesNonCommune.includes(s.replace(/\.[a-z0-9]+$/i, ''));
 
   const segments = window.location.pathname.split('/').filter(Boolean);

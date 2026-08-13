@@ -10,7 +10,7 @@ const DOSSIERS_STATIQUES = ['css', 'js', 'icons', 'functions'];
 // automatiquement l'extension (/connexion.html -> /connexion) : le navigateur arrive donc sur
 // un chemin sans point, que le routeur prendrait pour un slug de commune et servirait avec
 // index.html (l'appli) à la place. On mappe ces noms "propres" vers leur vrai fichier .html.
-const PAGES_RACINE = ['connexion', 'reinitialiser', 'decouverte', 'mentions-legales', 'confidentialite'];
+const PAGES_RACINE = ['connexion', 'reinitialiser', 'decouverte', 'mentions-legales', 'confidentialite', 'conditions-utilisation'];
 
 // Origine réelle du Worker. Le frontend appelle /api/... en same-origin (voir
 // frontend/js/config.js) et cette fonction relaie vers le Worker en coulisses : ainsi les

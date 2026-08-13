@@ -302,6 +302,7 @@ function initReglagesRgpdProfil() {
     <div class="liens-legaux-profil">
       <a href="/confidentialite.html" target="_blank" rel="noopener">📄 Politique de confidentialité (RGPD)</a>
       <a href="/mentions-legales.html" target="_blank" rel="noopener">📄 Mentions légales</a>
+      <a href="/conditions-utilisation.html" target="_blank" rel="noopener">📄 Conditions générales d'utilisation</a>
     </div>
   `;
 
