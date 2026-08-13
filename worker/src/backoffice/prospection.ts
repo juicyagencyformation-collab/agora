@@ -8,6 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
+import { envoyerEmailProspection } from './email-commune';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -122,21 +123,16 @@ export function formaterAdresse(champJson: string | null | undefined): string | 
   } catch { return null; }
 }
 
-app.post('/prospects/:id/enrichir', async (c) => {
-  const id = c.req.param('id');
-  const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee', id: `eq.${id}`,
-  });
-  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
-
+// Récupère le contact mairie depuis l'annuaire, met à jour le prospect et renvoie la ligne à
+// jour. Renvoie null si l'annuaire n'a pas de fiche. Partagé par /enrichir et /prospecter.
+async function enrichirDepuisAnnuaire(env: any, id: string, codeInsee: string): Promise<any | null> {
   const url = `https://api-lannuaire.service-public.fr/api/explore/v2.1/catalog/datasets/api-lannuaire-administration/records`
-    + `?where=${encodeURIComponent(`pivot like "mairie" and code_insee_commune="${prospect.code_insee}"`)}`
+    + `?where=${encodeURIComponent(`pivot like "mairie" and code_insee_commune="${codeInsee}"`)}`
     + `&select=nom,adresse_courriel,telephone,adresse,site_internet&limit=1`;
   const res = await fetch(url);
-  if (!res.ok) return c.json({ erreur: `Annuaire indisponible (${res.status})` }, 502);
-  const data: any = await res.json();
-  const fiche = data?.results?.[0];
-  if (!fiche) return c.json({ erreur: 'Aucune mairie trouvée dans l\'annuaire pour cette commune' }, 404);
+  if (!res.ok) return null;
+  const fiche = ((await res.json()) as any)?.results?.[0];
+  if (!fiche) return null;
 
   const patch = {
     contact_email: fiche.adresse_courriel || null,
@@ -146,8 +142,55 @@ app.post('/prospects/:id/enrichir', async (c) => {
     enrichi_le: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
-  const [maj] = await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
+  const [maj] = await supabaseUpdate(env, 'prospects', patch, { id: `eq.${id}` });
+  return maj;
+}
+
+app.post('/prospects/:id/enrichir', async (c) => {
+  const id = c.req.param('id');
+  const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'id,code_insee', id: `eq.${id}` });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+
+  const maj = await enrichirDepuisAnnuaire(c.env, id, prospect.code_insee);
+  if (!maj) return c.json({ erreur: 'Aucune mairie trouvée dans l\'annuaire pour cette commune' }, 404);
   return c.json({ ok: true, prospect: maj });
+});
+
+// — Prospecter en un clic : enrichit si besoin, envoie l'email de présentation à la mairie,
+//   journalise l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
+app.post('/prospects/:id/prospecter', async (c) => {
+  const id = c.req.param('id');
+  let [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,code_insee,contact_email,statut', id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+
+  // Enrichissement automatique si l'email de contact manque encore.
+  if (!prospect.contact_email) {
+    const maj = await enrichirDepuisAnnuaire(c.env, id, prospect.code_insee);
+    if (maj) prospect = { ...prospect, ...maj };
+  }
+  if (!prospect.contact_email) {
+    return c.json({ erreur: 'Aucun email de contact trouvé pour cette commune (annuaire incomplet).' }, 422);
+  }
+
+  await envoyerEmailProspection(c.env, {
+    nomCommune: prospect.nom,
+    contactEmail: prospect.contact_email,
+    frontendUrl: c.env.FRONTEND_URL,
+  });
+
+  const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
+  if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
+  await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
+
+  await supabaseInsert(c.env, 'prospect_interactions', {
+    prospect_id: id, staff_id: c.get('staff_id'),
+    type: 'email', contenu: `Email de présentation envoyé à ${prospect.contact_email}`,
+  });
+
+  return c.json({ ok: true, email: prospect.contact_email, statut: patch.statut ?? prospect.statut, prochaine_relance_le: relance });
 });
 
 // — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —

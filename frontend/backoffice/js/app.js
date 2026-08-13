@@ -27,6 +27,8 @@ function backoffice() {
     prospect: null,
     interactions: [],
     enrichEnCours: false,
+    prospEnCours: false,
+    prospMsg: '',
     nouvInteraction: { type: 'note', contenu: '' },
     conversion: { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' },
 
@@ -141,6 +143,7 @@ function backoffice() {
     async ouvrirProspect(id) {
       this.chargement = true;
       this.vue = 'prospect';
+      this.prospMsg = '';
       this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
       try {
         const d = await boFetch('/prospection/prospects/' + id);
@@ -153,8 +156,32 @@ function backoffice() {
             this.conversion.slug = c.commune.slug;
           } catch {}
         }
+        // Auto-enrichissement du contact en arrière-plan (sans clic ni blocage de l'affichage).
+        if (!this.prospect.enrichi_le && this.prospect.code_insee) {
+          boFetch('/prospection/prospects/' + id + '/enrichir', { method: 'POST' })
+            .then((r) => { if (this.prospect && this.prospect.id === id) this.prospect = { ...this.prospect, ...r.prospect }; })
+            .catch(() => {});
+        }
       } finally {
         this.chargement = false;
+      }
+    },
+
+    async prospecter() {
+      if (!confirm('Envoyer l\'email de présentation à la mairie et marquer la commune comme contactée ?')) return;
+      this.prospEnCours = true;
+      this.prospMsg = '';
+      try {
+        const r = await boFetch('/prospection/prospects/' + this.prospect.id + '/prospecter', { method: 'POST' });
+        this.prospMsg = 'Présentation envoyée à ' + r.email;
+        // Recharge la fiche pour refléter le nouveau statut, la relance et l'historique.
+        const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+        this.prospect = d.prospect;
+        this.interactions = d.interactions;
+      } catch (e) {
+        this.prospMsg = e.message || 'Envoi impossible';
+      } finally {
+        this.prospEnCours = false;
       }
     },
 

@@ -76,3 +76,58 @@ export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Prom
     emailBienvenueHtml(d),
   );
 }
+
+// — Email de PROSPECTION (avant signature) : présente Agora à une mairie, avec un accès à la
+//   démonstration en direct et un lien vers la fiche de présentation personnalisée. —
+const DEMO_SLUG = 'eaucourt';
+
+interface DonneesProspection {
+  nomCommune: string;
+  contactEmail: string;
+  frontendUrl: string;
+}
+
+export function emailProspectionHtml(d: DonneesProspection): string {
+  const demoUrl = `${d.frontendUrl}/${DEMO_SLUG}/`;
+  const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${DEMO_SLUG}&nom=${encodeURIComponent(d.nomCommune)}`;
+  const nom = echapper(d.nomCommune);
+  return `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne des communes françaises</div>
+
+    <h1 style="font-size:22px;line-height:1.3">Et si <span style="color:#2c5f2d">${nom}</span> avait sa propre application citoyenne&nbsp;?</h1>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Actualités, alertes, agenda, signalements, conseil municipal, entraide entre voisins&nbsp;:
+      Agora réunit tout ce dont votre commune a besoin pour informer et faire participer ses
+      habitants, dans une application mobile simple, souveraine et 100 % française — que la
+      mairie pilote seule, sans compétence technique.
+    </p>
+
+    <p style="margin:24px 0">
+      <a href="${demoUrl}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Voir la démonstration en direct</a>
+    </p>
+
+    <p style="font-size:14px;color:#3a4a3b">
+      Vous préférez une présentation d'ensemble&nbsp;?
+      <a href="${ficheUrl}" style="color:#2c5f2d">Découvrez la fiche de présentation</a>
+      (avec un QR code pour tester depuis votre téléphone).
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
+      email, je vous rappelle avec plaisir.
+    </div>
+  </div>`;
+}
+
+export async function envoyerEmailProspection(env: any, d: DonneesProspection): Promise<void> {
+  await envoyerEmail(
+    env,
+    d.contactEmail,
+    `Agora — une application citoyenne pour ${d.nomCommune}`,
+    emailProspectionHtml(d),
+  );
+}
