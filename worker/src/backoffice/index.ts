@@ -24,11 +24,17 @@ app.get('/fiche-contenu', async (c) => {
 // RESEND_WEBHOOK_SECRET). Enregistre l'email rejeté et signale l'adresse sur le prospect.
 app.post('/webhook-resend', async (c) => {
   const corpsBrut = await c.req.text();
-  const ok = await verifierSignatureSvix(
-    c.env.RESEND_WEBHOOK_SECRET,
-    c.req.header('svix-id'), c.req.header('svix-timestamp'), c.req.header('svix-signature'),
-    corpsBrut,
-  );
+  const svixId = c.req.header('svix-id');
+  const svixTs = c.req.header('svix-timestamp');
+  const svixSig = c.req.header('svix-signature');
+
+  // Resend impose un webhook (donc un secret distinct) par type d'événement. On accepte
+  // plusieurs secrets : la signature est valide si elle correspond à L'UN d'eux.
+  const secrets = [c.env.RESEND_WEBHOOK_SECRET, c.env.RESEND_WEBHOOK_SECRET_COMPLAINED].filter(Boolean);
+  let ok = false;
+  for (const secret of secrets) {
+    if (await verifierSignatureSvix(secret, svixId, svixTs, svixSig, corpsBrut)) { ok = true; break; }
+  }
   if (!ok) return c.json({ erreur: 'Signature invalide' }, 401);
 
   let evt: any;
