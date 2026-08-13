@@ -35,9 +35,29 @@ app.post('/creer', async (c) => {
   const [slugPris] = await supabaseSelect(c.env, 'communes', { select: 'id', slug: `eq.${slug}` });
   if (slugPris) return c.json({ erreur: `Le slug « ${slug} » est déjà utilisé par une autre commune.` }, 409);
 
+  // Coordonnées du centre de la commune (pour la météo, la carte...). Récupérées depuis
+  // geo.api.gouv.fr via le code INSEE du prospect. Sans coordonnées, l'app retombe sur une
+  // position par défaut erronée (météo d'une autre ville). Non bloquant : en cas d'échec, la
+  // mairie pourra les renseigner depuis les réglages de la commune.
+  let lat: number | null = null;
+  let lng: number | null = null;
+  if (prospect_id) {
+    const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'code_insee', id: `eq.${prospect_id}` });
+    if (prospect?.code_insee) {
+      try {
+        const res = await fetch(`https://geo.api.gouv.fr/communes/${prospect.code_insee}?fields=centre&format=json`);
+        if (res.ok) {
+          const coords = (await res.json())?.centre?.coordinates; // [lng, lat]
+          if (Array.isArray(coords) && coords.length === 2) { lng = coords[0]; lat = coords[1]; }
+        }
+      } catch { /* coordonnées optionnelles */ }
+    }
+  }
+
   const [commune] = await supabaseInsert(c.env, 'communes', {
     slug, nom,
     population: population ?? null,
+    lat, lng,
     niveau_national: false,
   });
 
