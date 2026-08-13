@@ -8,7 +8,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
-import { envoyerEmailProspection } from './email-commune';
+import { envoyerPresentation, contextePresentation, DEMO_SLUG } from './email-commune';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -170,7 +170,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   }
   if (!email) return { resultat: 'sans_email' };
 
-  await envoyerEmailProspection(env, { nomCommune: prospect.nom, contactEmail: email, frontendUrl: env.FRONTEND_URL });
+  await envoyerPresentation(env, email, contextePresentation(env.FRONTEND_URL, prospect.nom, DEMO_SLUG));
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };

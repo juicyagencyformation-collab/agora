@@ -3,6 +3,7 @@
 // application déjà prête + identifiants provisoires. Utilisé par onboarding (à la création) et
 // par administration (bouton « Renvoyer les accès », qui régénère un mot de passe temporaire).
 import { envoyerEmail } from '../lib/email';
+import { supabaseSelect } from '../db';
 
 // Mot de passe temporaire lisible : sans caractères ambigus (0, O, o, 1, l, I, i).
 export function genererMotDePasseTemporaire(): string {
@@ -77,26 +78,20 @@ export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Prom
   );
 }
 
-// — Email de PROSPECTION (avant signature) : présente Agora à une mairie, avec un accès à la
-//   démonstration en direct et un lien vers la fiche de présentation personnalisée. —
-const DEMO_SLUG = 'eaucourt';
+// — Email de PRÉSENTATION (prospection ET communes clientes) : modèle éditable stocké en base
+//   (table modeles_email, cle='presentation'), réutilisé pour tous les envois. Variables
+//   substituées à l'envoi : {{commune}}, {{url}} (app ou démo), {{lien_fiche}}. Un défaut de
+//   secours est utilisé tant qu'aucun modèle n'a été enregistré. —
+export const DEMO_SLUG = 'eaucourt';
 
-interface DonneesProspection {
-  nomCommune: string;
-  contactEmail: string;
-  frontendUrl: string;
-}
-
-export function emailProspectionHtml(d: DonneesProspection): string {
-  const demoUrl = `${d.frontendUrl}/${DEMO_SLUG}/`;
-  const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${DEMO_SLUG}&nom=${encodeURIComponent(d.nomCommune)}`;
-  const nom = echapper(d.nomCommune);
-  return `
+export const MODELE_PRESENTATION_DEFAUT = {
+  objet: 'Agora — une application citoyenne pour {{commune}}',
+  corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
     <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne des communes françaises</div>
 
-    <h1 style="font-size:22px;line-height:1.3">Et si <span style="color:#2c5f2d">${nom}</span> avait sa propre application citoyenne&nbsp;?</h1>
+    <h1 style="font-size:22px;line-height:1.3">Et si <span style="color:#2c5f2d">{{commune}}</span> avait sa propre application citoyenne&nbsp;?</h1>
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
       Actualités, alertes, agenda, signalements, conseil municipal, entraide entre voisins&nbsp;:
       Agora réunit tout ce dont votre commune a besoin pour informer et faire participer ses
@@ -105,12 +100,12 @@ export function emailProspectionHtml(d: DonneesProspection): string {
     </p>
 
     <p style="margin:24px 0">
-      <a href="${demoUrl}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Voir la démonstration en direct</a>
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Découvrir l'application</a>
     </p>
 
     <p style="font-size:14px;color:#3a4a3b">
       Vous préférez une présentation d'ensemble&nbsp;?
-      <a href="${ficheUrl}" style="color:#2c5f2d">Découvrez la fiche de présentation</a>
+      <a href="{{lien_fiche}}" style="color:#2c5f2d">Découvrez la fiche de présentation</a>
       (avec un QR code pour tester depuis votre téléphone).
     </p>
 
@@ -120,14 +115,46 @@ export function emailProspectionHtml(d: DonneesProspection): string {
       Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
       email, je vous rappelle avec plaisir.
     </div>
-  </div>`;
+  </div>`,
+};
+
+export interface ContextePresentation {
+  commune: string;      // nom de la commune
+  url: string;          // URL de l'app (client) ou de la démo (prospect)
+  lienFiche: string;    // lien vers la fiche de présentation
 }
 
-export async function envoyerEmailProspection(env: any, d: DonneesProspection): Promise<void> {
-  await envoyerEmail(
-    env,
-    d.contactEmail,
-    `Agora — une application citoyenne pour ${d.nomCommune}`,
-    emailProspectionHtml(d),
-  );
+// Substitue les variables du modèle. {{commune}} est échappé (contenu utilisateur) ; url et
+// lien_fiche sont construits côté serveur, insérés tels quels.
+export function rendrePresentation(modele: string, ctx: ContextePresentation): string {
+  return modele
+    .replace(/\{\{commune\}\}/g, echapper(ctx.commune))
+    .replace(/\{\{url\}\}/g, ctx.url)
+    .replace(/\{\{lien_fiche\}\}/g, ctx.lienFiche);
+}
+
+// Charge le modèle enregistré (ou le défaut de secours si aucun n'existe / lecture échouée).
+export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string }> {
+  try {
+    const [row] = await supabaseSelect(env, 'modeles_email', {
+      select: 'objet,corps_html', cle: 'eq.presentation',
+    });
+    if (row?.objet && row?.corps_html) return row;
+  } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
+  return MODELE_PRESENTATION_DEFAUT;
+}
+
+// Construit le contexte de variables pour une commune (client → son app ; prospect → la démo).
+export function contextePresentation(frontendUrl: string, nomCommune: string, slug: string): ContextePresentation {
+  return {
+    commune: nomCommune,
+    url: `${frontendUrl}/${slug}/`,
+    lienFiche: `${frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(slug)}&nom=${encodeURIComponent(nomCommune)}`,
+  };
+}
+
+// Envoie l'email de présentation à partir du modèle enregistré, variables substituées.
+export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<void> {
+  const modele = await chargerModelePresentation(env);
+  await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), rendrePresentation(modele.corps_html, ctx));
 }

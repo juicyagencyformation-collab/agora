@@ -5,10 +5,15 @@
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseUpdate } from '../db';
+import { supabaseSelect, supabaseUpdate, supabaseInsert } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
-import { envoyerEmailBienvenue, genererMotDePasseTemporaire } from './email-commune';
+import {
+  envoyerEmailBienvenue, genererMotDePasseTemporaire,
+  envoyerPresentation, contextePresentation, chargerModelePresentation,
+} from './email-commune';
+
+const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -37,7 +42,7 @@ async function calculerStockageR2(env: any, commune_id: string): Promise<{ octet
 // La commune "nationale" (niveau_national=true) n'est pas une cliente : on l'exclut.
 app.get('/communes', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,created_at',
     niveau_national: 'eq.false',
     order: 'nom.asc',
   });
@@ -74,7 +79,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,statut_client,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -208,6 +213,52 @@ app.post('/email-test', async (c) => {
     return c.json({ erreur: `Resend a refusé l'envoi (${res.status}) : ${data?.message || data?.name || 'erreur inconnue'}` }, 502);
   }
   return c.json({ ok: true, destinataire, from: c.env.EMAIL_FROM || 'onboarding@resend.dev' });
+});
+
+// PATCH /communes/:id/statut — statut du cycle de vie client (active | suspendue | resiliee).
+app.patch('/communes/:id/statut', async (c) => {
+  const id = c.req.param('id');
+  const body = z.object({ statut_client: z.enum(STATUTS_CLIENT) }).safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Statut invalide' }, 400);
+  await supabaseUpdate(c.env, 'communes', { statut_client: body.data.statut_client }, { id: `eq.${id}` });
+  return c.json({ ok: true, statut_client: body.data.statut_client });
+});
+
+// POST /communes/:id/envoyer-presentation — envoie l'email de présentation (modèle enregistré)
+// à la commune, à tout moment. Destinataire : email de contact, sinon email mairie.
+app.post('/communes/:id/envoyer-presentation', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', {
+    select: 'nom,slug,contact_email,email_mairie', id: `eq.${id}`,
+  });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const destinataire = commune.contact_email || commune.email_mairie;
+  if (!destinataire) return c.json({ erreur: 'Aucun email de contact pour cette commune (renseigne un contact ou un email mairie).' }, 422);
+
+  await envoyerPresentation(c.env, destinataire, contextePresentation(c.env.FRONTEND_URL, commune.nom, commune.slug));
+  return c.json({ ok: true, email: destinataire });
+});
+
+// GET /modele-email — modèle d'email de présentation (enregistré, ou défaut de secours).
+app.get('/modele-email', async (c) => {
+  const modele = await chargerModelePresentation(c.env);
+  return c.json({ modele });
+});
+
+// PUT /modele-email — enregistre/écrase le modèle (upsert manuel sur cle='presentation').
+app.put('/modele-email', async (c) => {
+  const body = z.object({
+    objet: z.string().min(1).max(200),
+    corps_html: z.string().min(1).max(20000),
+  }).safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const donnees = { objet: body.data.objet, corps_html: body.data.corps_html, updated_at: new Date().toISOString() };
+  const [existant] = await supabaseSelect(c.env, 'modeles_email', { select: 'cle', cle: 'eq.presentation' });
+  if (existant) await supabaseUpdate(c.env, 'modeles_email', donnees, { cle: 'eq.presentation' });
+  else await supabaseInsert(c.env, 'modeles_email', { cle: 'presentation', ...donnees });
+  return c.json({ ok: true });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.

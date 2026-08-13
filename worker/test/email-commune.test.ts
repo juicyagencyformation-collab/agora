@@ -1,6 +1,9 @@
 // worker/test/email-commune.test.ts
 import { describe, it, expect } from 'vitest';
-import { emailBienvenueHtml, emailProspectionHtml, genererMotDePasseTemporaire } from '../src/backoffice/email-commune';
+import {
+  emailBienvenueHtml, genererMotDePasseTemporaire,
+  rendrePresentation, contextePresentation, MODELE_PRESENTATION_DEFAUT,
+} from '../src/backoffice/email-commune';
 
 describe('genererMotDePasseTemporaire', () => {
   it('génère 10 caractères sans symboles ambigus', () => {
@@ -32,15 +35,19 @@ describe('emailBienvenueHtml', () => {
   });
 });
 
-describe('emailProspectionHtml', () => {
-  const html = emailProspectionHtml({
-    nomCommune: 'Ailly-le-Haut-Clocher', contactEmail: 'mairie@ailly.fr',
-    frontendUrl: 'https://plateforme-agora.fr',
-  });
-  it('renvoie vers la démo et la fiche personnalisée, sans exposer d\'identifiants', () => {
-    expect(html).toContain('https://plateforme-agora.fr/eaucourt/'); // démo
+describe('rendrePresentation (modèle + variables)', () => {
+  it('substitue commune / url / lien_fiche depuis le contexte', () => {
+    const ctx = contextePresentation('https://plateforme-agora.fr', 'Ailly-le-Haut-Clocher', 'eaucourt');
+    const html = rendrePresentation(MODELE_PRESENTATION_DEFAUT.corps_html, ctx);
+    expect(html).toContain('https://plateforme-agora.fr/eaucourt/');
     expect(html).toContain('/backoffice/fiche?slug=eaucourt&nom=Ailly-le-Haut-Clocher');
     expect(html).toContain('Ailly-le-Haut-Clocher');
-    expect(html).not.toContain('Mot de passe');
+    expect(html).not.toContain('{{commune}}');
+    expect(html).not.toContain('{{url}}');
+  });
+  it('échappe le nom de commune contre l\'injection HTML', () => {
+    const ctx = contextePresentation('https://plateforme-agora.fr', '<b>x</b>', 'y');
+    const html = rendrePresentation('Bonjour {{commune}}', ctx);
+    expect(html).toBe('Bonjour &lt;b&gt;x&lt;/b&gt;');
   });
 });

@@ -15,6 +15,11 @@ function backoffice() {
     forfaitQuota: '',
     forfaitEnCours: false,
     forfaitMsg: '',
+    presentEnCours: false,
+    presentMsg: '',
+    modele: { objet: '', corps_html: '' },
+    modeleEnCours: false,
+    modeleMsg: '',
     testEmailDest: '',
     testEmailEnCours: false,
     testEmailMsg: '',
@@ -48,6 +53,7 @@ function backoffice() {
         const { staff } = await boFetch('/auth/me');
         this.staff = staff;
         this.testEmailDest = staff.email || '';
+        try { this.modele = (await boFetch('/administration/modele-email')).modele; } catch {}
       } catch {
         redirigerVersConnexion();
         return;
@@ -75,12 +81,51 @@ function backoffice() {
       this.coordsMsg = '';
       this.accesMsg = '';
       this.forfaitMsg = '';
+      this.presentMsg = '';
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
         this.forfaitNom = this.fiche.commune.forfait || '';
         this.forfaitQuota = this.fiche.commune.quota_go ?? '';
+        if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
       } finally {
         this.chargement = false;
+      }
+    },
+
+    async majStatutClient() {
+      try {
+        await boFetch('/administration/communes/' + this.fiche.commune.id + '/statut', {
+          method: 'PATCH', body: JSON.stringify({ statut_client: this.fiche.commune.statut_client }),
+        });
+      } catch (e) { alert(e.message || 'Mise à jour impossible'); }
+    },
+
+    async envoyerPresentationCommune() {
+      if (!confirm('Envoyer l\'email de présentation à cette commune ?')) return;
+      this.presentEnCours = true;
+      this.presentMsg = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/envoyer-presentation', { method: 'POST' });
+        this.presentMsg = 'Présentation envoyée à ' + r.email;
+      } catch (e) {
+        this.presentMsg = e.message || 'Envoi impossible';
+      } finally {
+        this.presentEnCours = false;
+      }
+    },
+
+    async enregistrerModele() {
+      this.modeleEnCours = true;
+      this.modeleMsg = '';
+      try {
+        await boFetch('/administration/modele-email', {
+          method: 'PUT', body: JSON.stringify({ objet: this.modele.objet, corps_html: this.modele.corps_html }),
+        });
+        this.modeleMsg = 'Modèle enregistré.';
+      } catch (e) {
+        this.modeleMsg = e.message || 'Échec';
+      } finally {
+        this.modeleEnCours = false;
       }
     },
 
@@ -405,6 +450,9 @@ function backoffice() {
     },
     libelleType(t) {
       return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut' }[t] || t;
+    },
+    libelleStatutClient(s) {
+      return { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[s] || 'Active';
     },
     relanceEnRetard(p) {
       if (!p.prochaine_relance_le || p.statut === 'gagne' || p.statut === 'perdu') return false;

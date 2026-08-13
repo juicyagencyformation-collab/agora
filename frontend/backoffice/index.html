@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-9" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-10" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -47,12 +47,13 @@
           <div class="bo-carte">
             <table>
               <thead>
-                <tr><th>Commune</th><th>Population</th><th>Citoyens</th><th>Forfait</th><th>Note app</th><th>Cliente depuis</th></tr>
+                <tr><th>Commune</th><th>Statut</th><th>Population</th><th>Citoyens</th><th>Forfait</th><th>Note app</th><th>Cliente depuis</th></tr>
               </thead>
               <tbody>
                 <template x-for="c in communes" :key="c.id">
                   <tr @click="ouvrirFiche(c.id)">
                     <td class="bo-nom-commune" x-text="c.nom"></td>
+                    <td><span class="bo-statut" :class="'bo-statut--' + (c.statut_client || 'active')" x-text="libelleStatutClient(c.statut_client)"></span></td>
                     <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
                     <td x-text="c.nb_citoyens"></td>
                     <td><span :class="{ 'bo-vide': !c.forfait }" x-text="c.forfait ? (c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')) : '—'"></span></td>
@@ -66,7 +67,7 @@
                   </tr>
                 </template>
                 <template x-if="communes.length === 0">
-                  <tr><td colspan="6" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
+                  <tr><td colspan="7" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
                 </template>
               </tbody>
             </table>
@@ -81,6 +82,23 @@
                       x-text="testEmailEnCours ? 'Envoi…' : 'Envoyer un email de test'"></button>
             </div>
             <div x-show="testEmailMsg" :class="testEmailOk ? '' : 'bo-erreur'" style="margin:0" x-text="testEmailMsg"></div>
+          </div>
+
+          <div class="bo-section-titre">Modèle d'email de présentation</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div class="bo-info" style="margin-bottom:12px">
+              Email envoyé aux prospects et aux communes. Variables disponibles :
+              <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo), <code>{{lien_fiche}}</code>.
+            </div>
+            <label style="margin-top:0">Objet</label>
+            <input type="text" x-model="modele.objet" />
+            <label>Corps (HTML)</label>
+            <textarea x-model="modele.corps_html" style="min-height:220px; font-family:monospace; font-size:12.5px"></textarea>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModele()" :disabled="modeleEnCours"
+                      x-text="modeleEnCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              <span class="bo-info" x-text="modeleMsg"></span>
+            </div>
           </div>
         </div>
       </template>
@@ -109,6 +127,25 @@
           </div>
 
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+            <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap">
+              <div>
+                <div style="font-weight:600; margin-bottom:6px">Statut client</div>
+                <select x-model="fiche.commune.statut_client" @change="majStatutClient()" style="width:auto; min-width:160px">
+                  <option value="active">Active</option>
+                  <option value="suspendue">Suspendue</option>
+                  <option value="resiliee">Résiliée</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-weight:600; margin-bottom:6px">Présentation</div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerPresentationCommune()" :disabled="presentEnCours"
+                        x-text="presentEnCours ? 'Envoi…' : '✉ Envoyer la présentation'"></button>
+              </div>
+            </div>
+            <span class="bo-info" x-text="presentMsg"></span>
+          </div>
+
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px">
             <div>
               <div style="font-weight:600">Coordonnées GPS</div>
               <div class="bo-info" x-text="(fiche.commune.lat && fiche.commune.lng) ? (fiche.commune.lat.toFixed(4) + ', ' + fiche.commune.lng.toFixed(4)) : 'Non renseignées — la météo affichée est erronée sans elles.'"></div>
@@ -408,8 +445,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-9"></script>
-  <script src="/backoffice/js/app.js?v=20260813-9"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-9" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-10"></script>
+  <script src="/backoffice/js/app.js?v=20260813-10"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-10" defer></script>
 </body>
 </html>
