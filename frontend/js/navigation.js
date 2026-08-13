@@ -2,6 +2,15 @@
 async function initUtilisateur() {
   try {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/auth/me`);
+    // Utilisateur arrivé sur une commune qui n'est pas la sienne (URL modifiée à la main,
+    // mauvais lien...) : le serveur refuse (403) et indique sa vraie commune. On l'y renvoie.
+    if (res.status === 403) {
+      const err = await res.json().catch(() => ({}));
+      if (err.votre_commune && err.votre_commune !== window.COMMUNE_SLUG) {
+        window.location.href = `/${err.votre_commune}/`;
+      }
+      return;
+    }
     if (!res.ok) return;
     const data = await res.json();
     window.USER_ID = data.user_id;
