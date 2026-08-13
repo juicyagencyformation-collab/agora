@@ -109,6 +109,17 @@ export const MODELE_PRESENTATION_DEFAUT = {
       (avec un QR code pour tester depuis votre téléphone).
     </p>
 
+    <div style="font-size:13px;color:#3a4a3b;font-style:italic;background:#f4f8f4;border-left:3px solid #4a8c4a;padding:14px 16px;border-radius:0 8px 8px 0;margin:24px 0;line-height:1.6">
+      <div style="font-weight:700;font-style:normal;color:#2c5f2d;margin-bottom:6px">Qui je suis</div>
+      Léandre Sallé, habitant d'Eaucourt-sur-Somme. Là où d'autres solutions, souvent financées
+      par l'intercommunalité, se limitent à diffuser des informations, j'ai voulu placer la
+      commune et ses habitants au cœur&nbsp;: participation citoyenne, valorisation de
+      l'engagement de chacun, devoir de mémoire envers les anciens avec le module
+      «&nbsp;La mémoire du village&nbsp;», valorisation du territoire et de son patrimoine avec
+      le module «&nbsp;Chasse au trésor&nbsp;». Une application qui crée du lien, pas seulement
+      des notifications.
+    </div>
+
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;display:flex;align-items:center;gap:12px">
       {{signature_photo}}
