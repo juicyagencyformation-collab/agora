@@ -6,6 +6,8 @@
 import { Hono } from 'hono';
 import { supabaseSelect, supabaseUpdate } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
+import { hasherMotDePasse } from '../lib/password';
+import { envoyerEmailBienvenue, genererMotDePasseTemporaire } from './email-commune';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -127,6 +129,29 @@ app.post('/communes/:id/coordonnees', async (c) => {
   const [lng, lat] = coords;
   await supabaseUpdate(c.env, 'communes', { lat, lng }, { id: `eq.${id}` });
   return c.json({ ok: true, lat, lng });
+});
+
+// POST /communes/:id/renvoyer-acces — régénère un mot de passe temporaire pour le maire de la
+// commune et lui renvoie l'email de bienvenue avec ses identifiants. Utile si le maire a perdu
+// ses accès initiaux (le mot de passe d'origine n'est jamais stocké en clair, on en régénère un).
+app.post('/communes/:id/renvoyer-acces', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const [maire] = await supabaseSelect(c.env, 'users', {
+    select: 'id,email', commune_id: `eq.${id}`, role: 'eq.maire', order: 'created_at.asc',
+  });
+  if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
+
+  const motDePasse = genererMotDePasseTemporaire();
+  await supabaseUpdate(c.env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${maire.id}` });
+
+  await envoyerEmailBienvenue(c.env, {
+    nomCommune: commune.nom, slug: commune.slug, maireEmail: maire.email, motDePasse,
+    frontendUrl: c.env.FRONTEND_URL,
+  });
+  return c.json({ ok: true, email: maire.email });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.

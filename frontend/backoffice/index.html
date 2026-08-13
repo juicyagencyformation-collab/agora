@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-4" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-5" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -15,7 +15,6 @@
       <div class="bo-nav__marque">Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
-      <div class="bo-nav__lien" data-inactif title="À venir (Phase 3)">Onboarding</div>
       <div class="bo-nav__pied">
         <div x-text="staff.nom"></div>
         <div style="margin-top:8px"><a @click.prevent="deconnexion()" href="#">Se déconnecter</a></div>
@@ -106,6 +105,18 @@
               <span class="bo-info" x-text="coordsMsg"></span>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="recupererCoords()" :disabled="coordsEnCours"
                       x-text="coordsEnCours ? 'Récupération…' : 'Récupérer les coordonnées'"></button>
+            </div>
+          </div>
+
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px">
+            <div>
+              <div style="font-weight:600">Accès du maire</div>
+              <div class="bo-info">Régénère un mot de passe temporaire et renvoie l'email de bienvenue au maire.</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px">
+              <span class="bo-info" x-text="accesMsg"></span>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
+                      x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
             </div>
           </div>
 
@@ -310,6 +321,10 @@
                         <input type="text" x-model="conversion.mairePassword" required minlength="6" />
                       </div>
                     </div>
+                    <label style="display:flex; align-items:center; gap:8px; margin-top:14px; cursor:pointer">
+                      <input type="checkbox" x-model="conversion.envoyerEmail" style="width:auto" />
+                      <span>Envoyer les accès (identifiants provisoires) au maire par email</span>
+                    </label>
                     <div style="display:flex; gap:10px; align-items:center; margin-top:14px">
                       <button class="bo-btn bo-btn--compact" type="submit" :disabled="conversion.enCours" x-text="conversion.enCours ? 'Création…' : 'Créer la commune cliente'"></button>
                       <button class="bo-btn bo-btn--sec bo-btn--compact" type="button" @click="conversion.ouvert = false">Annuler</button>
@@ -335,8 +350,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-4"></script>
-  <script src="/backoffice/js/app.js?v=20260813-4"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-4" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-5"></script>
+  <script src="/backoffice/js/app.js?v=20260813-5"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-5" defer></script>
 </body>
 </html>

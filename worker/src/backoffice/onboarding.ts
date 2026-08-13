@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { hasherMotDePasse } from '../lib/password';
 import { backofficeMiddleware } from '../middleware/backoffice';
+import { envoyerEmailBienvenue } from './email-commune';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -24,12 +25,13 @@ const creerSchema = z.object({
     prenom: z.string().min(1).max(100),
     password: z.string().min(6).max(200),
   }),
+  envoyer_email: z.boolean().optional(),
 });
 
 app.post('/creer', async (c) => {
   const body = creerSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
-  const { prospect_id, nom, slug, population, maire } = body.data;
+  const { prospect_id, nom, slug, population, maire, envoyer_email } = body.data;
 
   // Slug unique : c'est l'identifiant d'URL de la commune (plateforme-agora.fr/<slug>/).
   const [slugPris] = await supabaseSelect(c.env, 'communes', { select: 'id', slug: `eq.${slug}` });
@@ -47,7 +49,7 @@ app.post('/creer', async (c) => {
       try {
         const res = await fetch(`https://geo.api.gouv.fr/communes/${prospect.code_insee}?fields=centre&format=json`);
         if (res.ok) {
-          const coords = (await res.json())?.centre?.coordinates; // [lng, lat]
+          const coords = ((await res.json()) as any)?.centre?.coordinates; // [lng, lat]
           if (Array.isArray(coords) && coords.length === 2) { lng = coords[0]; lat = coords[1]; }
         }
       } catch { /* coordonnées optionnelles */ }
@@ -81,6 +83,15 @@ app.post('/creer', async (c) => {
     await supabaseInsert(c.env, 'prospect_interactions', {
       prospect_id, staff_id: c.get('staff_id'),
       type: 'statut', contenu: `Commune cliente créée (${slug}), maire : ${maire.email}`,
+    });
+  }
+
+  // Email de bienvenue au maire avec ses identifiants provisoires (le mot de passe en clair
+  // n'est disponible qu'ici, avant hachage). Non bloquant : envoyerEmail échoue silencieusement.
+  if (envoyer_email) {
+    await envoyerEmailBienvenue(c.env, {
+      nomCommune: nom, slug, maireEmail: maire.email, motDePasse: maire.password,
+      frontendUrl: c.env.FRONTEND_URL,
     });
   }
 

@@ -9,6 +9,8 @@ function backoffice() {
     fiche: null,
     coordsEnCours: false,
     coordsMsg: '',
+    accesEnCours: false,
+    accesMsg: '',
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
@@ -57,10 +59,25 @@ function backoffice() {
       this.chargement = true;
       this.vue = 'fiche';
       this.coordsMsg = '';
+      this.accesMsg = '';
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
       } finally {
         this.chargement = false;
+      }
+    },
+
+    async renvoyerAcces() {
+      if (!confirm('Régénérer un mot de passe temporaire et renvoyer l\'email au maire ?')) return;
+      this.accesEnCours = true;
+      this.accesMsg = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/renvoyer-acces', { method: 'POST' });
+        this.accesMsg = 'Accès renvoyés à ' + r.email;
+      } catch (e) {
+        this.accesMsg = e.message || 'Envoi impossible';
+      } finally {
+        this.accesEnCours = false;
       }
     },
 
@@ -151,6 +168,7 @@ function backoffice() {
         ouvert: true, enCours: false, succes: false, erreur: '',
         nom: this.prospect.nom, slug: this.slugify(this.prospect.nom),
         maireEmail: this.prospect.contact_email || '', mairePrenom: '', maireNom: '', mairePassword: '', url: '',
+        envoyerEmail: true,
       };
     },
 
@@ -171,6 +189,7 @@ function backoffice() {
               nom: this.conversion.maireNom,
               password: this.conversion.mairePassword,
             },
+            envoyer_email: this.conversion.envoyerEmail,
           }),
         });
         // On ne touche pas à prospect.commune_id ici : le laisser nul maintient l'affichage du
