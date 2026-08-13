@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-19" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-19" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-20" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-20" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -118,8 +118,31 @@
             </div>
             <label style="margin-top:0">Objet</label>
             <input type="text" x-model="modele.objet" />
-            <label>Corps (HTML)</label>
-            <textarea x-model="modele.corps_html" style="min-height:220px; font-family:monospace; font-size:12.5px"></textarea>
+
+            <label>Corps du message</label>
+            <div class="bo-toolbar">
+              <template x-if="modeEditeurEmail === 'visuel'">
+                <span style="display:contents">
+                  <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                  <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                  <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                  <span class="sep"></span>
+                  <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                  <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                  <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                  <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                  <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                  <span class="sep"></span>
+                  <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                  <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app / la démo">+ lien app</button>
+                  <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche">+ lien fiche</button>
+                  <span class="sep"></span>
+                </span>
+              </template>
+              <button type="button" @click="basculerModeEditeur()" x-text="modeEditeurEmail === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+            </div>
+            <div x-show="modeEditeurEmail === 'visuel'" id="editeur-email" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurEmail()"></div>
+            <textarea x-show="modeEditeurEmail === 'code'" x-model="modele.corps_html" style="min-height:240px; font-family:monospace; font-size:12.5px"></textarea>
 
             <label>Logo de l'en-tête</label>
             <div style="display:flex; align-items:center; gap:14px">
@@ -537,9 +560,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-19"></script>
-  <script src="/backoffice/js/api.js?v=20260813-19"></script>
-  <script src="/backoffice/js/app.js?v=20260813-19"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-19" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-20"></script>
+  <script src="/backoffice/js/api.js?v=20260813-20"></script>
+  <script src="/backoffice/js/app.js?v=20260813-20"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-20" defer></script>
 </body>
 </html>

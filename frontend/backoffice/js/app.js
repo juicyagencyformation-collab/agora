@@ -29,6 +29,7 @@ function backoffice() {
     presentEnCours: false,
     presentMsg: '',
     modele: { objet: '', corps_html: '', signature_image_url: null, logo_image_url: null },
+    modeEditeurEmail: 'visuel', // 'visuel' | 'code'
     modeleEnCours: false,
     modeleMsg: '',
     signatureEnCours: false,
@@ -196,7 +197,44 @@ function backoffice() {
       }
     },
 
+    // — Éditeur visuel du corps de l'email (WYSIWYG, sans HTML pour l'utilisateur) —
+    initEditeurEmail() {
+      const ed = document.getElementById('editeur-email');
+      if (ed) ed.innerHTML = this.modele.corps_html || '';
+    },
+    exec(commande, valeur = null) {
+      const ed = document.getElementById('editeur-email');
+      if (ed) ed.focus();
+      document.execCommand(commande, false, valeur);
+    },
+    insererVariable(texte) {
+      const ed = document.getElementById('editeur-email');
+      if (ed) ed.focus();
+      document.execCommand('insertText', false, texte);
+    },
+    insererLien() {
+      const url = prompt('Adresse du lien (https://…) :');
+      if (url) this.exec('createLink', url);
+    },
+    insererBoutonCta() {
+      const bouton = '<a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block">Découvrir l\'application</a>&nbsp;';
+      this.exec('insertHTML', bouton);
+    },
+    basculerModeEditeur() {
+      const ed = document.getElementById('editeur-email');
+      if (this.modeEditeurEmail === 'visuel') {
+        if (ed) this.modele.corps_html = ed.innerHTML; // récupère le HTML avant de montrer le code
+        this.modeEditeurEmail = 'code';
+      } else {
+        this.modeEditeurEmail = 'visuel';
+        if (ed) ed.innerHTML = this.modele.corps_html || ''; // réinjecte dans l'éditeur
+      }
+    },
+
     async enregistrerModele() {
+      // En mode visuel, on récupère le HTML produit par l'éditeur avant d'enregistrer.
+      const ed = document.getElementById('editeur-email');
+      if (this.modeEditeurEmail === 'visuel' && ed) this.modele.corps_html = ed.innerHTML;
       this.modeleEnCours = true;
       this.modeleMsg = '';
       try {

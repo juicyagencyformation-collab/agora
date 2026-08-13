@@ -172,6 +172,16 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 
 .bo-chargement { color: var(--bo-text-faible); padding: 40px; text-align: center; }
 .bo-pastille { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+/* Éditeur visuel (WYSIWYG) pour le corps de l'email */
+.bo-toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }
+.bo-toolbar button { background: var(--bo-surface-2); color: var(--bo-text); border: 1px solid var(--bo-border); border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer; line-height: 1; }
+.bo-toolbar button:hover { background: var(--bo-border); }
+.bo-toolbar .sep { width: 1px; align-self: stretch; background: var(--bo-border); margin: 0 2px; }
+.bo-wysiwyg { background: #fff; color: #1b2a1c; border: 1px solid var(--bo-border); border-radius: 8px; padding: 16px 18px; min-height: 240px; font-size: 14px; line-height: 1.6; overflow: auto; }
+.bo-wysiwyg:focus { outline: none; border-color: var(--bo-accent); }
+.bo-wysiwyg a { color: #2c5f2d; }
+.bo-wysiwyg h1, .bo-wysiwyg h2 { color: #2c5f2d; }
 /* La carte Leaflet garde ses couleurs claires même en thème sombre. */
 .leaflet-popup-content { font-size: 13px; }
 .leaflet-popup-content a { color: var(--bo-accent-fort); font-weight: 600; }
