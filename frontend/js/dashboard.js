@@ -135,15 +135,16 @@ function chargerLune() {
   const zone = document.getElementById('carte-lune');
   if (!zone) return;
   const { nom, icone, conseil, illumination } = calculerPhaseLune();
+  // Le conseil traditionnel (désherber, semer...) reste disponible en infobulle plutôt
+  // qu'imprimé en toutes lettres : c'est un complément folklorique, pas une info du jour
+  // essentielle — pas de raison de lui donner autant de place qu'au conseil municipal.
+  zone.title = conseil;
   zone.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div style="font-size:34px;">${icone}</div>
-      <div>
-        <div style="font-weight:600;color:#fff;font-size:14px;">🌙 ${nom}</div>
-        <div style="font-size:11.5px;color:rgba(255,255,255,.8);">${illumination}% illuminée</div>
-      </div>
+    <div class="lune-icone-hero">${icone}</div>
+    <div>
+      <div class="lune-label-hero">${nom}</div>
+      <div class="lune-detail-hero">${illumination}% illuminée</div>
     </div>
-    <p style="font-size:12px;color:rgba(255,255,255,.85);margin-top:8px;">${conseil}</p>
   `;
 }
 
@@ -213,9 +214,10 @@ async function chargerMeteo() {
 
     zone.innerHTML = `
       <div class="meteo-icone-hero">${infos.icone}</div>
-      <div class="meteo-temp-hero">${Math.round(data.current.temperature_2m)}°</div>
-      <div class="meteo-label-hero">${infos.label}</div>
-      <div class="meteo-minmax-hero">↓ ${Math.round(data.daily.temperature_2m_min[0])}° · ↑ ${Math.round(data.daily.temperature_2m_max[0])}°</div>
+      <div>
+        <div class="meteo-temp-hero">${Math.round(data.current.temperature_2m)}°</div>
+        <div class="meteo-label-hero">${infos.label} · ↓${Math.round(data.daily.temperature_2m_min[0])}° ↑${Math.round(data.daily.temperature_2m_max[0])}°</div>
+      </div>
     `;
   } catch {
     zone.innerHTML = `<p class="meteo-erreur">Météo indisponible.</p>`;
@@ -324,7 +326,7 @@ async function chargerDernierPv() {
   const dateAffichee = new Date(dernier.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   zone.innerHTML = `
     <div style="display:flex;gap:10px;align-items:center;">
-      <div style="font-size:26px;">${dernier.fichier_pv_type === 'pdf' ? '📄' : '📋'}</div>
+      <div class="puce-icone-carte">${dernier.fichier_pv_type === 'pdf' ? '📄' : '📋'}</div>
       <div style="flex:1;">
         <div style="font-size:11px;color:var(--roseau);font-weight:600;">🏛️ Dernier compte-rendu</div>
         <h4 style="margin:2px 0 0;font-size:15px;">${escapeAttr(dernier.titre)}</h4>
@@ -353,11 +355,11 @@ async function chargerProchainConseil() {
   const heureAffichee = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   zone.innerHTML = `
     <div style="display:flex;gap:10px;align-items:center;">
-      <div style="font-size:26px;">🏛️</div>
+      <div class="puce-icone-carte">🏛️</div>
       <div>
-        <div style="font-size:11px;color:rgba(255,255,255,.85);font-weight:600;">Prochain conseil municipal</div>
-        <div style="font-size:15px;font-weight:700;text-transform:capitalize;">${dateAffichee}</div>
-        <div style="font-size:12.5px;color:rgba(255,255,255,.85);">à ${heureAffichee}</div>
+        <div style="font-size:11px;color:var(--roseau);font-weight:600;">Prochain conseil municipal</div>
+        <div style="font-size:15px;font-weight:700;color:var(--boue);text-transform:capitalize;">${dateAffichee}</div>
+        <div style="font-size:12.5px;color:var(--roseau);">à ${heureAffichee}</div>
       </div>
     </div>
   `;
