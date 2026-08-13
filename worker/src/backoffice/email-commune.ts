@@ -88,7 +88,7 @@ export const MODELE_PRESENTATION_DEFAUT = {
   objet: 'Agora — une application citoyenne pour {{commune}}',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    {{logo}}
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne des communes françaises</div>
 
     <h1 style="font-size:22px;line-height:1.3">Et si <span style="color:#2c5f2d">{{commune}}</span> avait sa propre application citoyenne&nbsp;?</h1>
@@ -137,23 +137,25 @@ export interface ContextePresentation {
   url: string;             // URL de l'app (client) ou de la démo (prospect)
   lienFiche: string;       // lien vers la fiche de présentation
   signaturePhoto?: string; // balise <img> de la photo de signature, ou '' (injecté à l'envoi)
+  logo?: string;           // balise <img> du logo d'en-tête, ou repli texte (injecté à l'envoi)
 }
 
 // Substitue les variables du modèle. {{commune}} est échappé (contenu utilisateur) ; les autres
-// (url, lien_fiche, signature_photo) sont construits côté serveur, insérés tels quels.
+// (url, lien_fiche, signature_photo, logo) sont construits côté serveur, insérés tels quels.
 export function rendrePresentation(modele: string, ctx: ContextePresentation): string {
   return modele
     .replace(/\{\{commune\}\}/g, echapper(ctx.commune))
     .replace(/\{\{url\}\}/g, ctx.url)
     .replace(/\{\{lien_fiche\}\}/g, ctx.lienFiche)
-    .replace(/\{\{signature_photo\}\}/g, ctx.signaturePhoto || '');
+    .replace(/\{\{signature_photo\}\}/g, ctx.signaturePhoto || '')
+    .replace(/\{\{logo\}\}/g, ctx.logo || baliseLogo(null));
 }
 
 // Charge le modèle enregistré (ou le défaut de secours si aucun n'existe / lecture échouée).
-export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string; signature_image_url?: string | null }> {
+export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string; signature_image_url?: string | null; logo_image_url?: string | null }> {
   try {
     const [row] = await supabaseSelect(env, 'modeles_email', {
-      select: 'objet,corps_html,signature_image_url', cle: 'eq.presentation',
+      select: 'objet,corps_html,signature_image_url,logo_image_url', cle: 'eq.presentation',
     });
     if (row?.objet && row?.corps_html) return row;
   } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
@@ -164,6 +166,12 @@ export async function chargerModelePresentation(env: any): Promise<{ objet: stri
 function baliseSignature(url: string | null | undefined): string {
   if (!url) return '';
   return `<img src="${url}" alt="" width="56" height="56" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" />`;
+}
+
+// Balise <img> du logo d'en-tête, ou repli sur le titre texte « Agora. » si aucun logo.
+function baliseLogo(url: string | null | undefined): string {
+  if (!url) return `<div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>`;
+  return `<img src="${url}" alt="Agora" style="max-width:200px;height:auto;display:block;margin-bottom:4px" />`;
 }
 
 // Construit le contexte de variables pour une commune (client → son app ; prospect → la démo).
@@ -179,6 +187,10 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
 // photo de signature stockée dans le modèle).
 export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<void> {
   const modele = await chargerModelePresentation(env);
-  const ctxComplet = { ...ctx, signaturePhoto: baliseSignature(modele.signature_image_url) };
+  const ctxComplet = {
+    ...ctx,
+    signaturePhoto: baliseSignature(modele.signature_image_url),
+    logo: baliseLogo(modele.logo_image_url),
+  };
   await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), rendrePresentation(modele.corps_html, ctxComplet));
 }

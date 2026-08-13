@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-11" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-12" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -88,13 +88,20 @@
           <div class="bo-carte" style="padding:16px 18px">
             <div class="bo-info" style="margin-bottom:12px">
               Email envoyé aux prospects et aux communes. Variables disponibles :
-              <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo), <code>{{lien_fiche}}</code>,
-              <code>{{signature_photo}}</code>.
+              <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo),
+              <code>{{lien_fiche}}</code>, <code>{{signature_photo}}</code>.
             </div>
             <label style="margin-top:0">Objet</label>
             <input type="text" x-model="modele.objet" />
             <label>Corps (HTML)</label>
             <textarea x-model="modele.corps_html" style="min-height:220px; font-family:monospace; font-size:12.5px"></textarea>
+
+            <label>Logo de l'en-tête</label>
+            <div style="display:flex; align-items:center; gap:14px">
+              <img x-show="modele.logo_image_url" :src="modele.logo_image_url" alt="" style="max-height:56px; max-width:160px; object-fit:contain" />
+              <input type="file" accept="image/jpeg,image/png" @change="uploaderLogo($event)" style="width:auto; padding:6px" />
+              <span class="bo-info" x-text="logoEnCours ? 'Envoi…' : logoMsg"></span>
+            </div>
 
             <label>Photo de signature</label>
             <div style="display:flex; align-items:center; gap:14px">
@@ -459,8 +466,8 @@
     </main>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260813-11"></script>
-  <script src="/backoffice/js/app.js?v=20260813-11"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-11" defer></script>
+  <script src="/backoffice/js/api.js?v=20260813-12"></script>
+  <script src="/backoffice/js/app.js?v=20260813-12"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-12" defer></script>
 </body>
 </html>

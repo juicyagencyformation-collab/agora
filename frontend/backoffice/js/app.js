@@ -17,11 +17,13 @@ function backoffice() {
     forfaitMsg: '',
     presentEnCours: false,
     presentMsg: '',
-    modele: { objet: '', corps_html: '', signature_image_url: null },
+    modele: { objet: '', corps_html: '', signature_image_url: null, logo_image_url: null },
     modeleEnCours: false,
     modeleMsg: '',
     signatureEnCours: false,
     signatureMsg: '',
+    logoEnCours: false,
+    logoMsg: '',
     testEmailDest: '',
     testEmailEnCours: false,
     testEmailMsg: '',
@@ -132,6 +134,25 @@ function backoffice() {
         this.signatureMsg = err.message || 'Échec de l\'envoi';
       } finally {
         this.signatureEnCours = false;
+        e.target.value = '';
+      }
+    },
+
+    async uploaderLogo(e) {
+      const fichier = e.target.files && e.target.files[0];
+      if (!fichier) return;
+      this.logoEnCours = true;
+      this.logoMsg = '';
+      try {
+        const r = await boFetch('/administration/logo-email', {
+          method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+        });
+        this.modele.logo_image_url = r.url;
+        this.logoMsg = 'Logo enregistré.';
+      } catch (err) {
+        this.logoMsg = err.message || 'Échec de l\'envoi';
+      } finally {
+        this.logoEnCours = false;
         e.target.value = '';
       }
     },
