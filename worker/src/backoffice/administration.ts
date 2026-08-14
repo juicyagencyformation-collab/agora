@@ -360,6 +360,34 @@ app.get('/communes/:id/frequentation', async (c) => {
   });
 });
 
+// GET /communes/:id/doublons — comptes partageant le même nom + prénom (normalisés), groupes
+// de 2+. Purement INDICATIF (homonymes possibles, pas une preuve de multi-compte) et en lecture
+// seule. Exclut les comptes anonymisés (RGPD).
+app.get('/communes/:id/doublons', async (c) => {
+  const id = c.req.param('id');
+  const users = await supabaseSelect(c.env, 'users', {
+    select: 'nom,prenom,email,role,created_at,compte_supprime_le', commune_id: `eq.${id}`,
+  });
+
+  const normaliser = (s: string) =>
+    (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ');
+
+  const groupes: Record<string, { nom: string; prenom: string; comptes: any[] }> = {};
+  for (const u of users) {
+    if (u.compte_supprime_le) continue; // comptes anonymisés exclus
+    const cle = `${normaliser(u.prenom)}|${normaliser(u.nom)}`;
+    if (!cle.replace('|', '').trim()) continue;
+    (groupes[cle] ??= { nom: u.nom, prenom: u.prenom, comptes: [] }).comptes.push({
+      email: u.email, role: u.role, created_at: u.created_at,
+    });
+  }
+
+  const doublons = Object.values(groupes)
+    .filter((g) => g.comptes.length >= 2)
+    .sort((a, b) => b.comptes.length - a.comptes.length);
+  return c.json({ doublons });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {

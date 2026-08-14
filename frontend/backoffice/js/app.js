@@ -22,6 +22,7 @@ function backoffice() {
     fiche: null,
     erreurChargement: '',
     frequentation: null,
+    doublons: [],
     coordsEnCours: false,
     coordsMsg: '',
     accesEnCours: false,
@@ -118,12 +119,14 @@ function backoffice() {
       this.forfaitMsg = '';
       this.presentMsg = '';
       this.frequentation = null;
+      this.doublons = [];
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
         this.forfaitNom = this.fiche.commune.forfait || '';
         this.forfaitQuota = this.fiche.commune.quota_go ?? '';
         if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
+        try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
       } finally {
         this.chargement = false;
       }

@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-23" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-23" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-24" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-24" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -272,6 +272,23 @@
                     <div class="bo-freq-barre" :style="'height:' + (maxFreq() ? Math.round(s.count / maxFreq() * 100) : 0) + '%'" :title="s.jour + ' : ' + s.count + ' connexion(s)'"></div>
                   </template>
                 </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="doublons && doublons.length">
+            <div>
+              <div class="bo-section-titre" x-text="'Doublons potentiels — ' + doublons.length"></div>
+              <div class="bo-carte" style="padding:14px 18px">
+                <div class="bo-info" style="margin-bottom:8px">Comptes partageant le même nom + prénom. <strong>Homonymes possibles — à vérifier</strong> (ce n'est pas une preuve de multi-compte).</div>
+                <template x-for="(g, i) in doublons" :key="i">
+                  <div style="padding:10px 0; border-top:1px solid var(--bo-border)">
+                    <div style="font-weight:600" x-text="g.prenom + ' ' + g.nom + ' — ' + g.comptes.length + ' comptes'"></div>
+                    <template x-for="(cpt, j) in g.comptes" :key="j">
+                      <div class="bo-info" x-text="'• ' + cpt.email + ' · ' + cpt.role + ' · inscrit le ' + formatDate(cpt.created_at)"></div>
+                    </template>
+                  </div>
+                </template>
               </div>
             </div>
           </template>
@@ -631,9 +648,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-23"></script>
-  <script src="/backoffice/js/api.js?v=20260813-23"></script>
-  <script src="/backoffice/js/app.js?v=20260813-23"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-23" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-24"></script>
+  <script src="/backoffice/js/api.js?v=20260813-24"></script>
+  <script src="/backoffice/js/app.js?v=20260813-24"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-24" defer></script>
 </body>
 </html>
