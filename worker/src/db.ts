@@ -11,6 +11,23 @@ export async function supabaseSelect(env: any, table: string, filtres: Record<st
   return res.json();
 }
 
+// Compte total de lignes correspondant aux filtres, SANS toutes les charger : PostgREST renvoie
+// le total dans l'en-tête Content-Range quand on demande Prefer: count=exact + Range 0-0.
+export async function supabaseCount(env: any, table: string, filtres: Record<string, string>): Promise<number> {
+  const params = new URLSearchParams({ ...filtres, select: 'id' });
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${params}`, {
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      Prefer: 'count=exact',
+      Range: '0-0',
+    },
+  });
+  const contentRange = res.headers.get('content-range'); // ex. "0-0/1234" ou "*/1234"
+  const total = contentRange?.split('/')[1];
+  return total && total !== '*' ? parseInt(total, 10) : 0;
+}
+
 export async function supabaseInsert(env: any, table: string, donnees: object | object[]): Promise<any[]> {
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',

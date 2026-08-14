@@ -6,7 +6,7 @@
 // Toutes les routes sont derrière backofficeMiddleware (périmètre staff transverse).
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
+import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, DEMO_SLUG } from './email-commune';
 
@@ -65,21 +65,34 @@ const TRIS: Record<string, string> = {
   population_asc: 'population.asc.nullslast',
 };
 
+const TAILLE_PAGE_PROSPECTS = 100;
+
 app.get('/prospects', async (c) => {
-  const tri = c.req.query('tri');
-  const filtres: Record<string, string> = {
-    select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le',
-    order: (tri && TRIS[tri]) || TRIS.nom,
-  };
+  // Filtres communs à la liste ET au comptage total (pagination).
+  const where: Record<string, string> = {};
   const statut = c.req.query('statut');
   const departement = c.req.query('departement');
   const recherche = c.req.query('recherche');
-  if (statut && STATUTS.includes(statut as any)) filtres.statut = `eq.${statut}`;
-  if (departement) filtres.departement = `eq.${departement.toUpperCase()}`;
-  if (recherche) filtres.nom = `ilike.*${recherche}*`;
+  if (statut && STATUTS.includes(statut as any)) where.statut = `eq.${statut}`;
+  if (departement) where.departement = `eq.${departement.toUpperCase()}`;
+  if (recherche) where.nom = `ilike.*${recherche}*`;
 
-  const prospects = await supabaseSelect(c.env, 'prospects', filtres);
-  return c.json({ prospects });
+  const tri = c.req.query('tri');
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+  const offset = (page - 1) * TAILLE_PAGE_PROSPECTS;
+
+  const [prospects, total] = await Promise.all([
+    supabaseSelect(c.env, 'prospects', {
+      ...where,
+      select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le',
+      order: (tri && TRIS[tri]) || TRIS.nom,
+      limit: String(TAILLE_PAGE_PROSPECTS),
+      offset: String(offset),
+    }),
+    supabaseCount(c.env, 'prospects', where),
+  ]);
+
+  return c.json({ prospects, page, taille: TAILLE_PAGE_PROSPECTS, total });
 });
 
 // — Carte : uniquement les prospects géolocalisés (lat renseignée). Se remplit au fil de

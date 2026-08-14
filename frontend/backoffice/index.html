@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260813-26" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-26" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-26" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260813-27" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-27" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-27" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-26" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-27" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -433,13 +433,13 @@
 
           <!-- Filtres -->
           <div class="bo-outils">
-            <select x-model="filtreStatut" @change="chargerProspects()">
+            <select x-model="filtreStatut" @change="appliquerFiltres()">
               <option value="">Tous les statuts</option>
               <template x-for="s in statuts" :key="s"><option :value="s" x-text="libelleStatut(s)"></option></template>
             </select>
-            <input type="text" x-model="filtreDep" @input.debounce.400ms="chargerProspects()" placeholder="Département" style="max-width:130px" />
-            <input type="text" x-model="filtreRecherche" @input.debounce.400ms="chargerProspects()" placeholder="Rechercher une commune" />
-            <select x-model="filtreTri" @change="chargerProspects()">
+            <input type="text" x-model="filtreDep" @input.debounce.400ms="appliquerFiltres()" placeholder="Département" style="max-width:130px" />
+            <input type="text" x-model="filtreRecherche" @input.debounce.400ms="appliquerFiltres()" placeholder="Rechercher une commune" />
+            <select x-model="filtreTri" @change="appliquerFiltres()">
               <option value="nom">Tri : Nom (A→Z)</option>
               <option value="departement">Département</option>
               <option value="population_desc">Population (décroissant)</option>
@@ -498,6 +498,15 @@
                 </template>
               </tbody>
             </table>
+          </div>
+
+          <!-- Pagination (100 par page) -->
+          <div class="bo-outils" x-show="sousVueProspection === 'liste' && totalProspects > 0" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="totalProspects.toLocaleString('fr-FR') + ' prospect(s) · page ' + pageProspects + ' sur ' + nbPagesProspects()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageProspects(-1)" :disabled="pageProspects <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageProspects(1)" :disabled="pageProspects >= nbPagesProspects()">Suivant →</button>
+            </div>
           </div>
 
           <!-- Vue carte -->
@@ -658,10 +667,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-26"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-26"></script>
-  <script src="/backoffice/js/api.js?v=20260813-26"></script>
-  <script src="/backoffice/js/app.js?v=20260813-26"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-26" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-27"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-27"></script>
+  <script src="/backoffice/js/api.js?v=20260813-27"></script>
+  <script src="/backoffice/js/app.js?v=20260813-27"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-27" defer></script>
 </body>
 </html>

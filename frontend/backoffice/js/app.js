@@ -58,6 +58,9 @@ function backoffice() {
     prospects: [],
     apProsp: {},
     selectionProspects: {}, // id -> true
+    pageProspects: 1,
+    totalProspects: 0,
+    tailleProspects: 100,
     lotEnCours: false,
     lotMsg: '',
     envoiLigneId: null,   // id du prospect dont l'envoi ligne est en cours
@@ -378,7 +381,23 @@ function backoffice() {
       this.vue = 'prospection';
       this.prospect = null;
       this.sousVueProspection = 'liste';
+      this.pageProspects = 1;
       await this.chargerProspects();
+    },
+
+    // Filtres (statut/dept/recherche/tri) → on repart page 1.
+    appliquerFiltres() {
+      this.pageProspects = 1;
+      this.chargerProspects();
+    },
+    nbPagesProspects() {
+      return Math.max(1, Math.ceil(this.totalProspects / this.tailleProspects));
+    },
+    allerPageProspects(delta) {
+      const cible = Math.min(this.nbPagesProspects(), Math.max(1, this.pageProspects + delta));
+      if (cible === this.pageProspects) return;
+      this.pageProspects = cible;
+      this.chargerProspects();
     },
 
     async afficherCarte() {
@@ -429,6 +448,7 @@ function backoffice() {
       if (this.filtreDep) params.set('departement', this.filtreDep);
       if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
       if (this.filtreTri && this.filtreTri !== 'nom') params.set('tri', this.filtreTri);
+      params.set('page', this.pageProspects);
       try {
         const [apercu, liste] = await Promise.all([
           boFetch('/prospection/apercu'),
@@ -436,6 +456,8 @@ function backoffice() {
         ]);
         this.apProsp = apercu;
         this.prospects = liste.prospects;
+        this.totalProspects = liste.total ?? liste.prospects.length;
+        this.tailleProspects = liste.taille ?? 100;
         this.selectionProspects = {};
         this.lotMsg = '';
       } catch (e) {
