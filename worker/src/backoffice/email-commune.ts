@@ -168,26 +168,37 @@ function baliseLogo(url: string | null | undefined): string {
   return `<img src="${url}" alt="Agora" style="max-width:200px;height:auto;display:block;margin-bottom:4px" />`;
 }
 
-// Encode un ArrayBuffer en base64 (par blocs pour ne pas dépasser la pile d'appels).
+// Taille max pour intégrer une image inline (au-delà, on garde l'URL distante : évite un
+// encodage base64 coûteux qui pourrait dépasser les limites de ressources du Worker).
+const TAILLE_MAX_INLINE = 400 * 1024;
+
+// Encode un ArrayBuffer en base64. Blocs de 4 Ko via apply : sûr pour la pile d'appels
+// (un spread de dizaines de milliers d'octets pouvait la faire déborder).
 function arrayBufferEnBase64(buf: ArrayBuffer): string {
   const octets = new Uint8Array(buf);
   let binaire = '';
-  const bloc = 0x8000;
+  const bloc = 0x1000;
   for (let i = 0; i < octets.length; i += bloc) {
-    binaire += String.fromCharCode(...octets.subarray(i, i + bloc));
+    binaire += String.fromCharCode.apply(null, Array.from(octets.subarray(i, i + bloc)));
   }
   return btoa(binaire);
 }
 
 // Récupère une image stockée dans R2 (via son URL publique) et la renvoie en base64, ou null.
+// Ne jette jamais : toute erreur (R2, taille, encodage) → null → repli sur l'URL distante.
 async function imageR2EnBase64(env: any, url: string): Promise<{ base64: string; ext: string } | null> {
-  if (!env.BUCKET_R2 || !env.R2_PUBLIC_BASE) return null;
-  const cle = url.replace(`${env.R2_PUBLIC_BASE}/`, '');
-  if (!cle || cle === url) return null; // pas une URL R2
-  const objet = await env.BUCKET_R2.get(cle);
-  if (!objet) return null;
-  const ext = (cle.split('.').pop() || 'png').toLowerCase();
-  return { base64: arrayBufferEnBase64(await objet.arrayBuffer()), ext };
+  try {
+    if (!env.BUCKET_R2 || !env.R2_PUBLIC_BASE) return null;
+    const cle = url.replace(`${env.R2_PUBLIC_BASE}/`, '');
+    if (!cle || cle === url) return null; // pas une URL R2
+    const objet = await env.BUCKET_R2.get(cle);
+    if (!objet) return null;
+    if (typeof objet.size === 'number' && objet.size > TAILLE_MAX_INLINE) return null; // trop lourd → URL
+    const ext = (cle.split('.').pop() || 'png').toLowerCase();
+    return { base64: arrayBufferEnBase64(await objet.arrayBuffer()), ext };
+  } catch {
+    return null;
+  }
 }
 
 // Prépare une image inline (CID) : la joint à l'email et renvoie la balise <img src="cid:...">
