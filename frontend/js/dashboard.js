@@ -242,7 +242,6 @@ async function chargerDechetsDashboard() {
 
   const aujourdhui = collectes.filter((c) => c.aujourdhui);
   const veille = collectes.filter((c) => !c.aujourdhui && c.dans_jours === 1);
-  const prochaine = collectes.find((c) => !c.aujourdhui && c.dans_jours !== 1);
 
   // Carte d'alerte bien visible, en haut de l'accueil, uniquement la veille du ramassage.
   if (zoneAlerte) {
@@ -262,6 +261,9 @@ async function chargerDechetsDashboard() {
     }
   }
 
+  // Volontairement, on n'affiche PLUS la "prochaine collecte" quand elle est à ≥2 jours :
+  // seul le jour même (ci-dessous) ou la veille (grande alerte du haut) sont pertinents au
+  // quotidien. Sinon on garde l'accueil sobre avec un simple "Rien à sortir aujourd'hui".
   let html = '';
   if (aujourdhui.length) {
     html += aujourdhui.map((c) => `
@@ -271,14 +273,6 @@ async function chargerDechetsDashboard() {
     `).join('');
   } else if (!veille.length) {
     html += `<p class="dechets-rien">Rien à sortir aujourd'hui.</p>`;
-  }
-  if (prochaine) {
-    const jourTexte = prochaine.dans_jours === 1 ? 'demain' : `dans ${prochaine.dans_jours} jours`;
-    html += `
-      <div class="ligne-dechet" style="border-left-color:${prochaine.couleur}">
-        Prochaine collecte : <strong>${LABELS_DECHET[prochaine.type] ?? prochaine.type}</strong> — ${jourTexte}
-      </div>
-    `;
   }
   zone.innerHTML = html;
 }
