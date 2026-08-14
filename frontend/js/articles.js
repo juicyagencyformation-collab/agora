@@ -2,6 +2,7 @@
 let editeurArticleActuel;
 let choixSondageCompteur = 0;
 let filtreCategorieActuel = null;
+let modeArchivesActu = false;
 
 const LABELS_CATEGORIE_ARTICLE = {
   vie_village: 'Vie du village',
@@ -15,6 +16,7 @@ async function chargerArticles(section = 'actualites', curseur = null) {
   const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/actus`, window.location.origin);
   url.searchParams.set('section', section);
   if (filtreCategorieActuel) url.searchParams.set('categorie', filtreCategorieActuel);
+  if (modeArchivesActu) url.searchParams.set('archives', 'true');
   if (curseur) url.searchParams.set('curseur', curseur);
   const res = await appelApi(url);
   if (!res.ok) return;
@@ -22,9 +24,21 @@ async function chargerArticles(section = 'actualites', curseur = null) {
   const conteneur = document.getElementById('liste-articles');
   conteneur.innerHTML = '';
   if (!articles.length) {
-    conteneur.innerHTML = `<p class="dechets-vide">Aucun article dans cette catégorie pour l'instant.</p>`;
+    conteneur.innerHTML = modeArchivesActu
+      ? `<p class="dechets-vide">Aucune actualité archivée.</p>`
+      : `<p class="dechets-vide">Aucun article dans cette catégorie pour l'instant.</p>`;
   }
   articles.forEach(renderArticle);
+}
+
+function initToggleArchivesActu() {
+  const btn = document.getElementById('btn-toggle-archives-actu');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    modeArchivesActu = !modeArchivesActu;
+    btn.textContent = modeArchivesActu ? '← Retour aux actualités' : '🗄️ Voir les archives';
+    chargerArticles();
+  });
 }
 
 // Ouvre un article précis (venant d'un lien de notification) : le trouve dans la liste
@@ -123,10 +137,18 @@ function remplirContenuDeplie(zone, article) {
   if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
-    bar.innerHTML = `<button data-action="modifier">Modifier</button><button data-action="supprimer">Supprimer</button>`;
+    const labelArchive = article.archive ? 'Restaurer' : 'Archiver';
+    bar.innerHTML = `<button data-action="modifier">Modifier</button><button data-action="archive-toggle">${labelArchive}</button><button data-action="supprimer">Supprimer</button>`;
     bar.querySelector('[data-action="supprimer"]').addEventListener('click', async () => {
       if (!confirm('Supprimer cet article et ses images ?')) return;
       await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}`, { method: 'DELETE' });
+      chargerArticles();
+    });
+    bar.querySelector('[data-action="archive-toggle"]').addEventListener('click', async () => {
+      await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archive: !article.archive }),
+      });
       chargerArticles();
     });
     bar.querySelector('[data-action="modifier"]').addEventListener('click', () => ouvrirModaleEditionArticle(article));
@@ -160,6 +182,7 @@ function initFormulaireArticle() {
   if (!btn) return;
   btn.addEventListener('click', () => ouvrirModaleCreationArticle());
   initFiltresCategorieArticle();
+  initToggleArchivesActu();
 }
 
 function htmlFormulaireArticle() {

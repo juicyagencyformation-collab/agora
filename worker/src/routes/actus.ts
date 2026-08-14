@@ -38,6 +38,7 @@ const articleSchema = z.object({
   contenu_html: z.string().min(1).max(20000),
   image_r2_keys: z.array(z.string()).max(10).optional(),
   image_ids_supprimees: z.array(z.string().uuid()).max(20).optional(),
+  archive: z.boolean().optional(),
   sondage: sondageSchema.optional().nullable(),
   fichier_pv_url: z.string().url().optional(),
   fichier_pv_type: z.enum(['pdf', 'image']).optional(),
@@ -53,12 +54,15 @@ app.get('/', async (c) => {
   }
 
   const filtres: Record<string, string> = {
-    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type',
+    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type,archive',
     commune_id: `eq.${commune_id}`,
     section: `eq.${section}`,
     order: 'created_at.desc',
     limit: '20',
   };
+  // Par défaut : le fil principal (archive=false). ?archives=true : la section Archives,
+  // consultable par tous (les actus archivées restent lisibles, juste hors du fil courant).
+  filtres.archive = c.req.query('archives') === 'true' ? 'eq.true' : 'eq.false';
   if (curseur) filtres.created_at = `lt.${curseur}`;
   const categorieFiltre = c.req.query('categorie');
   if (categorieFiltre && CATEGORIES_VALIDES.includes(categorieFiltre as any)) filtres.categorie = `eq.${categorieFiltre}`;
@@ -199,6 +203,7 @@ app.patch('/:id', async (c) => {
   if (body.data.titre) patch.titre = body.data.titre;
   if (body.data.contenu_html) patch.contenu_html = sanitizeHtml(body.data.contenu_html);
   if (body.data.categorie) patch.categorie = body.data.categorie;
+  if (body.data.archive !== undefined) patch.archive = body.data.archive;
   patch.updated_at = new Date().toISOString();
 
   await supabaseUpdate(c.env, 'articles', patch, {
