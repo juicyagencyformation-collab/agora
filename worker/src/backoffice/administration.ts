@@ -317,6 +317,49 @@ app.get('/emails-rejetes', async (c) => {
   return c.json({ emails });
 });
 
+// GET /communes/:id/frequentation — même logique que /moderation/stats-connexions côté citoyen,
+// mais pour une commune donnée (pas de commune_id dans le JWT staff). Actifs jour/7j/30j (via
+// users.derniere_connexion_streak), % population, et série des connexions par jour (30 jours).
+app.get('/communes/:id/frequentation', async (c) => {
+  const id = c.req.param('id');
+  const jourISO = (decalage: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - decalage);
+    return d.toISOString().slice(0, 10);
+  };
+  const aujourdhui = jourISO(0);
+  const il7 = jourISO(6);
+  const il30 = jourISO(29);
+
+  const [commune, users, connexions] = await Promise.all([
+    supabaseSelect(c.env, 'communes', { select: 'population', id: `eq.${id}` }),
+    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}` }),
+    supabaseSelect(c.env, 'connexions_journalieres', {
+      select: 'jour', commune_id: `eq.${id}`, jour: `gte.${il30}`, limit: '5000',
+    }),
+  ]);
+
+  const actifsDepuis = (seuil: string) =>
+    users.filter((u: any) => u.derniere_connexion_streak && u.derniere_connexion_streak >= seuil).length;
+
+  const parJour: Record<string, number> = {};
+  for (const row of connexions) parJour[row.jour] = (parJour[row.jour] ?? 0) + 1;
+  const serie: { jour: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const jour = jourISO(i);
+    serie.push({ jour, count: parJour[jour] ?? 0 });
+  }
+
+  return c.json({
+    population: commune[0]?.population ?? null,
+    inscrits: users.length,
+    actifs_aujourdhui: users.filter((u: any) => u.derniere_connexion_streak === aujourdhui).length,
+    actifs_semaine: actifsDepuis(il7),
+    actifs_mois: actifsDepuis(il30),
+    serie,
+  });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {

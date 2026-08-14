@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-22" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-22" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-23" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-23" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
@@ -254,6 +254,27 @@
             <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche.stockage.nb_fichiers + ' fichiers R2'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
           </div>
+
+          <template x-if="frequentation">
+            <div>
+              <div class="bo-section-titre">📊 Fréquentation de l'app</div>
+              <div class="bo-grille-stats">
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.actifs_aujourdhui"></div><div class="bo-stat__lib" x-text="'Actifs aujourd\'hui' + pctPop(frequentation.actifs_aujourdhui)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.actifs_semaine"></div><div class="bo-stat__lib" x-text="'Actifs sur 7 jours' + pctPop(frequentation.actifs_semaine)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.actifs_mois"></div><div class="bo-stat__lib" x-text="'Actifs sur 30 jours' + pctPop(frequentation.actifs_mois)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.inscrits"></div><div class="bo-stat__lib" x-text="'Inscrits' + pctPop(frequentation.inscrits)"></div></div>
+              </div>
+              <div class="bo-carte" style="padding:14px 18px">
+                <div style="font-weight:600">Connexions par jour (30 derniers jours)</div>
+                <div class="bo-info" x-show="!frequentation.population" style="margin-top:4px">Population non renseignée → les pourcentages n'apparaissent pas.</div>
+                <div class="bo-freq-barres">
+                  <template x-for="(s, i) in frequentation.serie" :key="i">
+                    <div class="bo-freq-barre" :style="'height:' + (maxFreq() ? Math.round(s.count / maxFreq() * 100) : 0) + '%'" :title="s.jour + ' : ' + s.count + ' connexion(s)'"></div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
 
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
             <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap">
@@ -610,9 +631,9 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-22"></script>
-  <script src="/backoffice/js/api.js?v=20260813-22"></script>
-  <script src="/backoffice/js/app.js?v=20260813-22"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-22" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-23"></script>
+  <script src="/backoffice/js/api.js?v=20260813-23"></script>
+  <script src="/backoffice/js/app.js?v=20260813-23"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-23" defer></script>
 </body>
 </html>

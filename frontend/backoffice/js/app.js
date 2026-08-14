@@ -21,6 +21,7 @@ function backoffice() {
     communes: [],
     fiche: null,
     erreurChargement: '',
+    frequentation: null,
     coordsEnCours: false,
     coordsMsg: '',
     accesEnCours: false,
@@ -116,11 +117,13 @@ function backoffice() {
       this.accesMsg = '';
       this.forfaitMsg = '';
       this.presentMsg = '';
+      this.frequentation = null;
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
         this.forfaitNom = this.fiche.commune.forfait || '';
         this.forfaitQuota = this.fiche.commune.quota_go ?? '';
         if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
+        try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
       } finally {
         this.chargement = false;
       }
@@ -688,6 +691,14 @@ function backoffice() {
     },
     libelleStatutClient(s) {
       return { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[s] || 'Active';
+    },
+    pctPop(n) {
+      const p = this.frequentation && this.frequentation.population;
+      return p ? ` (${Math.round((n / p) * 100)} %)` : '';
+    },
+    maxFreq() {
+      if (!this.frequentation || !this.frequentation.serie.length) return 1;
+      return Math.max(1, ...this.frequentation.serie.map((s) => s.count));
     },
     relanceEnRetard(p) {
       if (!p.prochaine_relance_le || p.statut === 'gagne' || p.statut === 'perdu') return false;
