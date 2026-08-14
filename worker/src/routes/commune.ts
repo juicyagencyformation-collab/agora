@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseUpdate } from '../db';
 import { uploaderFichier } from '../storage';
+import { genererQrSvgUrl } from '../lib/qr-url';
 
 const app = new Hono();
 
@@ -16,6 +17,15 @@ app.get('/', async (c) => {
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
   return c.json({ commune });
+});
+
+// GET /qr — QR code de l'URL publique de la commune, pour qu'un citoyen le montre à un voisin
+// (bouton dans Profil). Public comme GET / : ce n'est que l'URL publique de la commune.
+app.get('/qr', async (c) => {
+  const slug = c.get('slug_commune');
+  const url = `${c.env.FRONTEND_URL}/${slug}/`;
+  const svg = genererQrSvgUrl(url);
+  return c.json({ url, svg });
 });
 
 app.patch('/', jwtMiddleware, async (c) => {

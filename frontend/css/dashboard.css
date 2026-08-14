@@ -926,6 +926,13 @@ h1, h2, h3, h4, p, span, a, button {
 .carte-cliquable { cursor: pointer; transition: transform .15s; }
 .carte-cliquable:active { transform: scale(0.98); }
 
+/* QR code de la commune (Profil → Inviter mes voisins) */
+.cadre-qr-commune {
+  display: inline-block; background: #fff; border: 1.5px solid var(--eauL); border-radius: 14px;
+  padding: 14px; margin-top: 6px;
+}
+.cadre-qr-commune svg { display: block; width: 200px; height: 200px; max-width: 100%; }
+
 /* Fréquentation (Modération) : cartes de chiffres + mini graphique de connexions/jour */
 .grille-freq { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .carte-freq { background: var(--eauXL); border-radius: 10px; padding: 10px 12px; }

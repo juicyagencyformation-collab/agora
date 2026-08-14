@@ -12,6 +12,7 @@
     "@tsndr/cloudflare-worker-jwt": "^2.4.0",
     "fast-xml-parser": "^5.10.1",
     "hono": "^4.6.0",
+    "qrcode-generator": "^2.0.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {

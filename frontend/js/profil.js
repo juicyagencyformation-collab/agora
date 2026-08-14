@@ -131,6 +131,15 @@ async function chargerProfil() {
     </div>
 
     <div class="carte-categorie-profil">
+      <button type="button" class="entete-categorie-profil"><span>📣 Inviter mes voisins</span><span class="chevron">▾</span></button>
+      <div class="corps-categorie-profil" hidden>
+        <p style="font-size:12.5px;color:var(--roseau);margin:0 0 10px;">Aidez d'autres habitants à rejoindre Agora : montrez-leur le QR code, ou partagez le lien.</p>
+        <button type="button" id="btn-qr-commune" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">📱 Afficher le QR code de la commune</button>
+        <button type="button" id="btn-partager-commune" class="bouton-pilule-profil" style="margin-top:8px;color:var(--eau);border-color:var(--eauL);">📤 Partager le lien</button>
+      </div>
+    </div>
+
+    <div class="carte-categorie-profil">
       <button type="button" class="entete-categorie-profil"><span>⭐ Noter l'application</span><span class="chevron">▾</span></button>
       <div class="corps-categorie-profil" hidden>
         <p style="font-size:12.5px;color:var(--roseau);margin:0 0 10px;">Ton avis nous aide à améliorer Agora.</p>
@@ -148,6 +157,42 @@ async function chargerProfil() {
   initNoterApplication(data.mon_avis);
   initReglagesRgpdProfil();
   initEditionIdentite(data);
+  initInviterVoisins();
+}
+
+// ── Inviter mes voisins : QR code de la commune + partage du lien ──
+
+function initInviterVoisins() {
+  const btnQr = document.getElementById('btn-qr-commune');
+  const btnPartage = document.getElementById('btn-partager-commune');
+  const urlCommune = `${window.location.origin}/${window.COMMUNE_SLUG}/`;
+
+  btnQr?.addEventListener('click', async () => {
+    const overlay = ouvrirModaleFormulaire('QR code de la commune', `<div id="zone-qr-commune" style="text-align:center;"><p class="dechets-vide">Chargement…</p></div>`);
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/commune/qr`);
+    const zone = overlay.querySelector('#zone-qr-commune');
+    if (!res.ok) { zone.innerHTML = `<p class="dechets-vide">Impossible de générer le QR code.</p>`; return; }
+    const { svg, url } = await res.json();
+    zone.innerHTML = `
+      <div class="cadre-qr-commune">${svg}</div>
+      <p style="font-size:12.5px;color:var(--roseau);margin-top:10px;">Faites scanner ce code à un voisin pour qu'il rejoigne Agora.</p>
+      <p style="font-size:12px;font-family:'DM Mono',monospace;word-break:break-all;">${escapeAttr(url)}</p>
+    `;
+  });
+
+  btnPartage?.addEventListener('click', async () => {
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Agora', text: 'Rejoins l\'application de notre commune sur Agora :', url: urlCommune }); }
+      catch { /* partage annulé par l'utilisateur */ }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(urlCommune);
+      afficherToastMessage('Lien copié dans le presse-papier.', 'succes');
+    } catch {
+      afficherToastMessage(urlCommune, 'info');
+    }
+  });
 }
 
 // ── Modifier son prénom / nom ──
