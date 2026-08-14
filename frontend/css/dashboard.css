@@ -926,6 +926,15 @@ h1, h2, h3, h4, p, span, a, button {
 .carte-cliquable { cursor: pointer; transition: transform .15s; }
 .carte-cliquable:active { transform: scale(0.98); }
 
+/* Fréquentation (Modération) : cartes de chiffres + mini graphique de connexions/jour */
+.grille-freq { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.carte-freq { background: var(--eauXL); border-radius: 10px; padding: 10px 12px; }
+.carte-freq strong { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--eau); display: block; line-height: 1.1; }
+.carte-freq span { font-size: 11.5px; color: var(--roseau); }
+.pct-freq { color: var(--prairie); font-weight: 700; }
+.graph-freq { display: flex; align-items: flex-end; gap: 2px; height: 84px; padding: 4px 0; }
+.barre-freq { flex: 1; background: var(--eauM); border-radius: 2px 2px 0 0; min-height: 1px; }
+
 /* Popup de série de connexion (une fois par jour, à la 1re ouverture) */
 .popup-streak {
   position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;

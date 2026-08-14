@@ -48,6 +48,33 @@ async function chargerStatsModeration() {
   `).join('');
 }
 
+// Fréquentation : actifs aujourd'hui / 7j / 30j + % population + courbe des connexions par jour.
+async function chargerStatsConnexions() {
+  const zone = document.getElementById('stats-connexions');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/stats-connexions`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const d = await res.json();
+
+  const pct = (n) => d.population ? ` <span class="pct-freq">(${Math.round((n / d.population) * 100)}%)</span>` : '';
+  const maxSerie = Math.max(1, ...d.serie.map((s) => s.count));
+
+  zone.innerHTML = `
+    <div class="grille-freq">
+      <div class="carte-freq"><strong>${d.actifs_aujourdhui}</strong><span>actifs aujourd'hui${pct(d.actifs_aujourdhui)}</span></div>
+      <div class="carte-freq"><strong>${d.actifs_semaine}</strong><span>actifs sur 7 jours${pct(d.actifs_semaine)}</span></div>
+      <div class="carte-freq"><strong>${d.actifs_mois}</strong><span>actifs sur 30 jours${pct(d.actifs_mois)}</span></div>
+      <div class="carte-freq"><strong>${d.inscrits}</strong><span>comptes inscrits${pct(d.inscrits)}</span></div>
+    </div>
+    ${d.population ? `<p style="font-size:11.5px;color:var(--roseau);margin:8px 2px 0;">Population de la commune : ${d.population} habitants.</p>`
+      : `<p style="font-size:11.5px;color:var(--roseau);margin:8px 2px 0;">Population non renseignée : les pourcentages n'apparaissent pas (à renseigner en base : communes.population).</p>`}
+    <h4 style="font-size:13px;margin:16px 0 6px;color:var(--roseau);">Connexions par jour (30 derniers jours)</h4>
+    <div class="graph-freq">
+      ${d.serie.map((s) => `<div class="barre-freq" style="height:${Math.round((s.count / maxSerie) * 100)}%" title="${s.jour} : ${s.count} connexion(s)"></div>`).join('')}
+    </div>
+  `;
+}
+
 // Volets génériques (contrairement aux volets historiques ci-dessous, qui ont chacun leur
 // propre initVolet*() car ils embarquent une logique spécifique) : juste replier/déplier,
 // écouteur unique posé une fois sur le conteneur plutôt qu'un par volet.
@@ -94,6 +121,7 @@ async function chargerPanneauModeration() {
   });
 
   chargerStatsModeration();
+  chargerStatsConnexions();
   chargerListeDechetsModeration();
   chargerListeUtilisateurs();
   chargerApercuLogoCommune();

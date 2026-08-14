@@ -323,4 +323,52 @@ app.get('/stats', async (c) => {
   });
 });
 
+// GET /stats-connexions — fréquentation de l'app. Les compteurs "actifs" viennent de la
+// dernière connexion de chaque habitant (users.derniere_connexion_streak) — disponibles tout
+// de suite ; la série quotidienne vient du journal connexions_journalieres, qui se remplit à
+// partir de sa mise en service (pas d'historique rétroactif).
+app.get('/stats-connexions', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+
+  const jourISO = (decalage: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - decalage);
+    return d.toISOString().slice(0, 10);
+  };
+  const aujourdhui = jourISO(0);
+  const il7 = jourISO(6);
+  const il30 = jourISO(29);
+
+  const [commune, users, connexions] = await Promise.all([
+    supabaseSelect(c.env, 'communes', { select: 'population', id: `eq.${commune_id}` }),
+    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${commune_id}` }),
+    // limite haute : à l'échelle d'un village, 30 jours de connexions tiennent largement dessous.
+    supabaseSelect(c.env, 'connexions_journalieres', {
+      select: 'jour', commune_id: `eq.${commune_id}`, jour: `gte.${il30}`, limit: '5000',
+    }),
+  ]);
+
+  const actifsDepuis = (seuil: string) =>
+    users.filter((u: any) => u.derniere_connexion_streak && u.derniere_connexion_streak >= seuil).length;
+
+  const parJour: Record<string, number> = {};
+  for (const row of connexions) parJour[row.jour] = (parJour[row.jour] ?? 0) + 1;
+  const serie: { jour: string; count: number }[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const jour = jourISO(i);
+    serie.push({ jour, count: parJour[jour] ?? 0 });
+  }
+
+  return c.json({
+    population: commune[0]?.population ?? null,
+    inscrits: users.length,
+    actifs_aujourdhui: users.filter((u: any) => u.derniere_connexion_streak === aujourdhui).length,
+    actifs_semaine: actifsDepuis(il7),
+    actifs_mois: actifsDepuis(il30),
+    serie,
+  });
+});
+
 export default app;

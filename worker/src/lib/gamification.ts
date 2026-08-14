@@ -86,6 +86,13 @@ export async function gererConnexionQuotidienne(env: any, commune_id: string, us
     streak_actuel: nouveauStreak, streak_record: nouveauRecord, derniere_connexion_streak: aujourdhui,
   }, { id: `eq.${user_id}` });
 
+  // Journal des connexions (stats de fréquentation en Modération) : 1 ligne par habitant et
+  // par jour. On est déjà sur le chemin "1re fois aujourd'hui", donc pas de doublon attendu ;
+  // le try/catch couvre juste le cas limite d'un état de streak désynchronisé (UNIQUE).
+  try {
+    await supabaseInsert(env, 'connexions_journalieres', { commune_id, user_id, jour: aujourdhui });
+  } catch { /* doublon éventuel ignoré */ }
+
   // Le streak est déjà enregistré : le verifierBadges déclenché ici (via attribuerXp) voit donc
   // la nouvelle valeur et débloque les badges de palier de série atteints ce jour-là.
   const resultatXp = await attribuerXp(env, commune_id, user_id, XP_ACTIONS.connexion_quotidienne);
