@@ -248,6 +248,27 @@ function traiterFileCelebrationsBadges() {
 // ── Célébration de montée de niveau : fusée qui décolle → explosion → feux d'artifice →
 // le nouveau niveau qui jaillit, rayons dorés tournants et pluie de confettis. Full écran,
 // pensé pour "en mettre plein la vue". Tout en CSS/JS vanilla, aucune dépendance. ──
+// Petite animation de série de connexion, affichée une fois par jour à la première ouverture
+// (bien plus légère que la montée de niveau : la série avance tous les jours).
+function celebrerStreakConnexion(streak) {
+  const n = Number(streak) || 1;
+  const popup = document.createElement('div');
+  popup.className = 'popup-streak';
+  popup.innerHTML = `
+    <div class="popup-streak-carte">
+      <div class="popup-streak-flamme">🔥</div>
+      <div class="popup-streak-nombre">${n}</div>
+      <div class="popup-streak-label">jour${n > 1 ? 's' : ''} d'affilée</div>
+      <div class="popup-streak-xp">+5 XP · à demain !</div>
+    </div>
+  `;
+  document.body.appendChild(popup);
+  const fermer = () => { popup.classList.remove('visible'); setTimeout(() => popup.remove(), 400); };
+  requestAnimationFrame(() => popup.classList.add('visible'));
+  popup.addEventListener('click', fermer);
+  setTimeout(fermer, 2600);
+}
+
 function celebrerMonteeNiveau(niveau) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay-niveau';

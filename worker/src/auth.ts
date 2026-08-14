@@ -124,6 +124,8 @@ app.post('/login', async (c) => {
     nouveaux_badges: nouveauxBadges,
     niveau: resultatConnexion.niveau,
     monte_de_niveau: resultatConnexion.monte_de_niveau,
+    streak_actuel: resultatConnexion.streak_actuel,
+    streak_du_jour: resultatConnexion.streak_du_jour,
   });
 });
 
@@ -259,6 +261,8 @@ app.get('/me', jwtMiddleware, async (c) => {
     nouveaux_badges: resultatConnexion.nouveaux_badges,
     niveau: resultatConnexion.niveau,
     monte_de_niveau: resultatConnexion.monte_de_niveau,
+    streak_actuel: resultatConnexion.streak_actuel,
+    streak_du_jour: resultatConnexion.streak_du_jour,
   });
 });
 

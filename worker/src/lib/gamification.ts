@@ -59,8 +59,10 @@ export async function incrementerCompteurUtilisateur(env: any, commune_id: strin
   await supabaseUpdate(env, 'users', { [colonne]: nouvelleValeur }, { id: `eq.${user_id}` });
 }
 
-export async function gererConnexionQuotidienne(env: any, commune_id: string, user_id: string): Promise<{ nouveaux_badges: string[]; niveau: number; monte_de_niveau: boolean }> {
-  const vide = { nouveaux_badges: [] as string[], niveau: 1, monte_de_niveau: false };
+export async function gererConnexionQuotidienne(env: any, commune_id: string, user_id: string): Promise<{ nouveaux_badges: string[]; niveau: number; monte_de_niveau: boolean; streak_actuel: number; streak_du_jour: boolean }> {
+  // streak_du_jour = true seulement quand la série vient d'être comptée sur CET appel (1re
+  // ouverture du jour) → sert au client à afficher l'animation de série une fois par jour.
+  const vide = { nouveaux_badges: [] as string[], niveau: 1, monte_de_niveau: false, streak_actuel: 0, streak_du_jour: false };
   const [user] = await supabaseSelect(env, 'users', {
     select: 'streak_actuel,streak_record,derniere_connexion_streak',
     commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
@@ -68,7 +70,7 @@ export async function gererConnexionQuotidienne(env: any, commune_id: string, us
   if (!user) return vide;
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  if (user.derniere_connexion_streak === aujourdhui) return vide; // déjà comptabilisée aujourd'hui
+  if (user.derniere_connexion_streak === aujourdhui) return { ...vide, streak_actuel: user.streak_actuel ?? 0 }; // déjà comptabilisée aujourd'hui
 
   let nouveauStreak = 1;
   if (user.derniere_connexion_streak) {
@@ -86,7 +88,8 @@ export async function gererConnexionQuotidienne(env: any, commune_id: string, us
 
   // Le streak est déjà enregistré : le verifierBadges déclenché ici (via attribuerXp) voit donc
   // la nouvelle valeur et débloque les badges de palier de série atteints ce jour-là.
-  return await attribuerXp(env, commune_id, user_id, XP_ACTIONS.connexion_quotidienne);
+  const resultatXp = await attribuerXp(env, commune_id, user_id, XP_ACTIONS.connexion_quotidienne);
+  return { ...resultatXp, streak_actuel: nouveauStreak, streak_du_jour: true };
 }
 
 // Série "exploration" : jours consécutifs avec au moins une action d'exploration

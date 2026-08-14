@@ -19,12 +19,14 @@ async function initUtilisateur() {
     // Série de connexion comptée ici (ouverture de l'app) : si des badges de palier / une montée
     // de niveau viennent d'être débloqués, on les met en attente de célébration (jouée à la fin
     // de initApp, comme les récompenses du login). On n'écrase pas celles déjà posées au login.
-    if (((data.nouveaux_badges && data.nouveaux_badges.length) || data.monte_de_niveau)
+    if (((data.nouveaux_badges && data.nouveaux_badges.length) || data.monte_de_niveau || data.streak_du_jour)
         && !sessionStorage.getItem('agora_recompenses_connexion')) {
       sessionStorage.setItem('agora_recompenses_connexion', JSON.stringify({
         nouveaux_badges: data.nouveaux_badges || [],
         monte_de_niveau: !!data.monte_de_niveau,
         niveau: data.niveau,
+        streak_du_jour: !!data.streak_du_jour,
+        streak_actuel: data.streak_actuel,
       }));
     }
     document.body.classList.toggle('est-admin', ['admin', 'elu', 'maire', 'superadmin'].includes(data.role));
@@ -177,6 +179,7 @@ function celebrerRecompensesConnexion() {
   let recompenses;
   try { recompenses = JSON.parse(brut); } catch { return; }
   setTimeout(() => {
+    if (recompenses.streak_du_jour) celebrerStreakConnexion(recompenses.streak_actuel);
     if (recompenses.monte_de_niveau) celebrerMonteeNiveau(recompenses.niveau);
     (recompenses.nouveaux_badges || []).forEach((cle) => mettreEnFileBadge(cle));
   }, 700);

@@ -926,6 +926,28 @@ h1, h2, h3, h4, p, span, a, button {
 .carte-cliquable { cursor: pointer; transition: transform .15s; }
 .carte-cliquable:active { transform: scale(0.98); }
 
+/* Popup de série de connexion (une fois par jour, à la 1re ouverture) */
+.popup-streak {
+  position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.28); opacity: 0; transition: opacity .35s ease; pointer-events: none;
+}
+.popup-streak.visible { opacity: 1; pointer-events: auto; }
+.popup-streak-carte {
+  background: #fff; border-radius: 20px; padding: 26px 36px; text-align: center;
+  box-shadow: 0 16px 44px rgba(0,0,0,.28);
+  transform: scale(.8); transition: transform .35s cubic-bezier(.2,1.3,.4,1);
+}
+.popup-streak.visible .popup-streak-carte { transform: scale(1); }
+.popup-streak-flamme { font-size: 56px; line-height: 1; animation: flamme-streak 1.1s ease-in-out infinite; }
+.popup-streak-nombre { font-family: 'Playfair Display', serif; font-size: 46px; font-weight: 700; color: var(--eau); line-height: 1; margin-top: 4px; }
+.popup-streak-label { font-size: 14px; color: var(--roseau); font-weight: 600; }
+.popup-streak-xp { font-size: 12.5px; color: var(--prairie); font-family: 'DM Mono', monospace; margin-top: 10px; }
+@keyframes flamme-streak { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.16); } }
+@media (prefers-reduced-motion: reduce) {
+  .popup-streak-flamme { animation: none; }
+  .popup-streak-carte { transition: none; }
+}
+
 /* Fichier joint dans un compte-rendu (PDF ou image) */
 .fichier-pv-apercu { margin-top: 10px; }
 .fichier-pv-apercu img { max-width: 100%; border-radius: 10px; cursor: zoom-in; }
