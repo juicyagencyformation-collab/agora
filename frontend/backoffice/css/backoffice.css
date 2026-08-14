@@ -80,7 +80,8 @@ input:focus { outline: none; border-color: var(--bo-accent); }
   display: flex; flex-direction: column;
   padding: 20px 14px;
 }
-.bo-nav__marque { font-weight: 800; font-size: 17px; padding: 6px 10px 20px; }
+.bo-nav__marque { font-weight: 800; font-size: 17px; padding: 6px 10px 20px; display: flex; align-items: center; gap: 8px; }
+.bo-nav__logo { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
 .bo-nav__marque span { color: var(--bo-accent); }
 .bo-nav__lien {
   display: flex; align-items: center; gap: 10px;
