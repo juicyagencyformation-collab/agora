@@ -95,6 +95,28 @@ app.put('/avis', async (c) => {
   return c.json({ ok: true });
 });
 
+// PUT /identite — modifier son prénom et son nom. Ces champs sont lus en direct partout
+// (auteur d'une alerte, d'un événement, d'un souvenir...), donc la mise à jour se répercute
+// automatiquement sur tout le contenu déjà publié, sans dénormalisation à maintenir.
+app.put('/identite', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const schema = z.object({
+    prenom: z.string().min(1).max(80),
+    nom: z.string().min(1).max(80),
+  });
+  const body = schema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const prenom = body.data.prenom.trim();
+  const nom = body.data.nom.trim();
+  await supabaseUpdate(c.env, 'users', { prenom, nom }, {
+    id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true, prenom, nom });
+});
+
 // POST /photo — photo de profil personnelle. Remplace le logo de la commune au centre du
 // badge XP (repli sur le logo de la commune si absente, comme avant) — voir frontend/js/profil.js.
 app.post('/photo', async (c) => {

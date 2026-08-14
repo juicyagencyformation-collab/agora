@@ -91,7 +91,7 @@ async function chargerProfil() {
     <input type="file" id="input-banniere-profil" accept="image/jpeg,image/png,image/webp" hidden>
 
     <div class="identite-profil-hero">
-      <strong>${escapeAttr(data.prenom)} ${escapeAttr(data.nom)}</strong>
+      <strong>${escapeAttr(data.prenom)} ${escapeAttr(data.nom)} <button type="button" id="btn-editer-identite" title="Modifier mon nom" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 0 0 4px;">✏️</button></strong>
       <small>${xpDansNiveau} / ${xpPourNiveau} XP vers le niveau ${data.niveau + 1}</small>
     </div>
 
@@ -147,6 +147,44 @@ async function chargerProfil() {
   initUploadsMediaProfil();
   initNoterApplication(data.mon_avis);
   initReglagesRgpdProfil();
+  initEditionIdentite(data);
+}
+
+// ── Modifier son prénom / nom ──
+
+function initEditionIdentite(data) {
+  const btn = document.getElementById('btn-editer-identite');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const html = `
+      <form id="form-identite">
+        <label style="display:block;font-size:12.5px;color:var(--roseau);margin-bottom:3px;">Prénom</label>
+        <input type="text" id="edit-prenom" maxlength="80" required value="${escapeAttr(data.prenom || '')}">
+        <label style="display:block;font-size:12.5px;color:var(--roseau);margin:10px 0 3px;">Nom</label>
+        <input type="text" id="edit-nom" maxlength="80" required value="${escapeAttr(data.nom || '')}">
+        <button type="submit" style="margin-top:12px;">Enregistrer</button>
+      </form>
+    `;
+    const overlay = ouvrirModaleFormulaire('Modifier mon identité', html);
+    overlay.querySelector('#form-identite').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const prenom = overlay.querySelector('#edit-prenom').value.trim();
+      const nom = overlay.querySelector('#edit-nom').value.trim();
+      if (!prenom || !nom) return;
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/profil/identite`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prenom, nom }),
+      });
+      if (res.ok) {
+        fermerModaleFormulaire(overlay);
+        afficherToastMessage('Identité mise à jour.', 'succes');
+        chargerProfil();
+      } else {
+        const d = await res.json();
+        afficherToastMessage(d.erreur ? JSON.stringify(d.erreur) : 'Erreur', 'erreur');
+      }
+    });
+  });
 }
 
 // ── Noter l'application (1 à 5 étoiles + commentaire), destiné au futur back-office ──
