@@ -23,6 +23,7 @@ function backoffice() {
     erreurChargement: '',
     frequentation: null,
     doublons: [],
+    qrCommune: '',
     coordsEnCours: false,
     coordsMsg: '',
     accesEnCours: false,
@@ -120,11 +121,13 @@ function backoffice() {
       this.presentMsg = '';
       this.frequentation = null;
       this.doublons = [];
+      this.qrCommune = '';
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
         this.forfaitNom = this.fiche.commune.forfait || '';
         this.forfaitQuota = this.fiche.commune.quota_go ?? '';
         if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
+        this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
         try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
       } finally {
@@ -694,6 +697,14 @@ function backoffice() {
     },
     libelleStatutClient(s) {
       return { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[s] || 'Active';
+    },
+    genererQr(url) {
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        return qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+      } catch { return ''; }
     },
     pctPop(n) {
       const p = this.frequentation && this.frequentation.population;
