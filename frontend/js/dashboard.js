@@ -294,7 +294,7 @@ async function chargerDerniereActu() {
 
   zone.innerHTML = `
     <div class="entete-article-compact" style="padding:0;cursor:default;">
-      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : '<div class="miniature-liste-article miniature-vide">📰</div>'}
+      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : ''}
       <div class="texte-entete-article">
         <h4 class="titre-article-compact" style="margin:2px 0 3px;">${escapeAttr(a.titre)}</h4>
         <p class="extrait-article-compact">${escapeAttr(extrait)}${extraitBrut.length > 140 ? '…' : ''}</p>

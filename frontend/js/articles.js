@@ -82,7 +82,7 @@ function renderArticle(article) {
 
   el.innerHTML = `
     <button type="button" class="entete-article-compact">
-      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : '<div class="miniature-liste-article miniature-vide">📰</div>'}
+      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : ''}
       <div class="texte-entete-article">
         <span class="badge-categorie-article">${LABELS_CATEGORIE_ARTICLE[article.categorie] ?? article.categorie}</span>
         <h3 class="titre-article-compact">${escapeAttr(article.titre)}</h3>
