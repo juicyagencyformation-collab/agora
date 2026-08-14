@@ -168,50 +168,11 @@ function baliseLogo(url: string | null | undefined): string {
   return `<img src="${url}" alt="Agora" style="max-width:200px;height:auto;display:block;margin-bottom:4px" />`;
 }
 
-// Taille max pour intégrer une image inline (au-delà, on garde l'URL distante : évite un
-// encodage base64 coûteux qui pourrait dépasser les limites de ressources du Worker).
-const TAILLE_MAX_INLINE = 400 * 1024;
-
-// Encode un ArrayBuffer en base64. Blocs de 4 Ko via apply : sûr pour la pile d'appels
-// (un spread de dizaines de milliers d'octets pouvait la faire déborder).
-function arrayBufferEnBase64(buf: ArrayBuffer): string {
-  const octets = new Uint8Array(buf);
-  let binaire = '';
-  const bloc = 0x1000;
-  for (let i = 0; i < octets.length; i += bloc) {
-    binaire += String.fromCharCode.apply(null, Array.from(octets.subarray(i, i + bloc)));
-  }
-  return btoa(binaire);
-}
-
-// Récupère une image stockée dans R2 (via son URL publique) et la renvoie en base64, ou null.
-// Ne jette jamais : toute erreur (R2, taille, encodage) → null → repli sur l'URL distante.
-async function imageR2EnBase64(env: any, url: string): Promise<{ base64: string; ext: string } | null> {
-  try {
-    if (!env.BUCKET_R2 || !env.R2_PUBLIC_BASE) return null;
-    const cle = url.replace(`${env.R2_PUBLIC_BASE}/`, '');
-    if (!cle || cle === url) return null; // pas une URL R2
-    const objet = await env.BUCKET_R2.get(cle);
-    if (!objet) return null;
-    if (typeof objet.size === 'number' && objet.size > TAILLE_MAX_INLINE) return null; // trop lourd → URL
-    const ext = (cle.split('.').pop() || 'png').toLowerCase();
-    return { base64: arrayBufferEnBase64(await objet.arrayBuffer()), ext };
-  } catch {
-    return null;
-  }
-}
-
-// Prépare une image inline (CID) : la joint à l'email et renvoie la balise <img src="cid:...">
-// pour qu'elle s'affiche SANS que le destinataire ait à autoriser les images distantes.
-// Repli sur l'URL distante si l'image n'est pas récupérable.
-async function imageInline(env: any, url: string, cid: string, attributs: string, attachments: any[]): Promise<string> {
-  const image = await imageR2EnBase64(env, url);
-  if (image) {
-    const type = image.ext === 'jpg' || image.ext === 'jpeg' ? 'image/jpeg' : 'image/png';
-    attachments.push({ filename: `${cid}.${image.ext}`, content: image.base64, content_id: cid, content_type: type });
-    return `<img src="cid:${cid}" alt="" ${attributs} />`;
-  }
-  return `<img src="${url}" alt="" ${attributs} />`;
+// Balise <img> de signature à partir de l'URL stockée (vide si aucune photo). Images chargées
+// par URL (le domaine étant authentifié DKIM/SPF, elles s'affichent chez la plupart des clients).
+function baliseSignature(url: string | null | undefined): string {
+  if (!url) return '';
+  return `<img src="${url}" alt="" width="56" height="56" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0" />`;
 }
 
 // Construit le contexte de variables pour une commune (client → son app ; prospect → la démo).
@@ -223,25 +184,19 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
   };
 }
 
-// Envoie l'email de présentation à partir du modèle enregistré, variables substituées (dont la
-// photo de signature stockée dans le modèle).
+// Envoie l'email de présentation à partir du modèle enregistré, variables substituées (logo +
+// photo de signature). Images chargées par URL (domaine authentifié) — léger, aucun risque de
+// surcharge du Worker.
 export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<void> {
   const modele = await chargerModelePresentation(env);
-
-  // Images jointes en inline (CID) → affichage garanti sans « autoriser les images ».
-  const attachments: any[] = [];
-  const logo = modele.logo_image_url
-    ? await imageInline(env, modele.logo_image_url, 'logo', 'style="max-width:200px;height:auto;display:block;margin-bottom:4px"', attachments)
-    : baliseLogo(null);
-  const signaturePhoto = modele.signature_image_url
-    ? await imageInline(env, modele.signature_image_url, 'signature', 'width="56" height="56" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0"', attachments)
-    : '';
-
-  const ctxComplet = { ...ctx, signaturePhoto, logo };
+  const ctxComplet = {
+    ...ctx,
+    signaturePhoto: baliseSignature(modele.signature_image_url),
+    logo: baliseLogo(modele.logo_image_url),
+  };
   await envoyerEmail(
     env, contactEmail,
     rendrePresentation(modele.objet, ctxComplet),
     rendrePresentation(modele.corps_html, ctxComplet),
-    attachments,
   );
 }
