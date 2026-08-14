@@ -45,13 +45,15 @@ async function calculerStockageR2(env: any, commune_id: string): Promise<{ octet
 app.get('/communes', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
     select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,created_at',
-    niveau_national: 'eq.false',
+    niveau_national: 'not.is.true', // exclut seulement la commune nationale (garde false ET null)
     order: 'nom.asc',
+    limit: '5000',
   });
 
-  // Deux lectures légères agrégées côté Worker plutôt qu'une requête par commune (N+1).
-  const users = await supabaseSelect(c.env, 'users', { select: 'commune_id' });
-  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'commune_id,note' });
+  // Deux lectures agrégées côté Worker plutôt qu'une requête par commune (N+1). Limite haute
+  // explicite : sans elle, PostgREST plafonne à ~1000 lignes et fausse les comptages.
+  const users = await supabaseSelect(c.env, 'users', { select: 'commune_id', limit: '100000' });
+  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'commune_id,note', limit: '100000' });
 
   const nbCitoyens = new Map<string, number>();
   for (const u of users) nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
@@ -391,10 +393,10 @@ app.get('/communes/:id/doublons', async (c) => {
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id', niveau_national: 'eq.false',
+    select: 'id', niveau_national: 'not.is.true', limit: '5000',
   });
-  const users = await supabaseSelect(c.env, 'users', { select: 'id' });
-  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'note' });
+  const users = await supabaseSelect(c.env, 'users', { select: 'id', limit: '100000' });
+  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'note', limit: '100000' });
 
   const note_moyenne = avis.length
     ? Math.round((avis.reduce((s: number, a: any) => s + a.note, 0) / avis.length) * 10) / 10
