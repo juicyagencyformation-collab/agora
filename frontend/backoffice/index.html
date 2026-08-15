@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260813-27" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-27" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-27" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260813-28" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-28" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-28" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-27" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-28" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -299,6 +299,23 @@
                     </template>
                   </div>
                 </template>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="rgpd">
+            <div>
+              <div class="bo-section-titre">🔒 Vie privée (RGPD)</div>
+              <div class="bo-grille-stats">
+                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd.nb_exports"></div><div class="bo-stat__lib">Exports de données demandés</div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd.nb_suppressions"></div><div class="bo-stat__lib" x-text="'Comptes supprimés' + pctRgpd(rgpd.nb_suppressions)"></div></div>
+              </div>
+              <div class="bo-carte" style="padding:14px 18px">
+                <div style="font-weight:600; margin-bottom:8px">Derniers exports de données (portabilité)</div>
+                <template x-for="(e, i) in rgpd.exports.slice(0, 8)" :key="i">
+                  <div class="bo-info" x-text="e.nom + (e.email ? ' (' + e.email + ')' : '') + ' — ' + formatDate(e.created_at)"></div>
+                </template>
+                <template x-if="rgpd.exports.length === 0"><div class="bo-vide">Aucun export demandé pour l'instant.</div></template>
               </div>
             </div>
           </template>
@@ -667,10 +684,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-27"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-27"></script>
-  <script src="/backoffice/js/api.js?v=20260813-27"></script>
-  <script src="/backoffice/js/app.js?v=20260813-27"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-27" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-28"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-28"></script>
+  <script src="/backoffice/js/api.js?v=20260813-28"></script>
+  <script src="/backoffice/js/app.js?v=20260813-28"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-28" defer></script>
 </body>
 </html>

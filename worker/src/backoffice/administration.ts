@@ -390,6 +390,45 @@ app.get('/communes/:id/doublons', async (c) => {
   return c.json({ doublons });
 });
 
+// GET /communes/:id/rgpd — stats de suivi RGPD : combien de citoyens exportent leurs données
+// (droit à la portabilité, journalisé depuis GET /auth/mes-donnees) et combien suppriment leur
+// compte (déjà journalisé via users.compte_supprime_le, aucune table dédiée nécessaire).
+app.get('/communes/:id/rgpd', async (c) => {
+  const id = c.req.param('id');
+  const [exports, tousUsers] = await Promise.all([
+    supabaseSelect(c.env, 'exports_rgpd_donnees', {
+      select: 'user_id,created_at', commune_id: `eq.${id}`, order: 'created_at.desc', limit: '500',
+    }),
+    supabaseSelect(c.env, 'users', {
+      select: 'id,nom,prenom,email,compte_supprime_le,created_at', commune_id: `eq.${id}`, limit: '20000',
+    }),
+  ]);
+
+  const parUser = new Map(tousUsers.map((u: any) => [u.id, u]));
+  const suppressions = tousUsers
+    .filter((u: any) => u.compte_supprime_le)
+    .sort((a: any, b: any) => (a.compte_supprime_le < b.compte_supprime_le ? 1 : -1));
+
+  const detailExports = exports.slice(0, 50).map((e: any) => {
+    const u = parUser.get(e.user_id);
+    return {
+      created_at: e.created_at,
+      nom: !u ? 'Compte introuvable' : u.compte_supprime_le ? 'Compte supprimé' : `${u.prenom} ${u.nom}`,
+      email: u && !u.compte_supprime_le ? u.email : null,
+    };
+  });
+
+  return c.json({
+    nb_citoyens: tousUsers.length,
+    nb_exports: exports.length,
+    nb_suppressions: suppressions.length,
+    exports: detailExports,
+    suppressions: suppressions.slice(0, 50).map((u: any) => ({
+      compte_supprime_le: u.compte_supprime_le, inscrit_le: u.created_at,
+    })),
+  });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {

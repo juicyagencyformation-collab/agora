@@ -23,6 +23,7 @@ function backoffice() {
     erreurChargement: '',
     frequentation: null,
     doublons: [],
+    rgpd: null,
     qrCommune: '',
     coordsEnCours: false,
     coordsMsg: '',
@@ -124,6 +125,7 @@ function backoffice() {
       this.presentMsg = '';
       this.frequentation = null;
       this.doublons = [];
+      this.rgpd = null;
       this.qrCommune = '';
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
@@ -133,6 +135,7 @@ function backoffice() {
         this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
         try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
+        try { this.rgpd = await boFetch('/administration/communes/' + id + '/rgpd'); } catch {}
       } finally {
         this.chargement = false;
       }
@@ -727,6 +730,10 @@ function backoffice() {
         qr.make();
         return qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
       } catch { return ''; }
+    },
+    pctRgpd(n) {
+      const p = this.rgpd && this.rgpd.nb_citoyens;
+      return p ? ` (${Math.round((n / p) * 100)} %)` : '';
     },
     pctPop(n) {
       const p = this.frequentation && this.frequentation.population;

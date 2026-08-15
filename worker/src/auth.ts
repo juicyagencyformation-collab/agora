@@ -306,6 +306,10 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
 
+  // Journal (backoffice) des demandes d'export — purement statistique, ne doit jamais faire
+  // échouer l'export lui-même si la table est absente ou l'insert échoue.
+  try { await supabaseInsert(c.env, 'exports_rgpd_donnees', { commune_id, user_id }); } catch { /* non bloquant */ }
+
   // Résilient : une table absente ou une colonne renommée ne doit jamais faire échouer TOUT
   // l'export RGPD (droit à la portabilité). La section concernée revient vide, le reste passe.
   const requete = async (table: string, champs: string) => {
