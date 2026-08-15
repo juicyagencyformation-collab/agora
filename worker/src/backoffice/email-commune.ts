@@ -82,7 +82,9 @@ export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Prom
 //   (table modeles_email, cle='presentation'), réutilisé pour tous les envois. Variables
 //   substituées à l'envoi : {{commune}}, {{url}} (app ou démo), {{lien_fiche}}. Un défaut de
 //   secours est utilisé tant qu'aucun modèle n'a été enregistré. —
-export const DEMO_SLUG = 'eaucourt';
+// Commune de démo envoyée aux prospects (palier gratuit uniquement — voir migration
+// 035_commune_demo_gratuite.sql). Distincte d'Eaucourt, la vraie commune de Léandre.
+export const DEMO_SLUG = 'decouverte-gratuite';
 
 export const MODELE_PRESENTATION_DEFAUT = {
   objet: 'Agora — une application citoyenne pour {{commune}}',

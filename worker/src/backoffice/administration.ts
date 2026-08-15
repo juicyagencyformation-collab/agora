@@ -17,6 +17,15 @@ import { uploaderFichier, deleteObject } from '../storage';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
+// Doit rester synchronisé avec ONGLETS_VALIDES dans worker/src/routes/moderation.ts (moins
+// 'profil', qui n'est pas un module désactivable — c'est le compte du citoyen lui-même).
+const TOUS_LES_ONGLETS = [
+  'actualites', 'alertes', 'thermometre', 'mur', 'agenda', 'coups_de_main', 'chasse_tresor',
+  'conseil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes', 'lois', 'memoire',
+] as const;
+// Palier gratuit (déterminé avec Léandre le 2026-08-15) : l'accroche civique de base.
+const ONGLETS_GRATUITS = ['actualites', 'agenda', 'alertes', 'annuaire'];
+
 // Rôles gérables depuis le backoffice. 'superadmin' n'y figure JAMAIS — règle absolue du
 // projet : ce rôle ne s'attribue qu'en base directement, jamais via une interface.
 const ROLES_GERABLES = ['citoyen', 'admin', 'elu', 'maire'] as const;
@@ -640,6 +649,34 @@ app.get('/echeances', async (c) => {
     order: 'prochaine_echeance.asc',
   });
   return c.json({ communes });
+});
+
+// POST /communes/:id/onglets/preset — applique en un clic le palier « gratuit » (seuls
+// ONGLETS_GRATUITS actifs) ou « complet » (tout actif). Met aussi à jour le libellé forfait
+// affiché. Upsert manuel : onglets_config a UNIQUE(commune_id, cle) mais notre client REST ne
+// fait pas d'upsert natif, donc on complète ce qui existe déjà et on insère le reste.
+const presetSchema = z.object({ preset: z.enum(['gratuit', 'complet']) });
+
+app.post('/communes/:id/onglets/preset', async (c) => {
+  const id = c.req.param('id');
+  const body = presetSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Préréglage invalide' }, 400);
+
+  const existants = await supabaseSelect(c.env, 'onglets_config', { select: 'cle', commune_id: `eq.${id}` });
+  const clesExistantes = new Set(existants.map((o: any) => o.cle));
+
+  for (const cle of TOUS_LES_ONGLETS) {
+    const actif = body.data.preset === 'complet' || ONGLETS_GRATUITS.includes(cle);
+    if (clesExistantes.has(cle)) {
+      await supabaseUpdate(c.env, 'onglets_config', { actif }, { commune_id: `eq.${id}`, cle: `eq.${cle}` });
+    } else {
+      await supabaseInsert(c.env, 'onglets_config', { commune_id: id, cle, actif });
+    }
+  }
+
+  const forfait = body.data.preset === 'complet' ? 'Version complète' : 'Gratuit';
+  await supabaseUpdate(c.env, 'communes', { forfait }, { id: `eq.${id}` });
+  return c.json({ ok: true, forfait });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.

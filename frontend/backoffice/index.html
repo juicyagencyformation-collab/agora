@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260813-30" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-30" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-30" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260813-31" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-31" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-31" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-30" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-31" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -452,6 +452,12 @@
 
           <div class="bo-section-titre">Forfait &amp; stockage</div>
           <div class="bo-carte" style="padding:16px 18px">
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap">
+              <span class="bo-info">Préréglage des modules :</span>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('gratuit')" :disabled="presetEnCours">🆓 Passer en Gratuit</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('complet')" :disabled="presetEnCours">💶 Passer en Version complète</button>
+              <span class="bo-info" x-text="presetMsg"></span>
+            </div>
             <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
               <div class="bo-champ-inline">
                 <label style="margin-top:0">Forfait</label>
@@ -885,10 +891,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-30"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-30"></script>
-  <script src="/backoffice/js/api.js?v=20260813-30"></script>
-  <script src="/backoffice/js/app.js?v=20260813-30"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-30" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-31"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-31"></script>
+  <script src="/backoffice/js/api.js?v=20260813-31"></script>
+  <script src="/backoffice/js/app.js?v=20260813-31"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-31" defer></script>
 </body>
 </html>

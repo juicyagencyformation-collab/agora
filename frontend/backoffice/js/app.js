@@ -48,6 +48,8 @@ function backoffice() {
     forfaitQuota: '',
     forfaitEnCours: false,
     forfaitMsg: '',
+    presetEnCours: false,
+    presetMsg: '',
     presentEnCours: false,
     presentMsg: '',
     modele: { objet: '', corps_html: '', signature_image_url: null, logo_image_url: null },
@@ -335,6 +337,25 @@ function backoffice() {
         this.modeleMsg = e.message || 'Échec';
       } finally {
         this.modeleEnCours = false;
+      }
+    },
+
+    async appliquerPresetOnglets(preset) {
+      const libelle = preset === 'complet' ? 'Version complète (tous les modules)' : 'Gratuit (actualités, agenda, alertes, annuaire uniquement)';
+      if (!confirm(`Basculer cette commune sur le préréglage « ${libelle} » ?`)) return;
+      this.presetEnCours = true;
+      this.presetMsg = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets/preset', {
+          method: 'POST', body: JSON.stringify({ preset }),
+        });
+        this.fiche.commune.forfait = r.forfait;
+        this.forfaitNom = r.forfait;
+        this.presetMsg = 'Appliqué : ' + r.forfait;
+      } catch (e) {
+        this.presetMsg = e.message || 'Échec';
+      } finally {
+        this.presetEnCours = false;
       }
     },
 
