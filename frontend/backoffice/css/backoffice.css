@@ -134,6 +134,11 @@ tbody tr:hover { background: var(--bo-surface-2); }
 .bo-statut--active { background: #14432c; color: #34d399; }
 .bo-statut--suspendue { background: #4a3410; color: #fbbf24; }
 .bo-statut--resiliee { background: #4a1d1d; color: #f87171; }
+/* Rôles utilisateurs */
+.bo-statut--citoyen { background: #334155; color: #cbd5e1; }
+.bo-statut--admin { background: #1e3a5f; color: #7dd3fc; }
+.bo-statut--elu { background: #3b2d5c; color: #c4b5fd; }
+.bo-statut--maire { background: #4a3410; color: #fbbf24; }
 
 /* Barre d'outils (filtres) */
 .bo-outils { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }

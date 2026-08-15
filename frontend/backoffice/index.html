@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260813-28" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-28" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-28" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260813-29" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-29" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-29" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-28" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-29" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -263,6 +263,14 @@
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.avis.note_moyenne ?? '—'"></div><div class="bo-stat__lib" x-text="'Note app (' + fiche.avis.nb + ' avis)'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche.stockage.nb_fichiers + ' fichiers R2'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
+          </div>
+
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px">
+            <div>
+              <div style="font-weight:600">Citoyens</div>
+              <div class="bo-info">Gérer les comptes de cette commune : liste, ajout, modification, suppression.</div>
+            </div>
+            <button class="bo-btn bo-btn--compact" @click="ouvrirUtilisateurs()">👥 Gérer les utilisateurs</button>
           </div>
 
           <template x-if="frequentation">
@@ -681,13 +689,127 @@
           </div>
         </div>
       </template>
+
+      <!-- Vue : liste des utilisateurs d'une commune -->
+      <template x-if="!chargement && vue === 'utilisateurs'">
+        <div>
+          <div class="bo-retour" @click="vue = 'fiche'">← Retour à la commune</div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre" x-text="'Utilisateurs · ' + communeActiveNom"></div>
+              <div class="bo-sous" x-text="totalUtilisateurs.toLocaleString('fr-FR') + ' compte(s)'"></div>
+            </div>
+          </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
+
+          <div class="bo-outils">
+            <select x-model="filtreUtilisateurRole" @change="appliquerFiltresUtilisateurs()">
+              <option value="">Tous les rôles</option>
+              <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+            </select>
+            <input type="text" x-model="filtreUtilisateurRecherche" @input.debounce.400ms="appliquerFiltresUtilisateurs()" placeholder="Rechercher (nom, email)" />
+            <button class="bo-btn bo-btn--compact" @click="basculerFormUtilisateur()" x-text="formUtilisateurOuvert ? 'Annuler' : '+ Ajouter un utilisateur'"></button>
+          </div>
+
+          <!-- Formulaire de création -->
+          <template x-if="formUtilisateurOuvert">
+            <form class="bo-form-import" @submit.prevent="creerUtilisateur()">
+              <div class="bo-champ"><label>Prénom</label><input type="text" x-model="nouvelUtilisateur.prenom" required /></div>
+              <div class="bo-champ"><label>Nom</label><input type="text" x-model="nouvelUtilisateur.nom" required /></div>
+              <div class="bo-champ"><label>Email</label><input type="email" x-model="nouvelUtilisateur.email" required style="width:220px" /></div>
+              <div class="bo-champ">
+                <label>Rôle</label>
+                <select x-model="nouvelUtilisateur.role" style="width:auto">
+                  <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+                </select>
+              </div>
+              <div class="bo-champ"><label>Mot de passe temporaire</label><input type="text" x-model="nouvelUtilisateur.password" required minlength="6" /></div>
+              <button class="bo-btn bo-btn--compact" type="submit" :disabled="utilisateurEnCours">Créer</button>
+              <span class="bo-info" x-text="msgUtilisateurs"></span>
+            </form>
+          </template>
+
+          <div class="bo-carte">
+            <table>
+              <thead>
+                <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Niveau</th><th>Inscrit le</th><th>Dernière connexion</th></tr>
+              </thead>
+              <tbody>
+                <template x-for="u in utilisateurs" :key="u.id">
+                  <tr @click="ouvrirUtilisateur(u)">
+                    <td class="bo-nom-commune" x-text="u.prenom + ' ' + u.nom"></td>
+                    <td x-text="u.email"></td>
+                    <td><span class="bo-statut" :class="'bo-statut--' + u.role" x-text="libelleRole(u.role)"></span></td>
+                    <td x-text="'Niv. ' + (u.niveau ?? 1)"></td>
+                    <td x-text="formatDate(u.created_at)"></td>
+                    <td><span :class="{ 'bo-vide': !u.derniere_connexion_streak }" x-text="u.derniere_connexion_streak ? formatDate(u.derniere_connexion_streak) : '—'"></span></td>
+                  </tr>
+                </template>
+                <template x-if="utilisateurs.length === 0">
+                  <tr><td colspan="6" class="bo-vide" style="text-align:center">Aucun utilisateur.</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bo-outils" x-show="totalUtilisateurs > 0" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="'page ' + pageUtilisateurs + ' sur ' + nbPagesUtilisateurs()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageUtilisateurs(-1)" :disabled="pageUtilisateurs <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageUtilisateurs(1)" :disabled="pageUtilisateurs >= nbPagesUtilisateurs()">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Vue : fiche d'un utilisateur -->
+      <template x-if="!chargement && vue === 'utilisateur' && utilisateurEdite">
+        <div>
+          <div class="bo-retour" @click="vue = 'utilisateurs'">← Retour aux utilisateurs</div>
+          <div class="bo-titre" x-text="utilisateurEdite.prenom + ' ' + utilisateurEdite.nom"></div>
+          <div class="bo-sous" style="margin-bottom:18px" x-text="'Inscrit le ' + formatDate(utilisateurEdite.created_at)"></div>
+
+          <div class="bo-carte" style="padding:16px 18px; max-width:480px">
+            <label style="margin-top:0">Prénom</label>
+            <input type="text" x-model="utilisateurEdite.prenom" />
+            <label>Nom</label>
+            <input type="text" x-model="utilisateurEdite.nom" />
+            <label>Email</label>
+            <input type="email" x-model="utilisateurEdite.email" />
+            <label>Rôle</label>
+            <select x-model="utilisateurEdite.role">
+              <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+            </select>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+              <button class="bo-btn bo-btn--compact" @click="enregistrerUtilisateur()" :disabled="utilisateurEnCours">Enregistrer</button>
+              <span class="bo-info" x-text="msgUtilisateurs"></span>
+            </div>
+          </div>
+
+          <div class="bo-section-titre">Accès</div>
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+            <div class="bo-info">Régénère un mot de passe temporaire, affiché une fois pour que tu le communiques.</div>
+            <button class="bo-btn bo-btn--sec bo-btn--compact" @click="reinitialiserMdpUtilisateur()" :disabled="utilisateurEnCours">Réinitialiser le mot de passe</button>
+          </div>
+          <div class="bo-carte" x-show="resetMdpResultat" style="padding:14px 18px; margin-top:10px">
+            <div style="font-weight:600; margin-bottom:6px">Nouveau mot de passe (affiché une seule fois)</div>
+            <div x-text="resetMdpResultat"></div>
+          </div>
+
+          <div class="bo-section-titre">Zone sensible</div>
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+            <div class="bo-info">Supprime le compte (anonymisation RGPD — le contenu déjà publié reste, sans identité).</div>
+            <button class="bo-btn bo-btn--sec bo-btn--compact" style="border-color:#f87171; color:#f87171" @click="supprimerUtilisateur()" :disabled="utilisateurEnCours">🗑 Supprimer le compte</button>
+          </div>
+        </div>
+      </template>
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-28"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-28"></script>
-  <script src="/backoffice/js/api.js?v=20260813-28"></script>
-  <script src="/backoffice/js/app.js?v=20260813-28"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-28" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-29"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-29"></script>
+  <script src="/backoffice/js/api.js?v=20260813-29"></script>
+  <script src="/backoffice/js/app.js?v=20260813-29"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-29" defer></script>
 </body>
 </html>

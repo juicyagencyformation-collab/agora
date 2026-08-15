@@ -5,7 +5,7 @@
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseUpdate, supabaseInsert } from '../db';
+import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
 import {
@@ -16,6 +16,10 @@ import {
 import { uploaderFichier, deleteObject } from '../storage';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
+
+// Rôles gérables depuis le backoffice. 'superadmin' n'y figure JAMAIS — règle absolue du
+// projet : ce rôle ne s'attribue qu'en base directement, jamais via une interface.
+const ROLES_GERABLES = ['citoyen', 'admin', 'elu', 'maire'] as const;
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -427,6 +431,133 @@ app.get('/communes/:id/rgpd', async (c) => {
       compte_supprime_le: u.compte_supprime_le, inscrit_le: u.created_at,
     })),
   });
+});
+
+// GET /communes/:id/utilisateurs — liste paginée (100/page) des citoyens d'une commune.
+// Recherche nom/prénom/email, filtre par rôle. Les comptes déjà anonymisés (RGPD) sont exclus.
+const TAILLE_PAGE_UTILISATEURS = 100;
+
+app.get('/communes/:id/utilisateurs', async (c) => {
+  const id = c.req.param('id');
+  const where: Record<string, string> = { commune_id: `eq.${id}`, compte_supprime_le: 'is.null' };
+
+  const role = c.req.query('role');
+  if (role && (ROLES_GERABLES as readonly string[]).includes(role)) where.role = `eq.${role}`;
+  const recherche = c.req.query('recherche');
+  if (recherche) where.or = `(nom.ilike.*${recherche}*,prenom.ilike.*${recherche}*,email.ilike.*${recherche}*)`;
+
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+  const offset = (page - 1) * TAILLE_PAGE_UTILISATEURS;
+
+  const [utilisateurs, total] = await Promise.all([
+    supabaseSelect(c.env, 'users', {
+      ...where,
+      select: 'id,nom,prenom,email,role,xp,niveau,created_at,derniere_connexion_streak',
+      order: 'created_at.desc',
+      limit: String(TAILLE_PAGE_UTILISATEURS),
+      offset: String(offset),
+    }),
+    supabaseCount(c.env, 'users', where),
+  ]);
+
+  return c.json({ utilisateurs, page, taille: TAILLE_PAGE_UTILISATEURS, total });
+});
+
+// POST /communes/:id/utilisateurs — création manuelle d'un compte (mot de passe temporaire
+// saisi par le staff, comme à l'onboarding du maire). Rôle limité à ROLES_GERABLES.
+const creerUtilisateurSchema = z.object({
+  nom: z.string().min(1).max(100),
+  prenom: z.string().min(1).max(100),
+  email: z.string().email(),
+  role: z.enum(ROLES_GERABLES),
+  password: z.string().min(6).max(200),
+});
+
+app.post('/communes/:id/utilisateurs', async (c) => {
+  const id = c.req.param('id');
+  const body = creerUtilisateurSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+
+  const [existant] = await supabaseSelect(c.env, 'users', {
+    select: 'id', commune_id: `eq.${id}`, email: `eq.${data.email}`,
+  });
+  if (existant) return c.json({ erreur: 'Un compte existe déjà avec cet email dans cette commune.' }, 409);
+
+  const password_hash = await hasherMotDePasse(data.password);
+  const [utilisateur] = await supabaseInsert(c.env, 'users', {
+    commune_id: id, nom: data.nom, prenom: data.prenom, email: data.email, role: data.role,
+    password_hash, consentement_rgpd_le: new Date().toISOString(),
+  });
+  return c.json({ ok: true, utilisateur }, 201);
+});
+
+// PATCH /communes/:id/utilisateurs/:userId — modifie identité/rôle. Jamais 'superadmin'
+// (le schéma Zod l'exclut structurellement, cf. ROLES_GERABLES).
+const modifierUtilisateurSchema = z.object({
+  nom: z.string().min(1).max(100).optional(),
+  prenom: z.string().min(1).max(100).optional(),
+  email: z.string().email().optional(),
+  role: z.enum(ROLES_GERABLES).optional(),
+});
+
+app.patch('/communes/:id/utilisateurs/:userId', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.param('userId');
+  const body = modifierUtilisateurSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+
+  if (body.data.email) {
+    const [existant] = await supabaseSelect(c.env, 'users', {
+      select: 'id', commune_id: `eq.${id}`, email: `eq.${body.data.email}`,
+    });
+    if (existant && existant.id !== userId) return c.json({ erreur: 'Cet email est déjà utilisé par un autre compte de cette commune.' }, 409);
+  }
+
+  await supabaseUpdate(c.env, 'users', body.data, { id: `eq.${userId}`, commune_id: `eq.${id}` });
+  return c.json({ ok: true });
+});
+
+// POST /communes/:id/utilisateurs/:userId/reinitialiser-mdp — régénère un mot de passe
+// temporaire, renvoyé UNE FOIS en clair pour que le staff le communique (pas d'email auto,
+// pour ne pas surprendre un citoyen qui n'a rien demandé).
+app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.param('userId');
+  const [u] = await supabaseSelect(c.env, 'users', { select: 'id,email', id: `eq.${userId}`, commune_id: `eq.${id}` });
+  if (!u) return c.json({ erreur: 'Compte introuvable' }, 404);
+
+  const motDePasse = genererMotDePasseTemporaire();
+  await supabaseUpdate(c.env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${userId}` });
+  return c.json({ ok: true, email: u.email, mot_de_passe: motDePasse });
+});
+
+// DELETE /communes/:id/utilisateurs/:userId — anonymisation RGPD (même mécanisme que
+// DELETE /auth/moi, en libre-service côté citoyen) : jamais de suppression physique de la
+// ligne, pour ne pas casser le contenu communautaire déjà publié par la personne.
+app.delete('/communes/:id/utilisateurs/:userId', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.param('userId');
+  const [u] = await supabaseSelect(c.env, 'users', { select: 'id,role', id: `eq.${userId}`, commune_id: `eq.${id}` });
+  if (!u) return c.json({ erreur: 'Compte introuvable' }, 404);
+  if (u.role === 'superadmin') return c.json({ erreur: 'Action non autorisée sur un compte superadmin.' }, 403);
+
+  await supabaseDelete(c.env, 'push_subscriptions', { user_id: `eq.${userId}` });
+  await supabaseDelete(c.env, 'refresh_tokens', { user_id: `eq.${userId}` });
+  await supabaseDelete(c.env, 'annuaire', { user_id: `eq.${userId}`, commune_id: `eq.${id}` });
+  await supabaseUpdate(c.env, 'event_attendees', { contact_telephone: null, contact_email: null }, {
+    user_id: `eq.${userId}`, commune_id: `eq.${id}`,
+  });
+  await supabaseUpdate(c.env, 'users', {
+    email: `supprime-${userId}@anonyme.local`,
+    password_hash: crypto.randomUUID(),
+    nom: 'Compte',
+    prenom: 'supprimé',
+    compte_supprime_le: new Date().toISOString(),
+  }, { id: `eq.${userId}`, commune_id: `eq.${id}` });
+
+  return c.json({ ok: true });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.

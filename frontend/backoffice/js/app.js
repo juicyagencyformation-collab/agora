@@ -25,6 +25,21 @@ function backoffice() {
     doublons: [],
     rgpd: null,
     qrCommune: '',
+    rolesGerables: ['citoyen', 'admin', 'elu', 'maire'],
+    communeActiveId: null,
+    communeActiveNom: '',
+    utilisateurs: [],
+    pageUtilisateurs: 1,
+    totalUtilisateurs: 0,
+    tailleUtilisateurs: 100,
+    filtreUtilisateurRecherche: '',
+    filtreUtilisateurRole: '',
+    formUtilisateurOuvert: false,
+    nouvelUtilisateur: { nom: '', prenom: '', email: '', role: 'citoyen', password: '' },
+    utilisateurEdite: null,
+    utilisateurEnCours: false,
+    msgUtilisateurs: '',
+    resetMdpResultat: '',
     coordsEnCours: false,
     coordsMsg: '',
     accesEnCours: false,
@@ -734,6 +749,127 @@ function backoffice() {
     pctRgpd(n) {
       const p = this.rgpd && this.rgpd.nb_citoyens;
       return p ? ` (${Math.round((n / p) * 100)} %)` : '';
+    },
+
+    // — Gestion des utilisateurs d'une commune —
+    libelleRole(r) {
+      return { citoyen: 'Citoyen', admin: 'Admin', elu: 'Élu', maire: 'Maire', superadmin: 'Superadmin' }[r] || r;
+    },
+
+    async ouvrirUtilisateurs() {
+      this.communeActiveId = this.fiche.commune.id;
+      this.communeActiveNom = this.fiche.commune.nom;
+      this.vue = 'utilisateurs';
+      this.pageUtilisateurs = 1;
+      this.formUtilisateurOuvert = false;
+      this.msgUtilisateurs = '';
+      await this.chargerUtilisateurs();
+    },
+
+    async chargerUtilisateurs() {
+      this.erreurChargement = '';
+      const params = new URLSearchParams();
+      if (this.filtreUtilisateurRole) params.set('role', this.filtreUtilisateurRole);
+      if (this.filtreUtilisateurRecherche) params.set('recherche', this.filtreUtilisateurRecherche);
+      params.set('page', this.pageUtilisateurs);
+      try {
+        const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs?' + params);
+        this.utilisateurs = r.utilisateurs;
+        this.totalUtilisateurs = r.total;
+        this.tailleUtilisateurs = r.taille;
+      } catch (e) {
+        this.erreurChargement = e.message || 'Erreur de chargement des utilisateurs';
+      }
+    },
+
+    appliquerFiltresUtilisateurs() {
+      this.pageUtilisateurs = 1;
+      this.chargerUtilisateurs();
+    },
+    nbPagesUtilisateurs() {
+      return Math.max(1, Math.ceil(this.totalUtilisateurs / this.tailleUtilisateurs));
+    },
+    allerPageUtilisateurs(delta) {
+      const cible = Math.min(this.nbPagesUtilisateurs(), Math.max(1, this.pageUtilisateurs + delta));
+      if (cible === this.pageUtilisateurs) return;
+      this.pageUtilisateurs = cible;
+      this.chargerUtilisateurs();
+    },
+
+    basculerFormUtilisateur() {
+      this.formUtilisateurOuvert = !this.formUtilisateurOuvert;
+      this.nouvelUtilisateur = { nom: '', prenom: '', email: '', role: 'citoyen', password: '' };
+      this.msgUtilisateurs = '';
+    },
+
+    async creerUtilisateur() {
+      this.utilisateurEnCours = true;
+      this.msgUtilisateurs = '';
+      try {
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs', {
+          method: 'POST', body: JSON.stringify(this.nouvelUtilisateur),
+        });
+        this.formUtilisateurOuvert = false;
+        await this.chargerUtilisateurs();
+      } catch (e) {
+        this.msgUtilisateurs = e.message || 'Création impossible';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
+    ouvrirUtilisateur(u) {
+      this.utilisateurEdite = { ...u };
+      this.resetMdpResultat = '';
+      this.msgUtilisateurs = '';
+      this.vue = 'utilisateur';
+    },
+
+    async enregistrerUtilisateur() {
+      this.utilisateurEnCours = true;
+      this.msgUtilisateurs = '';
+      try {
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            nom: this.utilisateurEdite.nom, prenom: this.utilisateurEdite.prenom,
+            email: this.utilisateurEdite.email, role: this.utilisateurEdite.role,
+          }),
+        });
+        this.msgUtilisateurs = 'Enregistré.';
+      } catch (e) {
+        this.msgUtilisateurs = e.message || 'Échec';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
+    async reinitialiserMdpUtilisateur() {
+      if (!confirm('Régénérer un mot de passe temporaire pour ce compte ?')) return;
+      this.utilisateurEnCours = true;
+      this.resetMdpResultat = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/reinitialiser-mdp', { method: 'POST' });
+        this.resetMdpResultat = r.email + ' : ' + r.mot_de_passe;
+      } catch (e) {
+        this.msgUtilisateurs = e.message || 'Échec';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
+    async supprimerUtilisateur() {
+      if (!confirm('Supprimer (anonymiser) ce compte ? Cette action est irréversible.')) return;
+      this.utilisateurEnCours = true;
+      try {
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id, { method: 'DELETE' });
+        this.vue = 'utilisateurs';
+        await this.chargerUtilisateurs();
+      } catch (e) {
+        this.msgUtilisateurs = e.message || 'Échec';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
     },
     pctPop(n) {
       const p = this.frequentation && this.frequentation.population;
