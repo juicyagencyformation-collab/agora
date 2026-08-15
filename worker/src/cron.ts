@@ -2,6 +2,7 @@
 import { supabaseDelete, supabaseSelect, supabaseUpdate } from './db';
 import { deleteObject } from './storage';
 import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
+import { envoyerEmailEcheance } from './backoffice/email-commune';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -156,6 +157,31 @@ export async function cloturerActionsCiviques(env: any) {
     for (const event of eventsTermines) {
       await crediterOrganisationAction(env, commune.id, event);
     }
+  }
+}
+
+// Rappel d'échéance d'abonnement — 60 jours avant (voir migration 034_facturation.sql).
+// Une seule relance par cycle : derniere_relance_echeance_le n'est remise à zéro que quand le
+// staff marque l'échéance payée (POST /administration/communes/:id/abonnement/marquer-paye),
+// donc pas de spam quotidien tant que rien n'a changé.
+export async function relancerEcheancesFacturation(env: any) {
+  const dans60Jours = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const communes = await supabaseSelect(env, 'communes', {
+    select: 'id,nom,contact_email,email_mairie,prix_annuel_ttc,prochaine_echeance,derniere_relance_echeance_le',
+    niveau_national: 'not.is.true',
+    prochaine_echeance: `lte.${dans60Jours}`,
+  });
+
+  for (const commune of communes) {
+    if (!commune.prochaine_echeance || commune.derniere_relance_echeance_le) continue;
+    const destinataire = commune.contact_email || commune.email_mairie;
+    if (!destinataire) continue;
+
+    await envoyerEmailEcheance(env, {
+      nomCommune: commune.nom, destinataire,
+      echeance: commune.prochaine_echeance, montant: commune.prix_annuel_ttc,
+    });
+    await supabaseUpdate(env, 'communes', { derniere_relance_echeance_le: new Date().toISOString() }, { id: `eq.${commune.id}` });
   }
 }
 

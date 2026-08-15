@@ -200,3 +200,36 @@ export async function envoyerPresentation(env: any, contactEmail: string, ctx: C
     rendrePresentation(modele.corps_html, ctxComplet),
   );
 }
+
+// — Email de rappel d'échéance d'abonnement (envoyé ~60 jours avant, voir cron.ts). Simple et
+// factuel : ce n'est pas une facture (pas de mentions légales/SIRET/TVA), juste un rappel qui
+// invite la mairie à recontacter Juicy Solutions pour le renouvellement (règlement par mandat
+// administratif, hors app). —
+export async function envoyerEmailEcheance(env: any, d: {
+  nomCommune: string; destinataire: string; echeance: string; montant: number | null;
+}): Promise<void> {
+  const dateAffichee = new Date(d.echeance).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const montantAffiche = d.montant != null ? `${d.montant.toLocaleString('fr-FR')} € TTC` : 'à confirmer';
+  const html = `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
+
+    <h1 style="font-size:20px;line-height:1.3">Renouvellement de votre abonnement Agora</h1>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      L'abonnement de <strong>${echapper(d.nomCommune)}</strong> arrive à échéance le
+      <strong>${dateAffichee}</strong> (${montantAffiche} pour la période suivante).
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      N'hésitez pas à répondre à cet email pour organiser le renouvellement — aucune démarche
+      en ligne n'est nécessaire, le règlement se fait comme d'habitude par mandat administratif.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Une question&nbsp;? Répondez simplement à cet email.
+    </div>
+  </div>`;
+  await envoyerEmail(env, d.destinataire, `Agora — Renouvellement de l'abonnement de ${d.nomCommune}`, html);
+}

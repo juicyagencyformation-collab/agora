@@ -48,7 +48,7 @@ async function calculerStockageR2(env: any, commune_id: string): Promise<{ octet
 // La commune "nationale" (niveau_national=true) n'est pas une cliente : on l'exclut.
 app.get('/communes', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,prochaine_echeance,created_at',
     niveau_national: 'not.is.true', // exclut seulement la commune nationale (garde false ET null)
     order: 'nom.asc',
     limit: '5000',
@@ -87,7 +87,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,statut_client,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -558,6 +558,88 @@ app.delete('/communes/:id/utilisateurs/:userId', async (c) => {
   }, { id: `eq.${userId}`, commune_id: `eq.${id}` });
 
   return c.json({ ok: true });
+});
+
+// GET /grille-tarifaire — les 6 tranches de population + le nombre de mois offerts pour un
+// engagement 3 ans. Rien n'est codé en dur : tout est éditable depuis le backoffice.
+app.get('/grille-tarifaire', async (c) => {
+  const [tranches, parametres] = await Promise.all([
+    supabaseSelect(c.env, 'grille_tarifaire', {
+      select: 'id,population_min,population_max,prix_annuel_ttc,ordre', order: 'ordre.asc',
+    }),
+    supabaseSelect(c.env, 'parametres_facturation', { select: 'cle,valeur', cle: 'eq.mois_offerts_3ans' }),
+  ]);
+  const moisOfferts3ans = parametres[0] ? parseInt(parametres[0].valeur, 10) : 0;
+  return c.json({ tranches, mois_offerts_3ans: moisOfferts3ans });
+});
+
+// PUT /grille-tarifaire — met à jour les prix des 6 tranches + les mois offerts.
+const grilleTarifaireSchema = z.object({
+  tranches: z.array(z.object({ id: z.string().uuid(), prix_annuel_ttc: z.number().min(0) })),
+  mois_offerts_3ans: z.number().int().min(0).max(36),
+});
+
+app.put('/grille-tarifaire', async (c) => {
+  const body = grilleTarifaireSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  await Promise.all(body.data.tranches.map((t) =>
+    supabaseUpdate(c.env, 'grille_tarifaire', {
+      prix_annuel_ttc: t.prix_annuel_ttc, updated_at: new Date().toISOString(),
+    }, { id: `eq.${t.id}` }),
+  ));
+  await supabaseUpdate(c.env, 'parametres_facturation', { valeur: String(body.data.mois_offerts_3ans) }, { cle: 'eq.mois_offerts_3ans' });
+  return c.json({ ok: true });
+});
+
+// PATCH /communes/:id/abonnement — prix retenu, durée d'engagement (12 ou 36 mois), échéance.
+const abonnementSchema = z.object({
+  prix_annuel_ttc: z.number().min(0).nullable().optional(),
+  duree_engagement_mois: z.union([z.literal(12), z.literal(36)]).optional(),
+  prochaine_echeance: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+});
+
+app.patch('/communes/:id/abonnement', async (c) => {
+  const id = c.req.param('id');
+  const body = abonnementSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+
+  await supabaseUpdate(c.env, 'communes', body.data, { id: `eq.${id}` });
+  return c.json({ ok: true });
+});
+
+// POST /communes/:id/abonnement/marquer-paye — encaisse l'échéance en cours : avance la
+// prochaine échéance de la durée d'engagement, et réarme le rappel automatique pour le
+// prochain cycle (derniere_relance_echeance_le remise à zéro).
+app.post('/communes/:id/abonnement/marquer-paye', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', {
+    select: 'prochaine_echeance,duree_engagement_mois', id: `eq.${id}`,
+  });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const base = commune.prochaine_echeance ? new Date(commune.prochaine_echeance) : new Date();
+  base.setMonth(base.getMonth() + (commune.duree_engagement_mois || 12));
+  const nouvelleEcheance = base.toISOString().slice(0, 10);
+
+  await supabaseUpdate(c.env, 'communes', {
+    prochaine_echeance: nouvelleEcheance, derniere_relance_echeance_le: null,
+  }, { id: `eq.${id}` });
+  return c.json({ ok: true, prochaine_echeance: nouvelleEcheance });
+});
+
+// GET /echeances — communes dont l'abonnement arrive à échéance dans les 60 jours (ou déjà
+// dépassée), pour la vue d'ensemble du backoffice.
+app.get('/echeances', async (c) => {
+  const dans60Jours = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  const communes = await supabaseSelect(c.env, 'communes', {
+    select: 'id,nom,slug,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance',
+    niveau_national: 'not.is.true',
+    prochaine_echeance: `lte.${dans60Jours}`,
+    order: 'prochaine_echeance.asc',
+  });
+  return c.json({ communes });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.

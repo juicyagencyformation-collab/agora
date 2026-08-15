@@ -4,7 +4,7 @@ import { cors } from 'hono/cors';
 import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire } from './cron';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation } from './cron';
 
 import auth from './auth';
 import commune from './routes/commune';
@@ -146,6 +146,7 @@ export default {
       await purgerMur(env);
       await cloturerActionsCiviques(env);
       await purgerOrphelinsMemoire(env);
+      await relancerEcheancesFacturation(env);
     } else if (event.cron === '0 */6 * * *') {
       await synchroniserToutesLesLois(env);
     } else {

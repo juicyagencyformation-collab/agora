@@ -67,6 +67,12 @@ function backoffice() {
     testEmailMsg: '',
     testEmailOk: false,
     emailsRejetes: [],
+    grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
+    grilleEnCours: false,
+    grilleMsg: '',
+    echeances: [],
+    abonnementEnCours: false,
+    abonnementMsg: '',
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
@@ -105,6 +111,7 @@ function backoffice() {
         this.testEmailDest = staff.email || '';
         try { this.modele = (await boFetch('/administration/modele-email')).modele; } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
+        try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
       } catch {
         redirigerVersConnexion();
         return;
@@ -123,6 +130,7 @@ function backoffice() {
         this.apercu = apercu;
         this.communes = liste.communes;
         try { this.emailsRejetes = (await boFetch('/administration/emails-rejetes')).emails; } catch {}
+        try { this.echeances = (await boFetch('/administration/echeances')).communes; } catch {}
       } catch (e) {
         // Ne pas rester silencieusement vide : afficher la cause (souvent une migration manquante).
         this.erreurChargement = e.message || 'Erreur de chargement des communes';
@@ -749,6 +757,87 @@ function backoffice() {
     pctRgpd(n) {
       const p = this.rgpd && this.rgpd.nb_citoyens;
       return p ? ` (${Math.round((n / p) * 100)} %)` : '';
+    },
+
+    // — Facturation (suivi des échéances, pas un système de paiement en ligne) —
+    async enregistrerGrille() {
+      this.grilleEnCours = true;
+      this.grilleMsg = '';
+      try {
+        await boFetch('/administration/grille-tarifaire', {
+          method: 'PUT',
+          body: JSON.stringify({
+            tranches: this.grilleTarifaire.tranches.map((t) => ({ id: t.id, prix_annuel_ttc: Number(t.prix_annuel_ttc) || 0 })),
+            mois_offerts_3ans: Number(this.grilleTarifaire.mois_offerts_3ans) || 0,
+          }),
+        });
+        this.grilleMsg = 'Grille enregistrée.';
+      } catch (e) {
+        this.grilleMsg = e.message || 'Échec';
+      } finally {
+        this.grilleEnCours = false;
+      }
+    },
+    libelleTranche(t) {
+      if (!t) return '';
+      return t.population_max == null ? `> ${t.population_min - 1} hab.` : `${t.population_min}–${t.population_max} hab.`;
+    },
+    trancheSuggeree(population) {
+      if (!population || !this.grilleTarifaire.tranches.length) return null;
+      return this.grilleTarifaire.tranches.find((t) => population >= t.population_min && (t.population_max == null || population <= t.population_max)) || null;
+    },
+    joursAvantEcheance(dateStr) {
+      if (!dateStr) return null;
+      return Math.ceil((new Date(dateStr) - new Date(new Date().toISOString().slice(0, 10))) / 86400000);
+    },
+    classeEcheance(dateStr) {
+      const j = this.joursAvantEcheance(dateStr);
+      if (j === null) return '';
+      return j <= 0 ? 'bo-note--basse' : j <= 60 ? 'bo-note--moyenne' : '';
+    },
+    appliquerTarifSuggere() {
+      const t = this.trancheSuggeree(this.fiche.commune.population);
+      if (!t) return;
+      const prixBase = Number(t.prix_annuel_ttc) || 0;
+      if (Number(this.fiche.commune.duree_engagement_mois) === 36) {
+        const moisPayes = 36 - (Number(this.grilleTarifaire.mois_offerts_3ans) || 0);
+        this.fiche.commune.prix_annuel_ttc = Math.round((prixBase / 12) * moisPayes);
+      } else {
+        this.fiche.commune.prix_annuel_ttc = prixBase;
+      }
+    },
+    async enregistrerAbonnement() {
+      this.abonnementEnCours = true;
+      this.abonnementMsg = '';
+      try {
+        await boFetch('/administration/communes/' + this.fiche.commune.id + '/abonnement', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            prix_annuel_ttc: this.fiche.commune.prix_annuel_ttc === '' || this.fiche.commune.prix_annuel_ttc == null ? null : Number(this.fiche.commune.prix_annuel_ttc),
+            duree_engagement_mois: Number(this.fiche.commune.duree_engagement_mois) || 12,
+            prochaine_echeance: this.fiche.commune.prochaine_echeance || null,
+          }),
+        });
+        this.abonnementMsg = 'Enregistré.';
+      } catch (e) {
+        this.abonnementMsg = e.message || 'Échec';
+      } finally {
+        this.abonnementEnCours = false;
+      }
+    },
+    async marquerAbonnementPaye() {
+      if (!confirm('Marquer cette échéance comme payée et avancer à la prochaine ?')) return;
+      this.abonnementEnCours = true;
+      this.abonnementMsg = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/abonnement/marquer-paye', { method: 'POST' });
+        this.fiche.commune.prochaine_echeance = r.prochaine_echeance;
+        this.abonnementMsg = 'Payé — prochaine échéance : ' + this.formatDate(r.prochaine_echeance);
+      } catch (e) {
+        this.abonnementMsg = e.message || 'Échec';
+      } finally {
+        this.abonnementEnCours = false;
+      }
     },
 
     // — Gestion des utilisateurs d'une commune —

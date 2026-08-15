@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260813-29" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-29" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-29" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260813-30" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-30" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-30" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-29" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-30" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -76,6 +76,29 @@
             </table>
           </div>
 
+          <div class="bo-section-titre" x-text="'Échéances à venir (60 jours)' + (echeances.length ? ' — ' + echeances.length : '')"></div>
+          <div class="bo-carte">
+            <template x-if="echeances.length === 0">
+              <div style="padding:16px 18px" class="bo-info">Aucune échéance dans les 60 prochains jours.</div>
+            </template>
+            <template x-if="echeances.length > 0">
+              <table>
+                <thead><tr><th>Commune</th><th>Échéance</th><th>Jours restants</th><th>Prix TTC</th><th>Engagement</th></tr></thead>
+                <tbody>
+                  <template x-for="e in echeances" :key="e.id">
+                    <tr @click="ouvrirFiche(e.id)">
+                      <td class="bo-nom-commune" x-text="e.nom"></td>
+                      <td x-text="formatDate(e.prochaine_echeance)"></td>
+                      <td><span :class="classeEcheance(e.prochaine_echeance)" x-text="joursAvantEcheance(e.prochaine_echeance) + ' j'"></span></td>
+                      <td x-text="e.prix_annuel_ttc != null ? e.prix_annuel_ttc.toLocaleString('fr-FR') + ' €' : '—'"></td>
+                      <td x-text="(e.duree_engagement_mois || 12) + ' mois'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </template>
+          </div>
+
           <div class="bo-section-titre">Diagnostic email</div>
           <div class="bo-carte" style="padding:16px 18px">
             <div class="bo-info" style="margin-bottom:12px">Vérifie que l'envoi via Resend fonctionne (clé + domaine). Aucun prospect n'est affecté.</div>
@@ -108,6 +131,31 @@
                 </tbody>
               </table>
             </template>
+          </div>
+
+          <div class="bo-section-titre">Grille tarifaire (abonnement annuel TTC, par population)</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div class="bo-info" style="margin-bottom:12px">
+              Suivi des échéances uniquement — pas de paiement en ligne (règlement par mandat administratif).
+              Ces tarifs servent de suggestion sur la fiche de chaque commune ; le montant final reste modifiable au cas par cas.
+            </div>
+            <table style="margin-bottom:14px">
+              <thead><tr><th>Tranche de population</th><th>Prix annuel TTC</th></tr></thead>
+              <tbody>
+                <template x-for="t in grilleTarifaire.tranches" :key="t.id">
+                  <tr style="cursor:default">
+                    <td x-text="libelleTranche(t)"></td>
+                    <td><input type="number" min="0" step="10" x-model="t.prix_annuel_ttc" style="width:140px" /> €</td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <label style="margin-top:0">Mois offerts pour un engagement 3 ans</label>
+            <input type="number" min="0" max="36" x-model="grilleTarifaire.mois_offerts_3ans" style="width:100px" />
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer la grille</button>
+              <span class="bo-info" x-text="grilleMsg"></span>
+            </div>
           </div>
 
           <div class="bo-section-titre">Modèle d'email de présentation</div>
@@ -345,6 +393,37 @@
               </div>
             </div>
             <span class="bo-info" x-text="presentMsg"></span>
+          </div>
+
+          <div class="bo-section-titre">Abonnement</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div class="bo-info" style="margin-bottom:10px">
+              <span x-show="trancheSuggeree(fiche.commune.population)" x-text="'Tranche suggérée : ' + libelleTranche(trancheSuggeree(fiche.commune.population)) + ' — ' + (trancheSuggeree(fiche.commune.population) ? trancheSuggeree(fiche.commune.population).prix_annuel_ttc : 0) + ' € TTC/an'"></span>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerTarifSuggere()" style="margin-left:8px" x-show="trancheSuggeree(fiche.commune.population)">Appliquer ce tarif</button>
+            </div>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Prix TTC / an</label>
+                <input type="number" min="0" step="10" x-model="fiche.commune.prix_annuel_ttc" placeholder="—" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Engagement</label>
+                <select x-model.number="fiche.commune.duree_engagement_mois" style="width:auto">
+                  <option :value="12">1 an</option>
+                  <option :value="36" x-text="'3 ans (' + (grilleTarifaire.mois_offerts_3ans || 0) + ' mois offerts)'"></option>
+                </select>
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Prochaine échéance</label>
+                <input type="date" x-model="fiche.commune.prochaine_echeance" />
+              </div>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerAbonnement()" :disabled="abonnementEnCours">Enregistrer</button>
+              <button class="bo-btn bo-btn--compact" @click="marquerAbonnementPaye()" :disabled="abonnementEnCours || !fiche.commune.prochaine_echeance">✓ Marquer payé</button>
+            </div>
+            <div style="margin-top:10px">
+              <span class="bo-info" x-text="abonnementMsg"></span>
+              <span x-show="fiche.commune.prochaine_echeance" :class="classeEcheance(fiche.commune.prochaine_echeance)" x-text="fiche.commune.prochaine_echeance ? ' · ' + joursAvantEcheance(fiche.commune.prochaine_echeance) + ' jour(s) avant échéance' : ''"></span>
+            </div>
           </div>
 
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px">
@@ -806,10 +885,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-29"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-29"></script>
-  <script src="/backoffice/js/api.js?v=20260813-29"></script>
-  <script src="/backoffice/js/app.js?v=20260813-29"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-29" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260813-30"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-30"></script>
+  <script src="/backoffice/js/api.js?v=20260813-30"></script>
+  <script src="/backoffice/js/app.js?v=20260813-30"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260813-30" defer></script>
 </body>
 </html>
