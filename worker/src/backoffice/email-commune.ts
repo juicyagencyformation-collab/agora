@@ -93,62 +93,76 @@ export const MODELE_PRESENTATION_DEFAUT = {
     {{logo}}
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne des communes françaises</div>
 
-    <h1 style="font-size:22px;line-height:1.3">Bonjour,</h1>
+    <h1 style="font-size:22px;line-height:1.3">Et si <span style="color:#2c5f2d">{{commune}}</span> avait sa propre application citoyenne&nbsp;? 👇</h1>
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
-      Je m'appelle Léandre Sallé, je suis élu à Eaucourt-sur-Somme, dans la Somme — une commune
-      qui vous ressemble sans doute. Je vous écris directement, sans détour commercial, parce que
-      l'outil que j'ai construit pour ma propre commune peut aussi rendre service à
-      <span style="color:#2c5f2d;font-weight:600">{{commune}}</span>.
-    </p>
-    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
-      Comme beaucoup d'entre nous, je jonglais entre le panneau lumineux, le bulletin papier qui
-      sort trois mois après l'événement, un groupe Facebook qui ne touche qu'une partie des
-      habitants, et le « je ne savais pas » entendu en réunion publique. Alors j'ai développé
-      Agora&nbsp;: une application citoyenne que la mairie pilote elle-même, sans aucune
-      compétence technique, hébergée en France.
+      Actualités, alertes, agenda, conseil municipal, entraide entre voisins, mémoire du village
+      et bien plus encore&nbsp;: Agora réunit tout ce dont votre commune peut avoir besoin pour
+      informer et faire participer ses habitants, dans une application mobile simple, souveraine
+      et 100&nbsp;% française — que la mairie pilote seule, sans compétence technique.
     </p>
 
     <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:22px 0">
-      <div style="font-weight:700;font-size:14px;color:#2c5f2d;margin-bottom:8px">Pour commencer, c'est gratuit — sans limite de temps, sans carte bancaire</div>
+      <div style="font-weight:700;font-size:14px;color:#2c5f2d;margin-bottom:8px">Pour découvrir, c'est gratuit — sans limite de temps, sans carte bancaire</div>
       <div style="font-size:14px;color:#3a4a3b;line-height:1.8">
         <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Agenda</strong> — tous les événements de la commune, à portée de clic pour vos habitants<br />
-        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Alertes</strong> — une info importante envoyée en notification, directement dans la poche de chacun, plus vite qu'un affichage en mairie
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Alertes</strong> — une info importante envoyée en notification, directement dans la poche de chacun
+      </div>
+      <div style="font-size:13px;color:#5b6b5c;margin-top:10px">
+        Le reste des modules (actualités, conseil municipal, entraide, mémoire du village…)
+        s'active dès que votre commune est prête à aller plus loin.
       </div>
     </div>
 
     <p style="margin:24px 0">
-      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Essayer la version gratuite</a>
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Essayer Agora gratuitement</a>
     </p>
 
     <p style="font-size:14px;color:#3a4a3b">
-      Vous préférez une présentation d'ensemble&nbsp;?
+      Vous préférez une présentation d'ensemble à faire circuler&nbsp;?
       <a href="{{lien_fiche}}" style="color:#2c5f2d">Découvrez la fiche de présentation</a>
-      (avec un QR code pour tester depuis votre téléphone, utile en réunion de conseil).
+      à envoyer à vos administrés (avec un QR code pour se connecter depuis leur téléphone).
     </p>
 
     <div style="font-size:13px;color:#3a4a3b;font-style:italic;background:#f4f8f4;border-left:3px solid #4a8c4a;padding:14px 16px;border-radius:0 8px 8px 0;margin:24px 0;line-height:1.6">
-      <div style="font-weight:700;font-style:normal;color:#2c5f2d;margin-bottom:6px">Et si {{commune}} veut aller plus loin&nbsp;?</div>
-      La version complète débloque le reste&nbsp;: actualités, signalements citoyens, conseil
-      municipal, entraide entre voisins, annuaire, bulletin municipal — et deux modules auxquels
-      je tiens particulièrement, pensés pour recréer du lien et pas seulement diffuser des
-      notifications&nbsp;: «&nbsp;La mémoire du village&nbsp;» (devoir de mémoire envers les
-      anciens) et une «&nbsp;Chasse au trésor&nbsp;» pour faire (re)découvrir le patrimoine
-      communal aux familles. Le tarif dépend simplement de la taille de la commune, sans surprise.
+      <div style="font-weight:700;font-style:normal;color:#2c5f2d;margin-bottom:6px">Pourquoi Agora&nbsp;?</div>
+      En tant que citoyen, j'ai réalisé qu'énormément de lois se votent, en France comme en
+      Europe, sans que personne ne le sache vraiment. Je trouve ça anormal&nbsp;: suivre les
+      textes qui nous concernent, c'est un devoir civique.<br /><br />
+      En tant qu'élu, je me suis heurté à d'autres réalités&nbsp;: des communes sans moyens, des
+      habitants prêts à s'investir (entretien, petits projets comme des boîtes à livres) mais
+      qu'on ne sait pas mobiliser, et des aînés qui ne connaissent pas leurs droits — téléalarme,
+      aide aux courses, ménage, compagnie.<br /><br />
+      Tout le monde a un portable. Agora est né de cette évidence&nbsp;: connecter tout ça, au
+      service d'une commune qui vit vraiment.
     </div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
-      Envie que {{commune}} ait la sienne&nbsp;? Répondez simplement à cet email — je la mets en
-      ligne moi-même, gratuitement pour commencer, généralement dans la journée.
+      D'autres solutions existent, souvent proposées «&nbsp;clé en main&nbsp;» par
+      l'intercommunalité. Agora fait un autre choix&nbsp;: celui de la commune et de ses
+      habitants. Ici, on ne se contente pas d'informer — on fait vivre la participation citoyenne,
+      on valorise l'engagement de chacun, et on honore la mémoire des anciens avec «&nbsp;La
+      mémoire du village&nbsp;». Une application pensée pour créer du lien, pas seulement pour
+      diffuser des annonces.
     </p>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
-    <div style="font-size:12px;color:#5b6b5c;display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
       {{signature_photo}}
-      <div>
-        Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
-        Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes comme la nôtre.
-        Répondez à cet email, je vous rappelle avec plaisir.
+      <div style="font-size:12px;color:#5b6b5c;line-height:1.6">
+        <div style="font-weight:700;font-size:13px;color:#2c5f2d;margin-bottom:4px">Qui je suis&nbsp;?</div>
+        Conseiller municipal à Eaucourt-sur-Somme et fondateur de Juicy Solutions, j'ai créé Agora
+        avec une conviction simple&nbsp;: les petites communes méritent des outils à la hauteur de
+        leur engagement, pas des solutions clé en main pensées ailleurs. Je porte aussi «&nbsp;Le
+        P'tit Journal Eaucourtois&nbsp;», le journal local — l'information de proximité, c'est un
+        fil rouge chez moi.
       </div>
+    </div>
+
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · SIRET 882992472 · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
+      email, je vous rappelle avec plaisir — sinon appelez-moi directement au
+      06&nbsp;48&nbsp;06&nbsp;10&nbsp;97, ou laissez-moi un SMS.
     </div>
   </div>`,
 };
