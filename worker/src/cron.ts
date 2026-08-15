@@ -3,6 +3,7 @@ import { supabaseDelete, supabaseSelect, supabaseUpdate } from './db';
 import { deleteObject } from './storage';
 import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
 import { envoyerEmailEcheance } from './backoffice/email-commune';
+import { corrigerEmailsInvalides } from './backoffice/prospection';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -183,5 +184,12 @@ export async function relancerEcheancesFacturation(env: any) {
     });
     await supabaseUpdate(env, 'communes', { derniere_relance_echeance_le: new Date().toISOString() }, { id: `eq.${commune.id}` });
   }
+}
+
+// Rattrapage quotidien des emails de prospects signalés en échec (bounces Resend, voir
+// migration 030) : retente l'annuaire officiel pour chacun, dans l'espoir d'une adresse plus à
+// jour. Ne renvoie rien tout seul — corrige juste la donnée pour le prochain envoi manuel.
+export async function corrigerEmailsProspectsInvalides(env: any) {
+  await corrigerEmailsInvalides(env);
 }
 

@@ -79,6 +79,8 @@ function backoffice() {
     testEmailMsg: '',
     testEmailOk: false,
     emailsRejetes: [],
+    correctionEnCours: false,
+    correctionMsg: '',
     grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
     grilleEnCours: false,
     grilleMsg: '',
@@ -732,6 +734,19 @@ function backoffice() {
         this.nouvInteraction = { type: 'note', contenu: '' };
       } catch (e) {
         alert(e.message || 'Ajout impossible');
+      }
+    },
+
+    async corrigerEmailsInvalides() {
+      this.correctionEnCours = true;
+      this.correctionMsg = '';
+      try {
+        const r = await boFetch('/prospection/prospects/corriger-emails-invalides', { method: 'POST' });
+        this.correctionMsg = `${r.corriges} email(s) corrigé(s) via l'annuaire, ${r.inchanges} toujours introuvable(s) ou inchangé(s).`;
+      } catch (e) {
+        this.correctionMsg = e.message || 'Échec';
+      } finally {
+        this.correctionEnCours = false;
       }
     },
 

@@ -170,19 +170,27 @@ export function coordsDepuisAdresse(champJson: string | null | undefined): { lat
 }
 
 // Récupère le contact mairie depuis l'annuaire, met à jour le prospect et renvoie la ligne à
-// jour. Renvoie null si l'annuaire n'a pas de fiche. Partagé par /enrichir et /prospecter.
-async function enrichirDepuisAnnuaire(env: any, id: string, codeInsee: string): Promise<any | null> {
+// jour. Renvoie null si l'annuaire n'a pas de fiche. Partagé par /enrichir, /prospecter et la
+// correction automatique des emails invalides (bounces Resend, voir corrigerEmailsInvalides).
+// Une adresse fraîche et DIFFÉRENTE de celle qui avait fait rejeter le mail lève le flag
+// email_invalide : elle mérite un nouvel essai. Si l'annuaire renvoie la même adresse (ou rien),
+// le flag reste posé — pas de nouvel envoi tant qu'on n'a pas une piste différente.
+async function enrichirDepuisAnnuaire(
+  env: any,
+  prospect: { id: string; code_insee: string; contact_email?: string | null; email_invalide?: boolean },
+): Promise<any | null> {
   const url = `https://api-lannuaire.service-public.fr/api/explore/v2.1/catalog/datasets/api-lannuaire-administration/records`
-    + `?where=${encodeURIComponent(`pivot like "mairie" and code_insee_commune="${codeInsee}"`)}`
+    + `?where=${encodeURIComponent(`pivot like "mairie" and code_insee_commune="${prospect.code_insee}"`)}`
     + `&select=nom,adresse_courriel,telephone,adresse,site_internet&limit=1`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const fiche = ((await res.json()) as any)?.results?.[0];
   if (!fiche) return null;
 
+  const nouvelEmail = fiche.adresse_courriel || null;
   const coords = coordsDepuisAdresse(fiche.adresse);
   const patch: Record<string, unknown> = {
-    contact_email: fiche.adresse_courriel || null,
+    contact_email: nouvelEmail,
     contact_telephone: premiereValeur(fiche.telephone),
     site_web: premiereValeur(fiche.site_internet),
     adresse: formaterAdresse(fiche.adresse),
@@ -191,18 +199,45 @@ async function enrichirDepuisAnnuaire(env: any, id: string, codeInsee: string): 
   };
   // Coordonnées récupérées « gratuitement » depuis l'annuaire : alimentent la carte au fil de l'eau.
   if (coords) { patch.lat = coords.lat; patch.lng = coords.lng; }
-  const [maj] = await supabaseUpdate(env, 'prospects', patch, { id: `eq.${id}` });
+  if (prospect.email_invalide && nouvelEmail && nouvelEmail !== prospect.contact_email) {
+    patch.email_invalide = false;
+  }
+  const [maj] = await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
   return maj;
 }
 
 app.post('/prospects/:id/enrichir', async (c) => {
   const id = c.req.param('id');
-  const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'id,code_insee', id: `eq.${id}` });
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,code_insee,contact_email,email_invalide', id: `eq.${id}`,
+  });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
-  const maj = await enrichirDepuisAnnuaire(c.env, id, prospect.code_insee);
+  const maj = await enrichirDepuisAnnuaire(c.env, prospect);
   if (!maj) return c.json({ erreur: 'Aucune mairie trouvée dans l\'annuaire pour cette commune' }, 404);
   return c.json({ ok: true, prospect: maj });
+});
+
+// Correction en masse des emails invalides (bounces Resend) : retente l'annuaire pour chaque
+// prospect flagué email_invalide, dans l'espoir d'une adresse plus à jour que celle qui a
+// rejeté. Partagé par le bouton backoffice et le cron quotidien (voir worker/src/cron.ts).
+// Plafonné à 300 par passage : léger, un rattrapage suffit largement d'un jour sur l'autre.
+export async function corrigerEmailsInvalides(env: any): Promise<{ corriges: number; inchanges: number }> {
+  const prospects = await supabaseSelect(env, 'prospects', {
+    select: 'id,code_insee,contact_email,email_invalide', email_invalide: 'eq.true', limit: '300',
+  });
+  let corriges = 0, inchanges = 0;
+  for (const prospect of prospects) {
+    const maj = await enrichirDepuisAnnuaire(env, prospect);
+    if (maj && maj.email_invalide === false) corriges += 1;
+    else inchanges += 1;
+  }
+  return { corriges, inchanges };
+}
+
+app.post('/prospects/corriger-emails-invalides', async (c) => {
+  const r = await corrigerEmailsInvalides(c.env);
+  return c.json({ ok: true, ...r });
 });
 
 // — Prospecter en un clic : enrichit si besoin, envoie l'email de présentation à la mairie,
@@ -213,11 +248,15 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   if (prospect.statut === 'gagne' || prospect.statut === 'perdu') return { resultat: 'saute' };
 
   let email = prospect.contact_email;
-  if (!email) {
-    const maj = await enrichirDepuisAnnuaire(env, prospect.id, prospect.code_insee);
-    if (maj?.contact_email) email = maj.contact_email;
+  let emailInvalide = prospect.email_invalide;
+  // Adresse manquante OU connue pour avoir rejeté (bounce Resend) : on retente l'annuaire avant
+  // d'abandonner. Protège la réputation d'expéditeur — on ne renvoie jamais aveuglément sur une
+  // adresse déjà signalée fautive.
+  if (!email || emailInvalide) {
+    const maj = await enrichirDepuisAnnuaire(env, prospect);
+    if (maj) { email = maj.contact_email; emailInvalide = maj.email_invalide; }
   }
-  if (!email) return { resultat: 'sans_email' };
+  if (!email || emailInvalide) return { resultat: 'sans_email' };
 
   await envoyerPresentation(env, email, contextePresentation(env.FRONTEND_URL, prospect.nom, DEMO_SLUG));
 
@@ -236,12 +275,12 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
 app.post('/prospects/:id/prospecter', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,statut', id: `eq.${id}`,
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut', id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
   const r = await prospecterUn(c.env, c.get('staff_id'), prospect);
-  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email de contact trouvé pour cette commune (annuaire incomplet).' }, 422);
+  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email valide pour cette commune (adresse manquante, ou signalée en échec et non corrigée par l\'annuaire).' }, 422);
   if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400);
   return c.json({ ok: true, email: r.email });
 });
@@ -255,7 +294,7 @@ app.post('/prospecter-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 communes par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,statut',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut',
     id: `in.(${body.data.ids.join(',')})`,
   });
 

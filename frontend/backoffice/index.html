@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260815-32" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260815-32" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260815-32" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260815-33" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260815-33" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260815-33" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260815-32" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260815-33" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -112,6 +112,17 @@
 
           <div class="bo-section-titre" x-text="'Emails rejetés (bounces)' + (emailsRejetes.length ? ' — ' + emailsRejetes.length : '')"></div>
           <div class="bo-carte">
+            <div style="padding:16px 18px 0" class="bo-info">
+              Un email rejeté marque le prospect concerné « email invalide » et bloque tout renvoi automatique
+              vers cette adresse (protection de la réputation d'expéditeur). Un rattrapage automatique via
+              l'annuaire officiel (service-public.fr) tourne chaque nuit ; tu peux aussi le déclencher ici.
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; padding:12px 18px 16px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="corrigerEmailsInvalides()" :disabled="correctionEnCours">
+                <span x-text="correctionEnCours ? 'Recherche…' : 'Corriger via l\'annuaire'"></span>
+              </button>
+              <span class="bo-info" x-text="correctionMsg"></span>
+            </div>
             <template x-if="emailsRejetes.length === 0">
               <div style="padding:16px 18px" class="bo-info">Aucun email rejeté capté. (Capture automatique via le webhook Resend.)</div>
             </template>
@@ -912,10 +923,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260815-32"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260815-32"></script>
-  <script src="/backoffice/js/api.js?v=20260815-32"></script>
-  <script src="/backoffice/js/app.js?v=20260815-32"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260815-32" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260815-33"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260815-33"></script>
+  <script src="/backoffice/js/api.js?v=20260815-33"></script>
+  <script src="/backoffice/js/app.js?v=20260815-33"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260815-33" defer></script>
 </body>
 </html>
