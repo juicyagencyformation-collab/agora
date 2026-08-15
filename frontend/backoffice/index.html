@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260813-31" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260813-31" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260813-31" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260815-32" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260815-32" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260815-32" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260813-31" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260815-32" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -131,6 +131,27 @@
                 </tbody>
               </table>
             </template>
+          </div>
+
+          <div class="bo-section-titre">Palier gratuit (modules inclus)</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div class="bo-info" style="margin-bottom:12px">
+              Modules offerts dans la version gratuite. <strong>Changement global et rétroactif</strong> :
+              enregistrer applique immédiatement ce périmètre à toutes les communes actuellement sur le
+              palier Gratuit (pas seulement aux futures).
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px">
+              <template x-for="cle in ongletsDisponibles" :key="cle">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
+                  <input type="checkbox" :value="cle" x-model="ongletsGratuitsSelection" style="width:auto" />
+                  <span x-text="libelleOnglet(cle)"></span>
+                </label>
+              </template>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerOngletsGratuits()" :disabled="ongletsGratuitsEnCours">Enregistrer le palier gratuit</button>
+              <span class="bo-info" x-text="ongletsGratuitsMsg"></span>
+            </div>
           </div>
 
           <div class="bo-section-titre">Grille tarifaire (abonnement annuel TTC, par population)</div>
@@ -891,10 +912,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260813-31"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260813-31"></script>
-  <script src="/backoffice/js/api.js?v=20260813-31"></script>
-  <script src="/backoffice/js/app.js?v=20260813-31"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260813-31" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260815-32"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260815-32"></script>
+  <script src="/backoffice/js/api.js?v=20260815-32"></script>
+  <script src="/backoffice/js/app.js?v=20260815-32"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260815-32" defer></script>
 </body>
 </html>

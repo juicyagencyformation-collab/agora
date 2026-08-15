@@ -23,8 +23,30 @@ const TOUS_LES_ONGLETS = [
   'actualites', 'alertes', 'thermometre', 'mur', 'agenda', 'coups_de_main', 'chasse_tresor',
   'conseil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes', 'lois', 'memoire',
 ] as const;
-// Palier gratuit (déterminé avec Léandre le 2026-08-15) : l'accroche civique de base.
-const ONGLETS_GRATUITS = ['actualites', 'agenda', 'alertes', 'annuaire'];
+// Palier gratuit : périmètre pilotable depuis le backoffice, stocké en base (table
+// onglets_gratuits, migration 036) au lieu d'être figé ici — voir chargerOngletsGratuits et
+// PUT /onglets-gratuits plus bas. Un changement de ce périmètre est GLOBAL et RÉTROACTIF :
+// il s'applique immédiatement à toutes les communes actuellement sur forfait = 'Gratuit'.
+async function chargerOngletsGratuits(env: any): Promise<string[]> {
+  const rows = await supabaseSelect(env, 'onglets_gratuits', { select: 'cle' });
+  return rows.map((r: any) => r.cle);
+}
+
+// Upsert manuel des 14 onglets pour une commune donnée, à partir de la liste des clés à
+// activer. onglets_config a UNIQUE(commune_id, cle) mais notre client REST ne fait pas
+// d'upsert natif : on complète ce qui existe déjà et on insère le reste.
+async function appliquerOngletsSurCommune(env: any, communeId: string, ongletsActifs: string[]): Promise<void> {
+  const existants = await supabaseSelect(env, 'onglets_config', { select: 'cle', commune_id: `eq.${communeId}` });
+  const clesExistantes = new Set(existants.map((o: any) => o.cle));
+  for (const cle of TOUS_LES_ONGLETS) {
+    const actif = ongletsActifs.includes(cle);
+    if (clesExistantes.has(cle)) {
+      await supabaseUpdate(env, 'onglets_config', { actif }, { commune_id: `eq.${communeId}`, cle: `eq.${cle}` });
+    } else {
+      await supabaseInsert(env, 'onglets_config', { commune_id: communeId, cle, actif });
+    }
+  }
+}
 
 // Rôles gérables depuis le backoffice. 'superadmin' n'y figure JAMAIS — règle absolue du
 // projet : ce rôle ne s'attribue qu'en base directement, jamais via une interface.
@@ -651,10 +673,9 @@ app.get('/echeances', async (c) => {
   return c.json({ communes });
 });
 
-// POST /communes/:id/onglets/preset — applique en un clic le palier « gratuit » (seuls
-// ONGLETS_GRATUITS actifs) ou « complet » (tout actif). Met aussi à jour le libellé forfait
-// affiché. Upsert manuel : onglets_config a UNIQUE(commune_id, cle) mais notre client REST ne
-// fait pas d'upsert natif, donc on complète ce qui existe déjà et on insère le reste.
+// POST /communes/:id/onglets/preset — applique en un clic le palier « gratuit » (périmètre
+// courant de la table onglets_gratuits) ou « complet » (tout actif). Met aussi à jour le
+// libellé forfait affiché.
 const presetSchema = z.object({ preset: z.enum(['gratuit', 'complet']) });
 
 app.post('/communes/:id/onglets/preset', async (c) => {
@@ -662,21 +683,48 @@ app.post('/communes/:id/onglets/preset', async (c) => {
   const body = presetSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Préréglage invalide' }, 400);
 
-  const existants = await supabaseSelect(c.env, 'onglets_config', { select: 'cle', commune_id: `eq.${id}` });
-  const clesExistantes = new Set(existants.map((o: any) => o.cle));
-
-  for (const cle of TOUS_LES_ONGLETS) {
-    const actif = body.data.preset === 'complet' || ONGLETS_GRATUITS.includes(cle);
-    if (clesExistantes.has(cle)) {
-      await supabaseUpdate(c.env, 'onglets_config', { actif }, { commune_id: `eq.${id}`, cle: `eq.${cle}` });
-    } else {
-      await supabaseInsert(c.env, 'onglets_config', { commune_id: id, cle, actif });
-    }
-  }
+  const ongletsActifs = body.data.preset === 'complet' ? [...TOUS_LES_ONGLETS] : await chargerOngletsGratuits(c.env);
+  await appliquerOngletsSurCommune(c.env, id, ongletsActifs);
 
   const forfait = body.data.preset === 'complet' ? 'Version complète' : 'Gratuit';
   await supabaseUpdate(c.env, 'communes', { forfait }, { id: `eq.${id}` });
   return c.json({ ok: true, forfait });
+});
+
+// GET /onglets-gratuits — périmètre actuel du palier gratuit + liste complète des modules
+// disponibles (pour construire les cases à cocher côté backoffice).
+app.get('/onglets-gratuits', async (c) => {
+  const onglets = await chargerOngletsGratuits(c.env);
+  return c.json({ onglets, tous: TOUS_LES_ONGLETS });
+});
+
+// PUT /onglets-gratuits — redéfinit le périmètre du palier gratuit. Changement GLOBAL et
+// RÉTROACTIF (décidé avec Léandre le 2026-08-15) : réapplique immédiatement le nouveau
+// périmètre à toutes les communes actuellement sur forfait = 'Gratuit', pas seulement aux
+// futures. Retourne le nombre de communes mises à jour.
+const ongletsGratuitsSchema = z.object({ onglets: z.array(z.enum(TOUS_LES_ONGLETS)) });
+
+app.put('/onglets-gratuits', async (c) => {
+  const body = ongletsGratuitsSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Sélection de modules invalide' }, 400);
+
+  const actuels = await supabaseSelect(c.env, 'onglets_gratuits', { select: 'cle' });
+  const clesActuelles = new Set(actuels.map((o: any) => o.cle));
+  const nouvelles = new Set(body.data.onglets);
+
+  for (const cle of clesActuelles) {
+    if (!nouvelles.has(cle)) await supabaseDelete(c.env, 'onglets_gratuits', { cle: `eq.${cle}` });
+  }
+  for (const cle of nouvelles) {
+    if (!clesActuelles.has(cle)) await supabaseInsert(c.env, 'onglets_gratuits', { cle });
+  }
+
+  const communesGratuites = await supabaseSelect(c.env, 'communes', { select: 'id', forfait: 'eq.Gratuit', limit: '5000' });
+  for (const commune of communesGratuites) {
+    await appliquerOngletsSurCommune(c.env, commune.id, body.data.onglets);
+  }
+
+  return c.json({ ok: true, onglets: body.data.onglets, nb_communes_mises_a_jour: communesGratuites.length });
 });
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.

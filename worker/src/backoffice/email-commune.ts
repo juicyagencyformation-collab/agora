@@ -87,48 +87,67 @@ export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Prom
 export const DEMO_SLUG = 'decouverte-gratuite';
 
 export const MODELE_PRESENTATION_DEFAUT = {
-  objet: 'Agora — une application citoyenne pour {{commune}}',
+  objet: 'Agora pour {{commune}} — gratuit pour commencer, conçu par un élu comme vous',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
     {{logo}}
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne des communes françaises</div>
 
-    <h1 style="font-size:22px;line-height:1.3">Et si <span style="color:#2c5f2d">{{commune}}</span> avait sa propre application citoyenne&nbsp;?</h1>
+    <h1 style="font-size:22px;line-height:1.3">Bonjour,</h1>
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
-      Actualités, alertes, agenda, signalements, conseil municipal, entraide entre voisins&nbsp;:
-      Agora réunit tout ce dont votre commune a besoin pour informer et faire participer ses
-      habitants, dans une application mobile simple, souveraine et 100 % française — que la
-      mairie pilote seule, sans compétence technique.
+      Je m'appelle Léandre Sallé, je suis élu à Eaucourt-sur-Somme, dans la Somme — une commune
+      qui vous ressemble sans doute. Je vous écris directement, sans détour commercial, parce que
+      l'outil que j'ai construit pour ma propre commune peut aussi rendre service à
+      <span style="color:#2c5f2d;font-weight:600">{{commune}}</span>.
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Comme beaucoup d'entre nous, je jonglais entre le panneau lumineux, le bulletin papier qui
+      sort trois mois après l'événement, un groupe Facebook qui ne touche qu'une partie des
+      habitants, et le « je ne savais pas » entendu en réunion publique. Alors j'ai développé
+      Agora&nbsp;: une application citoyenne que la mairie pilote elle-même, sans aucune
+      compétence technique, hébergée en France.
     </p>
 
+    <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:22px 0">
+      <div style="font-weight:700;font-size:14px;color:#2c5f2d;margin-bottom:8px">Pour commencer, c'est gratuit — sans limite de temps, sans carte bancaire</div>
+      <div style="font-size:14px;color:#3a4a3b;line-height:1.8">
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Agenda</strong> — tous les événements de la commune, à portée de clic pour vos habitants<br />
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Alertes</strong> — une info importante envoyée en notification, directement dans la poche de chacun, plus vite qu'un affichage en mairie
+      </div>
+    </div>
+
     <p style="margin:24px 0">
-      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Découvrir l'application</a>
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Essayer la version gratuite</a>
     </p>
 
     <p style="font-size:14px;color:#3a4a3b">
       Vous préférez une présentation d'ensemble&nbsp;?
       <a href="{{lien_fiche}}" style="color:#2c5f2d">Découvrez la fiche de présentation</a>
-      (avec un QR code pour tester depuis votre téléphone).
+      (avec un QR code pour tester depuis votre téléphone, utile en réunion de conseil).
     </p>
 
     <div style="font-size:13px;color:#3a4a3b;font-style:italic;background:#f4f8f4;border-left:3px solid #4a8c4a;padding:14px 16px;border-radius:0 8px 8px 0;margin:24px 0;line-height:1.6">
-      <div style="font-weight:700;font-style:normal;color:#2c5f2d;margin-bottom:6px">Qui je suis</div>
-      Léandre Sallé, habitant d'Eaucourt-sur-Somme. Là où d'autres solutions, souvent financées
-      par l'intercommunalité, se limitent à diffuser des informations, j'ai voulu placer la
-      commune et ses habitants au cœur&nbsp;: participation citoyenne, valorisation de
-      l'engagement de chacun, devoir de mémoire envers les anciens avec le module
-      «&nbsp;La mémoire du village&nbsp;», valorisation du territoire et de son patrimoine avec
-      le module «&nbsp;Chasse au trésor&nbsp;». Une application qui crée du lien, pas seulement
-      des notifications.
+      <div style="font-weight:700;font-style:normal;color:#2c5f2d;margin-bottom:6px">Et si {{commune}} veut aller plus loin&nbsp;?</div>
+      La version complète débloque le reste&nbsp;: actualités, signalements citoyens, conseil
+      municipal, entraide entre voisins, annuaire, bulletin municipal — et deux modules auxquels
+      je tiens particulièrement, pensés pour recréer du lien et pas seulement diffuser des
+      notifications&nbsp;: «&nbsp;La mémoire du village&nbsp;» (devoir de mémoire envers les
+      anciens) et une «&nbsp;Chasse au trésor&nbsp;» pour faire (re)découvrir le patrimoine
+      communal aux familles. Le tarif dépend simplement de la taille de la commune, sans surprise.
     </div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Envie que {{commune}} ait la sienne&nbsp;? Répondez simplement à cet email — je la mets en
+      ligne moi-même, gratuitement pour commencer, généralement dans la journée.
+    </p>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;display:flex;align-items:center;gap:12px">
       {{signature_photo}}
       <div>
         Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
-        Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
-        email, je vous rappelle avec plaisir.
+        Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes comme la nôtre.
+        Répondez à cet email, je vous rappelle avec plaisir.
       </div>
     </div>
   </div>`,

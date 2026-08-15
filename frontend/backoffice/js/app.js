@@ -12,6 +12,16 @@ const COULEURS_STATUT = {
   rdv: '#a78bfa', gagne: '#34d399', perdu: '#f87171',
 };
 
+// Mêmes libellés que frontend/js/moderation.js (LABELS_ONGLET), pour rester cohérent avec ce
+// que voit un admin/élu côté application citoyenne.
+const LABELS_ONGLET = {
+  actualites: 'Actualités', alertes: 'Alertes', thermometre: 'Thermomètre',
+  mur: 'Mur des voisins', agenda: 'Agenda', coups_de_main: 'Coup de main',
+  chasse_tresor: 'Chasse au trésor', conseil: 'Conseil',
+  annuaire: 'Annuaire', bulletin: 'Bulletin municipal', photo_du_jour: 'Photo du jour', enigmes: 'Trouve la photo',
+  lois: 'Lois', memoire: 'Mémoire du village',
+};
+
 function backoffice() {
   return {
     vue: 'communes',      // 'communes' | 'fiche'
@@ -72,6 +82,10 @@ function backoffice() {
     grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
     grilleEnCours: false,
     grilleMsg: '',
+    ongletsDisponibles: [],
+    ongletsGratuitsSelection: [],
+    ongletsGratuitsEnCours: false,
+    ongletsGratuitsMsg: '',
     echeances: [],
     abonnementEnCours: false,
     abonnementMsg: '',
@@ -114,6 +128,11 @@ function backoffice() {
         try { this.modele = (await boFetch('/administration/modele-email')).modele; } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
+        try {
+          const r = await boFetch('/administration/onglets-gratuits');
+          this.ongletsDisponibles = r.tous;
+          this.ongletsGratuitsSelection = r.onglets;
+        } catch {}
       } catch {
         redirigerVersConnexion();
         return;
@@ -781,6 +800,27 @@ function backoffice() {
     },
 
     // — Facturation (suivi des échéances, pas un système de paiement en ligne) —
+    libelleOnglet(cle) {
+      return LABELS_ONGLET[cle] || cle;
+    },
+
+    async enregistrerOngletsGratuits() {
+      if (!confirm('Ce périmètre sera appliqué immédiatement à toutes les communes actuellement sur le palier Gratuit. Continuer ?')) return;
+      this.ongletsGratuitsEnCours = true;
+      this.ongletsGratuitsMsg = '';
+      try {
+        const r = await boFetch('/administration/onglets-gratuits', {
+          method: 'PUT',
+          body: JSON.stringify({ onglets: this.ongletsGratuitsSelection }),
+        });
+        this.ongletsGratuitsMsg = `Enregistré — ${r.nb_communes_mises_a_jour} commune(s) mise(s) à jour.`;
+      } catch (e) {
+        this.ongletsGratuitsMsg = e.message || 'Échec';
+      } finally {
+        this.ongletsGratuitsEnCours = false;
+      }
+    },
+
     async enregistrerGrille() {
       this.grilleEnCours = true;
       this.grilleMsg = '';
