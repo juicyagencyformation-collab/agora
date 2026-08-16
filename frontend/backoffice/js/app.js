@@ -66,6 +66,10 @@ function backoffice() {
     modeEditeurEmail: 'visuel', // 'visuel' | 'code'
     modeleEnCours: false,
     modeleMsg: '',
+    variantes: [],          // liste courte des variantes de l'email de présentation (A/B testing)
+    varianteEditeeId: null, // id de la variante actuellement chargée dans l'éditeur
+    varianteEnCours: false,
+    varianteMsg: '',
     signatureEnCours: false,
     signatureMsg: '',
     logoEnCours: false,
@@ -127,7 +131,7 @@ function backoffice() {
         const { staff } = await boFetch('/auth/me');
         this.staff = staff;
         this.testEmailDest = staff.email || '';
-        try { this.modele = (await boFetch('/administration/modele-email')).modele; } catch {}
+        try { await this.chargerVariantes(); } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
         try {
@@ -285,6 +289,75 @@ function backoffice() {
       const ed = document.getElementById('editeur-email');
       if (ed) ed.innerHTML = this.modele.corps_html || '';
     },
+
+    // — Variantes de l'email de présentation (A/B testing) —
+    async rafraichirListeVariantes() {
+      const r = await boFetch('/administration/modeles-presentation');
+      this.variantes = r.variantes;
+    },
+    async chargerVariantes() {
+      await this.rafraichirListeVariantes();
+      const active = this.variantes.find((v) => v.actif) || this.variantes[0];
+      if (active) await this.chargerVariante(active.id);
+    },
+    async chargerVariante(id) {
+      const r = await boFetch('/administration/modeles-presentation/' + id);
+      this.varianteEditeeId = id;
+      this.modele = r.variante;
+      this.varianteMsg = '';
+      const ed = document.getElementById('editeur-email');
+      if (ed && this.modeEditeurEmail === 'visuel') ed.innerHTML = this.modele.corps_html || '';
+    },
+    async nouvelleVariante() {
+      const nom = prompt('Nom de la nouvelle variante (ex. « B - accroche courte ») :');
+      if (!nom) return;
+      // Reprend le contenu actuellement affiché comme point de départ (mode visuel : on le
+      // récupère depuis l'éditeur avant de dupliquer).
+      const ed = document.getElementById('editeur-email');
+      if (this.modeEditeurEmail === 'visuel' && ed) this.modele.corps_html = ed.innerHTML;
+      this.varianteEnCours = true;
+      this.varianteMsg = '';
+      try {
+        const r = await boFetch('/administration/modeles-presentation', {
+          method: 'POST',
+          body: JSON.stringify({ nom, objet: this.modele.objet, corps_html: this.modele.corps_html }),
+        });
+        await this.chargerVariantes();
+        await this.chargerVariante(r.variante.id);
+        this.varianteMsg = 'Variante créée à partir du contenu actuel.';
+      } catch (e) {
+        this.varianteMsg = e.message || 'Échec';
+      } finally {
+        this.varianteEnCours = false;
+      }
+    },
+    async activerVariante() {
+      this.varianteEnCours = true;
+      this.varianteMsg = '';
+      try {
+        const r = await boFetch('/administration/modeles-presentation/' + this.varianteEditeeId + '/activer', { method: 'POST' });
+        await this.chargerVariantes();
+        this.varianteMsg = `« ${r.nom} » est maintenant active — c'est elle qui part dans les envois.`;
+      } catch (e) {
+        this.varianteMsg = e.message || 'Échec';
+      } finally {
+        this.varianteEnCours = false;
+      }
+    },
+    async supprimerVariante() {
+      if (!confirm('Supprimer cette variante ? Cette action est définitive.')) return;
+      this.varianteEnCours = true;
+      this.varianteMsg = '';
+      try {
+        await boFetch('/administration/modeles-presentation/' + this.varianteEditeeId, { method: 'DELETE' });
+        await this.chargerVariantes();
+        this.varianteMsg = 'Variante supprimée.';
+      } catch (e) {
+        this.varianteMsg = e.message || 'Échec';
+      } finally {
+        this.varianteEnCours = false;
+      }
+    },
     exec(commande, valeur = null) {
       document.execCommand(commande, false, valeur);
     },
@@ -350,9 +423,11 @@ function backoffice() {
       this.modeleEnCours = true;
       this.modeleMsg = '';
       try {
-        await boFetch('/administration/modele-email', {
-          method: 'PUT', body: JSON.stringify({ objet: this.modele.objet, corps_html: this.modele.corps_html }),
+        await boFetch('/administration/modeles-presentation/' + this.varianteEditeeId, {
+          method: 'PUT',
+          body: JSON.stringify({ nom: this.modele.nom, objet: this.modele.objet, corps_html: this.modele.corps_html }),
         });
+        await this.rafraichirListeVariantes();
         this.modeleMsg = 'Modèle enregistré.';
       } catch (e) {
         this.modeleMsg = e.message || 'Échec';

@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260815-33" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260815-33" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260815-33" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260816-34" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260816-34" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260816-34" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260815-33" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260816-34" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__pied">
@@ -196,7 +196,24 @@
               Email envoyé aux prospects et aux communes. Variables disponibles :
               <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo),
               <code>{{lien_fiche}}</code>, <code>{{signature_photo}}</code>.
+              Plusieurs variantes possibles (A/B testing) : une seule est active à la fois, c'est elle qui part dans tous les envois.
             </div>
+
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+              <label style="margin:0">Variante</label>
+              <select :value="varianteEditeeId" @change="chargerVariante($event.target.value)" style="width:auto; min-width:220px">
+                <template x-for="v in variantes" :key="v.id">
+                  <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                </template>
+              </select>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVariante()" :disabled="varianteEnCours">+ Nouvelle variante</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVariante()"
+                      :disabled="varianteEnCours || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Activer cette variante</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVariante()"
+                      :disabled="varianteEnCours || variantes.length <= 1 || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Supprimer</button>
+              <span class="bo-info" x-text="varianteMsg"></span>
+            </div>
+
             <label style="margin-top:0">Objet</label>
             <input type="text" x-model="modele.objet" />
 
@@ -923,10 +940,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260815-33"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260815-33"></script>
-  <script src="/backoffice/js/api.js?v=20260815-33"></script>
-  <script src="/backoffice/js/app.js?v=20260815-33"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260815-33" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260816-34"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260816-34"></script>
+  <script src="/backoffice/js/api.js?v=20260816-34"></script>
+  <script src="/backoffice/js/app.js?v=20260816-34"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260816-34" defer></script>
 </body>
 </html>

@@ -258,16 +258,18 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   }
   if (!email || emailInvalide) return { resultat: 'sans_email' };
 
-  await envoyerPresentation(env, email, contextePresentation(env.FRONTEND_URL, prospect.nom, DEMO_SLUG));
+  const { variante } = await envoyerPresentation(env, email, contextePresentation(env.FRONTEND_URL, prospect.nom, DEMO_SLUG));
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
   await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
 
+  // Trace la variante utilisée (A/B testing) : permet de comparer plus tard le devenir des
+  // prospects contactés selon le texte reçu, sans système de stats dédié.
   await supabaseInsert(env, 'prospect_interactions', {
     prospect_id: prospect.id, staff_id: staffId,
-    type: 'email', contenu: `Email de présentation envoyé à ${email}`,
+    type: 'email', contenu: `Email de présentation envoyé à ${email}${variante ? ` (variante : ${variante})` : ''}`,
   });
   return { resultat: 'envoye', email };
 }

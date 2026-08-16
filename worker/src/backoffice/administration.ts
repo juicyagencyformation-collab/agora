@@ -279,29 +279,104 @@ app.post('/communes/:id/envoyer-presentation', async (c) => {
   return c.json({ ok: true, email: destinataire });
 });
 
-// GET /modele-email — modèle d'email de présentation (enregistré, ou défaut de secours).
+// GET /modele-email — variante ACTIVE de l'email de présentation (enregistrée, ou défaut de
+// secours). Conservé pour l'aperçu / l'envoi de test, qui n'ont besoin que du modèle courant.
 app.get('/modele-email', async (c) => {
   const modele = await chargerModelePresentation(c.env);
   return c.json({ modele });
 });
 
-// PUT /modele-email — enregistre/écrase le modèle (upsert manuel sur cle='presentation').
-app.put('/modele-email', async (c) => {
-  const body = z.object({
-    objet: z.string().min(1).max(200),
-    corps_html: z.string().min(1).max(20000),
-  }).safeParse(await c.req.json());
+// — Variantes de l'email de présentation (A/B testing, voir migration 037) — une seule
+//   actif=true à la fois par cle='presentation' ; c'est elle qui part dans tous les envois.
+
+// GET /modeles-presentation — liste toutes les variantes (sans le corps HTML, pour un
+// sélecteur léger côté backoffice).
+app.get('/modeles-presentation', async (c) => {
+  const variantes = await supabaseSelect(c.env, 'modeles_email', {
+    select: 'id,nom,actif,objet,updated_at', cle: 'eq.presentation', order: 'created_at.asc',
+  });
+  return c.json({ variantes });
+});
+
+// GET /modeles-presentation/:id — contenu complet d'une variante, pour la charger dans l'éditeur.
+app.get('/modeles-presentation/:id', async (c) => {
+  const [variante] = await supabaseSelect(c.env, 'modeles_email', {
+    select: 'id,nom,actif,objet,corps_html,signature_image_url,logo_image_url',
+    cle: 'eq.presentation', id: `eq.${c.req.param('id')}`,
+  });
+  if (!variante) return c.json({ erreur: 'Variante introuvable' }, 404);
+  return c.json({ variante });
+});
+
+const varianteSchema = z.object({
+  nom: z.string().min(1).max(80),
+  objet: z.string().min(1).max(200),
+  corps_html: z.string().min(1).max(20000),
+});
+
+// POST /modeles-presentation — crée une nouvelle variante (inactive par défaut : on ne bascule
+// jamais l'envoi automatiquement, l'activation est un choix explicite). Reprend la photo/logo
+// de la variante active courante, partagés entre toutes les variantes.
+app.post('/modeles-presentation', async (c) => {
+  const body = varianteSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
-  const donnees = { objet: body.data.objet, corps_html: body.data.corps_html, updated_at: new Date().toISOString() };
-  const [existant] = await supabaseSelect(c.env, 'modeles_email', { select: 'cle', cle: 'eq.presentation' });
-  if (existant) await supabaseUpdate(c.env, 'modeles_email', donnees, { cle: 'eq.presentation' });
-  else await supabaseInsert(c.env, 'modeles_email', { cle: 'presentation', ...donnees });
+  const [active] = await supabaseSelect(c.env, 'modeles_email', {
+    select: 'signature_image_url,logo_image_url', cle: 'eq.presentation', actif: 'eq.true',
+  });
+  const [variante] = await supabaseInsert(c.env, 'modeles_email', {
+    cle: 'presentation', actif: false, ...body.data,
+    signature_image_url: active?.signature_image_url ?? null,
+    logo_image_url: active?.logo_image_url ?? null,
+  });
+  return c.json({ ok: true, variante });
+});
+
+// PUT /modeles-presentation/:id — modifie le contenu d'une variante (ne touche pas actif).
+app.put('/modeles-presentation/:id', async (c) => {
+  const body = varianteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const donnees = { ...body.data, updated_at: new Date().toISOString() };
+  const maj = await supabaseUpdate(c.env, 'modeles_email', donnees, {
+    id: `eq.${c.req.param('id')}`, cle: 'eq.presentation',
+  });
+  if (!maj.length) return c.json({ erreur: 'Variante introuvable' }, 404);
   return c.json({ ok: true });
 });
 
-// Upload d'une image du modèle d'email (signature ou logo) dans R2, avec remplacement de
-// l'ancienne et upsert de la colonne concernée. Le corps de la requête est l'image brute.
+// POST /modeles-presentation/:id/activer — bascule la variante active. Désactive d'abord toutes
+// les autres (l'index unique idx_modeles_email_cle_actif interdit deux actives à la fois pour
+// le même cle), puis active la cible.
+app.post('/modeles-presentation/:id/activer', async (c) => {
+  const id = c.req.param('id');
+  const [cible] = await supabaseSelect(c.env, 'modeles_email', {
+    select: 'id,nom', cle: 'eq.presentation', id: `eq.${id}`,
+  });
+  if (!cible) return c.json({ erreur: 'Variante introuvable' }, 404);
+
+  await supabaseUpdate(c.env, 'modeles_email', { actif: false }, { cle: 'eq.presentation', actif: 'eq.true' });
+  await supabaseUpdate(c.env, 'modeles_email', { actif: true }, { id: `eq.${id}` });
+  return c.json({ ok: true, nom: cible.nom });
+});
+
+// DELETE /modeles-presentation/:id — refuse de supprimer la variante active (bascule-en une
+// autre d'abord) ou la dernière restante (il en faut toujours au moins une).
+app.delete('/modeles-presentation/:id', async (c) => {
+  const id = c.req.param('id');
+  const toutes = await supabaseSelect(c.env, 'modeles_email', { select: 'id,actif', cle: 'eq.presentation' });
+  const cible = toutes.find((v: any) => v.id === id);
+  if (!cible) return c.json({ erreur: 'Variante introuvable' }, 404);
+  if (cible.actif) return c.json({ erreur: 'Impossible de supprimer la variante active : bascule sur une autre d\'abord.' }, 400);
+  if (toutes.length <= 1) return c.json({ erreur: 'Il doit toujours rester au moins une variante.' }, 400);
+
+  await supabaseDelete(c.env, 'modeles_email', { id: `eq.${id}` });
+  return c.json({ ok: true });
+});
+
+// Upload d'une image du modèle d'email (signature ou logo) dans R2. Partagée entre TOUTES les
+// variantes de cle='presentation' (même photo partout, seul le texte se teste en A/B) : le
+// update ci-dessous filtre uniquement sur cle, donc touche toutes les lignes d'un coup.
 async function uploaderImageModele(c: any, colonne: 'signature_image_url' | 'logo_image_url', prefixe: string) {
   const contentType = c.req.header('Content-Type') || '';
   if (!/^image\/(jpeg|png)$/.test(contentType)) {
@@ -311,7 +386,7 @@ async function uploaderImageModele(c: any, colonne: 'signature_image_url' | 'log
   if (donnees.byteLength > 2 * 1024 * 1024) return c.json({ erreur: 'Image trop lourde (max 2 Mo)' }, 400);
 
   // Supprime l'ancienne image si présente (évite l'accumulation dans R2).
-  const [modele] = await supabaseSelect(c.env, 'modeles_email', { select: colonne, cle: 'eq.presentation' });
+  const [modele] = await supabaseSelect(c.env, 'modeles_email', { select: colonne, cle: 'eq.presentation', limit: '1' });
   const ancienneUrl = modele?.[colonne];
   if (ancienneUrl && c.env.R2_PUBLIC_BASE) {
     const ancienneCle = ancienneUrl.replace(`${c.env.R2_PUBLIC_BASE}/`, '');
@@ -322,10 +397,10 @@ async function uploaderImageModele(c: any, colonne: 'signature_image_url' | 'log
   const cle = `backoffice/${prefixe}-${crypto.randomUUID()}.${extension}`;
   const url = await uploaderFichier(c.env, cle, donnees, contentType);
 
-  // Upsert : crée le modèle avec les valeurs par défaut s'il n'existe pas encore.
+  // Upsert : crée la première variante avec les valeurs par défaut si aucune n'existe encore.
   const patch = { [colonne]: url, updated_at: new Date().toISOString() };
   if (modele) await supabaseUpdate(c.env, 'modeles_email', patch, { cle: 'eq.presentation' });
-  else await supabaseInsert(c.env, 'modeles_email', { cle: 'presentation', ...MODELE_PRESENTATION_DEFAUT, ...patch });
+  else await supabaseInsert(c.env, 'modeles_email', { cle: 'presentation', nom: 'Variante A', actif: true, ...MODELE_PRESENTATION_DEFAUT, ...patch });
 
   return c.json({ ok: true, url });
 }
@@ -342,7 +417,7 @@ app.put('/modele-fiche', async (c) => {
   const donnees = { objet: 'Fiche de présentation', corps_html: body.data.contenu_html, updated_at: new Date().toISOString() };
   const [existant] = await supabaseSelect(c.env, 'modeles_email', { select: 'cle', cle: 'eq.fiche' });
   if (existant) await supabaseUpdate(c.env, 'modeles_email', donnees, { cle: 'eq.fiche' });
-  else await supabaseInsert(c.env, 'modeles_email', { cle: 'fiche', ...donnees });
+  else await supabaseInsert(c.env, 'modeles_email', { cle: 'fiche', nom: 'Défaut', ...donnees });
   return c.json({ ok: true });
 });
 

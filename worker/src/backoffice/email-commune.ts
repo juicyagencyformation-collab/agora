@@ -186,11 +186,13 @@ export function rendrePresentation(modele: string, ctx: ContextePresentation): s
     .replace(/\{\{logo\}\}/g, ctx.logo || baliseLogo(null));
 }
 
-// Charge le modèle enregistré (ou le défaut de secours si aucun n'existe / lecture échouée).
-export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string; signature_image_url?: string | null; logo_image_url?: string | null }> {
+// Charge la variante ACTIVE (ou le défaut de secours si aucune n'existe / lecture échouée).
+// Plusieurs variantes peuvent exister pour cle='presentation' (A/B testing, voir migration 037
+// et /administration/modeles-presentation) : une seule a actif=true à la fois.
+export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string; nom?: string; signature_image_url?: string | null; logo_image_url?: string | null }> {
   try {
     const [row] = await supabaseSelect(env, 'modeles_email', {
-      select: 'objet,corps_html,signature_image_url,logo_image_url', cle: 'eq.presentation',
+      select: 'objet,corps_html,nom,signature_image_url,logo_image_url', cle: 'eq.presentation', actif: 'eq.true',
     });
     if (row?.objet && row?.corps_html) return row;
   } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
@@ -222,7 +224,7 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
 // Envoie l'email de présentation à partir du modèle enregistré, variables substituées (logo +
 // photo de signature). Images chargées par URL (domaine authentifié) — léger, aucun risque de
 // surcharge du Worker.
-export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<void> {
+export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<{ variante: string | null }> {
   const modele = await chargerModelePresentation(env);
   const ctxComplet = {
     ...ctx,
@@ -234,6 +236,7 @@ export async function envoyerPresentation(env: any, contactEmail: string, ctx: C
     rendrePresentation(modele.objet, ctxComplet),
     rendrePresentation(modele.corps_html, ctxComplet),
   );
+  return { variante: modele.nom || null };
 }
 
 // — Email de rappel d'échéance d'abonnement (envoyé ~60 jours avant, voir cron.ts). Simple et
