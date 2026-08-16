@@ -290,11 +290,21 @@ app.get('/modele-email', async (c) => {
 //   actif=true à la fois par cle='presentation' ; c'est elle qui part dans tous les envois.
 
 // GET /modeles-presentation — liste toutes les variantes (sans le corps HTML, pour un
-// sélecteur léger côté backoffice).
+// sélecteur léger côté backoffice). Si aucune n'a jamais été enregistrée, on amorce avec le
+// défaut de secours (celui réellement utilisé pour l'envoi tant qu'aucune ligne n'existe, voir
+// chargerModelePresentation) : sans ça, l'éditeur apparaît vide alors que ce texte part déjà
+// dans les emails.
 app.get('/modeles-presentation', async (c) => {
-  const variantes = await supabaseSelect(c.env, 'modeles_email', {
+  let variantes = await supabaseSelect(c.env, 'modeles_email', {
     select: 'id,nom,actif,objet,updated_at', cle: 'eq.presentation', order: 'created_at.asc',
   });
+  if (!variantes.length) {
+    const [creee] = await supabaseInsert(c.env, 'modeles_email', {
+      cle: 'presentation', nom: 'Variante A', actif: true,
+      objet: MODELE_PRESENTATION_DEFAUT.objet, corps_html: MODELE_PRESENTATION_DEFAUT.corps_html,
+    });
+    if (creee) variantes = [creee];
+  }
   return c.json({ variantes });
 });
 
