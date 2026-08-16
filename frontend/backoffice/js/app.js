@@ -28,6 +28,9 @@ function backoffice() {
     chargement: true,
     staff: { nom: '' },
     apercu: {},
+    // Tiroirs repliables (Communes clientes + Réglages) : état mémorisé pour garder
+    // l'agencement préféré d'une visite à l'autre.
+    tiroirsOuverts: (() => { try { return JSON.parse(localStorage.getItem('bo_tiroirs') || '{}'); } catch { return {}; } })(),
     communes: [],
     fiche: null,
     erreurChargement: '',
@@ -519,6 +522,10 @@ function backoffice() {
       this.fiche = null;
     },
 
+    allerReglages() {
+      this.vue = 'reglages';
+    },
+
     // — Prospection —
     async allerProspection() {
       this.vue = 'prospection';
@@ -876,6 +883,10 @@ function backoffice() {
     libelleStatutClient(s) {
       return { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[s] || 'Active';
     },
+    toggleTiroir(cle) {
+      this.tiroirsOuverts[cle] = !this.tiroirsOuverts[cle];
+      localStorage.setItem('bo_tiroirs', JSON.stringify(this.tiroirsOuverts));
+    },
     genererQr(url) {
       try {
         const qr = qrcode(0, 'M');
@@ -940,6 +951,26 @@ function backoffice() {
     joursAvantEcheance(dateStr) {
       if (!dateStr) return null;
       return Math.ceil((new Date(dateStr) - new Date(new Date().toISOString().slice(0, 10))) / 86400000);
+    },
+    // Badge de santé d'une commune (tableau Communes clientes) : 🔴 attention requise
+    // (statut non actif, email de contact rejeté, ou échéance dépassée), 🟡 échéance proche
+    // (60 jours), 🟢 rien à signaler. Ne combine que des signaux déjà présents dans la liste,
+    // sans requête supplémentaire par commune.
+    santeCommune(c) {
+      if (c.statut_client && c.statut_client !== 'active') {
+        return { icone: '🔴', titre: 'Statut : ' + this.libelleStatutClient(c.statut_client) };
+      }
+      if (c.email_invalide) {
+        return { icone: '🔴', titre: 'Email de contact rejeté (bounce) — à corriger' };
+      }
+      const j = this.joursAvantEcheance(c.prochaine_echeance);
+      if (j !== null && j <= 0) {
+        return { icone: '🔴', titre: 'Échéance dépassée le ' + this.formatDate(c.prochaine_echeance) };
+      }
+      if (j !== null && j <= 60) {
+        return { icone: '🟡', titre: 'Échéance dans ' + j + ' j (' + this.formatDate(c.prochaine_echeance) + ')' };
+      }
+      return { icone: '🟢', titre: 'Rien à signaler' };
     },
     classeEcheance(dateStr) {
       const j = this.joursAvantEcheance(dateStr);

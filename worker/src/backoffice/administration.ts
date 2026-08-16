@@ -79,7 +79,7 @@ async function calculerStockageR2(env: any, commune_id: string): Promise<{ octet
 // La commune "nationale" (niveau_national=true) n'est pas une cliente : on l'exclut.
 app.get('/communes', async (c) => {
   const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,prochaine_echeance,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,prochaine_echeance,email_invalide,created_at',
     niveau_national: 'not.is.true', // exclut seulement la commune nationale (garde false ET null)
     order: 'nom.asc',
     limit: '5000',

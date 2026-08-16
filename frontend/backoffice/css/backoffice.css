@@ -120,6 +120,23 @@ tbody tr:hover { background: var(--bo-surface-2); }
 .bo-note--basse { color: var(--bo-rouge); }
 .bo-vide { color: var(--bo-text-faible); }
 
+/* — Tiroirs (sections repliables, pour garder les pages denses compactes) — */
+.bo-tiroir { border: 1px solid var(--bo-border); border-radius: var(--bo-radius); background: var(--bo-surface); overflow: hidden; margin-bottom: 14px; }
+.bo-tiroir__entete {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 18px; background: none; border: none; color: var(--bo-text);
+  font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; font-family: inherit;
+}
+.bo-tiroir__entete:hover { background: var(--bo-surface-2); }
+.bo-tiroir__compte { color: var(--bo-text-faible); font-weight: 500; font-size: 13px; margin-left: 4px; }
+.bo-tiroir__chevron { color: var(--bo-text-faible); font-size: 12px; transition: transform .15s; flex-shrink: 0; }
+.bo-tiroir__chevron.ouvert { transform: rotate(90deg); }
+.bo-tiroir__corps { border-top: 1px solid var(--bo-border); padding: 16px 18px; }
+.bo-tiroir__corps.bo-tiroir__corps--table { padding: 0; }
+
+/* — Badge de santé (tableau des communes) — */
+.bo-sante { font-size: 15px; cursor: default; }
+
 .bo-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; background: var(--bo-surface-2); color: var(--bo-text-faible); font-size: 12px; font-weight: 600; }
 
 /* Statuts de prospection */

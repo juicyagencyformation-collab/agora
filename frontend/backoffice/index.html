@@ -6,17 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260816-34" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260816-34" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260816-34" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260816-35" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260816-35" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260816-35" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260816-34" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260816-35" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__pied">
         <div x-text="staff.nom"></div>
         <div style="margin-top:8px"><a @click.prevent="deconnexion()" href="#">Se déconnecter</a></div>
@@ -50,11 +51,12 @@
           <div class="bo-carte">
             <table>
               <thead>
-                <tr><th>Commune</th><th>Statut</th><th>Population</th><th>Citoyens</th><th>Forfait</th><th>Note app</th><th>Cliente depuis</th></tr>
+                <tr><th title="Statut, échéance et délivrabilité en un coup d'œil">Santé</th><th>Commune</th><th>Statut</th><th>Population</th><th>Citoyens</th><th>Forfait</th><th>Note app</th><th>Cliente depuis</th></tr>
               </thead>
               <tbody>
                 <template x-for="c in communes" :key="c.id">
                   <tr @click="ouvrirFiche(c.id)">
+                    <td><span class="bo-sante" :title="santeCommune(c).titre" x-text="santeCommune(c).icone"></span></td>
                     <td class="bo-nom-commune" x-text="c.nom"></td>
                     <td><span class="bo-statut" :class="'bo-statut--' + (c.statut_client || 'active')" x-text="libelleStatutClient(c.statut_client)"></span></td>
                     <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
@@ -70,261 +72,308 @@
                   </tr>
                 </template>
                 <template x-if="communes.length === 0">
-                  <tr><td colspan="7" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
+                  <tr><td colspan="8" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
                 </template>
               </tbody>
             </table>
           </div>
 
-          <div class="bo-section-titre" x-text="'Échéances à venir (60 jours)' + (echeances.length ? ' — ' + echeances.length : '')"></div>
-          <div class="bo-carte">
-            <template x-if="echeances.length === 0">
-              <div style="padding:16px 18px" class="bo-info">Aucune échéance dans les 60 prochains jours.</div>
-            </template>
-            <template x-if="echeances.length > 0">
-              <table>
-                <thead><tr><th>Commune</th><th>Échéance</th><th>Jours restants</th><th>Prix TTC</th><th>Engagement</th></tr></thead>
-                <tbody>
-                  <template x-for="e in echeances" :key="e.id">
-                    <tr @click="ouvrirFiche(e.id)">
-                      <td class="bo-nom-commune" x-text="e.nom"></td>
-                      <td x-text="formatDate(e.prochaine_echeance)"></td>
-                      <td><span :class="classeEcheance(e.prochaine_echeance)" x-text="joursAvantEcheance(e.prochaine_echeance) + ' j'"></span></td>
-                      <td x-text="e.prix_annuel_ttc != null ? e.prix_annuel_ttc.toLocaleString('fr-FR') + ' €' : '—'"></td>
-                      <td x-text="(e.duree_engagement_mois || 12) + ' mois'"></td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </template>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('echeances')">
+              <span>Échéances à venir (60 jours)<span class="bo-tiroir__compte" x-show="echeances.length" x-text="'— ' + echeances.length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.echeances}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.echeances">
+              <template x-if="echeances.length === 0">
+                <div style="padding:16px 18px" class="bo-info">Aucune échéance dans les 60 prochains jours.</div>
+              </template>
+              <template x-if="echeances.length > 0">
+                <table>
+                  <thead><tr><th>Commune</th><th>Échéance</th><th>Jours restants</th><th>Prix TTC</th><th>Engagement</th></tr></thead>
+                  <tbody>
+                    <template x-for="e in echeances" :key="e.id">
+                      <tr @click="ouvrirFiche(e.id)">
+                        <td class="bo-nom-commune" x-text="e.nom"></td>
+                        <td x-text="formatDate(e.prochaine_echeance)"></td>
+                        <td><span :class="classeEcheance(e.prochaine_echeance)" x-text="joursAvantEcheance(e.prochaine_echeance) + ' j'"></span></td>
+                        <td x-text="e.prix_annuel_ttc != null ? e.prix_annuel_ttc.toLocaleString('fr-FR') + ' €' : '—'"></td>
+                        <td x-text="(e.duree_engagement_mois || 12) + ' mois'"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+            </div>
           </div>
 
-          <div class="bo-section-titre">Diagnostic email</div>
-          <div class="bo-carte" style="padding:16px 18px">
-            <div class="bo-info" style="margin-bottom:12px">Vérifie que l'envoi via Resend fonctionne (clé + domaine). Aucun prospect n'est affecté.</div>
-            <div class="bo-outils" style="margin-bottom:10px">
-              <input type="email" x-model="testEmailDest" placeholder="destinataire" style="min-width:240px" />
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerEmailTest()" :disabled="testEmailEnCours"
-                      x-text="testEmailEnCours ? 'Envoi…' : 'Envoyer un email de test'"></button>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('emails_rejetes')">
+              <span>Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="'— ' + emailsRejetes.length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.emails_rejetes}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.emails_rejetes">
+              <div style="padding:16px 18px 0" class="bo-info">
+                Un email rejeté marque le contact concerné « email invalide » et bloque tout renvoi automatique
+                vers cette adresse (protection de la réputation d'expéditeur). Un rattrapage automatique via
+                l'annuaire officiel (service-public.fr) tourne chaque nuit ; tu peux aussi le déclencher ici.
+              </div>
+              <div style="display:flex; align-items:center; gap:12px; padding:12px 18px 16px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="corrigerEmailsInvalides()" :disabled="correctionEnCours">
+                  <span x-text="correctionEnCours ? 'Recherche…' : 'Corriger via l\'annuaire'"></span>
+                </button>
+                <span class="bo-info" x-text="correctionMsg"></span>
+              </div>
+              <template x-if="emailsRejetes.length === 0">
+                <div style="padding:16px 18px" class="bo-info">Aucun email rejeté capté. (Capture automatique via le webhook Resend.)</div>
+              </template>
+              <template x-if="emailsRejetes.length > 0">
+                <table>
+                  <thead><tr><th>Adresse</th><th>Commune</th><th>Type</th><th>Raison</th><th>Date</th></tr></thead>
+                  <tbody>
+                    <template x-for="(e, i) in emailsRejetes" :key="i">
+                      <tr style="cursor:default">
+                        <td x-text="e.email"></td>
+                        <td><span :class="{ 'bo-vide': !e.commune_nom }" x-text="e.commune_nom || '—'"></span></td>
+                        <td><span class="bo-statut bo-statut--perdu" x-text="e.type === 'email.complained' ? 'Plainte' : 'Bounce'"></span></td>
+                        <td><span :class="{ 'bo-vide': !e.raison }" x-text="e.raison || '—'"></span></td>
+                        <td x-text="formatDate(e.created_at)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
             </div>
-            <div x-show="testEmailMsg" :class="testEmailOk ? '' : 'bo-erreur'" style="margin:0" x-text="testEmailMsg"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Vue : Réglages (configuration globale, rarement modifiée) -->
+      <template x-if="!chargement && vue === 'reglages'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">Réglages</div>
+              <div class="bo-sous">Configuration globale de la plateforme — s'applique à toutes les communes.</div>
+            </div>
           </div>
 
-          <div class="bo-section-titre" x-text="'Emails rejetés (bounces)' + (emailsRejetes.length ? ' — ' + emailsRejetes.length : '')"></div>
-          <div class="bo-carte">
-            <div style="padding:16px 18px 0" class="bo-info">
-              Un email rejeté marque le prospect concerné « email invalide » et bloque tout renvoi automatique
-              vers cette adresse (protection de la réputation d'expéditeur). Un rattrapage automatique via
-              l'annuaire officiel (service-public.fr) tourne chaque nuit ; tu peux aussi le déclencher ici.
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('diagnostic_email')">
+              <span>Diagnostic email</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.diagnostic_email}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.diagnostic_email">
+              <div class="bo-info" style="margin-bottom:12px">Vérifie que l'envoi via Resend fonctionne (clé + domaine). Aucun prospect n'est affecté.</div>
+              <div class="bo-outils" style="margin-bottom:10px">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire" style="min-width:240px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerEmailTest()" :disabled="testEmailEnCours"
+                        x-text="testEmailEnCours ? 'Envoi…' : 'Envoyer un email de test'"></button>
+              </div>
+              <div x-show="testEmailMsg" :class="testEmailOk ? '' : 'bo-erreur'" style="margin:0" x-text="testEmailMsg"></div>
             </div>
-            <div style="display:flex; align-items:center; gap:12px; padding:12px 18px 16px">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="corrigerEmailsInvalides()" :disabled="correctionEnCours">
-                <span x-text="correctionEnCours ? 'Recherche…' : 'Corriger via l\'annuaire'"></span>
-              </button>
-              <span class="bo-info" x-text="correctionMsg"></span>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('palier_gratuit')">
+              <span>Palier gratuit (modules inclus)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.palier_gratuit}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.palier_gratuit">
+              <div class="bo-info" style="margin-bottom:12px">
+                Modules offerts dans la version gratuite. <strong>Changement global et rétroactif</strong> :
+                enregistrer applique immédiatement ce périmètre à toutes les communes actuellement sur le
+                palier Gratuit (pas seulement aux futures).
+              </div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px">
+                <template x-for="cle in ongletsDisponibles" :key="cle">
+                  <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
+                    <input type="checkbox" :value="cle" x-model="ongletsGratuitsSelection" style="width:auto" />
+                    <span x-text="libelleOnglet(cle)"></span>
+                  </label>
+                </template>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerOngletsGratuits()" :disabled="ongletsGratuitsEnCours">Enregistrer le palier gratuit</button>
+                <span class="bo-info" x-text="ongletsGratuitsMsg"></span>
+              </div>
             </div>
-            <template x-if="emailsRejetes.length === 0">
-              <div style="padding:16px 18px" class="bo-info">Aucun email rejeté capté. (Capture automatique via le webhook Resend.)</div>
-            </template>
-            <template x-if="emailsRejetes.length > 0">
-              <table>
-                <thead><tr><th>Adresse</th><th>Commune</th><th>Type</th><th>Raison</th><th>Date</th></tr></thead>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('grille_tarifaire')">
+              <span>Grille tarifaire (abonnement annuel TTC, par population)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.grille_tarifaire}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.grille_tarifaire">
+              <div class="bo-info" style="margin-bottom:12px">
+                Suivi des échéances uniquement — pas de paiement en ligne (règlement par mandat administratif).
+                Ces tarifs servent de suggestion sur la fiche de chaque commune ; le montant final reste modifiable au cas par cas.
+              </div>
+              <table style="margin-bottom:14px">
+                <thead><tr><th>Tranche de population</th><th>Prix annuel TTC</th></tr></thead>
                 <tbody>
-                  <template x-for="(e, i) in emailsRejetes" :key="i">
+                  <template x-for="t in grilleTarifaire.tranches" :key="t.id">
                     <tr style="cursor:default">
-                      <td x-text="e.email"></td>
-                      <td><span :class="{ 'bo-vide': !e.commune_nom }" x-text="e.commune_nom || '—'"></span></td>
-                      <td><span class="bo-statut bo-statut--perdu" x-text="e.type === 'email.complained' ? 'Plainte' : 'Bounce'"></span></td>
-                      <td><span :class="{ 'bo-vide': !e.raison }" x-text="e.raison || '—'"></span></td>
-                      <td x-text="formatDate(e.created_at)"></td>
+                      <td x-text="libelleTranche(t)"></td>
+                      <td><input type="number" min="0" step="10" x-model="t.prix_annuel_ttc" style="width:140px" /> €</td>
                     </tr>
                   </template>
                 </tbody>
               </table>
-            </template>
-          </div>
-
-          <div class="bo-section-titre">Palier gratuit (modules inclus)</div>
-          <div class="bo-carte" style="padding:16px 18px">
-            <div class="bo-info" style="margin-bottom:12px">
-              Modules offerts dans la version gratuite. <strong>Changement global et rétroactif</strong> :
-              enregistrer applique immédiatement ce périmètre à toutes les communes actuellement sur le
-              palier Gratuit (pas seulement aux futures).
-            </div>
-            <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px">
-              <template x-for="cle in ongletsDisponibles" :key="cle">
-                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
-                  <input type="checkbox" :value="cle" x-model="ongletsGratuitsSelection" style="width:auto" />
-                  <span x-text="libelleOnglet(cle)"></span>
-                </label>
-              </template>
-            </div>
-            <div style="display:flex; align-items:center; gap:12px">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerOngletsGratuits()" :disabled="ongletsGratuitsEnCours">Enregistrer le palier gratuit</button>
-              <span class="bo-info" x-text="ongletsGratuitsMsg"></span>
+              <label style="margin-top:0">Mois offerts pour un engagement 3 ans</label>
+              <input type="number" min="0" max="36" x-model="grilleTarifaire.mois_offerts_3ans" style="width:100px" />
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer la grille</button>
+                <span class="bo-info" x-text="grilleMsg"></span>
+              </div>
             </div>
           </div>
 
-          <div class="bo-section-titre">Grille tarifaire (abonnement annuel TTC, par population)</div>
-          <div class="bo-carte" style="padding:16px 18px">
-            <div class="bo-info" style="margin-bottom:12px">
-              Suivi des échéances uniquement — pas de paiement en ligne (règlement par mandat administratif).
-              Ces tarifs servent de suggestion sur la fiche de chaque commune ; le montant final reste modifiable au cas par cas.
-            </div>
-            <table style="margin-bottom:14px">
-              <thead><tr><th>Tranche de population</th><th>Prix annuel TTC</th></tr></thead>
-              <tbody>
-                <template x-for="t in grilleTarifaire.tranches" :key="t.id">
-                  <tr style="cursor:default">
-                    <td x-text="libelleTranche(t)"></td>
-                    <td><input type="number" min="0" step="10" x-model="t.prix_annuel_ttc" style="width:140px" /> €</td>
-                  </tr>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_email')">
+              <span>Modèle d'email de présentation</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_email}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_email">
+              <div class="bo-info" style="margin-bottom:12px">
+                Email envoyé aux prospects et aux communes. Variables disponibles :
+                <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo),
+                <code>{{lien_fiche}}</code>, <code>{{signature_photo}}</code>.
+                Plusieurs variantes possibles (A/B testing) : une seule est active à la fois, c'est elle qui part dans tous les envois.
+              </div>
+
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <label style="margin:0">Variante</label>
+                <select :value="varianteEditeeId" @change="chargerVariante($event.target.value)" style="width:auto; min-width:220px">
+                  <template x-for="v in variantes" :key="v.id">
+                    <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                  </template>
+                </select>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVariante()" :disabled="varianteEnCours">+ Nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVariante()"
+                        :disabled="varianteEnCours || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVariante()"
+                        :disabled="varianteEnCours || variantes.length <= 1 || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Supprimer</button>
+                <span class="bo-info" x-text="varianteMsg"></span>
+              </div>
+
+              <label style="margin-top:0">Objet</label>
+              <input type="text" x-model="modele.objet" />
+
+              <label>Corps du message</label>
+              <div class="bo-toolbar">
+                <template x-if="modeEditeurEmail === 'visuel'">
+                  <span style="display:contents">
+                    <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                    <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                    <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                    <span class="sep"></span>
+                    <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                    <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                    <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                    <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                    <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                    <span class="sep"></span>
+                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                      <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                      <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
+                      <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                      <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
+                      <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                      <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                      <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
+                      <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                      <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                      <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
+                    </span>
+                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                      <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                      <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
+                      <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                      <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                      <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
+                      <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                      <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
+                      <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                    </span>
+                    <span class="sep"></span>
+                    <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                    <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app / la démo">+ lien app</button>
+                    <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche">+ lien fiche</button>
+                    <span class="sep"></span>
+                  </span>
                 </template>
-              </tbody>
-            </table>
-            <label style="margin-top:0">Mois offerts pour un engagement 3 ans</label>
-            <input type="number" min="0" max="36" x-model="grilleTarifaire.mois_offerts_3ans" style="width:100px" />
-            <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer la grille</button>
-              <span class="bo-info" x-text="grilleMsg"></span>
+                <button type="button" @click="basculerModeEditeur()" x-text="modeEditeurEmail === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+              </div>
+              <div x-show="modeEditeurEmail === 'visuel'" id="editeur-email" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurEmail()"></div>
+              <textarea x-show="modeEditeurEmail === 'code'" x-model="modele.corps_html" style="min-height:240px; font-family:monospace; font-size:12.5px"></textarea>
+
+              <label>Logo de l'en-tête</label>
+              <div style="display:flex; align-items:center; gap:14px">
+                <img x-show="modele.logo_image_url" :src="modele.logo_image_url" alt="" style="max-height:56px; max-width:160px; object-fit:contain" />
+                <input type="file" accept="image/jpeg,image/png" @change="uploaderLogo($event)" style="width:auto; padding:6px" />
+                <span class="bo-info" x-text="logoEnCours ? 'Envoi…' : logoMsg"></span>
+              </div>
+
+              <label>Photo de signature</label>
+              <div style="display:flex; align-items:center; gap:14px">
+                <img x-show="modele.signature_image_url" :src="modele.signature_image_url" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover" />
+                <input type="file" accept="image/jpeg,image/png" @change="uploaderSignature($event)" style="width:auto; padding:6px" />
+                <span class="bo-info" x-text="signatureEnCours ? 'Envoi…' : signatureMsg"></span>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModele()" :disabled="modeleEnCours"
+                        x-text="modeleEnCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+                <span class="bo-info" x-text="modeleMsg"></span>
+              </div>
             </div>
           </div>
 
-          <div class="bo-section-titre">Modèle d'email de présentation</div>
-          <div class="bo-carte" style="padding:16px 18px">
-            <div class="bo-info" style="margin-bottom:12px">
-              Email envoyé aux prospects et aux communes. Variables disponibles :
-              <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo),
-              <code>{{lien_fiche}}</code>, <code>{{signature_photo}}</code>.
-              Plusieurs variantes possibles (A/B testing) : une seule est active à la fois, c'est elle qui part dans tous les envois.
-            </div>
-
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
-              <label style="margin:0">Variante</label>
-              <select :value="varianteEditeeId" @change="chargerVariante($event.target.value)" style="width:auto; min-width:220px">
-                <template x-for="v in variantes" :key="v.id">
-                  <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_fiche')">
+              <span>Modèle de fiche de présentation (imprimable)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_fiche}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_fiche">
+              <div class="bo-info" style="margin-bottom:12px">
+                Éditeur visuel de la fiche A4. Tu édites les textes ; la mise en page reste fixe.
+                Variables : <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{qr}}</code> (QR code), <code>{{url}}</code>.
+                Le logo est celui uploadé ci-dessus. <a href="/backoffice/fiche?slug=eaucourt&nom=Aperçu" target="_blank">Prévisualiser en vrai</a>.
+              </div>
+              <div class="bo-toolbar">
+                <template x-if="modeEditeurFiche === 'visuel'">
+                  <span style="display:contents">
+                    <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                    <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                    <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                    <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                    <span class="sep"></span>
+                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                      <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                      <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                      <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                      <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                      <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                    </span>
+                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                      <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                      <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                      <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                      <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                    </span>
+                    <span class="sep"></span>
+                  </span>
                 </template>
-              </select>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVariante()" :disabled="varianteEnCours">+ Nouvelle variante</button>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVariante()"
-                      :disabled="varianteEnCours || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Activer cette variante</button>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVariante()"
-                      :disabled="varianteEnCours || variantes.length <= 1 || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Supprimer</button>
-              <span class="bo-info" x-text="varianteMsg"></span>
-            </div>
-
-            <label style="margin-top:0">Objet</label>
-            <input type="text" x-model="modele.objet" />
-
-            <label>Corps du message</label>
-            <div class="bo-toolbar">
-              <template x-if="modeEditeurEmail === 'visuel'">
-                <span style="display:contents">
-                  <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
-                  <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
-                  <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
-                  <span class="sep"></span>
-                  <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
-                  <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
-                  <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
-                  <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
-                  <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
-                  <span class="sep"></span>
-                  <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
-                    <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
-                    <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
-                    <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
-                    <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
-                    <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
-                    <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
-                    <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
-                    <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
-                    <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
-                    <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
-                  </span>
-                  <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
-                    <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
-                    <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
-                    <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
-                    <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
-                    <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
-                    <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
-                    <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
-                    <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
-                  </span>
-                  <span class="sep"></span>
-                  <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
-                  <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app / la démo">+ lien app</button>
-                  <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche">+ lien fiche</button>
-                  <span class="sep"></span>
-                </span>
-              </template>
-              <button type="button" @click="basculerModeEditeur()" x-text="modeEditeurEmail === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
-            </div>
-            <div x-show="modeEditeurEmail === 'visuel'" id="editeur-email" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurEmail()"></div>
-            <textarea x-show="modeEditeurEmail === 'code'" x-model="modele.corps_html" style="min-height:240px; font-family:monospace; font-size:12.5px"></textarea>
-
-            <label>Logo de l'en-tête</label>
-            <div style="display:flex; align-items:center; gap:14px">
-              <img x-show="modele.logo_image_url" :src="modele.logo_image_url" alt="" style="max-height:56px; max-width:160px; object-fit:contain" />
-              <input type="file" accept="image/jpeg,image/png" @change="uploaderLogo($event)" style="width:auto; padding:6px" />
-              <span class="bo-info" x-text="logoEnCours ? 'Envoi…' : logoMsg"></span>
-            </div>
-
-            <label>Photo de signature</label>
-            <div style="display:flex; align-items:center; gap:14px">
-              <img x-show="modele.signature_image_url" :src="modele.signature_image_url" alt="" style="width:56px; height:56px; border-radius:50%; object-fit:cover" />
-              <input type="file" accept="image/jpeg,image/png" @change="uploaderSignature($event)" style="width:auto; padding:6px" />
-              <span class="bo-info" x-text="signatureEnCours ? 'Envoi…' : signatureMsg"></span>
-            </div>
-
-            <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModele()" :disabled="modeleEnCours"
-                      x-text="modeleEnCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
-              <span class="bo-info" x-text="modeleMsg"></span>
-            </div>
-          </div>
-
-          <div class="bo-section-titre">Modèle de fiche de présentation (imprimable)</div>
-          <div class="bo-carte" style="padding:16px 18px">
-            <div class="bo-info" style="margin-bottom:12px">
-              Éditeur visuel de la fiche A4. Tu édites les textes ; la mise en page reste fixe.
-              Variables : <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{qr}}</code> (QR code), <code>{{url}}</code>.
-              Le logo est celui uploadé ci-dessus. <a href="/backoffice/fiche?slug=eaucourt&nom=Aperçu" target="_blank">Prévisualiser en vrai</a>.
-            </div>
-            <div class="bo-toolbar">
-              <template x-if="modeEditeurFiche === 'visuel'">
-                <span style="display:contents">
-                  <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
-                  <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
-                  <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
-                  <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
-                  <span class="sep"></span>
-                  <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
-                    <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
-                    <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
-                    <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
-                    <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
-                    <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
-                  </span>
-                  <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
-                    <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
-                    <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
-                    <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
-                    <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
-                  </span>
-                  <span class="sep"></span>
-                </span>
-              </template>
-              <button type="button" @click="basculerModeFiche()" x-text="modeEditeurFiche === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
-            </div>
-            <div x-show="modeEditeurFiche === 'visuel'" id="editeur-fiche" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurFiche()"></div>
-            <textarea x-show="modeEditeurFiche === 'code'" x-model="modeleFiche.contenu_html" style="min-height:280px; font-family:monospace; font-size:12.5px"></textarea>
-            <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModeleFiche()" :disabled="modeleFicheEnCours"
-                      x-text="modeleFicheEnCours ? 'Enregistrement…' : 'Enregistrer la fiche'"></button>
-              <span class="bo-info" x-text="modeleFicheMsg"></span>
+                <button type="button" @click="basculerModeFiche()" x-text="modeEditeurFiche === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+              </div>
+              <div x-show="modeEditeurFiche === 'visuel'" id="editeur-fiche" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurFiche()"></div>
+              <textarea x-show="modeEditeurFiche === 'code'" x-model="modeleFiche.contenu_html" style="min-height:280px; font-family:monospace; font-size:12.5px"></textarea>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModeleFiche()" :disabled="modeleFicheEnCours"
+                        x-text="modeleFicheEnCours ? 'Enregistrement…' : 'Enregistrer la fiche'"></button>
+                <span class="bo-info" x-text="modeleFicheMsg"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -940,10 +989,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260816-34"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260816-34"></script>
-  <script src="/backoffice/js/api.js?v=20260816-34"></script>
-  <script src="/backoffice/js/app.js?v=20260816-34"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260816-34" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260816-35"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260816-35"></script>
+  <script src="/backoffice/js/api.js?v=20260816-35"></script>
+  <script src="/backoffice/js/app.js?v=20260816-35"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260816-35" defer></script>
 </body>
 </html>

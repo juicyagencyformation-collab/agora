@@ -59,6 +59,10 @@ app.post('/webhook-resend', async (c) => {
         });
       }
       await supabaseUpdate(c.env, 'prospects', { email_invalide: true }, { contact_email: `eq.${email}` });
+      // Même signal côté communes CLIENTES (rappels d'échéance, email de présentation) —
+      // jusqu'ici seuls les prospects étaient tracés. Alimente le badge de santé du backoffice.
+      await supabaseUpdate(c.env, 'communes', { email_invalide: true }, { contact_email: `eq.${email}` });
+      await supabaseUpdate(c.env, 'communes', { email_invalide: true }, { email_mairie: `eq.${email}` });
     }
   }
   return c.json({ ok: true });
