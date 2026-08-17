@@ -249,7 +249,7 @@ app.post('/prospects/corriger-emails-invalides', async (c) => {
 // acceptable pour un funnel indicatif, pas un système de stats exhaustif.
 app.get('/stats-variantes', async (c) => {
   const envois = await supabaseSelect(c.env, 'envois_prospection', {
-    select: 'prospect_id,variante,ouvert_le,clique_le,rejete_le', limit: '20000',
+    select: 'prospect_id,variante,ouvert_le,clique_le,rejete_le', est_test: 'eq.false', limit: '20000',
   });
 
   const prospectIds = [...new Set(envois.map((e: any) => e.prospect_id).filter(Boolean))];

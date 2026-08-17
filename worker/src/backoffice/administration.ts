@@ -255,6 +255,33 @@ app.post('/email-test', async (c) => {
   return c.json({ ok: true, destinataire, from: c.env.EMAIL_FROM || 'onboarding@resend.dev' });
 });
 
+// POST /email-test-presentation — envoie un email de test avec le VRAI modèle de présentation
+// (variante active), pour vérifier le rendu ET le suivi (ouverture/clic, voir migrations 040/041)
+// sans créer de commune ni toucher un prospect réel. Marqué est_test=true : exclu de l'entonnoir
+// par variante (GET /prospection/stats-variantes).
+app.post('/email-test-presentation', async (c) => {
+  const staff_id = c.get('staff_id');
+  const body: any = await c.req.json().catch(() => ({}));
+  let destinataire = (body?.destinataire || '').trim();
+  if (!destinataire) {
+    const [staff] = await supabaseSelect(c.env, 'staff_backoffice', { select: 'email', id: `eq.${staff_id}` });
+    destinataire = staff?.email || '';
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinataire)) return c.json({ erreur: 'Adresse email invalide.' }, 400);
+
+  const ctx = contextePresentation(c.env.FRONTEND_URL, 'Votre Commune (aperçu de test)', 'decouverte-gratuite');
+  const { variante, resendEmailId } = await envoyerPresentation(c.env, destinataire, ctx, {
+    maireEmail: destinataire, motDePasse: '(exemple — ceci est un test, pas un vrai compte)',
+  });
+
+  if (resendEmailId) {
+    await supabaseInsert(c.env, 'envois_prospection', {
+      prospect_id: null, resend_email_id: resendEmailId, email: destinataire, variante, est_test: true,
+    });
+  }
+  return c.json({ ok: true, destinataire, variante });
+});
+
 // PATCH /communes/:id/statut — statut du cycle de vie client (active | suspendue | resiliee).
 app.patch('/communes/:id/statut', async (c) => {
   const id = c.req.param('id');

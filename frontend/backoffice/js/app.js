@@ -85,6 +85,8 @@ function backoffice() {
     testEmailEnCours: false,
     testEmailMsg: '',
     testEmailOk: false,
+    testPresentationEnCours: false,
+    testPresentationMsg: '',
     emailsRejetes: [],
     correctionEnCours: false,
     correctionMsg: '',
@@ -834,6 +836,21 @@ function backoffice() {
         this.correctionMsg = e.message || 'Échec';
       } finally {
         this.correctionEnCours = false;
+      }
+    },
+
+    async envoyerTestPresentation() {
+      this.testPresentationEnCours = true;
+      this.testPresentationMsg = '';
+      try {
+        const r = await boFetch('/administration/email-test-presentation', {
+          method: 'POST', body: JSON.stringify({ destinataire: this.testEmailDest }),
+        });
+        this.testPresentationMsg = `Envoyé à ${r.destinataire} (variante « ${r.variante || '—'} »). Ouvre-le et clique le bouton pour tester le suivi.`;
+      } catch (e) {
+        this.testPresentationMsg = e.message || 'Échec de l\'envoi';
+      } finally {
+        this.testPresentationEnCours = false;
       }
     },
 
