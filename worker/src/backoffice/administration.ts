@@ -815,6 +815,40 @@ app.post('/communes/:id/onglets/preset', async (c) => {
   return c.json({ ok: true, forfait });
 });
 
+// GET /communes/:id/onglets — état actif/inactif des 14 modules pour cette commune (complète
+// avec actif=true les modules qui n'ont pas encore de ligne, ex. module ajouté après la
+// création de la commune — même logique que GET /:slug/moderation/onglets côté citoyen).
+app.get('/communes/:id/onglets', async (c) => {
+  const id = c.req.param('id');
+  const onglets = await supabaseSelect(c.env, 'onglets_config', { select: 'cle,actif', commune_id: `eq.${id}` });
+  const clesExistantes = new Set(onglets.map((o: any) => o.cle));
+  const completes = [
+    ...onglets,
+    ...TOUS_LES_ONGLETS.filter((cle) => !clesExistantes.has(cle)).map((cle) => ({ cle, actif: true })),
+  ];
+  return c.json({ onglets: completes });
+});
+
+// PATCH /communes/:id/onglets/:cle — bascule un seul module. Équivalent backoffice de
+// PATCH /:slug/moderation/onglets/:cle (réservé au superadmin côté citoyen, donc à un compte
+// existant DANS cette commune) : le staff backoffice est déjà l'équivalent superadmin
+// transverse, pas besoin de compte superadmin par commune pour ce geste courant.
+app.patch('/communes/:id/onglets/:cle', async (c) => {
+  const id = c.req.param('id');
+  const cle = c.req.param('cle');
+  if (!(TOUS_LES_ONGLETS as readonly string[]).includes(cle)) return c.json({ erreur: 'Onglet invalide' }, 400);
+  const body = z.object({ actif: z.boolean() }).safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Corps invalide' }, 400);
+
+  const [existant] = await supabaseSelect(c.env, 'onglets_config', { select: 'id', commune_id: `eq.${id}`, cle: `eq.${cle}` });
+  if (existant) {
+    await supabaseUpdate(c.env, 'onglets_config', { actif: body.data.actif }, { commune_id: `eq.${id}`, cle: `eq.${cle}` });
+  } else {
+    await supabaseInsert(c.env, 'onglets_config', { commune_id: id, cle, actif: body.data.actif });
+  }
+  return c.json({ ok: true });
+});
+
 // GET /onglets-gratuits — périmètre actuel du palier gratuit + liste complète des modules
 // disponibles (pour construire les cases à cocher côté backoffice).
 app.get('/onglets-gratuits', async (c) => {

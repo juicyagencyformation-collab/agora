@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-43" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-43" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-43" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-44" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-44" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-44" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-43" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-44" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -723,6 +723,14 @@
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('complet')" :disabled="presetEnCours">💶 Passer en Version complète</button>
               <span class="bo-info" x-text="presetMsg"></span>
             </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--bo-border)">
+              <template x-for="o in ongletsCommune" :key="o.cle">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
+                  <input type="checkbox" :checked="o.actif" @change="toggleOngletCommune(o)" style="width:auto" />
+                  <span x-text="libelleOnglet(o.cle)"></span>
+                </label>
+              </template>
+            </div>
             <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
               <div class="bo-champ-inline">
                 <label style="margin-top:0">Forfait</label>
@@ -1199,10 +1207,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-43"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-43"></script>
-  <script src="/backoffice/js/api.js?v=20260817-43"></script>
-  <script src="/backoffice/js/app.js?v=20260817-43"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-43" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-44"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-44"></script>
+  <script src="/backoffice/js/api.js?v=20260817-44"></script>
+  <script src="/backoffice/js/app.js?v=20260817-44"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-44" defer></script>
 </body>
 </html>

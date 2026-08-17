@@ -64,6 +64,7 @@ function backoffice() {
     forfaitMsg: '',
     presetEnCours: false,
     presetMsg: '',
+    ongletsCommune: [],
     presentEnCours: false,
     presentMsg: '',
     modele: { objet: '', corps_html: '', signature_image_url: null, logo_image_url: null },
@@ -208,6 +209,7 @@ function backoffice() {
         this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
         this.devisMsg = '';
         try { await this.chargerDevisFactures(id); } catch {}
+        try { this.ongletsCommune = (await boFetch('/administration/communes/' + id + '/onglets')).onglets; } catch {}
       } finally {
         this.chargement = false;
       }
@@ -459,7 +461,7 @@ function backoffice() {
     },
 
     async appliquerPresetOnglets(preset) {
-      const libelle = preset === 'complet' ? 'Version complète (tous les modules)' : 'Gratuit (actualités, agenda, alertes, annuaire uniquement)';
+      const libelle = preset === 'complet' ? 'Version complète (tous les modules)' : 'Gratuit (périmètre défini dans Réglages)';
       if (!confirm(`Basculer cette commune sur le préréglage « ${libelle} » ?`)) return;
       this.presetEnCours = true;
       this.presetMsg = '';
@@ -470,10 +472,23 @@ function backoffice() {
         this.fiche.commune.forfait = r.forfait;
         this.forfaitNom = r.forfait;
         this.presetMsg = 'Appliqué : ' + r.forfait;
+        try { this.ongletsCommune = (await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets')).onglets; } catch {}
       } catch (e) {
         this.presetMsg = e.message || 'Échec';
       } finally {
         this.presetEnCours = false;
+      }
+    },
+    async toggleOngletCommune(o) {
+      const nouveauActif = !o.actif;
+      o.actif = nouveauActif;
+      try {
+        await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets/' + o.cle, {
+          method: 'PATCH', body: JSON.stringify({ actif: nouveauActif }),
+        });
+      } catch (e) {
+        o.actif = !nouveauActif;
+        alert(e.message || 'Échec');
       }
     },
 
