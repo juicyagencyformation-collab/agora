@@ -54,7 +54,11 @@ export async function onRequest(context) {
   const url = new URL(context.request.url);
   const segments = url.pathname.split('/').filter(Boolean);
 
+  // Racine du domaine (plateforme-agora.fr) : page marketing publique (frontend/accueil.html),
+  // distincte de index.html qui reste la coquille de l'appli servie sous /<slug>/.
   if (segments.length === 0) {
+    const page = await recupererAssetSansRedirection(context.env, new URL('/accueil.html', url.origin));
+    if (page) return new Response(page.body, { status: page.status, headers: page.headers });
     return context.env.ASSETS.fetch(context.request);
   }
 

@@ -8,7 +8,7 @@
   const nom = (params.get('nom') || 'votre commune').trim();
   const urlApp = `${location.origin}/${slug}/`;
   const urlAffichee = `plateforme-agora.fr/${slug}/`;
-  document.title = `Agora — Fiche de présentation · ${nom}`;
+  document.title = `Plateforme-Agora — Fiche de présentation · ${nom}`;
 
   const echapper = (s) => s.replace(/[&<>"']/g, (m) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
@@ -24,8 +24,8 @@
   } catch { /* réseau KO : on affichera au moins le titre par défaut */ }
 
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="Agora" style="max-height:64px;max-width:220px;object-fit:contain" />`
-    : '<div class="marque">Agora<span>.</span></div>';
+    ? `<img src="${logoUrl}" alt="Plateforme-Agora" style="max-height:64px;max-width:220px;object-fit:contain" />`
+    : '<div class="marque">Plateforme-Agora</div>';
 
   // QR code vers l'app (typeNumber 0 = version auto selon la longueur de l'URL).
   const qr = qrcode(0, 'M');

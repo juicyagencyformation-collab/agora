@@ -25,12 +25,14 @@ export const MODELE_FICHE_DEFAUT = `
     </div>
 
     <div class="grille">
-      <div class="mod"><h3><span class="puce"></span>Actualités &amp; bulletin</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Agenda &amp; événements</h3><p>Le calendrier de la vie locale, avec rappels et inscriptions en un geste.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Agenda &amp; points citoyens</h3><p>Le calendrier de la vie locale — réunions, chantiers, ateliers — avec des points de participation vérifiés sur place.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Coups de main entre voisins</h3><p>Bricolage, jardinage, garde d'enfants, transport : l'entraide de proximité organisée simplement.</p></div>
       <div class="mod"><h3><span class="puce"></span>Conseil municipal</h3><p>Délibérations, comptes-rendus et trombinoscope des élus, en toute transparence.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Participation &amp; mémoire</h3><p>Sondages, valorisation de l'engagement citoyen et « La mémoire du village » pour honorer les anciens.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Entraide &amp; territoire</h3><p>Coups de main entre voisins et « Chasse au trésor » pour valoriser le patrimoine local.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Annuaire local</h3><p>Commerces, artisans et associations, enfin réunis en un seul endroit pour vos habitants.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Patrimoine &amp; mémoire</h3><p>Chasse au trésor géolocalisée et « La mémoire du village » pour honorer les anciens.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Actualités &amp; bulletin</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Veille législative</h3><p>Suivi automatique des textes adoptés à l'Assemblée nationale et au Parlement européen.</p></div>
     </div>
 
     <div class="atouts">

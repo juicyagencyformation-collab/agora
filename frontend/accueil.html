@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<!-- frontend/accueil.html — page marketing publique, servie à la racine de plateforme-agora.fr
+     (voir frontend/functions/[[path]].js, branche segments.length === 0). Distincte de index.html
+     (coquille de l'appli citoyenne, servie sous /<slug>/) : ne jamais fusionner les deux. -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plateforme-Agora — la place publique numérique des petites communes</title>
+  <meta name="description" content="Informer, alerter et faire participer vos habitants depuis une application mobile simple, souveraine et 100 % française — pilotée par la mairie seule. Gratuit pour commencer." />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260817-1" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <style>
+    :root {
+      --papier: #fbfaf6;
+      --carte: #ffffff;
+      --navy: #1c3b57;
+      --navy-doux: #2f5779;
+      --encre: #1c2226;
+      --encre-douce: #4d5a63;
+      --encre-faible: #7c8790;
+      --vert: #2c5f2d;
+      --vert-clair: #4a8c4a;
+      --or: #e2952f;
+      --corail: #e0684f;
+      --bord: rgba(28, 59, 87, 0.13);
+      --rayon: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--papier);
+      color: var(--encre);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3 {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      font-weight: 600;
+      color: var(--navy);
+      text-wrap: balance;
+      margin: 0;
+    }
+    p { margin: 0; }
+    a { color: inherit; }
+    img { max-width: 100%; display: block; }
+
+    .enveloppe { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+    /* — Nav — */
+    .nav {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(251, 250, 246, 0.92);
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--bord);
+    }
+    .nav .enveloppe { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; }
+    .nav__marque { display: flex; align-items: center; gap: 10px; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 18px; font-weight: 700; color: var(--navy); }
+    .nav__marque img { width: 34px; height: 34px; border-radius: 9px; }
+    .nav__liens { display: flex; align-items: center; gap: 26px; font-size: 14.5px; font-weight: 600; }
+    .nav__liens a:hover { color: var(--vert); }
+    .nav__liens a.bouton {
+      background: var(--vert); color: #fff; padding: 10px 18px; border-radius: 999px;
+      text-decoration: none;
+    }
+    .nav__liens a.bouton:hover { background: var(--vert-clair); }
+    @media (max-width: 640px) { .nav__liens a:not(.bouton) { display: none; } }
+
+    /* — Hero — */
+    .hero { padding: 72px 0 60px; overflow: hidden; position: relative; }
+    .hero__fond {
+      position: absolute; inset: -20% -10% auto -10%; height: 480px;
+      background: radial-gradient(60% 60% at 30% 20%, rgba(74,140,74,0.14), transparent),
+                  radial-gradient(50% 50% at 85% 10%, rgba(226,149,47,0.13), transparent);
+      z-index: -1;
+    }
+    .hero .enveloppe { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px; align-items: center; }
+    .hero__eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--vert); background: rgba(74,140,74,0.1); padding: 7px 14px 7px 10px; border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    .hero__eyebrow .point { width: 7px; height: 7px; border-radius: 50%; background: var(--vert); }
+    .hero h1 { font-size: clamp(32px, 4.2vw, 48px); line-height: 1.14; max-width: 15ch; margin-bottom: 20px; }
+    .hero h1 em { color: var(--vert); font-style: normal; }
+    .hero .sous { font-size: 17.5px; color: var(--encre-douce); max-width: 46ch; line-height: 1.65; margin-bottom: 30px; }
+    .hero__ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 30px; }
+    .cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 15.5px; font-weight: 700; padding: 15px 26px; border-radius: 999px;
+      text-decoration: none; border: 1.5px solid transparent;
+    }
+    .cta--primaire { background: var(--vert); color: #fff; }
+    .cta--primaire:hover { background: var(--vert-clair); }
+    .cta--secondaire { background: transparent; color: var(--navy); border-color: var(--bord); }
+    .cta--secondaire:hover { border-color: var(--navy); }
+    .hero__preuve { font-size: 13.5px; color: var(--encre-faible); }
+    .hero__preuve strong { color: var(--navy); }
+
+    .hero__badge {
+      background: var(--carte); border: 1px solid var(--bord); border-radius: 26px;
+      padding: 34px 30px; box-shadow: 0 18px 50px -22px rgba(28,59,87,0.35);
+      text-align: center;
+    }
+    .hero__badge img { width: 128px; height: 128px; margin: 0 auto 18px; }
+    .hero__badge .faits { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; text-align: left; }
+    .fait b { display: block; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 21px; color: var(--vert); line-height: 1.1; }
+    .fait span { font-size: 12px; color: var(--encre-faible); }
+    @media (max-width: 860px) { .hero .enveloppe { grid-template-columns: 1fr; } .hero__badge { max-width: 360px; margin: 0 auto; } }
+
+    /* — Section générique — */
+    section { padding: 68px 0; }
+    .section__tete { max-width: 60ch; margin-bottom: 40px; }
+    .eyebrow {
+      font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent, var(--vert)); display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; }
+    .section__tete h2 { font-size: clamp(24px, 2.8vw, 32px); line-height: 1.25; }
+
+    /* — Piliers — */
+    .piliers { display: flex; flex-direction: column; gap: 4px; }
+    .pilier {
+      display: grid; grid-template-columns: 84px 1fr; gap: 6px 28px;
+      padding: 34px 0; border-top: 1px solid var(--bord);
+    }
+    .pilier:last-child { border-bottom: 1px solid var(--bord); }
+    .pilier__chiffre {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      font-size: 15px; font-weight: 700; color: var(--accent, var(--vert));
+      border: 1.5px solid var(--accent, var(--vert)); border-radius: 50%;
+      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+    }
+    .pilier h3 { font-size: 21px; margin-bottom: 10px; max-width: 30ch; }
+    .pilier p.intro { color: var(--encre-douce); font-size: 15px; line-height: 1.7; max-width: 62ch; margin-bottom: 18px; }
+    .puces { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 22px; }
+    .puce {
+      display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--encre-douce); line-height: 1.5;
+    }
+    .puce::before {
+      content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, var(--vert));
+      margin-top: 7px; flex-shrink: 0;
+    }
+    .puce b { color: var(--encre); font-weight: 700; }
+    [data-pilier="1"] { --accent: var(--vert); }
+    [data-pilier="2"] { --accent: var(--navy-doux); }
+    [data-pilier="3"] { --accent: var(--or); }
+    [data-pilier="4"] { --accent: var(--corail); }
+    @media (max-width: 620px) { .pilier { grid-template-columns: 1fr; } .pilier__chiffre { margin-bottom: 6px; } }
+
+    /* — Et aussi — */
+    .aussi-bande { background: var(--navy); color: #fff; }
+    .aussi-bande .eyebrow { color: #a9c3d6; }
+    .aussi-bande .eyebrow::before { background: #a9c3d6; }
+    .aussi-bande h2 { color: #fff; }
+    .aussi__grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px 28px; }
+    .aussi__item h3 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15.5px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .aussi__item p { font-size: 14px; color: #c7d5e0; line-height: 1.6; }
+
+    /* — Fondations — */
+    .socle { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
+    .socle__item { background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 22px 22px 24px; }
+    .socle__item b { display: block; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 17px; color: var(--vert); margin-bottom: 6px; }
+    .socle__item span { font-size: 13.5px; color: var(--encre-douce); line-height: 1.55; }
+
+    /* — Tarif — */
+    .tarif { background: var(--carte); border: 1px solid var(--bord); border-radius: 24px; padding: 40px 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .tarif__col h3 { font-size: 18px; margin-bottom: 10px; }
+    .tarif__col p { font-size: 14.5px; color: var(--encre-douce); line-height: 1.65; }
+    .tarif__col + .tarif__col { border-left: 1px solid var(--bord); padding-left: 30px; }
+    @media (max-width: 640px) { .tarif { grid-template-columns: 1fr; } .tarif__col + .tarif__col { border-left: none; padding-left: 0; border-top: 1px solid var(--bord); padding-top: 24px; } }
+
+    /* — FAQ — */
+    .faq { display: flex; flex-direction: column; gap: 10px; max-width: 74ch; }
+    .faq details {
+      background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 4px 22px;
+    }
+    .faq summary {
+      cursor: pointer; padding: 16px 0; font-weight: 700; font-size: 15.5px; color: var(--navy);
+      list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after { content: "+"; font-size: 20px; color: var(--vert); font-weight: 400; flex-shrink: 0; }
+    .faq details[open] summary::after { content: "–"; }
+    .faq details p { font-size: 14.5px; color: var(--encre-douce); line-height: 1.65; padding: 0 0 18px; }
+
+    /* — Clôture — */
+    .cloture { background: var(--navy); color: #fff; text-align: center; padding: 76px 24px; }
+    .cloture h2 { color: #fff; font-size: clamp(26px, 3.2vw, 36px); max-width: 20ch; margin: 0 auto 16px; }
+    .cloture p { color: #c7d5e0; max-width: 48ch; margin: 0 auto 30px; font-size: 16px; line-height: 1.6; }
+    .cloture .hero__ctas { justify-content: center; }
+    .cloture .cta--secondaire { color: #fff; border-color: rgba(255,255,255,0.35); }
+    .cloture .cta--secondaire:hover { border-color: #fff; }
+
+    footer { padding: 34px 24px 44px; }
+    footer .enveloppe { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; font-size: 12.5px; color: var(--encre-faible); }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--vert); }
+    footer .liens { display: flex; gap: 18px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="enveloppe">
+      <div class="nav__marque"><img src="/icons/icon-192.png?v=20260817-1" alt="" />Plateforme-Agora</div>
+      <div class="nav__liens">
+        <a href="#fonctionnalites">Fonctionnalités</a>
+        <a href="#tarifs">Tarifs</a>
+        <a href="#faq">FAQ</a>
+        <a class="bouton" href="mailto:juicy.agency.formation@gmail.com?subject=Activer%20Plateforme-Agora%20pour%20ma%20commune">Activer ma commune</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="hero__fond"></div>
+    <div class="enveloppe">
+      <div>
+        <div class="hero__eyebrow"><span class="point"></span>La place publique numérique de votre commune</div>
+        <h1>La place du village, <em>réinventée</em> dans la poche de chaque habitant</h1>
+        <p class="sous">
+          Plateforme-Agora n'est pas une simple appli d'annonces municipales. C'est un espace
+          vivant où l'on s'informe, on s'entraide, on découvre son patrimoine, et où le conseil
+          municipal redevient joignable — pensé pour les petites communes, piloté par la mairie
+          seule, sans aucune compétence technique.
+        </p>
+        <div class="hero__ctas">
+          <a class="cta cta--primaire" href="mailto:juicy.agency.formation@gmail.com?subject=Activer%20Plateforme-Agora%20pour%20ma%20commune">Activer gratuitement ma commune</a>
+          <a class="cta cta--secondaire" href="#fonctionnalites">Découvrir les fonctionnalités</a>
+        </div>
+        <div class="hero__preuve">Déjà en place à <strong>Eaucourt-sur-Somme</strong> (Somme) — gérée par la mairie seule.</div>
+      </div>
+      <div class="hero__badge">
+        <img src="/icons/icon-192.png?v=20260817-1" alt="Plateforme-Agora" />
+        <p style="font-size:14px; color:var(--encre-douce); line-height:1.6">Une application, pensée comme une vraie place de village.</p>
+        <div class="faits">
+          <div class="fait"><b>14</b><span>modules</span></div>
+          <div class="fait"><b>100&nbsp;%</b><span>française &amp; souveraine</span></div>
+          <div class="fait"><b>0</b><span>compétence technique requise</span></div>
+          <div class="fait"><b>Gratuit</b><span>pour commencer</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="fonctionnalites">
+    <div class="enveloppe">
+      <div class="section__tete">
+        <div class="eyebrow">Ce que ça change, concrètement</div>
+        <h2>Quatre piliers, une seule application</h2>
+      </div>
+
+      <div class="piliers">
+        <div class="pilier" data-pilier="1">
+          <div class="pilier__chiffre">I</div>
+          <div>
+            <h3>L'engagement citoyen qui compte, et qui se compte</h3>
+            <p class="intro">Réunions, ateliers, chantiers participatifs, nettoyages, plantations, maraudes : chaque action organisée dans l'agenda peut être créditée en points, vérifiés par géolocalisation sur place — pas de déclaratif, pas de triche possible.</p>
+            <div class="puces">
+              <div class="puce"><span><b>Agenda &amp; inscriptions</b> — le calendrier vivant de la commune, en un geste.</span></div>
+              <div class="puce"><span><b>Points citoyens</b> — un score de participation suivi dans le temps.</span></div>
+              <div class="puce"><span><b>Présence vérifiée</b> — géolocalisation sur le lieu de l'action.</span></div>
+              <div class="puce"><span><b>Coups de main</b> — bricolage, jardinage, garde d'enfants, transport...</span></div>
+              <div class="puce"><span><b>Badges &amp; niveaux</b> — la régularité devient visible.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pilier" data-pilier="2">
+          <div class="pilier__chiffre">II</div>
+          <div>
+            <h3>Le conseil municipal, à portée de main</h3>
+            <p class="intro">Délibérations, comptes-rendus et trombinoscope publiés directement dans l'appli. Et le lien fonctionne dans les deux sens : un habitant signale, la mairie diffuse une alerte urgente en un instant.</p>
+            <div class="puces">
+              <div class="puce"><span><b>Conseil municipal</b> — délibérations, comptes-rendus, trombinoscope.</span></div>
+              <div class="puce"><span><b>Alertes &amp; signalements</b> — dans les deux sens, mairie ↔ habitants.</span></div>
+              <div class="puce"><span><b>Thermomètre citoyen</b> — un sondage rapide avant une décision.</span></div>
+              <div class="puce"><span><b>Mur des voisins</b> — un fil de discussion locale.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pilier" data-pilier="3">
+          <div class="pilier__chiffre">III</div>
+          <div>
+            <h3>Commerces, artisans, associations : enfin visibles</h3>
+            <p class="intro">Boulangerie, artisan menuisier, club de pétanque, association de parents d'élèves : chacun a sa fiche, classée par catégorie — plus de numéro punaisé sur un panneau depuis trois ans.</p>
+            <div class="puces">
+              <div class="puce"><span><b>Annuaire local</b> — commerces, artisans, associations, services publics.</span></div>
+              <div class="puce"><span><b>Fiches complètes</b> — contact, description, documents utiles.</span></div>
+              <div class="puce"><span><b>Recherche par catégorie</b> — un service trouvé en quelques secondes.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pilier" data-pilier="4">
+          <div class="pilier__chiffre">IV</div>
+          <div>
+            <h3>Le patrimoine et le territoire, racontés autrement</h3>
+            <p class="intro">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens — un devoir de mémoire vivant.</p>
+            <div class="puces">
+              <div class="puce"><span><b>Chasse au trésor</b> — un parcours géolocalisé à travers le patrimoine local.</span></div>
+              <div class="puce"><span><b>Mémoire du village</b> — témoignages et photos des anciens.</span></div>
+              <div class="puce"><span><b>Photo du jour &amp; Trouve la photo</b> — un rendez-vous quotidien.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="aussi-bande">
+    <div class="enveloppe">
+      <div class="section__tete">
+        <div class="eyebrow">Et aussi, dans la même application</div>
+        <h2>Tout ce qu'une petite mairie gère au quotidien</h2>
+      </div>
+      <div class="aussi__grille">
+        <div class="aussi__item"><h3>Actualités &amp; bulletin municipal</h3><p>Publier une fois, être lu partout — sans dépendre de la boîte aux lettres.</p></div>
+        <div class="aussi__item"><h3>Veille législative</h3><p>Suivi automatique des textes adoptés à l'Assemblée nationale et au Parlement européen.</p></div>
+        <div class="aussi__item"><h3>Calendrier des déchets</h3><p>Ordures ménagères, tri sélectif, verre, encombrants, déchets verts : le bon jour, au bon moment.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="enveloppe">
+      <div class="section__tete">
+        <div class="eyebrow">L'esprit du projet</div>
+        <h2>Des outils à la hauteur de l'engagement des petites communes</h2>
+      </div>
+      <div class="socle">
+        <div class="socle__item"><b>Souverain</b><span>Hébergement français, aucune dépendance à un géant américain.</span></div>
+        <div class="socle__item"><b>RGPD par construction</b><span>Droit à l'effacement, export des données, consentement clair.</span></div>
+        <div class="socle__item"><b>Piloté par la mairie</b><span>Aucune compétence technique requise, géré seule.</span></div>
+        <div class="socle__item"><b>Mobile d'abord</b><span>Aucune installation lourde, ça marche dans la poche.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tarifs">
+    <div class="enveloppe">
+      <div class="section__tete">
+        <div class="eyebrow">Tarifs</div>
+        <h2>Gratuit pour commencer, simple pour la suite</h2>
+      </div>
+      <div class="tarif">
+        <div class="tarif__col">
+          <h3>Palier gratuit</h3>
+          <p>Agenda et Alertes, sans limite de temps, sans carte bancaire. De quoi juger sur pièces avant d'aller plus loin — activé le jour même, avec un compte prêt à l'emploi pour la mairie.</p>
+        </div>
+        <div class="tarif__col">
+          <h3>Version complète</h3>
+          <p>Tous les modules, avec un tarif qui dépend simplement de la taille de la commune — sans surprise. Facturation annuelle, ou engagement 3 ans avec mois offerts. Réglé par mandat administratif, comme d'habitude.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="enveloppe">
+      <div class="section__tete">
+        <div class="eyebrow">Questions fréquentes</div>
+        <h2>Ce que les élus nous demandent le plus souvent</h2>
+      </div>
+      <div class="faq">
+        <details open>
+          <summary>C'est vraiment gratuit ?</summary>
+          <p>Oui : Agenda et Alertes sont accessibles gratuitement, sans limite de temps et sans carte bancaire. Le reste des modules s'active quand votre commune est prête à aller plus loin.</p>
+        </details>
+        <details>
+          <summary>Faut-il des compétences techniques pour la gérer ?</summary>
+          <p>Non. Plateforme-Agora est pensée pour qu'un maire ou un secrétariat de mairie la pilote seul, au quotidien, sans aucune notion technique.</p>
+        </details>
+        <details>
+          <summary>Combien de temps pour être en ligne ?</summary>
+          <p>Généralement le jour même : votre espace est créé et un compte provisoire vous est envoyé par email dès que vous nous contactez.</p>
+        </details>
+        <details>
+          <summary>Peut-on personnaliser l'application (couleurs, logo) ?</summary>
+          <p>Oui, les couleurs et le logo de la commune s'adaptent à son identité visuelle.</p>
+        </details>
+        <details>
+          <summary>Où sont hébergées nos données ?</summary>
+          <p>En France/Union européenne, chez des hébergeurs européens. Aucune dépendance à un service américain, conforme RGPD (droit à l'effacement, export des données).</p>
+        </details>
+        <details>
+          <summary>Combien coûte la version complète ?</summary>
+          <p>Le tarif dépend de la taille de la commune. Écrivez-nous ou appelez directement — on en discute sans engagement.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="cloture">
+    <div class="enveloppe">
+      <h2>Envie que votre commune ait la sienne&nbsp;?</h2>
+      <p>Répondez simplement à cet appel ou à un email — votre espace est en ligne, gratuitement pour commencer, généralement dans la journée.</p>
+      <div class="hero__ctas">
+        <a class="cta cta--primaire" href="mailto:juicy.agency.formation@gmail.com?subject=Activer%20Plateforme-Agora%20pour%20ma%20commune">Écrire à Léandre Sallé</a>
+        <a class="cta cta--secondaire" href="tel:+33648061097">06 48 06 10 97</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="enveloppe">
+      <span>Juicy Solutions — Léandre Sallé, élu à Eaucourt-sur-Somme · plateforme-agora.fr</span>
+      <div class="liens">
+        <a href="/mentions-legales">Mentions légales</a>
+        <a href="/confidentialite">Confidentialité</a>
+        <a href="/conditions-utilisation">CGU</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
