@@ -6,23 +6,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-51" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-51" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-51" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-52" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-52" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-52" />
 </head>
 <body>
-  <div class="bo-app" x-data="backoffice()" x-init="init()">
+  <div class="bo-app" x-data="backoffice()" x-init="init()"
+       @keydown.window.ctrl.k.prevent="ouvrirPalette()" @keydown.window.meta.k.prevent="ouvrirPalette()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-51" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-52" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
+      <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__pied">
         <div x-text="staff.nom"></div>
         <div style="margin-top:8px"><a @click.prevent="deconnexion()" href="#">Se déconnecter</a></div>
       </div>
     </nav>
+
+    <!-- Palette de recherche globale (Ctrl/Cmd+K) -->
+    <div class="bo-palette" x-show="paletteOuverte" x-cloak @keydown.escape.window="fermerPalette()">
+      <div class="bo-palette__fond" @click="fermerPalette()"></div>
+      <div class="bo-palette__boite">
+        <input type="text" x-model="paletteRecherche" @input.debounce.250ms="rechercherPalette()"
+               placeholder="Rechercher une commune ou un prospect…" x-ref="paletteInput" />
+        <div class="bo-palette__resultats">
+          <template x-if="paletteRecherche.trim() && paletteResultats.length === 0">
+            <div class="bo-palette__vide">Aucun résultat.</div>
+          </template>
+          <template x-for="r in paletteResultats" :key="r.type + r.id">
+            <div class="bo-palette__item" @click="allerVersResultatPalette(r)">
+              <span class="bo-palette__type" x-text="r.type === 'commune' ? 'Commune' : 'Prospect'"></span>
+              <span x-text="r.nom"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
 
     <!-- Contenu -->
     <main class="bo-main">
@@ -1326,10 +1348,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-51"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-51"></script>
-  <script src="/backoffice/js/api.js?v=20260817-51"></script>
-  <script src="/backoffice/js/app.js?v=20260817-51"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-51" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-52"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-52"></script>
+  <script src="/backoffice/js/api.js?v=20260817-52"></script>
+  <script src="/backoffice/js/app.js?v=20260817-52"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-52" defer></script>
 </body>
 </html>

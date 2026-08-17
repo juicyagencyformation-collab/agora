@@ -33,6 +33,9 @@ function backoffice() {
     tiroirsOuverts: (() => { try { return JSON.parse(localStorage.getItem('bo_tiroirs') || '{}'); } catch { return {}; } })(),
     communes: [],
     triCommunes: { cle: null, sens: 'asc' },
+    paletteOuverte: false,
+    paletteRecherche: '',
+    paletteResultats: [],
     fiche: null,
     erreurChargement: '',
     frequentation: null,
@@ -1023,6 +1026,41 @@ function backoffice() {
     },
     pct(n, total) {
       return total ? `${n} (${Math.round((n / total) * 100)}%)` : String(n);
+    },
+
+    // — Palette de recherche globale (Ctrl/Cmd+K) —
+    ouvrirPalette() {
+      this.paletteOuverte = true;
+      this.paletteRecherche = '';
+      this.paletteResultats = [];
+      this.$nextTick(() => this.$refs.paletteInput && this.$refs.paletteInput.focus());
+    },
+    fermerPalette() {
+      this.paletteOuverte = false;
+    },
+    async rechercherPalette() {
+      const q = this.paletteRecherche.trim();
+      if (!q) { this.paletteResultats = []; return; }
+      const qMin = q.toLowerCase();
+      const communesTrouvees = this.communes
+        .filter((c) => c.nom.toLowerCase().includes(qMin))
+        .slice(0, 8)
+        .map((c) => ({ type: 'commune', id: c.id, nom: c.nom }));
+
+      let prospectsTrouves = [];
+      try {
+        const r = await boFetch('/prospection/prospects?recherche=' + encodeURIComponent(q));
+        prospectsTrouves = r.prospects.slice(0, 8).map((p) => ({ type: 'prospect', id: p.id, nom: p.nom }));
+      } catch { /* recherche prospects non bloquante */ }
+
+      // Ignore une réponse arrivée après que la recherche ait changé entre-temps.
+      if (this.paletteRecherche.trim() !== q) return;
+      this.paletteResultats = [...communesTrouvees, ...prospectsTrouves];
+    },
+    allerVersResultatPalette(r) {
+      this.fermerPalette();
+      if (r.type === 'commune') this.ouvrirFiche(r.id);
+      else this.ouvrirProspect(r.id);
     },
     genererQr(url) {
       try {

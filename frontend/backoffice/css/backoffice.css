@@ -18,6 +18,29 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+[x-cloak] { display: none !important; }
+
+/* — Palette de recherche globale (Ctrl/Cmd+K) — */
+.bo-palette { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: center; padding-top: 12vh; }
+.bo-palette__fond { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.7); }
+.bo-palette__boite {
+  position: relative; width: 100%; max-width: 520px; height: fit-content;
+  background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5); overflow: hidden;
+}
+.bo-palette__boite input {
+  width: 100%; border: none; border-bottom: 1px solid var(--bo-border); border-radius: 0;
+  font-size: 16px; padding: 16px 18px; background: transparent;
+}
+.bo-palette__boite input:focus { outline: none; }
+.bo-palette__resultats { max-height: 340px; overflow-y: auto; }
+.bo-palette__item { display: flex; align-items: center; gap: 10px; padding: 12px 18px; cursor: pointer; font-size: 14.5px; }
+.bo-palette__item:hover { background: var(--bo-surface-2); }
+.bo-palette__type {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--bo-text-faible);
+  border: 1px solid var(--bo-border); border-radius: 6px; padding: 2px 7px; flex-shrink: 0;
+}
+.bo-palette__vide { padding: 18px; color: var(--bo-text-faible); font-size: 14px; text-align: center; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
