@@ -107,6 +107,8 @@ function backoffice() {
     prospects: [],
     apProsp: {},
     statsVariantes: [],
+    rattrapageEnCours: false,
+    rattrapageMsg: '',
     selectionProspects: {}, // id -> true
     pageProspects: 1,
     totalProspects: 0,
@@ -651,6 +653,22 @@ function backoffice() {
         this.lotMsg = e.message || 'Envoi impossible';
       } finally {
         this.lotEnCours = false;
+      }
+    },
+
+    async rattraperActivation() {
+      if (!confirm('Activer une commune gratuite et renvoyer la présentation (avec identifiants) à tous les prospects déjà contactés qui n\'en ont pas encore ? Jusqu\'à 40 par clic.')) return;
+      this.rattrapageEnCours = true;
+      this.rattrapageMsg = '';
+      try {
+        const r = await boFetch('/prospection/prospects/rattraper-activation', { method: 'POST' });
+        this.rattrapageMsg = `${r.envoyes} activé(s) et renvoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s).`
+          + (r.restants > 0 ? ` Il en reste ${r.restants} — reclique pour continuer.` : ' Tous traités.');
+        await this.chargerProspects();
+      } catch (e) {
+        this.rattrapageMsg = e.message || 'Échec';
+      } finally {
+        this.rattrapageEnCours = false;
       }
     },
 
