@@ -24,6 +24,23 @@ interface DonneesBienvenue {
   frontendUrl: string;
 }
 
+// Encart identifiants provisoires, réutilisé par l'email de bienvenue ET par l'email de
+// présentation quand il active une commune gratuite à la volée (voir envoyerPresentation).
+function blocIdentifiants(url: string, maireEmail: string, motDePasse: string): string {
+  return `
+    <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:20px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin-left:auto;margin-right:auto">
+      <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#1b2a1c">Vos identifiants provisoires</div>
+      <div style="font-size:14px;line-height:1.9;color:#1b2a1c">
+        Adresse&nbsp;: <a href="${url}" style="color:#2c5f2d">${echapper(url)}</a><br />
+        Identifiant&nbsp;: <strong>${echapper(maireEmail)}</strong><br />
+        Mot de passe&nbsp;: <strong style="font-family:monospace">${echapper(motDePasse)}</strong>
+      </div>
+      <div style="color:#5b6b5c;font-size:12px;margin-top:10px">
+        Pensez à modifier ce mot de passe dès votre première connexion, depuis votre profil.
+      </div>
+    </div>`;
+}
+
 export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const url = `${d.frontendUrl}/${d.slug}/`;
   const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
@@ -44,17 +61,7 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
       <a href="${url}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Ouvrir mon application</a>
     </p>
 
-    <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:20px 0">
-      <div style="font-weight:700;font-size:14px;margin-bottom:8px">Vos identifiants provisoires</div>
-      <div style="font-size:14px;line-height:1.9">
-        Adresse&nbsp;: <a href="${url}">${echapper(url)}</a><br />
-        Identifiant&nbsp;: <strong>${echapper(d.maireEmail)}</strong><br />
-        Mot de passe&nbsp;: <strong style="font-family:monospace">${echapper(d.motDePasse)}</strong>
-      </div>
-      <div style="color:#5b6b5c;font-size:12px;margin-top:10px">
-        Pensez à modifier ce mot de passe dès votre première connexion, depuis votre profil.
-      </div>
-    </div>
+    ${blocIdentifiants(url, d.maireEmail, d.motDePasse)}
 
     <p style="font-size:14px;color:#3a4a3b">
       Pour découvrir l'application en détail&nbsp;:
@@ -80,11 +87,11 @@ export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Prom
 
 // — Email de PRÉSENTATION (prospection ET communes clientes) : modèle éditable stocké en base
 //   (table modeles_email, cle='presentation'), réutilisé pour tous les envois. Variables
-//   substituées à l'envoi : {{commune}}, {{url}} (app ou démo), {{lien_fiche}}. Un défaut de
-//   secours est utilisé tant qu'aucun modèle n'a été enregistré. —
-// Commune de démo envoyée aux prospects (palier gratuit uniquement — voir migration
-// 035_commune_demo_gratuite.sql). Distincte d'Eaucourt, la vraie commune de Léandre.
-export const DEMO_SLUG = 'decouverte-gratuite';
+//   substituées à l'envoi : {{commune}}, {{url}}, {{lien_fiche}}. Un défaut de secours est
+//   utilisé tant qu'aucun modèle n'a été enregistré. Depuis le 2026-08-17, {{url}} pointe
+//   toujours vers la VRAIE commune du prospect (activée gratuitement à l'envoi, voir
+//   activerCommuneGratuite dans prospection.ts) — plus de démo partagée. La commune
+//   decouverte-gratuite (migration 035) n'est plus utilisée par ce flux mais reste en base. —
 
 export const MODELE_PRESENTATION_DEFAUT = {
   objet: 'Agora pour {{commune}} — gratuit pour commencer, conçu par un élu comme vous',
@@ -221,21 +228,24 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
   };
 }
 
-// Envoie l'email de présentation à partir du modèle enregistré, variables substituées (logo +
-// photo de signature). Images chargées par URL (domaine authentifié) — léger, aucun risque de
-// surcharge du Worker.
-export async function envoyerPresentation(env: any, contactEmail: string, ctx: ContextePresentation): Promise<{ variante: string | null }> {
+// Envoie l'email de présentation à partir du modèle enregistré (variante active), variables
+// substituées (logo + photo de signature). Images chargées par URL (domaine authentifié) —
+// léger, aucun risque de surcharge du Worker. Si `identifiants` est fourni (commune gratuite
+// activée à la volée pour ce prospect, voir prospection.ts), l'encart identifiants provisoires
+// est ajouté après le corps — un seul email, immédiatement exploitable, décision du 2026-08-17.
+export async function envoyerPresentation(
+  env: any, contactEmail: string, ctx: ContextePresentation,
+  identifiants?: { maireEmail: string; motDePasse: string },
+): Promise<{ variante: string | null }> {
   const modele = await chargerModelePresentation(env);
   const ctxComplet = {
     ...ctx,
     signaturePhoto: baliseSignature(modele.signature_image_url),
     logo: baliseLogo(modele.logo_image_url),
   };
-  await envoyerEmail(
-    env, contactEmail,
-    rendrePresentation(modele.objet, ctxComplet),
-    rendrePresentation(modele.corps_html, ctxComplet),
-  );
+  let corps = rendrePresentation(modele.corps_html, ctxComplet);
+  if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse);
+  await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps);
   return { variante: modele.nom || null };
 }
 

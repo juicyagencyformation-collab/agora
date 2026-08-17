@@ -27,15 +27,16 @@ const TOUS_LES_ONGLETS = [
 // onglets_gratuits, migration 036) au lieu d'être figé ici — voir chargerOngletsGratuits et
 // PUT /onglets-gratuits plus bas. Un changement de ce périmètre est GLOBAL et RÉTROACTIF :
 // il s'applique immédiatement à toutes les communes actuellement sur forfait = 'Gratuit'.
-async function chargerOngletsGratuits(env: any): Promise<string[]> {
+export async function chargerOngletsGratuits(env: any): Promise<string[]> {
   const rows = await supabaseSelect(env, 'onglets_gratuits', { select: 'cle' });
   return rows.map((r: any) => r.cle);
 }
 
 // Upsert manuel des 14 onglets pour une commune donnée, à partir de la liste des clés à
 // activer. onglets_config a UNIQUE(commune_id, cle) mais notre client REST ne fait pas
-// d'upsert natif : on complète ce qui existe déjà et on insère le reste.
-async function appliquerOngletsSurCommune(env: any, communeId: string, ongletsActifs: string[]): Promise<void> {
+// d'upsert natif : on complète ce qui existe déjà et on insère le reste. Exportée : réutilisée
+// par prospection.ts pour l'activation automatique d'une commune gratuite (voir prospecterUn).
+export async function appliquerOngletsSurCommune(env: any, communeId: string, ongletsActifs: string[]): Promise<void> {
   const existants = await supabaseSelect(env, 'onglets_config', { select: 'cle', commune_id: `eq.${communeId}` });
   const clesExistantes = new Set(existants.map((o: any) => o.cle));
   for (const cle of TOUS_LES_ONGLETS) {

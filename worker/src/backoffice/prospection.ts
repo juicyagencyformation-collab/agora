@@ -8,7 +8,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
-import { envoyerPresentation, contextePresentation, DEMO_SLUG } from './email-commune';
+import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
+import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
+import { hasherMotDePasse } from '../lib/password';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -240,8 +242,74 @@ app.post('/prospects/corriger-emails-invalides', async (c) => {
   return c.json({ ok: true, ...r });
 });
 
-// — Prospecter en un clic : enrichit si besoin, envoie l'email de présentation à la mairie,
-//   journalise l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
+// — Slug unique pour une commune créée automatiquement (accents/majuscules retirés, dédoublonné
+//   par suffixe numérique). Partagé avec la logique d'activation ci-dessous. —
+function genererSlugBase(nom: string): string {
+  return nom
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 50) || 'commune';
+}
+
+async function genererSlugUnique(env: any, nom: string): Promise<string> {
+  const base = genererSlugBase(nom);
+  const existants = await supabaseSelect(env, 'communes', { select: 'slug', slug: `like.${base}*` });
+  const pris = new Set(existants.map((c: any) => c.slug));
+  if (!pris.has(base)) return base;
+  let n = 2;
+  while (pris.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
+}
+
+// Active une VRAIE commune gratuite pour ce prospect s'il n'en a pas déjà une (plus de démo
+// partagée), et (re)génère un mot de passe provisoire pour son compte maire à CHAQUE envoi — un
+// prospect encore en cours de prospection n'a pas de mot de passe « définitif » à préserver ;
+// une fois « gagné », ce flux n'est plus jamais appelé (voir prospecterUn, qui court-circuite
+// avant). Décision business du 2026-08-17 : zéro friction, chaque prospect reçoit son propre
+// espace fonctionnel dès le premier envoi de présentation, gratuitement.
+async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; maireEmail: string; motDePasse: string }> {
+  let communeId: string = prospect.commune_id || '';
+
+  if (!communeId) {
+    const slug = await genererSlugUnique(env, prospect.nom);
+    const [commune] = await supabaseInsert(env, 'communes', {
+      nom: prospect.nom, slug,
+      population: prospect.population ?? null,
+      lat: prospect.lat ?? null, lng: prospect.lng ?? null,
+      forfait: 'Gratuit', niveau_national: false,
+    });
+    communeId = commune.id;
+    await appliquerOngletsSurCommune(env, communeId, await chargerOngletsGratuits(env));
+    await supabaseUpdate(env, 'prospects', { commune_id: communeId }, { id: `eq.${prospect.id}` });
+  }
+
+  const [communeActuelle] = await supabaseSelect(env, 'communes', { select: 'slug', id: `eq.${communeId}` });
+
+  const motDePasse = genererMotDePasseTemporaire();
+  const [maire] = await supabaseSelect(env, 'users', {
+    select: 'id,email', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc',
+  });
+  let maireEmail: string;
+  if (maire) {
+    maireEmail = maire.email;
+    await supabaseUpdate(env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${maire.id}` });
+  } else {
+    maireEmail = prospect.contact_email;
+    await supabaseInsert(env, 'users', {
+      commune_id: communeId, email: maireEmail, password_hash: await hasherMotDePasse(motDePasse),
+      prenom: 'Maire de', nom: prospect.nom, role: 'maire',
+      consentement_rgpd_le: new Date().toISOString(),
+    });
+  }
+
+  return { slug: communeActuelle.slug, maireEmail, motDePasse };
+}
+
+// — Prospecter en un clic : enrichit si besoin, active une commune gratuite pour le prospect
+//   (s'il n'en a pas déjà une), envoie l'email de présentation avec ses identifiants, journalise
+//   l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
 // Traite un prospect : enrichit si besoin, envoie l'email, journalise, met à jour statut/relance.
 // Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
 async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{ resultat: 'envoye' | 'sans_email' | 'saute'; email?: string }> {
@@ -258,18 +326,25 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   }
   if (!email || emailInvalide) return { resultat: 'sans_email' };
 
-  const { variante } = await envoyerPresentation(env, email, contextePresentation(env.FRONTEND_URL, prospect.nom, DEMO_SLUG));
+  const nouvelleActivation = !prospect.commune_id;
+  const activation = await activerCommuneGratuite(env, { ...prospect, contact_email: email });
+  const ctx = contextePresentation(env.FRONTEND_URL, prospect.nom, activation.slug);
+  const { variante } = await envoyerPresentation(env, email, ctx, {
+    maireEmail: activation.maireEmail, motDePasse: activation.motDePasse,
+  });
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
   await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
 
-  // Trace la variante utilisée (A/B testing) : permet de comparer plus tard le devenir des
-  // prospects contactés selon le texte reçu, sans système de stats dédié.
+  // Trace la variante utilisée (A/B testing) et l'activation éventuelle : permet de comparer
+  // plus tard le devenir des prospects contactés, sans système de stats dédié.
   await supabaseInsert(env, 'prospect_interactions', {
     prospect_id: prospect.id, staff_id: staffId,
-    type: 'email', contenu: `Email de présentation envoyé à ${email}${variante ? ` (variante : ${variante})` : ''}`,
+    type: 'email',
+    contenu: `Email de présentation envoyé à ${email}${variante ? ` (variante : ${variante})` : ''}`
+      + (nouvelleActivation ? ` — commune activée gratuitement (${activation.slug})` : ''),
   });
   return { resultat: 'envoye', email };
 }
@@ -277,7 +352,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
 app.post('/prospects/:id/prospecter', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut', id: `eq.${id}`,
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id', id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
@@ -296,7 +371,7 @@ app.post('/prospecter-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 communes par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id',
     id: `in.(${body.data.ids.join(',')})`,
   });
 

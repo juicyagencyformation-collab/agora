@@ -635,7 +635,7 @@ function backoffice() {
       const ids = Object.keys(this.selectionProspects);
       if (!ids.length) return;
       if (ids.length > 40) { this.lotMsg = 'Maximum 40 communes par envoi.'; return; }
-      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ?`)) return;
+      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune.`)) return;
       this.lotEnCours = true;
       this.lotMsg = '';
       try {
@@ -667,8 +667,11 @@ function backoffice() {
       }
     },
 
-    // Envoi direct depuis une ligne de la liste (sans ouvrir la fiche).
+    // Envoi direct depuis une ligne de la liste (sans ouvrir la fiche). Crée la commune en
+    // gratuit si elle n'existe pas encore (voir activerCommuneGratuite côté Worker) : confirmation
+    // nécessaire, ce n'est plus un simple envoi d'email.
     async envoyerPresentationLigne(p) {
+      if (!confirm(`Envoyer la présentation à ${p.nom} ? Si cette commune n'a pas encore d'espace, il sera créé à l'instant en version gratuite, avec un compte maire.`)) return;
       this.envoiLigneId = p.id;
       try {
         await boFetch('/prospection/prospects/' + p.id + '/prospecter', { method: 'POST' });
@@ -711,7 +714,7 @@ function backoffice() {
     },
 
     async prospecter() {
-      if (!confirm('Envoyer l\'email de présentation à la mairie et marquer la commune comme contactée ?')) return;
+      if (!confirm('Envoyer la présentation à la mairie ? Si cette commune n\'a pas encore d\'espace, il sera créé à l\'instant en version gratuite, avec un compte maire (identifiants envoyés dans l\'email).')) return;
       this.prospEnCours = true;
       this.prospMsg = '';
       try {
