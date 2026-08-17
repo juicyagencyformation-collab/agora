@@ -97,6 +97,23 @@ app.get('/prospects', async (c) => {
   return c.json({ prospects, page, taille: TAILLE_PAGE_PROSPECTS, total });
 });
 
+// GET /prospects/candidats-rattrapage — liste légère (id + nom) des prospects déjà contactés
+// AVANT la mise en place de l'activation automatique (2026-08-17), donc toujours sans commune.
+// Le rattrapage lui-même se fait ENSUITE côté client, un appel à POST /prospects/:id/prospecter
+// à la fois (voir frontend/backoffice/js/app.js, rattraperActivation) — délibérément PAS un
+// traitement en lot côté Worker : cumuler plusieurs activations (annuaire + Supabase + Resend +
+// hachage PBKDF2 par prospect) dans UNE SEULE invocation s'est révélé intermittent (limite de
+// temps/CPU cumulée, non rattrapable par un simple try/catch côté code). Un appel par prospect
+// hérite de la fiabilité déjà éprouvée du bouton d'envoi unitaire.
+// IMPORTANT : doit rester déclarée AVANT GET /prospects/:id ci-dessous, sinon Hono matche
+// « candidats-rattrapage » comme un :id et la requête échoue (bug déjà rencontré le 2026-08-17).
+app.get('/prospects/candidats-rattrapage', async (c) => {
+  const candidats = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom', commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)', order: 'nom.asc', limit: '500',
+  });
+  return c.json({ candidats });
+});
+
 // — Carte : uniquement les prospects géolocalisés (lat renseignée). Se remplit au fil de
 //   l'enrichissement. Filtre département optionnel. —
 app.get('/carte', async (c) => {
@@ -451,21 +468,6 @@ app.post('/prospecter-lot', async (c) => {
 
   const r = await traiterLot(c.env, c.get('staff_id'), prospects);
   return c.json({ ok: true, ...r });
-});
-
-// GET /prospects/candidats-rattrapage — liste légère (id + nom) des prospects déjà contactés
-// AVANT la mise en place de l'activation automatique (2026-08-17), donc toujours sans commune.
-// Le rattrapage lui-même se fait ENSUITE côté client, un appel à POST /prospects/:id/prospecter
-// à la fois (voir frontend/backoffice/js/app.js, rattraperActivation) — délibérément PAS un
-// traitement en lot côté Worker : cumuler plusieurs activations (annuaire + Supabase + Resend +
-// hachage PBKDF2 par prospect) dans UNE SEULE invocation s'est révélé intermittent (limite de
-// temps/CPU cumulée, non rattrapable par un simple try/catch côté code). Un appel par prospect
-// hérite de la fiabilité déjà éprouvée du bouton d'envoi unitaire.
-app.get('/prospects/candidats-rattrapage', async (c) => {
-  const candidats = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom', commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)', order: 'nom.asc', limit: '500',
-  });
-  return c.json({ candidats });
 });
 
 // — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —
