@@ -129,17 +129,32 @@ app.get('/carte', async (c) => {
 
 // — Aperçu : compteurs par statut + relances dues aujourd'hui —
 app.get('/apercu', async (c) => {
-  const prospects = await supabaseSelect(c.env, 'prospects', { select: 'statut,prochaine_relance_le' });
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'statut,prochaine_relance_le,commune_id', limit: '20000',
+  });
   const parStatut: Record<string, number> = {};
   for (const s of STATUTS) parStatut[s] = 0;
   const aujourdhui = new Date().toISOString().slice(0, 10);
   let a_relancer = 0;
+  // Contactés (au sens large : ont reçu au moins une présentation) mais toujours sans commune
+  // réelle — ce que traite « Activer et renvoyer ». Distingué de ceux déjà activés, pour
+  // vérifier précisément l'avancement du rattrapage plutôt que de se fier à un seul message.
+  let contactes_sans_commune = 0;
+  let contactes_avec_commune = 0;
+  const STATUTS_CONTACTES = ['contacte', 'relance', 'rdv'];
   for (const p of prospects) {
     parStatut[p.statut] = (parStatut[p.statut] ?? 0) + 1;
     if (p.prochaine_relance_le && p.prochaine_relance_le <= aujourdhui &&
         p.statut !== 'gagne' && p.statut !== 'perdu') a_relancer += 1;
+    if (STATUTS_CONTACTES.includes(p.statut)) {
+      if (p.commune_id) contactes_avec_commune += 1;
+      else contactes_sans_commune += 1;
+    }
   }
-  return c.json({ total: prospects.length, par_statut: parStatut, a_relancer });
+  return c.json({
+    total: prospects.length, par_statut: parStatut, a_relancer,
+    contactes_sans_commune, contactes_avec_commune,
+  });
 });
 
 // — Fiche + timeline —

@@ -721,6 +721,7 @@ function backoffice() {
       }
       this.rattrapageMsg = `Terminé : ${ok} activé(s) et renvoyé(s), ${echecs} en échec (email manquant/invalide ou erreur).`;
       await this.chargerProspects();
+      try { this.apProsp = await boFetch('/prospection/apercu'); } catch {}
       this.rattrapageEnCours = false;
     },
 
