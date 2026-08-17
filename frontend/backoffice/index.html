@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-46" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-46" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-46" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-47" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-47" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-47" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-46" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-47" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -544,6 +544,25 @@
                     <div class="bo-freq-barre" :style="'height:' + (maxFreq() ? Math.round(s.count / maxFreq() * 100) : 0) + '%'" :title="s.jour + ' : ' + s.count + ' connexion(s)'"></div>
                   </template>
                 </div>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="historiqueProspection.prospect">
+            <div>
+              <div class="bo-section-titre">Historique de prospection</div>
+              <div class="bo-carte" style="padding:14px 18px">
+                <div class="bo-info" style="margin-bottom:8px" x-text="'Devenue cliente depuis le prospect « ' + historiqueProspection.prospect.nom + ' » (statut : ' + historiqueProspection.prospect.statut + ').'"></div>
+                <template x-for="(it, i) in historiqueProspection.interactions" :key="i">
+                  <div class="bo-timeline-item">
+                    <span class="bo-timeline__type"><span class="bo-badge" x-text="libelleType(it.type)"></span></span>
+                    <div class="bo-timeline__corps">
+                      <div x-text="it.contenu"></div>
+                      <div class="bo-timeline__meta" x-text="formatDateHeure(it.created_at)"></div>
+                    </div>
+                  </div>
+                </template>
+                <template x-if="historiqueProspection.interactions.length === 0"><div class="bo-vide">Aucun échange enregistré.</div></template>
               </div>
             </div>
           </template>
@@ -1240,10 +1259,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-46"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-46"></script>
-  <script src="/backoffice/js/api.js?v=20260817-46"></script>
-  <script src="/backoffice/js/app.js?v=20260817-46"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-46" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-47"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-47"></script>
+  <script src="/backoffice/js/api.js?v=20260817-47"></script>
+  <script src="/backoffice/js/app.js?v=20260817-47"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-47" defer></script>
 </body>
 </html>

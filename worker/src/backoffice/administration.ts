@@ -521,6 +521,24 @@ app.get('/communes/:id/frequentation', async (c) => {
   });
 });
 
+// GET /communes/:id/historique-prospection — retrace le parcours commercial : le prospect qui a
+// donné naissance à cette commune (prospects.commune_id -> communes.id, posé à l'activation ou
+// à la conversion manuelle) et sa timeline d'échanges (prospect_interactions), autrement
+// invisible une fois la conversion faite. Lecture seule ; l'ajout d'échanges reste sur la fiche
+// prospect tant qu'il en existe une.
+app.get('/communes/:id/historique-prospection', async (c) => {
+  const id = c.req.param('id');
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,statut', commune_id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ prospect: null, interactions: [] });
+
+  const interactions = await supabaseSelect(c.env, 'prospect_interactions', {
+    select: 'type,contenu,created_at', prospect_id: `eq.${prospect.id}`, order: 'created_at.desc',
+  });
+  return c.json({ prospect, interactions });
+});
+
 // GET /communes/:id/doublons — comptes partageant le même nom + prénom (normalisés), groupes
 // de 2+. Purement INDICATIF (homonymes possibles, pas une preuve de multi-compte) et en lecture
 // seule. Exclut les comptes anonymisés (RGPD).

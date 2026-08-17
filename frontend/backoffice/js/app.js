@@ -37,6 +37,7 @@ function backoffice() {
     erreurChargement: '',
     frequentation: null,
     doublons: [],
+    historiqueProspection: { prospect: null, interactions: [] },
     rgpd: null,
     qrCommune: '',
     rolesGerables: ['citoyen', 'admin', 'elu', 'maire'],
@@ -200,6 +201,7 @@ function backoffice() {
       this.presentMsg = '';
       this.frequentation = null;
       this.doublons = [];
+      this.historiqueProspection = { prospect: null, interactions: [] };
       this.rgpd = null;
       this.qrCommune = '';
       try {
@@ -210,6 +212,7 @@ function backoffice() {
         this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
         try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
+        try { this.historiqueProspection = await boFetch('/administration/communes/' + id + '/historique-prospection'); } catch {}
         try { this.rgpd = await boFetch('/administration/communes/' + id + '/rgpd'); } catch {}
         this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
         this.devisMsg = '';
