@@ -517,6 +517,33 @@ app.post('/prospecter-lot', async (c) => {
   return c.json({ ok: true, ...r });
 });
 
+// PATCH /prospects/statut-lot — change le statut de plusieurs prospects d'un coup (ex. archiver
+// en masse les perdus). Doit rester déclarée AVANT PATCH /prospects/:id ci-dessous, sinon Hono
+// matche "statut-lot" comme un :id (même piège que candidats-rattrapage, voir plus haut).
+const statutLotSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(200), statut: z.enum(STATUTS) });
+
+app.patch('/prospects/statut-lot', async (c) => {
+  const body = statutLotSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Sélection ou statut invalide (1 à 200 prospects).' }, 400);
+  const staffId = c.get('staff_id');
+
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,statut', id: `in.(${body.data.ids.join(',')})`,
+  });
+
+  let modifies = 0;
+  for (const prospect of prospects) {
+    if (prospect.statut === body.data.statut) continue;
+    await supabaseUpdate(c.env, 'prospects', { statut: body.data.statut, updated_at: new Date().toISOString() }, { id: `eq.${prospect.id}` });
+    await supabaseInsert(c.env, 'prospect_interactions', {
+      prospect_id: prospect.id, staff_id: staffId,
+      type: 'statut', contenu: `Statut : ${prospect.statut} → ${body.data.statut} (action groupée)`,
+    });
+    modifies += 1;
+  }
+  return c.json({ ok: true, modifies });
+});
+
 // — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —
 const patchSchema = z.object({
   statut: z.enum(STATUTS).optional(),

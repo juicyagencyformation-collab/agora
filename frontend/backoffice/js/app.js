@@ -127,6 +127,8 @@ function backoffice() {
     tailleProspects: 100,
     lotEnCours: false,
     lotMsg: '',
+    statutLotChoisi: '',
+    statutLotEnCours: false,
     envoiLigneId: null,   // id du prospect dont l'envoi ligne est en cours
     dernierEnvoiId: null, // id du dernier prospect envoyé (pour le ✓)
     filtreStatut: '',
@@ -695,6 +697,27 @@ function backoffice() {
         this.lotMsg = e.message || 'Envoi impossible';
       } finally {
         this.lotEnCours = false;
+      }
+    },
+
+    async appliquerStatutLot() {
+      const ids = Object.keys(this.selectionProspects);
+      if (!ids.length || !this.statutLotChoisi) return;
+      if (!confirm(`Passer ${ids.length} prospect(s) au statut « ${this.libelleStatut(this.statutLotChoisi)} » ?`)) return;
+      this.statutLotEnCours = true;
+      this.lotMsg = '';
+      try {
+        const r = await boFetch('/prospection/prospects/statut-lot', {
+          method: 'PATCH', body: JSON.stringify({ ids, statut: this.statutLotChoisi }),
+        });
+        this.lotMsg = `${r.modifies} prospect(s) mis à jour.`;
+        this.statutLotChoisi = '';
+        this.selectionProspects = {};
+        await this.chargerProspects();
+      } catch (e) {
+        this.lotMsg = e.message || 'Échec';
+      } finally {
+        this.statutLotEnCours = false;
       }
     },
 

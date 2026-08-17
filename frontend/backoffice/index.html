@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-48" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-48" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-48" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-49" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-49" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-49" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-48" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-49" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -935,9 +935,14 @@
           </div>
 
           <!-- Barre d'action groupée -->
-          <div class="bo-outils" x-show="sousVueProspection === 'liste' && nbSelection() > 0" style="justify-content:space-between">
+          <div class="bo-outils" x-show="sousVueProspection === 'liste' && nbSelection() > 0" style="justify-content:space-between; flex-wrap:wrap; row-gap:10px">
             <span class="bo-info" x-text="nbSelection() + ' commune(s) sélectionnée(s)' + (nbSelection() > 40 ? ' — max 40 par envoi' : '')"></span>
-            <div style="display:flex; align-items:center; gap:10px">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+              <select x-model="statutLotChoisi" style="width:auto">
+                <option value="">Changer le statut…</option>
+                <template x-for="s in statuts" :key="s"><option :value="s" x-text="libelleStatut(s)"></option></template>
+              </select>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerStatutLot()" :disabled="!statutLotChoisi || statutLotEnCours">Appliquer</button>
               <span class="bo-info" x-text="lotMsg"></span>
               <button class="bo-btn bo-btn--compact" @click="envoyerLot()" :disabled="lotEnCours || nbSelection() > 40"
                       x-text="lotEnCours ? 'Envoi…' : ('✉ Envoyer la présentation aux ' + nbSelection() + ' sélectionnés')"></button>
@@ -1261,10 +1266,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-48"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-48"></script>
-  <script src="/backoffice/js/api.js?v=20260817-48"></script>
-  <script src="/backoffice/js/app.js?v=20260817-48"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-48" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-49"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-49"></script>
+  <script src="/backoffice/js/api.js?v=20260817-49"></script>
+  <script src="/backoffice/js/app.js?v=20260817-49"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-49" defer></script>
 </body>
 </html>
