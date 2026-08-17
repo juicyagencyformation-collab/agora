@@ -32,6 +32,7 @@ function backoffice() {
     // l'agencement préféré d'une visite à l'autre.
     tiroirsOuverts: (() => { try { return JSON.parse(localStorage.getItem('bo_tiroirs') || '{}'); } catch { return {}; } })(),
     communes: [],
+    triCommunes: { cle: null, sens: 'asc' },
     fiche: null,
     erreurChargement: '',
     frequentation: null,
@@ -1038,6 +1039,49 @@ function backoffice() {
         return { icone: '🟡', titre: 'Échéance dans ' + j + ' j (' + this.formatDate(c.prochaine_echeance) + ')' };
       }
       return { icone: '🟢', titre: 'Rien à signaler' };
+    },
+    // Rang numérique du badge de santé, pour le tri (🔴 en premier = ce qui demande le plus
+    // d'attention en tête de liste en tri ascendant).
+    rangSante(c) {
+      const icone = this.santeCommune(c).icone;
+      return icone === '🔴' ? 0 : icone === '🟡' ? 1 : 2;
+    },
+    // Tri du tableau Communes clientes : clic sur un en-tête = trie par cette colonne (ré-clic =
+    // inverse le sens). Client-side, la liste est déjà entièrement chargée.
+    trierPar(cle) {
+      if (this.triCommunes.cle === cle) {
+        this.triCommunes.sens = this.triCommunes.sens === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.triCommunes = { cle, sens: 'asc' };
+      }
+    },
+    flecheTri(cle) {
+      if (this.triCommunes.cle !== cle) return '';
+      return this.triCommunes.sens === 'asc' ? ' ▲' : ' ▼';
+    },
+    communesTriees() {
+      const { cle, sens } = this.triCommunes;
+      if (!cle) return this.communes;
+      const valeur = (c) => {
+        if (cle === 'sante') return this.rangSante(c);
+        if (cle === 'statut_client') return this.libelleStatutClient(c.statut_client);
+        return c[cle];
+      };
+      const copie = [...this.communes];
+      copie.sort((a, b) => {
+        let va = valeur(a), vb = valeur(b);
+        // Valeurs manquantes toujours en fin de liste, quel que soit le sens.
+        const videA = va === null || va === undefined || va === '';
+        const videB = vb === null || vb === undefined || vb === '';
+        if (videA && videB) return 0;
+        if (videA) return 1;
+        if (videB) return -1;
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return sens === 'asc' ? cmp : -cmp;
+      });
+      return copie;
     },
     classeEcheance(dateStr) {
       const j = this.joursAvantEcheance(dateStr);

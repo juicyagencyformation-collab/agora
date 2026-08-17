@@ -108,6 +108,8 @@ input:focus { outline: none; border-color: var(--bo-accent); }
 .bo-carte { background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: var(--bo-radius); overflow: hidden; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 thead th { text-align: left; padding: 13px 18px; color: var(--bo-text-faible); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--bo-border); }
+.bo-th-tri { cursor: pointer; user-select: none; white-space: nowrap; }
+.bo-th-tri:hover { color: var(--bo-text); }
 tbody td { padding: 14px 18px; border-bottom: 1px solid var(--bo-border); }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr { cursor: pointer; }

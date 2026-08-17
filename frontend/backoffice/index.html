@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-41" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-41" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-41" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-42" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-42" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-42" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-41" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-42" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -51,10 +51,19 @@
           <div class="bo-carte">
             <table>
               <thead>
-                <tr><th title="Statut, échéance et délivrabilité en un coup d'œil">Santé</th><th>Commune</th><th>Statut</th><th>Population</th><th>Citoyens</th><th>Forfait</th><th>Note app</th><th>Cliente depuis</th></tr>
+                <tr>
+                  <th class="bo-th-tri" @click="trierPar('sante')" title="Statut, échéance et délivrabilité en un coup d'œil">Santé<span x-text="flecheTri('sante')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('nom')">Commune<span x-text="flecheTri('nom')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('statut_client')">Statut<span x-text="flecheTri('statut_client')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('population')">Population<span x-text="flecheTri('population')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('nb_citoyens')">Citoyens<span x-text="flecheTri('nb_citoyens')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('forfait')">Forfait<span x-text="flecheTri('forfait')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('note_moyenne')">Note app<span x-text="flecheTri('note_moyenne')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('created_at')">Cliente depuis<span x-text="flecheTri('created_at')"></span></th>
+                </tr>
               </thead>
               <tbody>
-                <template x-for="c in communes" :key="c.id">
+                <template x-for="c in communesTriees()" :key="c.id">
                   <tr @click="ouvrirFiche(c.id)">
                     <td><span class="bo-sante" :title="santeCommune(c).titre" x-text="santeCommune(c).icone"></span></td>
                     <td class="bo-nom-commune" x-text="c.nom"></td>
@@ -1041,10 +1050,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-41"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-41"></script>
-  <script src="/backoffice/js/api.js?v=20260817-41"></script>
-  <script src="/backoffice/js/app.js?v=20260817-41"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-41" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-42"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-42"></script>
+  <script src="/backoffice/js/api.js?v=20260817-42"></script>
+  <script src="/backoffice/js/app.js?v=20260817-42"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-42" defer></script>
 </body>
 </html>
