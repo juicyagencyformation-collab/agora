@@ -20,8 +20,10 @@ app.get('/fiche-contenu', async (c) => {
   return c.json(await chargerFiche(c.env));
 });
 
-// Webhook Resend (bounces / plaintes) — PUBLIC mais authentifié par SIGNATURE Svix (secret
-// RESEND_WEBHOOK_SECRET). Enregistre l'email rejeté et signale l'adresse sur le prospect.
+// Webhook Resend (bounces / plaintes / ouvertures / clics) — PUBLIC mais authentifié par
+// SIGNATURE Svix. Enregistre l'email rejeté et signale l'adresse sur le prospect ; alimente
+// aussi le suivi structuré des envois de prospection (envois_prospection, migration 040) pour
+// le funnel envoyé → ouvert → cliqué → rejeté par variante A/B.
 app.post('/webhook-resend', async (c) => {
   const corpsBrut = await c.req.text();
   const svixId = c.req.header('svix-id');
@@ -30,7 +32,11 @@ app.post('/webhook-resend', async (c) => {
 
   // Resend impose un webhook (donc un secret distinct) par type d'événement. On accepte
   // plusieurs secrets : la signature est valide si elle correspond à L'UN d'eux.
-  const secrets = [c.env.RESEND_WEBHOOK_SECRET, c.env.RESEND_WEBHOOK_SECRET_COMPLAINED].filter(Boolean);
+  // RESEND_WEBHOOK_SECRET_ENGAGEMENT : webhook dédié à email.opened/email.clicked, à créer dans
+  // Resend (Domaines → tracking activé) et pointer vers cette même URL.
+  const secrets = [
+    c.env.RESEND_WEBHOOK_SECRET, c.env.RESEND_WEBHOOK_SECRET_COMPLAINED, c.env.RESEND_WEBHOOK_SECRET_ENGAGEMENT,
+  ].filter(Boolean);
   let ok = false;
   for (const secret of secrets) {
     if (await verifierSignatureSvix(secret, svixId, svixTs, svixSig, corpsBrut)) { ok = true; break; }
@@ -63,6 +69,35 @@ app.post('/webhook-resend', async (c) => {
       // jusqu'ici seuls les prospects étaient tracés. Alimente le badge de santé du backoffice.
       await supabaseUpdate(c.env, 'communes', { email_invalide: true }, { contact_email: `eq.${email}` });
       await supabaseUpdate(c.env, 'communes', { email_invalide: true }, { email_mairie: `eq.${email}` });
+    }
+
+    const emailIdRejete = evt?.data?.email_id;
+    if (emailIdRejete) {
+      await supabaseUpdate(c.env, 'envois_prospection', { rejete_le: new Date().toISOString() }, {
+        resend_email_id: `eq.${emailIdRejete}`, rejete_le: 'is.null',
+      });
+    }
+  } else if (evt?.type === 'email.opened' || evt?.type === 'email.clicked') {
+    // Corrélation précise par resend_email_id (voir prospecterUn) — ne concerne que les envois
+    // de prospection, pas tous les emails de la plateforme (les autres n'ont pas de ligne
+    // envois_prospection, l'update ci-dessous est alors un no-op silencieux).
+    const emailId = evt?.data?.email_id;
+    if (emailId) {
+      const [envoi] = await supabaseSelect(c.env, 'envois_prospection', {
+        select: 'id,ouvert_le,clique_le', resend_email_id: `eq.${emailId}`,
+      });
+      if (envoi) {
+        // Ne garde que la PREMIÈRE ouverture/premier clic (des relectures répétées ne doivent
+        // pas fausser la date du premier signal d'intérêt).
+        if (evt.type === 'email.opened' && !envoi.ouvert_le) {
+          await supabaseUpdate(c.env, 'envois_prospection', { ouvert_le: new Date().toISOString() }, { id: `eq.${envoi.id}` });
+        }
+        if (evt.type === 'email.clicked' && !envoi.clique_le) {
+          await supabaseUpdate(c.env, 'envois_prospection', {
+            clique_le: new Date().toISOString(), lien_clique: evt?.data?.click?.link || null,
+          }, { id: `eq.${envoi.id}` });
+        }
+      }
     }
   }
   return c.json({ ok: true });

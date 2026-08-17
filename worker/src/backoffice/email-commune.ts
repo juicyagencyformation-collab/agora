@@ -236,7 +236,7 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
 export async function envoyerPresentation(
   env: any, contactEmail: string, ctx: ContextePresentation,
   identifiants?: { maireEmail: string; motDePasse: string },
-): Promise<{ variante: string | null }> {
+): Promise<{ variante: string | null; resendEmailId: string | null }> {
   const modele = await chargerModelePresentation(env);
   const ctxComplet = {
     ...ctx,
@@ -245,8 +245,8 @@ export async function envoyerPresentation(
   };
   let corps = rendrePresentation(modele.corps_html, ctxComplet);
   if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse);
-  await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps);
-  return { variante: modele.nom || null };
+  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps);
+  return { variante: modele.nom || null, resendEmailId };
 }
 
 // — Email de rappel d'échéance d'abonnement (envoyé ~60 jours avant, voir cron.ts). Simple et

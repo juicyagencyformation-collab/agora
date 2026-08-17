@@ -104,6 +104,7 @@ function backoffice() {
     typesInteraction: ['note', 'appel', 'email', 'courrier', 'rdv'],
     prospects: [],
     apProsp: {},
+    statsVariantes: [],
     selectionProspects: {}, // id -> true
     pageProspects: 1,
     totalProspects: 0,
@@ -142,6 +143,7 @@ function backoffice() {
           this.ongletsDisponibles = r.tous;
           this.ongletsGratuitsSelection = r.onglets;
         } catch {}
+        try { this.statsVariantes = (await boFetch('/prospection/stats-variantes')).variantes; } catch {}
       } catch {
         redirigerVersConnexion();
         return;
@@ -889,6 +891,9 @@ function backoffice() {
     toggleTiroir(cle) {
       this.tiroirsOuverts[cle] = !this.tiroirsOuverts[cle];
       localStorage.setItem('bo_tiroirs', JSON.stringify(this.tiroirsOuverts));
+    },
+    pct(n, total) {
+      return total ? `${n} (${Math.round((n / total) * 100)}%)` : String(n);
     },
     genererQr(url) {
       try {

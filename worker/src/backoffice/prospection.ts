@@ -242,6 +242,52 @@ app.post('/prospects/corriger-emails-invalides', async (c) => {
   return c.json({ ok: true, ...r });
 });
 
+// GET /stats-variantes — entonnoir envoyé → ouvert → cliqué → rejeté, par variante A/B, plus le
+// signal le plus fiable de tous : le maire s'est-il RÉELLEMENT connecté au moins une fois à la
+// commune activée (users.derniere_connexion_streak). Approximatif si un même prospect a reçu
+// plusieurs envois sous des variantes différentes (la connexion est alors comptée pour chacune) —
+// acceptable pour un funnel indicatif, pas un système de stats exhaustif.
+app.get('/stats-variantes', async (c) => {
+  const envois = await supabaseSelect(c.env, 'envois_prospection', {
+    select: 'prospect_id,variante,ouvert_le,clique_le,rejete_le', limit: '20000',
+  });
+
+  const prospectIds = [...new Set(envois.map((e: any) => e.prospect_id).filter(Boolean))];
+  const prospectCommune = new Map<string, string>();
+  if (prospectIds.length) {
+    const prospects = await supabaseSelect(c.env, 'prospects', {
+      select: 'id,commune_id', id: `in.(${prospectIds.join(',')})`,
+    });
+    for (const p of prospects) if (p.commune_id) prospectCommune.set(p.id, p.commune_id);
+  }
+
+  const communeIds = [...new Set(prospectCommune.values())];
+  const communesConnectees = new Set<string>();
+  if (communeIds.length) {
+    const maires = await supabaseSelect(c.env, 'users', {
+      select: 'commune_id,derniere_connexion_streak', role: 'eq.maire', commune_id: `in.(${communeIds.join(',')})`,
+    });
+    for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
+  }
+
+  const parVariante: Record<string, { envoyes: number; ouverts: number; cliques: number; rejetes: number; connectes: number }> = {};
+  for (const e of envois) {
+    const cle = e.variante || '(sans nom)';
+    const v = (parVariante[cle] ??= { envoyes: 0, ouverts: 0, cliques: 0, rejetes: 0, connectes: 0 });
+    v.envoyes += 1;
+    if (e.ouvert_le) v.ouverts += 1;
+    if (e.clique_le) v.cliques += 1;
+    if (e.rejete_le) v.rejetes += 1;
+    const communeId = e.prospect_id ? prospectCommune.get(e.prospect_id) : undefined;
+    if (communeId && communesConnectees.has(communeId)) v.connectes += 1;
+  }
+
+  const variantes = Object.entries(parVariante)
+    .map(([nom, v]) => ({ nom, ...v }))
+    .sort((a, b) => b.envoyes - a.envoyes);
+  return c.json({ variantes });
+});
+
 // — Slug unique pour une commune créée automatiquement (accents/majuscules retirés, dédoublonné
 //   par suffixe numérique). Partagé avec la logique d'activation ci-dessous. —
 function genererSlugBase(nom: string): string {
@@ -329,17 +375,26 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   const nouvelleActivation = !prospect.commune_id;
   const activation = await activerCommuneGratuite(env, { ...prospect, contact_email: email });
   const ctx = contextePresentation(env.FRONTEND_URL, prospect.nom, activation.slug);
-  const { variante } = await envoyerPresentation(env, email, ctx, {
+  const { variante, resendEmailId } = await envoyerPresentation(env, email, ctx, {
     maireEmail: activation.maireEmail, motDePasse: activation.motDePasse,
   });
+
+  // Ligne dédiée au suivi structuré (ouverture/clic/rejet via webhook Resend, voir index.ts et
+  // migration 040) — resend_email_id permet une corrélation précise, contrairement à un simple
+  // match par adresse email qui serait ambigu en cas d'envois successifs au même contact.
+  if (resendEmailId) {
+    await supabaseInsert(env, 'envois_prospection', {
+      prospect_id: prospect.id, resend_email_id: resendEmailId, email, variante,
+    });
+  }
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
   await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
 
-  // Trace la variante utilisée (A/B testing) et l'activation éventuelle : permet de comparer
-  // plus tard le devenir des prospects contactés, sans système de stats dédié.
+  // Trace la variante utilisée (A/B testing) et l'activation éventuelle dans l'historique lisible
+  // du prospect (distinct du suivi structuré ci-dessus, qui alimente les stats agrégées).
   await supabaseInsert(env, 'prospect_interactions', {
     prospect_id: prospect.id, staff_id: staffId,
     type: 'email',

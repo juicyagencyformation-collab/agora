@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-36" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-36" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-36" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-37" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-37" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-37" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-36" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-37" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -625,6 +625,40 @@
             <div class="bo-stat"><div class="bo-stat__val" x-text="apProsp.a_relancer ?? '—'"></div><div class="bo-stat__lib">À relancer</div></div>
           </div>
 
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('entonnoir')">
+              <span>Entonnoir de prospection (par variante)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.entonnoir}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.entonnoir">
+              <template x-if="statsVariantes.length === 0">
+                <div style="padding:16px 18px" class="bo-info">Aucun envoi suivi pour l'instant.</div>
+              </template>
+              <template x-if="statsVariantes.length > 0">
+                <table>
+                  <thead><tr><th>Variante</th><th>Envoyés</th><th>Ouverts</th><th>Cliqués</th><th>Rejetés</th><th>Connectés</th></tr></thead>
+                  <tbody>
+                    <template x-for="v in statsVariantes" :key="v.nom">
+                      <tr style="cursor:default">
+                        <td x-text="v.nom"></td>
+                        <td x-text="v.envoyes"></td>
+                        <td x-text="pct(v.ouverts, v.envoyes)"></td>
+                        <td x-text="pct(v.cliques, v.envoyes)"></td>
+                        <td x-text="pct(v.rejetes, v.envoyes)"></td>
+                        <td x-text="pct(v.connectes, v.envoyes)"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+              <div style="padding:12px 18px" class="bo-info">
+                « Connectés » = le maire s'est réellement connecté au moins une fois — signal plus fiable que l'ouverture
+                (faussée par Apple Mail qui précharge le pixel de tracking chez une partie des destinataires).
+                Ouvertures et clics nécessitent le tracking activé côté Resend (Domaines → Configuration).
+              </div>
+            </div>
+          </div>
+
           <!-- Import -->
           <form class="bo-form-import" @submit.prevent="importer()">
             <div class="bo-champ">
@@ -989,10 +1023,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-36"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-36"></script>
-  <script src="/backoffice/js/api.js?v=20260817-36"></script>
-  <script src="/backoffice/js/app.js?v=20260817-36"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-36" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-37"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-37"></script>
+  <script src="/backoffice/js/api.js?v=20260817-37"></script>
+  <script src="/backoffice/js/app.js?v=20260817-37"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-37" defer></script>
 </body>
 </html>
