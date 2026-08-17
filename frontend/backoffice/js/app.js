@@ -655,21 +655,45 @@ function backoffice() {
       }
     },
 
+    // Rattrapage traité un prospect à la fois (un appel /prospecter par prospect, pas un lot
+    // groupé côté Worker) : hérite de la fiabilité déjà éprouvée du bouton d'envoi unitaire,
+    // sans risque de limite cumulée sur une grosse liste. La barre de progression vient du fait
+    // que ça peut prendre un moment si la liste est longue.
     async rattraperActivation() {
-      if (!confirm('Activer une commune gratuite et renvoyer la présentation (avec identifiants) à tous les prospects déjà contactés qui n\'en ont pas encore ? Jusqu\'à 10 par clic.')) return;
       this.rattrapageEnCours = true;
-      this.rattrapageMsg = '';
+      this.rattrapageMsg = 'Recherche des prospects à rattraper…';
+      let candidats;
       try {
-        const r = await boFetch('/prospection/prospects/rattraper-activation', { method: 'POST' });
-        this.rattrapageMsg = `${r.envoyes} activé(s) et renvoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s)`
-          + (r.erreurs ? `, ${r.erreurs} en erreur` : '') + '.'
-          + (r.restants > 0 ? ` Il en reste ${r.restants} — reclique pour continuer.` : ' Tous traités.');
-        await this.chargerProspects();
+        candidats = (await boFetch('/prospection/prospects/candidats-rattrapage')).candidats;
       } catch (e) {
-        this.rattrapageMsg = e.message || 'Échec';
-      } finally {
+        this.rattrapageMsg = e.message || 'Échec de la recherche';
         this.rattrapageEnCours = false;
+        return;
       }
+      if (!candidats.length) {
+        this.rattrapageMsg = 'Aucun prospect à rattraper.';
+        this.rattrapageEnCours = false;
+        return;
+      }
+      if (!confirm(`Activer une commune gratuite et renvoyer la présentation (avec identifiants) à ${candidats.length} prospect(s) déjà contacté(s) ? Traité un par un, ça peut prendre un moment.`)) {
+        this.rattrapageMsg = '';
+        this.rattrapageEnCours = false;
+        return;
+      }
+      let ok = 0, echecs = 0;
+      for (let i = 0; i < candidats.length; i++) {
+        const p = candidats[i];
+        this.rattrapageMsg = `${i + 1}/${candidats.length} — ${p.nom}…`;
+        try {
+          await boFetch('/prospection/prospects/' + p.id + '/prospecter', { method: 'POST' });
+          ok += 1;
+        } catch (e) {
+          echecs += 1;
+        }
+      }
+      this.rattrapageMsg = `Terminé : ${ok} activé(s) et renvoyé(s), ${echecs} en échec (email manquant/invalide ou erreur).`;
+      await this.chargerProspects();
+      this.rattrapageEnCours = false;
     },
 
     async importer() {

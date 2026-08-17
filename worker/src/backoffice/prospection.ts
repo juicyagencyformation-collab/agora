@@ -453,23 +453,19 @@ app.post('/prospecter-lot', async (c) => {
   return c.json({ ok: true, ...r });
 });
 
-// POST /prospects/rattraper-activation — rattrapage en un clic pour les prospects déjà
-// contactés AVANT la mise en place de l'activation automatique (2026-08-17) : ils ont reçu
-// l'ancien email de présentation sans qu'aucune commune/compte réel n'existe derrière. Retrouve
-// tout seul les candidats (déjà contactés, toujours sans commune) et relance prospecterUn sur
-// chacun — même mécanisme que « envoyer la présentation » : ça crée la commune + le compte
-// maire + renvoie l'email avec les vrais identifiants. Plafonné à 10 par passage (chaque
-// activation est plus coûteuse qu'un renvoi simple : création de commune + compte, pas de
-// commune déjà en place à réutiliser) ; reclique si le message indique qu'il en reste.
-app.post('/prospects/rattraper-activation', async (c) => {
+// GET /prospects/candidats-rattrapage — liste légère (id + nom) des prospects déjà contactés
+// AVANT la mise en place de l'activation automatique (2026-08-17), donc toujours sans commune.
+// Le rattrapage lui-même se fait ENSUITE côté client, un appel à POST /prospects/:id/prospecter
+// à la fois (voir frontend/backoffice/js/app.js, rattraperActivation) — délibérément PAS un
+// traitement en lot côté Worker : cumuler plusieurs activations (annuaire + Supabase + Resend +
+// hachage PBKDF2 par prospect) dans UNE SEULE invocation s'est révélé intermittent (limite de
+// temps/CPU cumulée, non rattrapable par un simple try/catch côté code). Un appel par prospect
+// hérite de la fiabilité déjà éprouvée du bouton d'envoi unitaire.
+app.get('/prospects/candidats-rattrapage', async (c) => {
   const candidats = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id',
-    commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)', limit: '10',
+    select: 'id,nom', commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)', order: 'nom.asc', limit: '500',
   });
-
-  const r = await traiterLot(c.env, c.get('staff_id'), candidats);
-  const restants = await supabaseCount(c.env, 'prospects', { commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)' });
-  return c.json({ ok: true, traites: candidats.length, ...r, restants });
+  return c.json({ candidats });
 });
 
 // — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —
