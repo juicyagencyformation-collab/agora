@@ -105,6 +105,7 @@ function backoffice() {
     parametresEntrepriseMsg: '',
     staffListe: [],
     staffMsg: '',
+    journalActivite: [],
     echeances: [],
     facturesEnAttente: [],
     abonnementEnCours: false,
@@ -1098,6 +1099,13 @@ function backoffice() {
         const r = await boFetch('/administration/staff/' + s.id + '/reinitialiser-mdp', { method: 'POST' });
         this.staffMsg = `Nouveau mot de passe pour ${r.email} : ${r.mot_de_passe} — note-le, il ne sera plus affiché.`;
       } catch (e) { alert(e.message || 'Échec'); }
+    },
+
+    async chargerJournal() {
+      if (this.journalActivite.length) return;
+      try {
+        this.journalActivite = (await boFetch('/administration/journal-activite')).entrees;
+      } catch {}
     },
 
     async enregistrerParametresEntreprise() {

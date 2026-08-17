@@ -5,7 +5,7 @@
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount } from '../db';
+import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
 import {
@@ -323,6 +323,7 @@ app.patch('/communes/:id/statut', async (c) => {
   const body = z.object({ statut_client: z.enum(STATUTS_CLIENT) }).safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Statut invalide' }, 400);
   await supabaseUpdate(c.env, 'communes', { statut_client: body.data.statut_client }, { id: `eq.${id}` });
+  await journaliser(c.env, c.get('staff_id'), 'statut_commune_modifie', `Commune ${id} → ${body.data.statut_client}`);
   return c.json({ ok: true, statut_client: body.data.statut_client });
 });
 
@@ -754,6 +755,7 @@ app.delete('/communes/:id/utilisateurs/:userId', async (c) => {
     compte_supprime_le: new Date().toISOString(),
   }, { id: `eq.${userId}`, commune_id: `eq.${id}` });
 
+  await journaliser(c.env, c.get('staff_id'), 'utilisateur_anonymise', `Utilisateur ${userId} (rôle ${u.role}), commune ${id}`);
   return c.json({ ok: true });
 });
 
@@ -786,6 +788,7 @@ app.put('/grille-tarifaire', async (c) => {
     }, { id: `eq.${t.id}` }),
   ));
   await supabaseUpdate(c.env, 'parametres_facturation', { valeur: String(body.data.mois_offerts_3ans) }, { cle: 'eq.mois_offerts_3ans' });
+  await journaliser(c.env, c.get('staff_id'), 'grille_tarifaire_modifiee');
   return c.json({ ok: true });
 });
 
@@ -932,6 +935,8 @@ app.put('/onglets-gratuits', async (c) => {
     await appliquerOngletsSurCommune(c.env, commune.id, body.data.onglets);
   }
 
+  await journaliser(c.env, c.get('staff_id'), 'palier_gratuit_modifie',
+    `Nouveau périmètre : ${body.data.onglets.join(', ')} — appliqué rétroactivement à ${communesGratuites.length} commune(s)`);
   return c.json({ ok: true, onglets: body.data.onglets, nb_communes_mises_a_jour: communesGratuites.length });
 });
 
@@ -976,6 +981,9 @@ app.patch('/staff/:id', async (c) => {
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
   const maj = await supabaseUpdate(c.env, 'staff_backoffice', body.data, { id: `eq.${c.req.param('id')}` });
   if (!maj.length) return c.json({ erreur: 'Compte introuvable' }, 404);
+  if (body.data.actif !== undefined) {
+    await journaliser(c.env, c.get('staff_id'), 'compte_staff_modifie', `${maj[0].email} → ${body.data.actif ? 'actif' : 'désactivé'}`);
+  }
   return c.json({ ok: true });
 });
 
@@ -989,7 +997,26 @@ app.post('/staff/:id/reinitialiser-mdp', async (c) => {
 
   const motDePasse = genererMotDePasseTemporaire();
   await supabaseUpdate(c.env, 'staff_backoffice', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${id}` });
+  await journaliser(c.env, c.get('staff_id'), 'compte_staff_mdp_reinitialise', staff.email);
   return c.json({ ok: true, email: staff.email, mot_de_passe: motDePasse });
+});
+
+// GET /journal-activite — les 100 dernières actions à fort impact (voir journaliser() dans
+// ../db.ts et migration 043). Résout le nom du staff pour l'affichage (petit volume, pas besoin
+// d'un join PostgREST).
+app.get('/journal-activite', async (c) => {
+  const entrees = await supabaseSelect(c.env, 'journal_activite', {
+    select: 'id,staff_id,action,details,created_at', order: 'created_at.desc', limit: '100',
+  });
+  const staffIds = [...new Set(entrees.map((e: any) => e.staff_id).filter(Boolean))];
+  const noms = new Map<string, string>();
+  if (staffIds.length) {
+    const staff = await supabaseSelect(c.env, 'staff_backoffice', { select: 'id,nom', id: `in.(${staffIds.join(',')})` });
+    for (const s of staff) noms.set(s.id, s.nom);
+  }
+  return c.json({
+    entrees: entrees.map((e: any) => ({ ...e, staff_nom: e.staff_id ? (noms.get(e.staff_id) || '—') : 'système' })),
+  });
 });
 
 export default app;

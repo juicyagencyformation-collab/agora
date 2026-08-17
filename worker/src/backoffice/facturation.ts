@@ -7,7 +7,7 @@
 // PDF généré ici. Toutes les routes sont derrière backofficeMiddleware (données financières).
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
+import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 
 const app = new Hono();
@@ -170,6 +170,9 @@ app.patch('/factures/:id', async (c) => {
   if (body.data.statut === 'payee') patch.payee_le = new Date().toISOString();
   const maj = await supabaseUpdate(c.env, 'factures', patch, { id: `eq.${c.req.param('id')}` });
   if (!maj.length) return c.json({ erreur: 'Facture introuvable' }, 404);
+  if (body.data.statut === 'payee') {
+    await journaliser(c.env, c.get('staff_id'), 'facture_payee', `${maj[0].numero} — ${maj[0].montant_ttc} € TTC`);
+  }
   return c.json({ ok: true, facture: maj[0] });
 });
 

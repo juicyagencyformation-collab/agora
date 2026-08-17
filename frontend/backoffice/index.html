@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-50" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-50" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-50" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-51" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-51" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-51" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-50" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-51" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -366,6 +366,35 @@
                 </tbody>
               </table>
               <div style="padding:10px 18px" class="bo-info" x-text="staffMsg"></div>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('journal')">
+              <span>Journal d'activité</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.journal}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.journal" x-init="chargerJournal()">
+              <div style="padding:14px 18px 4px" class="bo-info">
+                Uniquement les actions à fort impact (palier gratuit, grille tarifaire, statut d'une commune,
+                anonymisation RGPD, comptes staff, facture soldée) — pas un journal exhaustif de toute activité.
+              </div>
+              <table>
+                <thead><tr><th>Qui</th><th>Action</th><th>Détail</th><th>Quand</th></tr></thead>
+                <tbody>
+                  <template x-for="e in journalActivite" :key="e.id">
+                    <tr style="cursor:default">
+                      <td x-text="e.staff_nom"></td>
+                      <td x-text="e.action"></td>
+                      <td><span :class="{ 'bo-vide': !e.details }" x-text="e.details || '—'"></span></td>
+                      <td x-text="formatDateHeure(e.created_at)"></td>
+                    </tr>
+                  </template>
+                  <template x-if="journalActivite.length === 0">
+                    <tr><td colspan="4" class="bo-vide" style="text-align:center">Aucune activité enregistrée.</td></tr>
+                  </template>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1297,10 +1326,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-50"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-50"></script>
-  <script src="/backoffice/js/api.js?v=20260817-50"></script>
-  <script src="/backoffice/js/app.js?v=20260817-50"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-50" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-51"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-51"></script>
+  <script src="/backoffice/js/api.js?v=20260817-51"></script>
+  <script src="/backoffice/js/app.js?v=20260817-51"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-51" defer></script>
 </body>
 </html>

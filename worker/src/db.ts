@@ -70,3 +70,13 @@ export async function supabaseDelete(env: any, table: string, filtres: Record<st
   });
   if (!res.ok) throw new Error(`Supabase delete ${table}: ${res.status} ${await res.text()}`);
 }
+
+// Journal d'activité MINIMAL (migration 043) : uniquement les actions à fort impact (palier
+// gratuit rétroactif, grille tarifaire, statut d'une commune, anonymisation RGPD, comptes
+// staff, facture soldée...). Ne doit JAMAIS faire échouer l'action réelle si l'écriture du
+// journal échoue — best-effort, erreur avalée.
+export async function journaliser(env: any, staffId: any, action: string, details?: string): Promise<void> {
+  try {
+    await supabaseInsert(env, 'journal_activite', { staff_id: staffId, action, details: details || null });
+  } catch { /* le journal ne doit jamais bloquer l'action réelle */ }
+}
