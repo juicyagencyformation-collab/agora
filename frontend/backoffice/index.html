@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-45" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-45" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-45" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-46" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-46" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-46" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-45" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-46" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -89,12 +89,13 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('echeances')">
-              <span>Échéances à venir (60 jours)<span class="bo-tiroir__compte" x-show="echeances.length" x-text="'— ' + echeances.length"></span></span>
+              <span>Facturation à traiter<span class="bo-tiroir__compte" x-show="echeances.length + facturesEnAttente.length" x-text="'— ' + (echeances.length + facturesEnAttente.length)"></span></span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.echeances}">▸</span>
             </button>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.echeances">
+              <div style="padding:14px 18px 4px" class="bo-info">Abonnements à renouveler (60 jours)</div>
               <template x-if="echeances.length === 0">
-                <div style="padding:16px 18px" class="bo-info">Aucune échéance dans les 60 prochains jours.</div>
+                <div style="padding:2px 18px 16px" class="bo-info">Aucune échéance dans les 60 prochains jours.</div>
               </template>
               <template x-if="echeances.length > 0">
                 <table>
@@ -107,6 +108,27 @@
                         <td><span :class="classeEcheance(e.prochaine_echeance)" x-text="joursAvantEcheance(e.prochaine_echeance) + ' j'"></span></td>
                         <td x-text="e.prix_annuel_ttc != null ? e.prix_annuel_ttc.toLocaleString('fr-FR') + ' €' : '—'"></td>
                         <td x-text="(e.duree_engagement_mois || 12) + ' mois'"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+
+              <div style="padding:14px 18px 4px; border-top:1px solid var(--bo-border); margin-top:6px" class="bo-info">Factures en attente de paiement</div>
+              <template x-if="facturesEnAttente.length === 0">
+                <div style="padding:2px 18px 16px" class="bo-info">Aucune facture en attente.</div>
+              </template>
+              <template x-if="facturesEnAttente.length > 0">
+                <table>
+                  <thead><tr><th>N°</th><th>Destinataire</th><th>Montant TTC</th><th>Échéance</th><th>Statut</th></tr></thead>
+                  <tbody>
+                    <template x-for="f in facturesEnAttente" :key="f.id">
+                      <tr @click="f.commune_id ? ouvrirFiche(f.commune_id) : null">
+                        <td x-text="f.numero"></td>
+                        <td x-text="f.nom_destinataire"></td>
+                        <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                        <td><span :class="classeEcheance(f.date_echeance)" x-text="formatDate(f.date_echeance)"></span></td>
+                        <td x-text="f.statut"></td>
                       </tr>
                     </template>
                   </tbody>
@@ -1218,10 +1240,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-45"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-45"></script>
-  <script src="/backoffice/js/api.js?v=20260817-45"></script>
-  <script src="/backoffice/js/app.js?v=20260817-45"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-45" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-46"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-46"></script>
+  <script src="/backoffice/js/api.js?v=20260817-46"></script>
+  <script src="/backoffice/js/app.js?v=20260817-46"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-46" defer></script>
 </body>
 </html>

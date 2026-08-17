@@ -103,6 +103,7 @@ function backoffice() {
     parametresEntrepriseEnCours: false,
     parametresEntrepriseMsg: '',
     echeances: [],
+    facturesEnAttente: [],
     abonnementEnCours: false,
     abonnementMsg: '',
     nouveauDevis: { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 },
@@ -177,7 +178,11 @@ function backoffice() {
         this.apercu = apercu;
         this.communes = liste.communes;
         try { this.emailsRejetes = (await boFetch('/administration/emails-rejetes')).emails; } catch {}
-        try { this.echeances = (await boFetch('/administration/echeances')).communes; } catch {}
+        try {
+          const r = await boFetch('/administration/echeances');
+          this.echeances = r.communes;
+          this.facturesEnAttente = r.factures;
+        } catch {}
       } catch (e) {
         // Ne pas rester silencieusement vide : afficher la cause (souvent une migration manquante).
         this.erreurChargement = e.message || 'Erreur de chargement des communes';

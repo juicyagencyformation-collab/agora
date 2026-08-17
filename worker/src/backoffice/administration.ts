@@ -794,7 +794,15 @@ app.get('/echeances', async (c) => {
     prochaine_echeance: `lte.${dans60Jours}`,
     order: 'prochaine_echeance.asc',
   });
-  return c.json({ communes });
+  // Factures non soldées, quel que soit leur statut (émise ou déposée sur Chorus Pro) — même
+  // logique d'alerte que les échéances d'abonnement ci-dessus, pour une seule vue "ce qui a
+  // besoin d'attention" plutôt que deux écrans séparés. nom_destinataire est dénormalisé sur la
+  // facture (capturé à sa création), pas besoin de jointure vers communes.
+  const factures = await supabaseSelect(c.env, 'factures', {
+    select: 'id,numero,commune_id,nom_destinataire,montant_ttc,date_echeance,statut',
+    statut: 'neq.payee', order: 'date_echeance.asc', limit: '500',
+  });
+  return c.json({ communes, factures });
 });
 
 // POST /communes/:id/onglets/preset — applique en un clic le palier « gratuit » (périmètre
