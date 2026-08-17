@@ -11,6 +11,7 @@ import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 import { hasherMotDePasse } from '../lib/password';
+import { versCsv } from '../lib/csv';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -95,6 +96,37 @@ app.get('/prospects', async (c) => {
   ]);
 
   return c.json({ prospects, page, taille: TAILLE_PAGE_PROSPECTS, total });
+});
+
+// GET /prospects-export.csv — mêmes filtres que la liste (statut/departement/recherche), mais
+// sans pagination : tout ce qui correspond, pour sauvegarde/analyse externe.
+app.get('/prospects-export.csv', async (c) => {
+  const where: Record<string, string> = {};
+  const statut = c.req.query('statut');
+  const departement = c.req.query('departement');
+  const recherche = c.req.query('recherche');
+  if (statut && STATUTS.includes(statut as any)) where.statut = `eq.${statut}`;
+  if (departement) where.departement = `eq.${departement.toUpperCase()}`;
+  if (recherche) where.nom = `ilike.*${recherche}*`;
+
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    ...where,
+    select: 'nom,departement,population,statut,contact_email,contact_telephone,site_web,prochaine_relance_le,created_at',
+    order: 'nom.asc', limit: '20000',
+  });
+  const csv = versCsv(prospects, [
+    { cle: 'nom', titre: 'Commune' }, { cle: 'departement', titre: 'Département' },
+    { cle: 'population', titre: 'Population' }, { cle: 'statut', titre: 'Statut' },
+    { cle: 'contact_email', titre: 'Email' }, { cle: 'contact_telephone', titre: 'Téléphone' },
+    { cle: 'site_web', titre: 'Site web' }, { cle: 'prochaine_relance_le', titre: 'Prochaine relance' },
+    { cle: 'created_at', titre: 'Ajouté le' },
+  ]);
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="prospects-${new Date().toISOString().slice(0, 10)}.csv"`,
+    },
+  });
 });
 
 // GET /prospects/candidats-rattrapage — liste légère (id + nom) des prospects déjà contactés

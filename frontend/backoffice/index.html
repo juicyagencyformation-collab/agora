@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-47" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-47" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-47" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-48" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-48" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-48" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-47" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-48" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -38,6 +38,7 @@
               <div class="bo-titre">Communes clientes</div>
               <div class="bo-sous">Suivi des communes actives sur la plateforme.</div>
             </div>
+            <a class="bo-btn bo-btn--sec bo-btn--compact" href="/api/backoffice/administration/communes-export.csv" download>⬇ Exporter en CSV</a>
           </div>
           <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
 
@@ -831,6 +832,7 @@
               <div class="bo-titre">Prospection</div>
               <div class="bo-sous">Communes françaises à démarcher, importées depuis l'open data officiel.</div>
             </div>
+            <a class="bo-btn bo-btn--sec bo-btn--compact" :href="urlExportProspects()" download>⬇ Exporter en CSV</a>
           </div>
           <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
 
@@ -1259,10 +1261,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-47"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-47"></script>
-  <script src="/backoffice/js/api.js?v=20260817-47"></script>
-  <script src="/backoffice/js/app.js?v=20260817-47"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-47" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-48"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-48"></script>
+  <script src="/backoffice/js/api.js?v=20260817-48"></script>
+  <script src="/backoffice/js/app.js?v=20260817-48"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-48" defer></script>
 </body>
 </html>

@@ -14,6 +14,7 @@ import {
   MODELE_PRESENTATION_DEFAUT,
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
+import { versCsv } from '../lib/csv';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -123,6 +124,29 @@ app.get('/communes', async (c) => {
   });
 
   return c.json({ communes: liste });
+});
+
+// GET /communes-export.csv — export brut, pour sauvegarde/analyse externe (aucun export natif
+// n'existait jusqu'ici en dehors d'une requête directe sur Supabase).
+app.get('/communes-export.csv', async (c) => {
+  const communes = await supabaseSelect(c.env, 'communes', {
+    select: 'nom,slug,statut_client,population,forfait,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,contact_email,created_at',
+    niveau_national: 'not.is.true', order: 'nom.asc', limit: '5000',
+  });
+  const csv = versCsv(communes, [
+    { cle: 'nom', titre: 'Commune' }, { cle: 'slug', titre: 'Slug' },
+    { cle: 'statut_client', titre: 'Statut' }, { cle: 'population', titre: 'Population' },
+    { cle: 'forfait', titre: 'Forfait' }, { cle: 'prix_annuel_ttc', titre: 'Prix annuel TTC' },
+    { cle: 'duree_engagement_mois', titre: 'Engagement (mois)' },
+    { cle: 'prochaine_echeance', titre: 'Prochaine échéance' },
+    { cle: 'contact_email', titre: 'Contact' }, { cle: 'created_at', titre: 'Cliente depuis' },
+  ]);
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="communes-${new Date().toISOString().slice(0, 10)}.csv"`,
+    },
+  });
 });
 
 // GET /communes/:id — fiche détaillée d'une commune cliente.

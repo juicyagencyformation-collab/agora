@@ -582,6 +582,13 @@ function backoffice() {
       this.pageProspects = 1;
       this.chargerProspects();
     },
+    urlExportProspects() {
+      const params = new URLSearchParams();
+      if (this.filtreStatut) params.set('statut', this.filtreStatut);
+      if (this.filtreDep) params.set('departement', this.filtreDep);
+      if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
+      return '/api/backoffice/prospection/prospects-export.csv' + (params.toString() ? '?' + params : '');
+    },
     nbPagesProspects() {
       return Math.max(1, Math.ceil(this.totalProspects / this.tailleProspects));
     },
