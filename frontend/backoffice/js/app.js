@@ -103,6 +103,8 @@ function backoffice() {
     parametresEntreprise: {},
     parametresEntrepriseEnCours: false,
     parametresEntrepriseMsg: '',
+    staffListe: [],
+    staffMsg: '',
     echeances: [],
     facturesEnAttente: [],
     abonnementEnCours: false,
@@ -1074,6 +1076,30 @@ function backoffice() {
         this.grilleEnCours = false;
       }
     },
+    async chargerStaff() {
+      if (this.staffListe.length) return; // déjà chargé, pas besoin de recharger à chaque ouverture du tiroir
+      try {
+        this.staffListe = (await boFetch('/administration/staff')).staff;
+      } catch (e) {
+        this.staffMsg = e.message || 'Échec du chargement';
+      }
+    },
+    async toggleStaffActif(s) {
+      const nouveauActif = !s.actif;
+      if (!confirm(`${nouveauActif ? 'Réactiver' : 'Désactiver'} le compte de ${s.nom} ?`)) return;
+      try {
+        await boFetch('/administration/staff/' + s.id, { method: 'PATCH', body: JSON.stringify({ actif: nouveauActif }) });
+        s.actif = nouveauActif;
+      } catch (e) { alert(e.message || 'Échec'); }
+    },
+    async reinitialiserMdpStaff(s) {
+      if (!confirm(`Générer un nouveau mot de passe provisoire pour ${s.nom} ?`)) return;
+      try {
+        const r = await boFetch('/administration/staff/' + s.id + '/reinitialiser-mdp', { method: 'POST' });
+        this.staffMsg = `Nouveau mot de passe pour ${r.email} : ${r.mot_de_passe} — note-le, il ne sera plus affiché.`;
+      } catch (e) { alert(e.message || 'Échec'); }
+    },
+
     async enregistrerParametresEntreprise() {
       this.parametresEntrepriseEnCours = true;
       this.parametresEntrepriseMsg = '';

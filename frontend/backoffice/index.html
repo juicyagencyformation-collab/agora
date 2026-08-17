@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-49" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-49" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-49" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-50" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-50" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-50" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-49" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-50" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -335,6 +335,37 @@
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerParametresEntreprise()" :disabled="parametresEntrepriseEnCours">Enregistrer</button>
                 <span class="bo-info" x-text="parametresEntrepriseMsg"></span>
               </div>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('staff')">
+              <span>Comptes staff</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.staff}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.staff" x-init="chargerStaff()">
+              <div style="padding:14px 18px 4px" class="bo-info">
+                Aucune création de compte ici, volontairement : un compte staff ne se crée qu'en base directement
+                (même principe que le rôle superadmin). Tu peux désactiver/réactiver un compte existant et
+                réinitialiser son mot de passe.
+              </div>
+              <table>
+                <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Dernière connexion</th><th></th></tr></thead>
+                <tbody>
+                  <template x-for="s in staffListe" :key="s.id">
+                    <tr style="cursor:default">
+                      <td x-text="s.nom"></td>
+                      <td x-text="s.email"></td>
+                      <td>
+                        <button class="bo-btn bo-btn--sec bo-btn--compact" @click="toggleStaffActif(s)" x-text="s.actif ? 'Actif — désactiver' : 'Inactif — réactiver'"></button>
+                      </td>
+                      <td x-text="s.derniere_connexion_at ? formatDateHeure(s.derniere_connexion_at) : 'jamais'"></td>
+                      <td><button class="bo-btn bo-btn--sec bo-btn--compact" @click="reinitialiserMdpStaff(s)">Réinitialiser mdp</button></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <div style="padding:10px 18px" class="bo-info" x-text="staffMsg"></div>
             </div>
           </div>
 
@@ -1266,10 +1297,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-49"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-49"></script>
-  <script src="/backoffice/js/api.js?v=20260817-49"></script>
-  <script src="/backoffice/js/app.js?v=20260817-49"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-49" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-50"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-50"></script>
+  <script src="/backoffice/js/api.js?v=20260817-50"></script>
+  <script src="/backoffice/js/app.js?v=20260817-50"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-50" defer></script>
 </body>
 </html>

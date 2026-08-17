@@ -955,4 +955,41 @@ app.get('/apercu', async (c) => {
   });
 });
 
+// — Comptes staff (Léandre & co) — AUCUN endpoint de création ici, volontairement : les comptes
+// staff se créent uniquement en base directement (voir migration 023, même principe que le rôle
+// superadmin — jamais attribuable via une interface). On expose seulement la liste, la
+// désactivation/réactivation, et une réinitialisation de mot de passe (montré une seule fois,
+// jamais stocké en clair, jamais envoyé par email automatiquement — à communiquer soi-même).
+
+app.get('/staff', async (c) => {
+  const staff = await supabaseSelect(c.env, 'staff_backoffice', {
+    select: 'id,email,nom,actif,derniere_connexion_at,created_at', order: 'nom.asc',
+  });
+  return c.json({ staff });
+});
+
+const staffPatchSchema = z.object({ nom: z.string().min(1).max(100).optional(), actif: z.boolean().optional() });
+
+app.patch('/staff/:id', async (c) => {
+  const body = staffPatchSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+  const maj = await supabaseUpdate(c.env, 'staff_backoffice', body.data, { id: `eq.${c.req.param('id')}` });
+  if (!maj.length) return c.json({ erreur: 'Compte introuvable' }, 404);
+  return c.json({ ok: true });
+});
+
+// POST /staff/:id/reinitialiser-mdp — génère un nouveau mot de passe provisoire, renvoyé UNE
+// FOIS dans la réponse (jamais loggé, jamais emailé automatiquement) : à communiquer soi-même
+// à la personne concernée par un canal de son choix.
+app.post('/staff/:id/reinitialiser-mdp', async (c) => {
+  const id = c.req.param('id');
+  const [staff] = await supabaseSelect(c.env, 'staff_backoffice', { select: 'id,email', id: `eq.${id}` });
+  if (!staff) return c.json({ erreur: 'Compte introuvable' }, 404);
+
+  const motDePasse = genererMotDePasseTemporaire();
+  await supabaseUpdate(c.env, 'staff_backoffice', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${id}` });
+  return c.json({ ok: true, email: staff.email, mot_de_passe: motDePasse });
+});
+
 export default app;
