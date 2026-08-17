@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-39" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-39" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-39" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-40" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-40" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-40" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-39" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-40" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -673,7 +673,7 @@
             <div style="display:flex; align-items:center; gap:10px">
               <span class="bo-info" x-text="rattrapageMsg"></span>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="rattraperActivation()" :disabled="rattrapageEnCours"
-                      x-text="rattrapageEnCours ? 'Activation…' : 'Activer et renvoyer (jusqu\'à 40)'"></button>
+                      x-text="rattrapageEnCours ? 'Activation…' : 'Activer et renvoyer (jusqu\'à 10)'"></button>
             </div>
           </div>
 
@@ -1041,10 +1041,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-39"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-39"></script>
-  <script src="/backoffice/js/api.js?v=20260817-39"></script>
-  <script src="/backoffice/js/app.js?v=20260817-39"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-39" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-40"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-40"></script>
+  <script src="/backoffice/js/api.js?v=20260817-40"></script>
+  <script src="/backoffice/js/app.js?v=20260817-40"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-40" defer></script>
 </body>
 </html>

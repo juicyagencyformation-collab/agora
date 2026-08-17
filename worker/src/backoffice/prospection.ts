@@ -417,6 +417,25 @@ app.post('/prospects/:id/prospecter', async (c) => {
   return c.json({ ok: true, email: r.email });
 });
 
+// Traite un lot de prospects en séquence, SANS jamais laisser l'échec d'un seul (données
+// inattendues, timeout annuaire, etc.) interrompre les suivants ni faire planter toute la
+// requête (500 opaque côté backoffice) — chaque prospect est isolé dans son propre try/catch.
+async function traiterLot(env: any, staffId: string, prospects: any[]): Promise<{ envoyes: number; sans_email: number; ignores: number; erreurs: number }> {
+  let envoyes = 0, sans_email = 0, ignores = 0, erreurs = 0;
+  for (const prospect of prospects) {
+    try {
+      const r = await prospecterUn(env, staffId, prospect);
+      if (r.resultat === 'envoye') envoyes += 1;
+      else if (r.resultat === 'sans_email') sans_email += 1;
+      else ignores += 1;
+    } catch (err) {
+      console.error(`prospecterUn a échoué pour le prospect ${prospect.id} (${prospect.nom}) :`, err);
+      erreurs += 1;
+    }
+  }
+  return { envoyes, sans_email, ignores, erreurs };
+}
+
 // — Envoi groupé : prospecte plusieurs communes sélectionnées en une fois. Plafonné (limites
 //   Resend + sous-requêtes Worker + délivrabilité) et traité en séquence. —
 const lotSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(40) });
@@ -430,15 +449,8 @@ app.post('/prospecter-lot', async (c) => {
     id: `in.(${body.data.ids.join(',')})`,
   });
 
-  const staffId = c.get('staff_id');
-  let envoyes = 0, sans_email = 0, ignores = 0;
-  for (const prospect of prospects) {
-    const r = await prospecterUn(c.env, staffId, prospect);
-    if (r.resultat === 'envoye') envoyes += 1;
-    else if (r.resultat === 'sans_email') sans_email += 1;
-    else ignores += 1;
-  }
-  return c.json({ ok: true, envoyes, sans_email, ignores });
+  const r = await traiterLot(c.env, c.get('staff_id'), prospects);
+  return c.json({ ok: true, ...r });
 });
 
 // POST /prospects/rattraper-activation — rattrapage en un clic pour les prospects déjà
@@ -446,25 +458,18 @@ app.post('/prospecter-lot', async (c) => {
 // l'ancien email de présentation sans qu'aucune commune/compte réel n'existe derrière. Retrouve
 // tout seul les candidats (déjà contactés, toujours sans commune) et relance prospecterUn sur
 // chacun — même mécanisme que « envoyer la présentation » : ça crée la commune + le compte
-// maire + renvoie l'email avec les vrais identifiants. Plafonné à 40 par passage comme
-// /prospecter-lot ; reclique si le message indique qu'il en reste.
+// maire + renvoie l'email avec les vrais identifiants. Plafonné à 10 par passage (chaque
+// activation est plus coûteuse qu'un renvoi simple : création de commune + compte, pas de
+// commune déjà en place à réutiliser) ; reclique si le message indique qu'il en reste.
 app.post('/prospects/rattraper-activation', async (c) => {
-  const staffId = c.get('staff_id');
   const candidats = await supabaseSelect(c.env, 'prospects', {
     select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id',
-    commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)', limit: '40',
+    commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)', limit: '10',
   });
 
-  let envoyes = 0, sans_email = 0, ignores = 0;
-  for (const prospect of candidats) {
-    const r = await prospecterUn(c.env, staffId, prospect);
-    if (r.resultat === 'envoye') envoyes += 1;
-    else if (r.resultat === 'sans_email') sans_email += 1;
-    else ignores += 1;
-  }
-
+  const r = await traiterLot(c.env, c.get('staff_id'), candidats);
   const restants = await supabaseCount(c.env, 'prospects', { commune_id: 'is.null', statut: 'in.(contacte,relance,rdv)' });
-  return c.json({ ok: true, traites: candidats.length, envoyes, sans_email, ignores, restants });
+  return c.json({ ok: true, traites: candidats.length, ...r, restants });
 });
 
 // — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —

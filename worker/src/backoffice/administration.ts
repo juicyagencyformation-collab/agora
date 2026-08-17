@@ -36,9 +36,20 @@ export async function chargerOngletsGratuits(env: any): Promise<string[]> {
 // activer. onglets_config a UNIQUE(commune_id, cle) mais notre client REST ne fait pas
 // d'upsert natif : on complète ce qui existe déjà et on insère le reste. Exportée : réutilisée
 // par prospection.ts pour l'activation automatique d'une commune gratuite (voir prospecterUn).
+// Cas fréquent (commune neuve, aucune ligne existante) traité en UN SEUL insert group plutôt
+// que 14 requêtes individuelles — un lot d'activations en masse (prospecterUn en boucle)
+// pouvait sinon accumuler des centaines de sous-requêtes en une seule invocation Worker.
 export async function appliquerOngletsSurCommune(env: any, communeId: string, ongletsActifs: string[]): Promise<void> {
   const existants = await supabaseSelect(env, 'onglets_config', { select: 'cle', commune_id: `eq.${communeId}` });
   const clesExistantes = new Set(existants.map((o: any) => o.cle));
+
+  if (clesExistantes.size === 0) {
+    await supabaseInsert(env, 'onglets_config', TOUS_LES_ONGLETS.map((cle) => ({
+      commune_id: communeId, cle, actif: ongletsActifs.includes(cle),
+    })));
+    return;
+  }
+
   for (const cle of TOUS_LES_ONGLETS) {
     const actif = ongletsActifs.includes(cle);
     if (clesExistantes.has(cle)) {

@@ -646,9 +646,8 @@ function backoffice() {
       this.lotMsg = '';
       try {
         const r = await boFetch('/prospection/prospecter-lot', { method: 'POST', body: JSON.stringify({ ids }) });
-        this.lotMsg = `${r.envoyes} envoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s).`;
+        this.lotMsg = `${r.envoyes} envoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s)${r.erreurs ? `, ${r.erreurs} en erreur` : ''}.`;
         await this.chargerProspects();
-        this.lotMsg = `${r.envoyes} envoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s).`;
       } catch (e) {
         this.lotMsg = e.message || 'Envoi impossible';
       } finally {
@@ -657,12 +656,13 @@ function backoffice() {
     },
 
     async rattraperActivation() {
-      if (!confirm('Activer une commune gratuite et renvoyer la présentation (avec identifiants) à tous les prospects déjà contactés qui n\'en ont pas encore ? Jusqu\'à 40 par clic.')) return;
+      if (!confirm('Activer une commune gratuite et renvoyer la présentation (avec identifiants) à tous les prospects déjà contactés qui n\'en ont pas encore ? Jusqu\'à 10 par clic.')) return;
       this.rattrapageEnCours = true;
       this.rattrapageMsg = '';
       try {
         const r = await boFetch('/prospection/prospects/rattraper-activation', { method: 'POST' });
-        this.rattrapageMsg = `${r.envoyes} activé(s) et renvoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s).`
+        this.rattrapageMsg = `${r.envoyes} activé(s) et renvoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s)`
+          + (r.erreurs ? `, ${r.erreurs} en erreur` : '') + '.'
           + (r.restants > 0 ? ` Il en reste ${r.restants} — reclique pour continuer.` : ' Tous traités.');
         await this.chargerProspects();
       } catch (e) {
