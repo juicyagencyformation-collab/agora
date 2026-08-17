@@ -6,15 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-42" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-42" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-42" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-43" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-43" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-43" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-42" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-43" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -243,6 +243,74 @@
               <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer la grille</button>
                 <span class="bo-info" x-text="grilleMsg"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('entreprise')">
+              <span>Informations légales de l'entreprise (devis &amp; factures)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.entreprise}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.entreprise">
+              <div class="bo-info" style="margin-bottom:12px">
+                Ces informations apparaissent sur chaque devis et facture générés. Une facture adressée à une
+                commune (administration publique) doit ensuite être déposée sur <strong>Chorus Pro</strong>
+                (obligatoire depuis 2020) — ce backoffice génère le PDF conforme, le dépôt reste manuel.
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0 16px">
+                <div>
+                  <label style="margin-top:0">Raison sociale</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_raison_sociale" />
+                </div>
+                <div>
+                  <label style="margin-top:0">Forme juridique</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_forme_juridique" placeholder="ex. Entreprise individuelle" />
+                </div>
+                <div>
+                  <label>SIRET (14 chiffres)</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_siret" maxlength="14" />
+                </div>
+                <div>
+                  <label>Email</label>
+                  <input type="email" x-model="parametresEntreprise.entreprise_email" />
+                </div>
+                <div>
+                  <label>Adresse</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_adresse" />
+                </div>
+                <div>
+                  <label>Code postal &amp; ville</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_cp_ville" />
+                </div>
+                <div>
+                  <label>Téléphone</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_telephone" />
+                </div>
+                <div>
+                  <label>Mention TVA</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_mention_tva" />
+                </div>
+                <div>
+                  <label>IBAN</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_iban" />
+                </div>
+                <div>
+                  <label>BIC</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_bic" />
+                </div>
+                <div>
+                  <label>Délai de paiement (jours)</label>
+                  <input type="number" min="1" max="90" x-model="parametresEntreprise.entreprise_delai_paiement_jours" />
+                </div>
+                <div>
+                  <label>Taux de pénalités de retard</label>
+                  <input type="text" x-model="parametresEntreprise.entreprise_taux_penalites" placeholder="à confirmer avec ton comptable" />
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerParametresEntreprise()" :disabled="parametresEntrepriseEnCours">Enregistrer</button>
+                <span class="bo-info" x-text="parametresEntrepriseMsg"></span>
               </div>
             </div>
           </div>
@@ -540,6 +608,87 @@
               <span class="bo-info" x-text="abonnementMsg"></span>
               <span x-show="fiche.commune.prochaine_echeance" :class="classeEcheance(fiche.commune.prochaine_echeance)" x-text="fiche.commune.prochaine_echeance ? ' · ' + joursAvantEcheance(fiche.commune.prochaine_echeance) + ' jour(s) avant échéance' : ''"></span>
             </div>
+          </div>
+
+          <div class="bo-section-titre">Devis &amp; facturation</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div class="bo-info" style="margin-bottom:12px">
+              Une facture adressée à cette commune doit être déposée sur <strong>Chorus Pro</strong> (obligatoire
+              pour toute administration publique depuis 2020) — ce backoffice génère le PDF conforme, le dépôt reste manuel.
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px">
+              <div class="bo-champ-inline" style="flex:2; min-width:200px">
+                <label style="margin-top:0">Objet</label>
+                <input type="text" x-model="nouveauDevis.objet" placeholder="ex. Abonnement annuel — Version complète" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Montant HT</label>
+                <input type="number" min="0" step="10" x-model.number="nouveauDevis.montant_ht" style="width:110px" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">TVA %</label>
+                <input type="number" min="0" max="100" step="0.1" x-model.number="nouveauDevis.taux_tva" style="width:80px" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Engagement</label>
+                <select x-model.number="nouveauDevis.duree_engagement_mois" style="width:auto">
+                  <option :value="12">1 an</option>
+                  <option :value="36">3 ans</option>
+                </select>
+              </div>
+              <button class="bo-btn bo-btn--compact" @click="creerDevis()" :disabled="devisEnCours || !nouveauDevis.objet || !nouveauDevis.montant_ht">Créer le devis</button>
+            </div>
+            <span class="bo-info" x-text="devisMsg"></span>
+
+            <table style="margin-top:10px" x-show="devisListe.length">
+              <thead><tr><th>N°</th><th>Objet</th><th>Montant TTC</th><th>Statut</th><th>Bon de commande</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="d in devisListe" :key="d.id">
+                  <tr style="cursor:default">
+                    <td x-text="d.numero"></td>
+                    <td x-text="d.objet"></td>
+                    <td x-text="d.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td>
+                      <select x-model="d.statut" @change="changerStatutDevis(d)" style="width:auto">
+                        <template x-for="s in ['envoye','accepte','refuse','expire']" :key="s">
+                          <option :value="s" x-text="s"></option>
+                        </template>
+                      </select>
+                    </td>
+                    <td>
+                      <span x-show="d.bon_commande_recu_le" class="bo-info" x-text="'Reçu · ' + formatDate(d.bon_commande_recu_le)"></span>
+                      <button x-show="!d.bon_commande_recu_le" class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerBonCommande(d)">Marquer reçu</button>
+                    </td>
+                    <td style="display:flex; gap:6px">
+                      <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=devis&id=' + d.id" target="_blank">Voir / PDF</a>
+                      <button x-show="d.statut === 'accepte' && d.bon_commande_recu_le && !d.facture_id" class="bo-btn bo-btn--compact" @click="genererFacture(d)">Facturer</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+
+            <table style="margin-top:16px" x-show="facturesListe.length">
+              <thead><tr><th>N°</th><th>Objet</th><th>Montant TTC</th><th>Échéance</th><th>Statut</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="f in facturesListe" :key="f.id">
+                  <tr style="cursor:default">
+                    <td x-text="f.numero"></td>
+                    <td x-text="f.objet"></td>
+                    <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td x-text="formatDate(f.date_echeance)"></td>
+                    <td>
+                      <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
+                        <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
+                          <option :value="s" x-text="s"></option>
+                        </template>
+                      </select>
+                    </td>
+                    <td><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
 
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px">
@@ -1050,10 +1199,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-42"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-42"></script>
-  <script src="/backoffice/js/api.js?v=20260817-42"></script>
-  <script src="/backoffice/js/app.js?v=20260817-42"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-42" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260817-43"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-43"></script>
+  <script src="/backoffice/js/api.js?v=20260817-43"></script>
+  <script src="/backoffice/js/app.js?v=20260817-43"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260817-43" defer></script>
 </body>
 </html>

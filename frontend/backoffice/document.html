@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!-- frontend/backoffice/document.html — devis ou facture imprimable (A4), généré depuis les
+     données du backoffice. Paramètres d'URL : ?type=devis|facture&id=<uuid>. Protégé (données
+     financières) : nécessite une session backoffice valide, contrairement à fiche.html. -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Document — Backoffice Plateforme-Agora</title>
+  <link rel="icon" href="/backoffice/logo.png?v=20260817-2" />
+  <style>
+    :root {
+      --navy: #1c3b57; --vert: #2c5f2d; --encre: #1b2a1c; --gris: #5b6b5c;
+      --bord: #dfe7df; --fond-doux: #f4f8f4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--encre); background: #e9ede9; line-height: 1.5; }
+
+    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 10px; justify-content: flex-end; padding: 0 12px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--vert); color: #fff; }
+    .btn--sec { background: #fff; color: var(--vert); border: 1px solid var(--vert); }
+
+    .feuille { width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; padding: 20mm 18mm; box-shadow: 0 8px 30px rgba(0,0,0,.12); }
+
+    header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid var(--navy); padding-bottom: 16px; }
+    .marque { font-size: 22px; font-weight: 800; color: var(--navy); }
+    .emetteur { font-size: 12.5px; color: var(--gris); margin-top: 6px; line-height: 1.6; }
+    .titre-doc { text-align: right; }
+    .titre-doc h1 { font-size: 22px; color: var(--navy); }
+    .titre-doc .numero { font-size: 14px; color: var(--gris); margin-top: 2px; }
+
+    .meta { display: flex; justify-content: space-between; margin: 26px 0; gap: 20px; }
+    .meta__bloc { font-size: 13px; color: var(--gris); }
+    .meta__bloc b { display: block; color: var(--encre); font-size: 13.5px; margin-bottom: 4px; }
+    .dest { background: var(--fond-doux); border: 1px solid var(--bord); border-radius: 10px; padding: 14px 16px; max-width: 260px; }
+    .dest b { display: block; font-size: 14px; margin-bottom: 4px; }
+    .dest span { font-size: 13px; color: var(--gris); white-space: pre-line; }
+
+    table.lignes { width: 100%; border-collapse: collapse; margin: 22px 0; }
+    table.lignes th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris); border-bottom: 2px solid var(--navy); padding: 8px 4px; }
+    table.lignes td { padding: 12px 4px; border-bottom: 1px solid var(--bord); font-size: 14px; }
+    table.lignes td.montant, table.lignes th.montant { text-align: right; }
+
+    .totaux { display: flex; justify-content: flex-end; margin: 6px 0 22px; }
+    .totaux table { border-collapse: collapse; }
+    .totaux td { padding: 5px 4px; font-size: 13.5px; }
+    .totaux td.lib { color: var(--gris); padding-right: 24px; }
+    .totaux td.val { text-align: right; min-width: 90px; }
+    .totaux tr.total td { font-size: 16px; font-weight: 800; color: var(--navy); border-top: 2px solid var(--navy); padding-top: 8px; }
+
+    .mentions { font-size: 11.5px; color: var(--gris); line-height: 1.7; border-top: 1px solid var(--bord); padding-top: 14px; margin-top: 10px; }
+    .mentions p { margin-bottom: 4px; }
+
+    .signature { margin-top: 30px; display: flex; justify-content: flex-end; }
+    .signature__bloc { width: 240px; border: 1px dashed var(--bord); border-radius: 10px; padding: 14px 16px; text-align: center; font-size: 12.5px; color: var(--gris); }
+    .signature__bloc b { display: block; font-size: 13.5px; color: var(--encre); margin-bottom: 30px; }
+
+    footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid var(--bord); font-size: 11px; color: var(--gris); text-align: center; }
+
+    @media print {
+      body { background: #fff; }
+      .barre-actions { display: none; }
+      .feuille { box-shadow: none; margin: 0; width: auto; min-height: auto; padding: 12mm; }
+      @page { size: A4; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="barre-actions">
+    <button class="btn btn--sec" onclick="history.back()">← Retour</button>
+    <button class="btn" onclick="window.print()">Imprimer / PDF</button>
+  </div>
+
+  <div class="feuille" id="feuille">Chargement…</div>
+
+  <script src="/backoffice/js/api.js?v=20260817-2"></script>
+  <script src="/backoffice/js/document.js?v=20260817-2"></script>
+</body>
+</html>

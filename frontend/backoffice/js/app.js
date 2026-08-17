@@ -98,9 +98,17 @@ function backoffice() {
     ongletsGratuitsSelection: [],
     ongletsGratuitsEnCours: false,
     ongletsGratuitsMsg: '',
+    parametresEntreprise: {},
+    parametresEntrepriseEnCours: false,
+    parametresEntrepriseMsg: '',
     echeances: [],
     abonnementEnCours: false,
     abonnementMsg: '',
+    nouveauDevis: { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 },
+    devisListe: [],
+    facturesListe: [],
+    devisEnCours: false,
+    devisMsg: '',
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
@@ -149,6 +157,7 @@ function backoffice() {
           this.ongletsGratuitsSelection = r.onglets;
         } catch {}
         try { this.statsVariantes = (await boFetch('/prospection/stats-variantes')).variantes; } catch {}
+        try { this.parametresEntreprise = (await boFetch('/administration/parametres-entreprise')).parametres; } catch {}
       } catch {
         redirigerVersConnexion();
         return;
@@ -196,6 +205,9 @@ function backoffice() {
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
         try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
         try { this.rgpd = await boFetch('/administration/communes/' + id + '/rgpd'); } catch {}
+        this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
+        this.devisMsg = '';
+        try { await this.chargerDevisFactures(id); } catch {}
       } finally {
         this.chargement = false;
       }
@@ -1008,6 +1020,20 @@ function backoffice() {
         this.grilleEnCours = false;
       }
     },
+    async enregistrerParametresEntreprise() {
+      this.parametresEntrepriseEnCours = true;
+      this.parametresEntrepriseMsg = '';
+      try {
+        await boFetch('/administration/parametres-entreprise', {
+          method: 'PUT', body: JSON.stringify(this.parametresEntreprise),
+        });
+        this.parametresEntrepriseMsg = 'Enregistré.';
+      } catch (e) {
+        this.parametresEntrepriseMsg = e.message || 'Échec';
+      } finally {
+        this.parametresEntrepriseEnCours = false;
+      }
+    },
     libelleTranche(t) {
       if (!t) return '';
       return t.population_max == null ? `> ${t.population_min - 1} hab.` : `${t.population_min}–${t.population_max} hab.`;
@@ -1131,6 +1157,61 @@ function backoffice() {
       } finally {
         this.abonnementEnCours = false;
       }
+    },
+
+    // — Devis & facturation —
+    async chargerDevisFactures(communeId) {
+      const [d, f] = await Promise.all([
+        boFetch('/administration/devis?commune_id=' + communeId),
+        boFetch('/administration/factures?commune_id=' + communeId),
+      ]);
+      this.devisListe = d.devis;
+      this.facturesListe = f.factures;
+    },
+    async creerDevis() {
+      this.devisEnCours = true;
+      this.devisMsg = '';
+      try {
+        await boFetch('/administration/devis', {
+          method: 'POST',
+          body: JSON.stringify({ ...this.nouveauDevis, commune_id: this.fiche.commune.id, nom_destinataire: this.fiche.commune.nom }),
+        });
+        this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
+        await this.chargerDevisFactures(this.fiche.commune.id);
+        this.devisMsg = 'Devis créé.';
+      } catch (e) {
+        this.devisMsg = e.message || 'Échec';
+      } finally {
+        this.devisEnCours = false;
+      }
+    },
+    async changerStatutDevis(d) {
+      try {
+        await boFetch('/administration/devis/' + d.id, { method: 'PATCH', body: JSON.stringify({ statut: d.statut }) });
+      } catch (e) { alert(e.message || 'Échec'); }
+    },
+    async enregistrerBonCommande(d) {
+      const reference = prompt('Référence du bon de commande (optionnel) :') || null;
+      try {
+        await boFetch('/administration/devis/' + d.id, {
+          method: 'PATCH',
+          body: JSON.stringify({ bon_commande_recu_le: new Date().toISOString(), bon_commande_reference: reference }),
+        });
+        await this.chargerDevisFactures(this.fiche.commune.id);
+      } catch (e) { alert(e.message || 'Échec'); }
+    },
+    async genererFacture(d) {
+      if (!confirm(`Générer la facture pour le devis ${d.numero} ?`)) return;
+      try {
+        await boFetch('/administration/devis/' + d.id + '/facturer', { method: 'POST' });
+        await this.chargerDevisFactures(this.fiche.commune.id);
+        this.devisMsg = 'Facture générée.';
+      } catch (e) { alert(e.message || 'Échec'); }
+    },
+    async changerStatutFacture(f) {
+      try {
+        await boFetch('/administration/factures/' + f.id, { method: 'PATCH', body: JSON.stringify({ statut: f.statut }) });
+      } catch (e) { alert(e.message || 'Échec'); }
     },
 
     // — Gestion des utilisateurs d'une commune —

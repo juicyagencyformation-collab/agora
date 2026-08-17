@@ -7,6 +7,7 @@ import auth from './auth';
 import administration from './administration';
 import prospection from './prospection';
 import onboarding from './onboarding';
+import facturation from './facturation';
 import { chargerFiche } from './modele-fiche';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
@@ -105,6 +106,7 @@ app.post('/webhook-resend', async (c) => {
 
 app.route('/auth', auth);
 app.route('/administration', administration);
+app.route('/administration', facturation);
 app.route('/prospection', prospection);
 app.route('/onboarding', onboarding);
 
