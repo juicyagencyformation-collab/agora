@@ -422,12 +422,19 @@ async function chargerResumes() {
   if (agendaRes.ok) {
     const { events } = await agendaRes.json();
     if (events.length) {
-      const d = new Date(events[0].date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-      const pastille = document.createElement('button');
-      pastille.className = 'pastille-resume pastille-aube';
-      pastille.innerHTML = `<span class="pastille-icone">📅</span><span>${escapeAttr(events[0].titre)} (${d})</span>`;
-      pastille.addEventListener('click', () => activerOnglet('agenda'));
-      zone.appendChild(pastille);
+      // Le plus proche événement fixe le jour affiché : s'il y en a plusieurs ce jour-là,
+      // une pastille par événement (pas seulement le premier de la liste).
+      const premierJour = new Date(events[0].date_debut);
+      const memeJour = (date) => date.getFullYear() === premierJour.getFullYear()
+        && date.getMonth() === premierJour.getMonth() && date.getDate() === premierJour.getDate();
+      for (const evt of events.filter((e) => memeJour(new Date(e.date_debut)))) {
+        const d = new Date(evt.date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        const pastille = document.createElement('button');
+        pastille.className = 'pastille-resume pastille-aube';
+        pastille.innerHTML = `<span class="pastille-icone">📅</span><span>${escapeAttr(evt.titre)} (${d})</span>`;
+        pastille.addEventListener('click', () => activerOnglet('agenda'));
+        zone.appendChild(pastille);
+      }
     }
   }
   if (titre) titre.hidden = zone.children.length === 0;
