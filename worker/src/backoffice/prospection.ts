@@ -19,6 +19,22 @@ app.use('*', backofficeMiddleware);
 const STATUTS = ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'] as const;
 const TYPES_INTERACTION = ['note', 'appel', 'email', 'courrier', 'rdv'] as const;
 
+// Un `id in.(...)` avec trop d'UUID dépasse la longueur d'URL acceptée par Supabase (500 sec)
+// — découpe en lots pour rester sûr quel que soit le volume (bug rencontré le 2026-08-18 sur
+// stats-variantes, une fois passé plusieurs centaines de prospects contactés).
+async function selectionnerParLots(
+  env: any, table: string, colonne: string, ids: string[], filtres: Record<string, string>,
+): Promise<any[]> {
+  const TAILLE_LOT = 150;
+  let resultats: any[] = [];
+  for (let i = 0; i < ids.length; i += TAILLE_LOT) {
+    const lot = ids.slice(i, i + TAILLE_LOT);
+    const lignes = await supabaseSelectTout(env, table, { ...filtres, [colonne]: `in.(${lot.join(',')})` });
+    resultats = resultats.concat(lignes);
+  }
+  return resultats;
+}
+
 // — Import depuis geo.api.gouv.fr —
 const importSchema = z.object({
   departement: z.string().regex(/^(\d{2,3}|2[ab])$/i),  // 01-976, Corse 2A/2B
@@ -359,17 +375,15 @@ app.get('/stats-variantes', async (c) => {
   const prospectIds = [...new Set(envois.map((e: any) => e.prospect_id).filter(Boolean))];
   const prospectCommune = new Map<string, string>();
   if (prospectIds.length) {
-    const prospects = await supabaseSelectTout(c.env, 'prospects', {
-      select: 'id,commune_id', id: `in.(${prospectIds.join(',')})`,
-    });
+    const prospects = await selectionnerParLots(c.env, 'prospects', 'id', prospectIds, { select: 'id,commune_id' });
     for (const p of prospects) if (p.commune_id) prospectCommune.set(p.id, p.commune_id);
   }
 
   const communeIds = [...new Set(prospectCommune.values())];
   const communesConnectees = new Set<string>();
   if (communeIds.length) {
-    const maires = await supabaseSelectTout(c.env, 'users', {
-      select: 'commune_id,derniere_connexion_streak', role: 'eq.maire', commune_id: `in.(${communeIds.join(',')})`,
+    const maires = await selectionnerParLots(c.env, 'users', 'commune_id', communeIds, {
+      select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
     });
     for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
   }
