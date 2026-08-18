@@ -79,6 +79,14 @@ function backoffice() {
     varianteEditeeId: null, // id de la variante actuellement chargée dans l'éditeur
     varianteEnCours: false,
     varianteMsg: '',
+    // Modèles génériques (bienvenue à la 1ère inscription, relance douce en cas d'inactivité) :
+    // même mécanisme A/B que l'email de présentation ci-dessus (table modeles_email, routes
+    // /administration/modeles-email/:cle), mais fonctions partagées entre les deux plutôt que
+    // dupliquées — voir chargerModelesGeneriques et consorts.
+    modelesGeneriques: {
+      bienvenue_inscription: { variantes: [], editeeId: null, modele: { nom: '', objet: '', corps_html: '' }, enCours: false, msg: '' },
+      relance_inactivite: { variantes: [], editeeId: null, modele: { nom: '', objet: '', corps_html: '' }, enCours: false, msg: '' },
+    },
     signatureEnCours: false,
     signatureMsg: '',
     logoEnCours: false,
@@ -141,6 +149,8 @@ function backoffice() {
     filtreDep: '',
     filtreRecherche: '',
     filtreTri: 'nom',
+    filtreInscrits: false, // "🔥 s'est inscrit" — voir declencherBienvenuePremiereInscription côté serveur
+    totalInscrits: 0,
     sousVueProspection: 'liste', // 'liste' | 'carte'
     importDep: '',
     importPopMax: '',
@@ -160,6 +170,8 @@ function backoffice() {
         this.staff = staff;
         this.testEmailDest = staff.email || '';
         try { await this.chargerVariantes(); } catch {}
+        try { await this.chargerModelesGeneriques('bienvenue_inscription'); } catch {}
+        try { await this.chargerModelesGeneriques('relance_inactivite'); } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
         try {
@@ -413,6 +425,95 @@ function backoffice() {
         this.varianteEnCours = false;
       }
     },
+
+    // — Modèles génériques (bienvenue inscription, relance inactivité) : mêmes actions que
+    //   ci-dessus pour l'email de présentation, mais paramétrées par `cle` et partagées entre
+    //   les deux types plutôt que dupliquées. —
+    async rafraichirListeVarianteGenerique(cle) {
+      const r = await boFetch('/administration/modeles-email/' + cle);
+      this.modelesGeneriques[cle].variantes = r.variantes;
+    },
+    async chargerModelesGeneriques(cle) {
+      await this.rafraichirListeVarianteGenerique(cle);
+      const etat = this.modelesGeneriques[cle];
+      const active = etat.variantes.find((v) => v.actif) || etat.variantes[0];
+      if (active) await this.chargerVarianteGenerique(cle, active.id);
+    },
+    async chargerVarianteGenerique(cle, id) {
+      if (!id) return;
+      const etat = this.modelesGeneriques[cle];
+      const r = await boFetch('/administration/modeles-email/' + cle + '/' + id);
+      etat.editeeId = id;
+      etat.modele = r.variante;
+      etat.msg = '';
+    },
+    async nouvelleVarianteGenerique(cle) {
+      const nom = prompt('Nom de la nouvelle variante (ex. « B - ton plus direct ») :');
+      if (!nom) return;
+      const etat = this.modelesGeneriques[cle];
+      etat.enCours = true;
+      etat.msg = '';
+      try {
+        const r = await boFetch('/administration/modeles-email/' + cle, {
+          method: 'POST',
+          body: JSON.stringify({ nom, objet: etat.modele.objet, corps_html: etat.modele.corps_html }),
+        });
+        await this.rafraichirListeVarianteGenerique(cle);
+        await this.chargerVarianteGenerique(cle, r.variante.id);
+        etat.msg = 'Variante créée à partir du contenu actuel.';
+      } catch (e) {
+        etat.msg = e.message || 'Échec';
+      } finally {
+        etat.enCours = false;
+      }
+    },
+    async activerVarianteGenerique(cle) {
+      const etat = this.modelesGeneriques[cle];
+      etat.enCours = true;
+      etat.msg = '';
+      try {
+        const r = await boFetch('/administration/modeles-email/' + cle + '/' + etat.editeeId + '/activer', { method: 'POST' });
+        await this.rafraichirListeVarianteGenerique(cle);
+        etat.msg = `« ${r.nom} » est maintenant active — c'est elle qui part dans les envois.`;
+      } catch (e) {
+        etat.msg = e.message || 'Échec';
+      } finally {
+        etat.enCours = false;
+      }
+    },
+    async supprimerVarianteGenerique(cle) {
+      if (!confirm('Supprimer cette variante ? Cette action est définitive.')) return;
+      const etat = this.modelesGeneriques[cle];
+      etat.enCours = true;
+      etat.msg = '';
+      try {
+        await boFetch('/administration/modeles-email/' + cle + '/' + etat.editeeId, { method: 'DELETE' });
+        await this.chargerModelesGeneriques(cle);
+        etat.msg = 'Variante supprimée.';
+      } catch (e) {
+        etat.msg = e.message || 'Échec';
+      } finally {
+        etat.enCours = false;
+      }
+    },
+    async enregistrerVarianteGenerique(cle) {
+      const etat = this.modelesGeneriques[cle];
+      etat.enCours = true;
+      etat.msg = '';
+      try {
+        await boFetch('/administration/modeles-email/' + cle + '/' + etat.editeeId, {
+          method: 'PUT',
+          body: JSON.stringify({ nom: etat.modele.nom, objet: etat.modele.objet, corps_html: etat.modele.corps_html }),
+        });
+        await this.rafraichirListeVarianteGenerique(cle);
+        etat.msg = 'Modèle enregistré.';
+      } catch (e) {
+        etat.msg = e.message || 'Échec';
+      } finally {
+        etat.enCours = false;
+      }
+    },
+
     exec(commande, valeur = null) {
       document.execCommand(commande, false, valeur);
     },
@@ -670,6 +771,7 @@ function backoffice() {
       if (this.filtreDep) params.set('departement', this.filtreDep);
       if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
       if (this.filtreTri && this.filtreTri !== 'nom') params.set('tri', this.filtreTri);
+      if (this.filtreInscrits) params.set('inscrits', '1');
       params.set('page', this.pageProspects);
       try {
         const [apercu, liste] = await Promise.all([
@@ -680,6 +782,7 @@ function backoffice() {
         this.prospects = liste.prospects;
         this.totalProspects = liste.total ?? liste.prospects.length;
         this.tailleProspects = liste.taille ?? 100;
+        this.totalInscrits = liste.total_inscrits ?? 0;
         this.selectionProspects = {};
         this.lotMsg = '';
       } catch (e) {

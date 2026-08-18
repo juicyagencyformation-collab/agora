@@ -44,6 +44,7 @@ async function chargerDashboard() {
 
   afficherSalut();
   initActionsRapidesAccueil();
+  chargerChecklistOnboarding();
   chargerMeteo();
   chargerLune();
   chargerDechetsDashboard();
@@ -94,6 +95,57 @@ function initActionsRapidesAccueil() {
   `;
   zone.querySelector('.rouge').addEventListener('click', () => ouvrirModaleCreationAlerte());
   zone.querySelector('.prairie').addEventListener('click', () => ouvrirModaleDemandeAideRapide());
+}
+
+// Petite checklist de démarrage (discrète, dismissible) pour aider une commune fraîchement
+// activée à passer les premiers pas utiles. Visible seulement des gestionnaires ; masquée dès
+// que tout est fait, ou dès que l'utilisateur l'a fermée une fois (mémorisé par commune,
+// localStorage — pas besoin d'un champ en base pour ça).
+async function chargerChecklistOnboarding() {
+  const zone = document.getElementById('checklist-onboarding-accueil');
+  if (!zone) return;
+  if (!['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) { zone.hidden = true; return; }
+  const cleMasquee = `agora_checklist_masquee_${window.COMMUNE_SLUG}`;
+  if (localStorage.getItem(cleMasquee)) { zone.hidden = true; return; }
+
+  const [resActus, resDechets, resUtilisateurs] = await Promise.all([
+    appelApi(`/${window.COMMUNE_SLUG}/actus?section=actualites`),
+    appelApi(`/${window.COMMUNE_SLUG}/dechets`),
+    appelApi(`/${window.COMMUNE_SLUG}/moderation/utilisateurs`),
+  ]);
+  const aArticle = resActus.ok && ((await resActus.json()).articles?.length > 0);
+  const aDechets = resDechets.ok && ((await resDechets.json()).collectes?.length > 0);
+  let aCollegue = false;
+  if (resUtilisateurs.ok) {
+    const { utilisateurs } = await resUtilisateurs.json();
+    aCollegue = utilisateurs.filter((u) => ['admin', 'elu', 'maire', 'superadmin'].includes(u.role)).length > 1;
+  }
+
+  if (aArticle && aDechets && aCollegue) { zone.hidden = true; return; } // tout est déjà fait
+
+  const etape = (fait, texte, cibleOnglet) => `
+    <li class="${fait ? 'etape-checklist-faite' : ''}" ${!fait ? `data-onglet-cible="${cibleOnglet}"` : ''}>
+      <span>${fait ? '✅' : '⬜'}</span> ${texte}
+    </li>`;
+  zone.hidden = false;
+  zone.innerHTML = `
+    <div class="carte-checklist-onboarding">
+      <button type="button" class="btn-fermer-checklist" title="Masquer">✕</button>
+      <strong>👋 Bien démarrer avec Agora</strong>
+      <ul class="liste-checklist-onboarding">
+        ${etape(aArticle, 'Publier un premier article', 'actualites')}
+        ${etape(aDechets, 'Renseigner le calendrier des déchets', 'moderation')}
+        ${etape(aCollegue, 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'moderation')}
+      </ul>
+    </div>
+  `;
+  zone.querySelector('.btn-fermer-checklist').addEventListener('click', () => {
+    localStorage.setItem(cleMasquee, '1');
+    zone.hidden = true;
+  });
+  zone.querySelectorAll('[data-onglet-cible]').forEach((li) => {
+    li.addEventListener('click', () => activerOnglet(li.dataset.ongletCible));
+  });
 }
 
 function afficherSalut() {

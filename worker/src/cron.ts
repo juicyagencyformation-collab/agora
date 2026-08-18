@@ -4,6 +4,7 @@ import { deleteObject } from './storage';
 import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
 import { envoyerEmailEcheance } from './backoffice/email-commune';
 import { corrigerEmailsInvalides } from './backoffice/prospection';
+import { verifierRelanceInactivite } from './backoffice/onboarding';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -191,5 +192,11 @@ export async function relancerEcheancesFacturation(env: any) {
 // jour. Ne renvoie rien tout seul — corrige juste la donnée pour le prochain envoi manuel.
 export async function corrigerEmailsProspectsInvalides(env: any) {
   await corrigerEmailsInvalides(env);
+}
+
+// Relance douce si une commune a eu une 1re inscription citoyenne puis plus aucune activité
+// depuis 5 à 9 jours (voir verifierRelanceInactivite dans backoffice/onboarding.ts).
+export async function verifierRelancesInactiviteProspection(env: any) {
+  await verifierRelanceInactivite(env);
 }
 

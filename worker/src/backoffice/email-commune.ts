@@ -206,6 +206,117 @@ export async function chargerModelePresentation(env: any): Promise<{ objet: stri
   return MODELE_PRESENTATION_DEFAUT;
 }
 
+// Version générique de chargerModelePresentation, pour les modèles d'email plus simples
+// (pas de logo/signature) gérés via /administration/modeles-email/:cle — voir onboarding.ts.
+export async function chargerModeleParCle(
+  env: any, cle: string, defaut: { objet: string; corps_html: string },
+): Promise<{ objet: string; corps_html: string; nom?: string }> {
+  try {
+    const [row] = await supabaseSelect(env, 'modeles_email', {
+      select: 'objet,corps_html,nom', cle: `eq.${cle}`, actif: 'eq.true',
+    });
+    if (row?.objet && row?.corps_html) return row;
+  } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
+  return defaut;
+}
+
+// — Email de bienvenue à la première inscription citoyenne (distinct de envoyerEmailBienvenue,
+//   qui accompagne la création du compte Maire avec ses identifiants) : envoyé quand quelqu'un
+//   crée VOLONTAIREMENT un compte citoyen dans une commune issue de la prospection — le signal
+//   d'engagement le plus fort après l'email de présentation (voir déclenchement dans auth.ts). —
+export const MODELE_BIENVENUE_INSCRIPTION_DEFAUT = {
+  objet: 'Merci de tester Agora à {{commune}} !',
+  corps_html: `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Bonjour,<br /><br />
+      Je vois que vous venez de créer un compte sur Agora pour <strong>{{commune}}</strong> —
+      merci d'avoir pris le temps d'essayer !
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Je suis moi-même élu (Eaucourt-sur-Somme) et j'ai conçu Agora avec cette double casquette :
+      je sais ce qui sert vraiment au quotidien dans une petite mairie, et ce qui n'est que du
+      superflu.
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Le compte Maire que vous avez reçu donne déjà tous les droits. Si d'autres personnes de
+      l'équipe (adjoint, secrétaire de mairie…) doivent aussi publier, vous pouvez leur créer un
+      accès directement depuis l'onglet <strong>Modération → Gestion des rôles</strong>.
+    </p>
+    <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <div style="font-weight:700;font-size:14px;color:#2c5f2d;margin-bottom:8px">Deux idées pour démarrer vite</div>
+      <div style="font-size:14px;color:#3a4a3b;line-height:1.8">
+        <span style="color:#4a8c4a;font-weight:700">✓</span> Publier un premier article (une actu, un événement à venir)<br />
+        <span style="color:#4a8c4a;font-weight:700">✓</span> Renseigner le calendrier de collecte des déchets — c'est souvent ce qui déclenche le plus d'inscriptions
+      </div>
+    </div>
+    <p style="margin:24px 0">
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Retourner sur Agora</a>
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Je reste disponible pour la moindre question — et si vous préférez qu'on en discute par
+      téléphone plutôt que par écrit, dites-le-moi simplement en répondant à cet email.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme · 06 48 06 10 97
+    </div>
+  </div>`,
+};
+
+// — Relance douce si le compte s'est connecté une fois puis n'est jamais revenu (voir
+//   verifierRelanceInactivite dans cron.ts) : signal inverse au précédent, tout aussi utile. —
+export const MODELE_RELANCE_INACTIVITE_DEFAUT = {
+  objet: 'Toujours partant pour Agora à {{commune}} ?',
+  corps_html: `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Bonjour,<br /><br />
+      Vous aviez jeté un œil à Agora pour <strong>{{commune}}</strong> il y a quelques jours —
+      je me permets un petit signe, sans insister : si le moment n'est pas le bon, aucun souci,
+      votre espace reste disponible quand vous voudrez.
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Si en revanche vous avez eu une question, un doute, ou pas eu le temps — dites-le-moi, je
+      réponds volontiers par email ou par téléphone (06 48 06 10 97), et je peux même vous faire
+      une démonstration rapide en visio si ça vous aide à vous décider.
+    </p>
+    <p style="margin:24px 0">
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Retourner sur Agora</a>
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme
+    </div>
+  </div>`,
+};
+
+export async function envoyerBienvenueInscription(
+  env: any, contactEmail: string, ctx: ContextePresentation,
+): Promise<{ variante: string | null; resendEmailId: string | null }> {
+  const modele = await chargerModeleParCle(env, 'bienvenue_inscription', MODELE_BIENVENUE_INSCRIPTION_DEFAUT);
+  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), rendrePresentation(modele.corps_html, ctx));
+  return { variante: modele.nom || null, resendEmailId };
+}
+
+export async function envoyerRelanceInactivite(
+  env: any, contactEmail: string, ctx: ContextePresentation,
+): Promise<{ variante: string | null; resendEmailId: string | null }> {
+  const modele = await chargerModeleParCle(env, 'relance_inactivite', MODELE_RELANCE_INACTIVITE_DEFAUT);
+  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), rendrePresentation(modele.corps_html, ctx));
+  return { variante: modele.nom || null, resendEmailId };
+}
+
 // Repli texte du logo (titre « Agora. ») quand aucun logo n'est configuré.
 function baliseLogo(url: string | null | undefined): string {
   if (!url) return `<div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>`;

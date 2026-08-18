@@ -11,7 +11,7 @@ import { hasherMotDePasse } from '../lib/password';
 import {
   envoyerEmailBienvenue, genererMotDePasseTemporaire,
   envoyerPresentation, contextePresentation, chargerModelePresentation,
-  MODELE_PRESENTATION_DEFAUT,
+  MODELE_PRESENTATION_DEFAUT, MODELE_BIENVENUE_INSCRIPTION_DEFAUT, MODELE_RELANCE_INACTIVITE_DEFAUT,
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
@@ -444,6 +444,90 @@ app.delete('/modeles-presentation/:id', async (c) => {
   if (cible.actif) return c.json({ erreur: 'Impossible de supprimer la variante active : bascule sur une autre d\'abord.' }, 400);
   if (toutes.length <= 1) return c.json({ erreur: 'Il doit toujours rester au moins une variante.' }, 400);
 
+  await supabaseDelete(c.env, 'modeles_email', { id: `eq.${id}` });
+  return c.json({ ok: true });
+});
+
+// — Modèles d'email génériques (bienvenue à l'inscription, relance douce en cas d'inactivité —
+//   voir onboarding.ts) : même mécanisme A/B que /modeles-presentation ci-dessus (table
+//   modeles_email, une variante active par cle), mais routes paramétrées par :cle plutôt que
+//   dupliquées, pour ne pas réécrire 5 fois le même CRUD. Volontairement plus simples (pas de
+//   logo/photo de signature configurables) : ce sont des messages courts et personnels, pas le
+//   pitch commercial. Whitelist stricte : jamais 'presentation'/'fiche', qui restent gérés par
+//   leurs routes dédiées ci-dessus. —
+const CLES_MODELES_GENERIQUES = ['bienvenue_inscription', 'relance_inactivite'] as const;
+const DEFAUTS_MODELES_GENERIQUES: Record<string, { objet: string; corps_html: string }> = {
+  bienvenue_inscription: MODELE_BIENVENUE_INSCRIPTION_DEFAUT,
+  relance_inactivite: MODELE_RELANCE_INACTIVITE_DEFAUT,
+};
+
+app.get('/modeles-email/:cle', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+
+  let variantes = await supabaseSelect(c.env, 'modeles_email', {
+    select: 'id,nom,actif,objet,updated_at', cle: `eq.${cle}`, order: 'created_at.asc',
+  });
+  if (!variantes.length) {
+    const defaut = DEFAUTS_MODELES_GENERIQUES[cle];
+    const [creee] = await supabaseInsert(c.env, 'modeles_email', {
+      cle, nom: 'Variante A', actif: true, objet: defaut.objet, corps_html: defaut.corps_html,
+    });
+    if (creee) variantes = [creee];
+  }
+  return c.json({ variantes });
+});
+
+app.get('/modeles-email/:cle/:id', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+  const [variante] = await supabaseSelect(c.env, 'modeles_email', {
+    select: 'id,nom,actif,objet,corps_html', cle: `eq.${cle}`, id: `eq.${c.req.param('id')}`,
+  });
+  if (!variante) return c.json({ erreur: 'Variante introuvable' }, 404);
+  return c.json({ variante });
+});
+
+app.post('/modeles-email/:cle', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+  const body = varianteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const [variante] = await supabaseInsert(c.env, 'modeles_email', { cle, actif: false, ...body.data });
+  return c.json({ ok: true, variante });
+});
+
+app.put('/modeles-email/:cle/:id', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+  const body = varianteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const donnees = { ...body.data, updated_at: new Date().toISOString() };
+  const maj = await supabaseUpdate(c.env, 'modeles_email', donnees, { id: `eq.${c.req.param('id')}`, cle: `eq.${cle}` });
+  if (!maj.length) return c.json({ erreur: 'Variante introuvable' }, 404);
+  return c.json({ ok: true });
+});
+
+app.post('/modeles-email/:cle/:id/activer', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+  const id = c.req.param('id');
+  const [cible] = await supabaseSelect(c.env, 'modeles_email', { select: 'id,nom', cle: `eq.${cle}`, id: `eq.${id}` });
+  if (!cible) return c.json({ erreur: 'Variante introuvable' }, 404);
+  await supabaseUpdate(c.env, 'modeles_email', { actif: false }, { cle: `eq.${cle}`, actif: 'eq.true' });
+  await supabaseUpdate(c.env, 'modeles_email', { actif: true }, { id: `eq.${id}` });
+  return c.json({ ok: true, nom: cible.nom });
+});
+
+app.delete('/modeles-email/:cle/:id', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+  const id = c.req.param('id');
+  const toutes = await supabaseSelect(c.env, 'modeles_email', { select: 'id,actif', cle: `eq.${cle}` });
+  const cible = toutes.find((v: any) => v.id === id);
+  if (!cible) return c.json({ erreur: 'Variante introuvable' }, 404);
+  if (cible.actif) return c.json({ erreur: 'Impossible de supprimer la variante active : bascule sur une autre d\'abord.' }, 400);
+  if (toutes.length <= 1) return c.json({ erreur: 'Il doit toujours rester au moins une variante.' }, 400);
   await supabaseDelete(c.env, 'modeles_email', { id: `eq.${id}` });
   return c.json({ ok: true });
 });

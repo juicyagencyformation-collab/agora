@@ -942,6 +942,22 @@ h1, h2, h3, h4, p, span, a, button {
 .graph-freq { display: flex; align-items: flex-end; gap: 2px; height: 84px; padding: 4px 0; }
 .barre-freq { flex: 1; background: var(--eauM); border-radius: 2px 2px 0 0; min-height: 1px; }
 
+/* Checklist de démarrage (accueil, gestionnaires uniquement) */
+.carte-checklist-onboarding {
+  position: relative; background: var(--eauXL); border: 1.5px solid var(--eauL); border-radius: var(--r);
+  padding: 14px 16px; margin-bottom: 12px;
+}
+.carte-checklist-onboarding strong { display: block; font-size: 14px; color: var(--eau); margin-bottom: 8px; }
+.btn-fermer-checklist {
+  position: absolute; top: 10px; right: 10px; background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--roseau); padding: 4px;
+}
+.liste-checklist-onboarding { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.liste-checklist-onboarding li { font-size: 13px; color: var(--boue); }
+.liste-checklist-onboarding li[data-onglet-cible] { cursor: pointer; }
+.liste-checklist-onboarding li[data-onglet-cible]:hover { text-decoration: underline; }
+.liste-checklist-onboarding li.etape-checklist-faite { color: var(--roseau); text-decoration: line-through; }
+
 /* Popup de série de connexion (une fois par jour, à la 1re ouverture) */
 .popup-streak {
   position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;

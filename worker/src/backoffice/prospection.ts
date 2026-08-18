@@ -80,6 +80,21 @@ app.get('/prospects', async (c) => {
   if (departement) where.departement = `eq.${departement.toUpperCase()}`;
   if (recherche) where.nom = `ilike.*${recherche}*`;
 
+  // Signal "🔥 s'est inscrit" : au moins un citoyen a créé lui-même son compte dans la commune
+  // activée pour ce prospect — bien plus fort qu'un simple envoi d'email (voir onboarding.ts →
+  // declencherBienvenuePremiereInscription). Calculé à part (pas de embedding PostgREST) pour
+  // rester simple ; ?inscrits=1 filtre la liste sur ce seul signal.
+  const communesInscrites = await supabaseSelect(c.env, 'communes', {
+    select: 'id', premiere_inscription_citoyen_le: 'not.is.null',
+  });
+  const idsCommunesInscrites = new Set(communesInscrites.map((cm: any) => cm.id));
+
+  if (c.req.query('inscrits') === '1') {
+    where.commune_id = idsCommunesInscrites.size
+      ? `in.(${[...idsCommunesInscrites].join(',')})`
+      : 'eq.00000000-0000-0000-0000-000000000000'; // aucune commune inscrite : liste volontairement vide
+  }
+
   const tri = c.req.query('tri');
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const offset = (page - 1) * TAILLE_PAGE_PROSPECTS;
@@ -87,7 +102,7 @@ app.get('/prospects', async (c) => {
   const [prospects, total] = await Promise.all([
     supabaseSelect(c.env, 'prospects', {
       ...where,
-      select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le',
+      select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le,commune_id',
       order: (tri && TRIS[tri]) || TRIS.nom,
       limit: String(TAILLE_PAGE_PROSPECTS),
       offset: String(offset),
@@ -95,7 +110,14 @@ app.get('/prospects', async (c) => {
     supabaseCount(c.env, 'prospects', where),
   ]);
 
-  return c.json({ prospects, page, taille: TAILLE_PAGE_PROSPECTS, total });
+  const prospectsAvecSignal = prospects.map((p: any) => ({
+    ...p, inscrit: !!(p.commune_id && idsCommunesInscrites.has(p.commune_id)),
+  }));
+
+  return c.json({
+    prospects: prospectsAvecSignal, page, taille: TAILLE_PAGE_PROSPECTS, total,
+    total_inscrits: idsCommunesInscrites.size,
+  });
 });
 
 // GET /prospects-export.csv — mêmes filtres que la liste (statut/departement/recherche), mais

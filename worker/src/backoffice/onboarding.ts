@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { hasherMotDePasse } from '../lib/password';
 import { backofficeMiddleware } from '../middleware/backoffice';
-import { envoyerEmailBienvenue } from './email-commune';
+import { envoyerEmailBienvenue, envoyerBienvenueInscription, envoyerRelanceInactivite, contextePresentation } from './email-commune';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -102,5 +102,93 @@ app.post('/creer', async (c) => {
     url: `${c.env.FRONTEND_URL}/${commune.slug}/`,
   }, 201);
 });
+
+// Déclenché à la toute première inscription citoyenne (hors compte Maire pré-créé) dans une
+// commune activée via la prospection — signal d'engagement bien plus fort que l'envoi de
+// l'email de présentation lui-même (voir POST /auth/register côté citoyen). Idempotent via
+// communes.premiere_inscription_citoyen_le (jamais renvoyé deux fois). N'échoue jamais
+// bruyamment : un email de bienvenue raté ne doit jamais casser une inscription citoyenne.
+export async function declencherBienvenuePremiereInscription(
+  env: any, commune_id: string, nouvelUtilisateur: { id: string; email: string; nom: string; prenom: string },
+): Promise<void> {
+  try {
+    const [commune] = await supabaseSelect(env, 'communes', {
+      select: 'id,nom,slug,premiere_inscription_citoyen_le', id: `eq.${commune_id}`,
+    });
+    if (!commune || commune.premiere_inscription_citoyen_le) return; // déjà déclenché, ou commune introuvable
+
+    // Un autre compte citoyen existait-il déjà dans cette commune (le compte Maire ne compte
+    // pas, role='maire') ? Si oui, ce n'est pas la première inscription.
+    const autresCitoyens = await supabaseSelect(env, 'users', {
+      select: 'id', commune_id: `eq.${commune_id}`, role: 'eq.citoyen', id: `neq.${nouvelUtilisateur.id}`, limit: '1',
+    });
+    if (autresCitoyens.length) return;
+
+    // La commune doit être issue de la prospection : sans prospect lié, pas de contexte
+    // commercial (ex. commune de démo/nationale, ou créée manuellement hors backoffice).
+    const [prospect] = await supabaseSelect(env, 'prospects', { select: 'id', commune_id: `eq.${commune_id}` });
+    if (!prospect) return;
+
+    await supabaseUpdate(env, 'communes', { premiere_inscription_citoyen_le: new Date().toISOString() }, { id: `eq.${commune_id}` });
+
+    const ctx = contextePresentation(env.FRONTEND_URL, commune.nom, commune.slug);
+    await envoyerBienvenueInscription(env, nouvelUtilisateur.email, ctx);
+
+    await supabaseInsert(env, 'prospect_interactions', {
+      prospect_id: prospect.id, staff_id: null, type: 'email',
+      contenu: `Premier compte citoyen créé (${nouvelUtilisateur.prenom} ${nouvelUtilisateur.nom}, ${nouvelUtilisateur.email}) — message de bienvenue envoyé automatiquement.`,
+    });
+  } catch (err) {
+    console.error('declencherBienvenuePremiereInscription a échoué :', err);
+  }
+}
+
+// Relance douce si un citoyen s'est inscrit une fois puis que personne n'est revenu depuis dans
+// la commune (signal inverse à declencherBienvenuePremiereInscription, tout aussi utile) :
+// fenêtre de 5 à 9 jours après la première inscription, pour ne relancer ni trop tôt ni
+// indéfiniment. Idempotente via prospect_interactions (jamais renvoyée deux fois pour la même
+// commune). Appelée depuis le cron quotidien (voir cron.ts).
+export async function verifierRelanceInactivite(env: any): Promise<void> {
+  const il5 = new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString();
+  const il9 = new Date(Date.now() - 9 * 24 * 3600 * 1000).toISOString();
+
+  const communes = await supabaseSelect(env, 'communes', {
+    select: 'id,nom,slug,premiere_inscription_citoyen_le',
+    premiere_inscription_citoyen_le: `lte.${il5}`,
+  });
+  const candidates = communes.filter((cm: any) => cm.premiere_inscription_citoyen_le >= il9);
+  if (!candidates.length) return;
+
+  const seuilActivite = new Date(Date.now() - 4 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+
+  for (const commune of candidates) {
+    try {
+      const utilisateursActifs = await supabaseSelect(env, 'users', {
+        select: 'id', commune_id: `eq.${commune.id}`, derniere_connexion_streak: `gte.${seuilActivite}`, limit: '1',
+      });
+      if (utilisateursActifs.length) continue; // quelqu'un est revenu récemment, rien à faire
+
+      const [prospect] = await supabaseSelect(env, 'prospects', {
+        select: 'id,contact_email', commune_id: `eq.${commune.id}`,
+      });
+      if (!prospect?.contact_email) continue;
+
+      const dejaEnvoyee = await supabaseSelect(env, 'prospect_interactions', {
+        select: 'id', prospect_id: `eq.${prospect.id}`, contenu: 'ilike.Relance douce*', limit: '1',
+      });
+      if (dejaEnvoyee.length) continue;
+
+      const ctx = contextePresentation(env.FRONTEND_URL, commune.nom, commune.slug);
+      await envoyerRelanceInactivite(env, prospect.contact_email, ctx);
+
+      await supabaseInsert(env, 'prospect_interactions', {
+        prospect_id: prospect.id, staff_id: null, type: 'email',
+        contenu: `Relance douce envoyée automatiquement (inscrit le ${commune.premiere_inscription_citoyen_le.slice(0, 10)}, sans retour depuis).`,
+      });
+    } catch (err) {
+      console.error(`verifierRelanceInactivite a échoué pour la commune ${commune.id} :`, err);
+    }
+  }
+}
 
 export default app;

@@ -522,6 +522,78 @@
           </div>
 
           <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_bienvenue')">
+              <span>Modèle d'email — Bienvenue à la 1ère inscription</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_bienvenue}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_bienvenue">
+              <div class="bo-info" style="margin-bottom:12px">
+                Envoyé automatiquement quand le tout premier compte citoyen (hors compte Maire) s'inscrit
+                dans une commune issue de la prospection. Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
+                Plusieurs variantes possibles (A/B) : une seule active à la fois.
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <label style="margin:0">Variante</label>
+                <select :value="modelesGeneriques.bienvenue_inscription.editeeId" @change="chargerVarianteGenerique('bienvenue_inscription', $event.target.value)" style="width:auto; min-width:220px">
+                  <template x-for="v in modelesGeneriques.bienvenue_inscription.variantes" :key="v.id">
+                    <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                  </template>
+                </select>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('bienvenue_inscription')" :disabled="modelesGeneriques.bienvenue_inscription.enCours">+ Nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('bienvenue_inscription')"
+                        :disabled="modelesGeneriques.bienvenue_inscription.enCours || (modelesGeneriques.bienvenue_inscription.variantes.find(v => v.id === modelesGeneriques.bienvenue_inscription.editeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('bienvenue_inscription')"
+                        :disabled="modelesGeneriques.bienvenue_inscription.enCours || modelesGeneriques.bienvenue_inscription.variantes.length <= 1 || (modelesGeneriques.bienvenue_inscription.variantes.find(v => v.id === modelesGeneriques.bienvenue_inscription.editeeId) || {}).actif">Supprimer</button>
+                <span class="bo-info" x-text="modelesGeneriques.bienvenue_inscription.msg"></span>
+              </div>
+              <label>Objet</label>
+              <input type="text" x-model="modelesGeneriques.bienvenue_inscription.modele.objet">
+              <label style="margin-top:10px">Corps (HTML)</label>
+              <textarea x-model="modelesGeneriques.bienvenue_inscription.modele.corps_html" rows="14" style="font-family:monospace; font-size:13px"></textarea>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('bienvenue_inscription')" :disabled="modelesGeneriques.bienvenue_inscription.enCours"
+                        x-text="modelesGeneriques.bienvenue_inscription.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_relance_inactivite')">
+              <span>Modèle d'email — Relance douce (inscrit puis inactif)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_relance_inactivite}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_relance_inactivite">
+              <div class="bo-info" style="margin-bottom:12px">
+                Envoyé automatiquement si personne ne s'est reconnecté dans une commune 5 à 9 jours après
+                sa toute première inscription citoyenne. Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
+                Plusieurs variantes possibles (A/B) : une seule active à la fois.
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <label style="margin:0">Variante</label>
+                <select :value="modelesGeneriques.relance_inactivite.editeeId" @change="chargerVarianteGenerique('relance_inactivite', $event.target.value)" style="width:auto; min-width:220px">
+                  <template x-for="v in modelesGeneriques.relance_inactivite.variantes" :key="v.id">
+                    <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                  </template>
+                </select>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('relance_inactivite')" :disabled="modelesGeneriques.relance_inactivite.enCours">+ Nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('relance_inactivite')"
+                        :disabled="modelesGeneriques.relance_inactivite.enCours || (modelesGeneriques.relance_inactivite.variantes.find(v => v.id === modelesGeneriques.relance_inactivite.editeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('relance_inactivite')"
+                        :disabled="modelesGeneriques.relance_inactivite.enCours || modelesGeneriques.relance_inactivite.variantes.length <= 1 || (modelesGeneriques.relance_inactivite.variantes.find(v => v.id === modelesGeneriques.relance_inactivite.editeeId) || {}).actif">Supprimer</button>
+                <span class="bo-info" x-text="modelesGeneriques.relance_inactivite.msg"></span>
+              </div>
+              <label>Objet</label>
+              <input type="text" x-model="modelesGeneriques.relance_inactivite.modele.objet">
+              <label style="margin-top:10px">Corps (HTML)</label>
+              <textarea x-model="modelesGeneriques.relance_inactivite.modele.corps_html" rows="14" style="font-family:monospace; font-size:13px"></textarea>
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('relance_inactivite')" :disabled="modelesGeneriques.relance_inactivite.enCours"
+                        x-text="modelesGeneriques.relance_inactivite.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_fiche')">
               <span>Modèle de fiche de présentation (imprimable)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_fiche}">▸</span>
@@ -1022,6 +1094,10 @@
               <option value="population_desc">Population (décroissant)</option>
               <option value="population_asc">Population (croissant)</option>
             </select>
+            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-weight:600">
+              <input type="checkbox" x-model="filtreInscrits" @change="appliquerFiltres()">
+              🔥 S'est inscrit <span x-show="totalInscrits" x-text="'(' + totalInscrits + ')'"></span>
+            </label>
           </div>
 
           <!-- Bascule Liste / Carte -->
@@ -1058,7 +1134,10 @@
                 <template x-for="p in prospects" :key="p.id">
                   <tr @click="ouvrirProspect(p.id)">
                     <td @click.stop><input type="checkbox" style="width:auto" :checked="estSelectionne(p.id)" @change="basculer(p.id)" /></td>
-                    <td class="bo-nom-commune" x-text="p.nom"></td>
+                    <td class="bo-nom-commune">
+                      <span x-text="p.nom"></span>
+                      <span x-show="p.inscrit" title="Un citoyen s'est inscrit lui-même — signal fort, priorité pour un vrai contact" style="margin-left:4px">🔥</span>
+                    </td>
                     <td x-text="p.departement"></td>
                     <td x-text="p.population ? p.population.toLocaleString('fr-FR') : '—'"></td>
                     <td><span class="bo-statut" :class="'bo-statut--' + p.statut" x-text="libelleStatut(p.statut)"></span></td>
@@ -1365,8 +1444,8 @@
 
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
-  <script src="/backoffice/js/api.js?v=20260818-3"></script>
-  <script src="/backoffice/js/app.js?v=20260818-3"></script>
+  <script src="/backoffice/js/api.js?v=20260818-4"></script>
+  <script src="/backoffice/js/app.js?v=20260818-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

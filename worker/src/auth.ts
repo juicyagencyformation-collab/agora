@@ -8,6 +8,7 @@ import { jwtMiddleware } from './middleware/jwt';
 import { gererConnexionQuotidienne, verifierBadges } from './lib/gamification';
 import { envoyerEmail } from './lib/email';
 import { hasherMotDePasse, verifierMotDePasse } from './lib/password';
+import { declencherBienvenuePremiereInscription } from './backoffice/onboarding';
 
 const app = new Hono();
 
@@ -70,6 +71,11 @@ app.post('/register', async (c) => {
 
   setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
   setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+
+  // En arrière-plan (n'attend pas, ne doit jamais ralentir/casser une inscription citoyenne) :
+  // si c'est la toute première inscription de cette commune issue de la prospection, un email
+  // de bienvenue personnalisé part côté backoffice (voir declencherBienvenuePremiereInscription).
+  c.executionCtx.waitUntil(declencherBienvenuePremiereInscription(c.env, commune_id, user));
 
   return c.json({ ok: true, role: 'citoyen' }, 201);
 });
