@@ -703,22 +703,41 @@ function backoffice() {
     },
     nbSelection() { return Object.keys(this.selectionProspects).length; },
 
+    // Envoi de la sélection traité UN PAR UN en séquence (comme rattraperActivation, dont le
+    // pattern est éprouvé) plutôt qu'en un seul gros appel groupé /prospecter-lot : sur une
+    // grande série, plusieurs envois lourds partant "en rafale" (ou même un seul appel groupé
+    // trop long) saturaient le Worker/Resend (503) et faisaient courir une course sur le
+    // rafraîchissement de session (401). Un par un, boFetch gère proprement le rafraîchissement
+    // s'il expire en cours de route. Pas de plafond arbitraire à 40.
     async envoyerLot() {
       const ids = Object.keys(this.selectionProspects);
       if (!ids.length) return;
-      if (ids.length > 40) { this.lotMsg = 'Maximum 40 communes par envoi.'; return; }
-      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune.`)) return;
+      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune. Traité un par un : ça peut prendre un moment pour une grande liste.`)) return;
       this.lotEnCours = true;
       this.lotMsg = '';
-      try {
-        const r = await boFetch('/prospection/prospecter-lot', { method: 'POST', body: JSON.stringify({ ids }) });
-        this.lotMsg = `${r.envoyes} envoyé(s), ${r.sans_email} sans email, ${r.ignores} ignoré(s)${r.erreurs ? `, ${r.erreurs} en erreur` : ''}.`;
-        await this.chargerProspects();
-      } catch (e) {
-        this.lotMsg = e.message || 'Envoi impossible';
-      } finally {
-        this.lotEnCours = false;
+      const prospectsParId = new Map(this.prospects.map((p) => [p.id, p]));
+      let envoyes = 0, sansEmail = 0, erreurs = 0;
+      for (let i = 0; i < ids.length; i++) {
+        const p = prospectsParId.get(ids[i]);
+        this.lotMsg = `${i + 1}/${ids.length}${p ? ' — ' + p.nom : ''}…`;
+        try {
+          await boFetch('/prospection/prospects/' + ids[i] + '/prospecter', { method: 'POST' });
+          envoyes += 1;
+          if (p) {
+            if (p.statut === 'a_contacter') p.statut = 'contacte';
+            p.prochaine_relance_le = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+          }
+        } catch (e) {
+          if (e.status === 422) sansEmail += 1; else erreurs += 1;
+        }
+        // Petite pause entre deux envois : laisse respirer le Worker/Resend, évite l'effet de
+        // rafale qui causait les 503 quand beaucoup d'envois partaient en même temps.
+        if (i < ids.length - 1) await new Promise((r) => setTimeout(r, 250));
       }
+      this.lotMsg = `${envoyes} envoyé(s), ${sansEmail} sans email${erreurs ? `, ${erreurs} en erreur` : ''}.`;
+      this.selectionProspects = {};
+      try { this.apProsp = await boFetch('/prospection/apercu'); } catch {}
+      this.lotEnCours = false;
     },
 
     async appliquerStatutLot() {
@@ -805,6 +824,7 @@ function backoffice() {
     // gratuit si elle n'existe pas encore (voir activerCommuneGratuite côté Worker) : confirmation
     // nécessaire, ce n'est plus un simple envoi d'email.
     async envoyerPresentationLigne(p) {
+      if (this.envoiLigneId !== null || this.lotEnCours || this.rattrapageEnCours) return; // évite un envoi concurrent
       this.envoiLigneId = p.id;
       try {
         await boFetch('/prospection/prospects/' + p.id + '/prospecter', { method: 'POST' });

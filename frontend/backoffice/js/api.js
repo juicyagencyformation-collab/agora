@@ -19,7 +19,11 @@ async function boFetch(chemin, options = {}, _reessai = false) {
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.erreur ? (typeof data.erreur === 'string' ? data.erreur : 'Erreur') : 'Erreur');
+  if (!res.ok) {
+    const erreur = new Error(data.erreur ? (typeof data.erreur === 'string' ? data.erreur : 'Erreur') : 'Erreur');
+    erreur.status = res.status; // permet aux appelants de distinguer un échec "attendu" (ex: 422) d'une vraie panne
+    throw erreur;
+  }
   return data;
 }
 

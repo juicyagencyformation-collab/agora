@@ -1041,8 +1041,8 @@
               </select>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerStatutLot()" :disabled="!statutLotChoisi || statutLotEnCours">Appliquer</button>
               <span class="bo-info" x-text="lotMsg"></span>
-              <button class="bo-btn bo-btn--compact" @click="envoyerLot()" :disabled="lotEnCours || nbSelection() > 40"
-                      x-text="lotEnCours ? 'Envoi…' : ('✉ Envoyer la présentation aux ' + nbSelection() + ' sélectionnés')"></button>
+              <button class="bo-btn bo-btn--compact" @click="envoyerLot()" :disabled="lotEnCours || nbSelection() === 0 || envoiLigneId !== null || rattrapageEnCours"
+                      x-text="lotEnCours ? (lotMsg || 'Envoi…') : ('✉ Envoyer la présentation aux ' + nbSelection() + ' sélectionnés')"></button>
             </div>
           </div>
 
@@ -1068,7 +1068,7 @@
                     </td>
                     <td><span :class="relanceEnRetard(p) ? 'bo-note--basse' : ''" x-text="p.prochaine_relance_le ? formatDate(p.prochaine_relance_le) : '—'"></span></td>
                     <td @click.stop style="white-space:nowrap">
-                      <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerPresentationLigne(p)" :disabled="envoiLigneId === p.id"
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerPresentationLigne(p)" :disabled="envoiLigneId !== null || lotEnCours || rattrapageEnCours"
                               :title="'Envoyer la présentation à ' + p.nom"
                               x-text="envoiLigneId === p.id ? '…' : '✉'"></button>
                       <span x-show="dernierEnvoiId === p.id" style="color:var(--bo-vert); margin-left:6px" title="Présentation envoyée">✓</span>
@@ -1365,8 +1365,8 @@
 
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
-  <script src="/backoffice/js/api.js?v=20260818-1"></script>
-  <script src="/backoffice/js/app.js?v=20260818-2"></script>
+  <script src="/backoffice/js/api.js?v=20260818-3"></script>
+  <script src="/backoffice/js/app.js?v=20260818-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
