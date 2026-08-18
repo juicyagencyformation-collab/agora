@@ -951,7 +951,15 @@ app.post('/communes/:id/onglets/preset', async (c) => {
   await appliquerOngletsSurCommune(c.env, id, ongletsActifs);
 
   const forfait = body.data.preset === 'complet' ? 'Version complète' : 'Gratuit';
-  await supabaseUpdate(c.env, 'communes', { forfait }, { id: `eq.${id}` });
+  const donnees: Record<string, unknown> = { forfait };
+  // Une commune gratuite ne doit plus traîner de prix/échéance : sinon elle continue de
+  // ressortir en 🔴/🟡 (santé) et dans "Facturation à traiter" alors qu'elle ne doit rien
+  // (bug constaté le 2026-08-18 — passer en Gratuit ne nettoyait jamais ces champs).
+  if (body.data.preset === 'gratuit') {
+    donnees.prix_annuel_ttc = null;
+    donnees.prochaine_echeance = null;
+  }
+  await supabaseUpdate(c.env, 'communes', donnees, { id: `eq.${id}` });
   return c.json({ ok: true, forfait });
 });
 

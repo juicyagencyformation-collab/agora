@@ -137,6 +137,7 @@ app.post('/devis/:id/facturer', async (c) => {
     montant_ht: devis.montant_ht,
     taux_tva: devis.taux_tva,
     montant_ttc: devis.montant_ttc,
+    duree_engagement_mois: devis.duree_engagement_mois,
     date_emission: dateEmission.toISOString().slice(0, 10),
     date_echeance: dateEcheance.toISOString().slice(0, 10),
     numero,
@@ -172,6 +173,20 @@ app.patch('/factures/:id', async (c) => {
   if (!maj.length) return c.json({ erreur: 'Facture introuvable' }, 404);
   if (body.data.statut === 'payee') {
     await journaliser(c.env, c.get('staff_id'), 'facture_payee', `${maj[0].numero} — ${maj[0].montant_ttc} € TTC`);
+    // Sans ça, payer via le circuit devis -> facture ne fait jamais bouger l'échéance de la
+    // commune : elle reste indéfiniment "en retard" (badge santé, "Facturation à traiter")
+    // malgré le paiement (bug constaté le 2026-08-18 — les deux façons de "marquer payé", ici
+    // et via le bouton dédié sur l'onglet Abonnement, ne se synchronisaient pas).
+    if (maj[0].commune_id) {
+      const [commune] = await supabaseSelect(c.env, 'communes', {
+        select: 'prochaine_echeance', id: `eq.${maj[0].commune_id}`,
+      });
+      const base = commune?.prochaine_echeance ? new Date(commune.prochaine_echeance) : new Date();
+      base.setMonth(base.getMonth() + (maj[0].duree_engagement_mois || 12));
+      await supabaseUpdate(c.env, 'communes', {
+        prochaine_echeance: base.toISOString().slice(0, 10), derniere_relance_echeance_le: null,
+      }, { id: `eq.${maj[0].commune_id}` });
+    }
   }
   return c.json({ ok: true, facture: maj[0] });
 });

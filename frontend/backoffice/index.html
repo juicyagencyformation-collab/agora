@@ -883,7 +883,52 @@
             <span class="bo-info" x-text="presentMsg"></span>
           </div>
 
+          <div class="bo-section-titre">Forfait &amp; stockage</div>
+          <div class="bo-carte" style="padding:16px 18px">
+            <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap">
+              <span class="bo-info">Préréglage des modules :</span>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('gratuit')" :disabled="presetEnCours">🆓 Passer en Gratuit</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('complet')" :disabled="presetEnCours">💶 Passer en Version complète</button>
+              <span class="bo-info" x-text="presetMsg"></span>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--bo-border)">
+              <template x-for="o in ongletsCommune" :key="o.cle">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
+                  <input type="checkbox" :checked="o.actif" @change="toggleOngletCommune(o)" style="width:auto" />
+                  <span x-text="libelleOnglet(o.cle)"></span>
+                </label>
+              </template>
+            </div>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Forfait</label>
+                <input type="text" x-model="forfaitNom" placeholder="ex. Essentiel" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Quota (Go)</label>
+                <input type="number" x-model="forfaitQuota" min="0" step="0.5" placeholder="illimité" />
+              </div>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerForfait()" :disabled="forfaitEnCours"
+                      x-text="forfaitEnCours ? 'Enregistrement…' : 'Enregistrer'"></button>
+              <span class="bo-info" x-text="forfaitMsg"></span>
+            </div>
+
+            <div style="margin-top:16px">
+              <div style="display:flex; justify-content:space-between; font-size:14px">
+                <span x-text="'Stockage utilisé : ' + formatOctets(fiche.stockage.octets) + (fiche.commune.quota_go ? ' / ' + fiche.commune.quota_go + ' Go' : ' (aucun quota défini)')"></span>
+                <span class="bo-info" x-show="fiche.commune.quota_go" x-text="pourcentageStockage() + ' %'"></span>
+              </div>
+              <div class="bo-jauge" x-show="fiche.commune.quota_go">
+                <div class="bo-jauge__rempli" :class="classeJauge()" :style="'width:' + Math.min(100, pourcentageStockage()) + '%'"></div>
+              </div>
+            </div>
+          </div>
+
           <div class="bo-section-titre">Abonnement</div>
+          <div class="bo-info" style="margin:-8px 0 10px" x-show="fiche.commune.forfait === 'Gratuit'">
+            Commune sur le palier Gratuit — un prix/échéance renseigné ici n'a normalement pas lieu d'être
+            (passer en Version complète ci-dessus d'abord si elle doit être facturée).
+          </div>
           <div class="bo-carte" style="padding:16px 18px">
             <div class="bo-info" style="margin-bottom:10px">
               <span x-show="trancheSuggeree(fiche.commune.population)" x-text="'Tranche suggérée : ' + libelleTranche(trancheSuggeree(fiche.commune.population)) + ' — ' + (trancheSuggeree(fiche.commune.population) ? trancheSuggeree(fiche.commune.population).prix_annuel_ttc : 0) + ' € TTC/an'"></span>
@@ -1016,47 +1061,6 @@
               <span class="bo-info" x-text="accesMsg"></span>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
                       x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
-            </div>
-          </div>
-
-          <div class="bo-section-titre">Forfait &amp; stockage</div>
-          <div class="bo-carte" style="padding:16px 18px">
-            <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap">
-              <span class="bo-info">Préréglage des modules :</span>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('gratuit')" :disabled="presetEnCours">🆓 Passer en Gratuit</button>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('complet')" :disabled="presetEnCours">💶 Passer en Version complète</button>
-              <span class="bo-info" x-text="presetMsg"></span>
-            </div>
-            <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--bo-border)">
-              <template x-for="o in ongletsCommune" :key="o.cle">
-                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
-                  <input type="checkbox" :checked="o.actif" @change="toggleOngletCommune(o)" style="width:auto" />
-                  <span x-text="libelleOnglet(o.cle)"></span>
-                </label>
-              </template>
-            </div>
-            <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
-              <div class="bo-champ-inline">
-                <label style="margin-top:0">Forfait</label>
-                <input type="text" x-model="forfaitNom" placeholder="ex. Essentiel" />
-              </div>
-              <div class="bo-champ-inline">
-                <label style="margin-top:0">Quota (Go)</label>
-                <input type="number" x-model="forfaitQuota" min="0" step="0.5" placeholder="illimité" />
-              </div>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerForfait()" :disabled="forfaitEnCours"
-                      x-text="forfaitEnCours ? 'Enregistrement…' : 'Enregistrer'"></button>
-              <span class="bo-info" x-text="forfaitMsg"></span>
-            </div>
-
-            <div style="margin-top:16px">
-              <div style="display:flex; justify-content:space-between; font-size:14px">
-                <span x-text="'Stockage utilisé : ' + formatOctets(fiche.stockage.octets) + (fiche.commune.quota_go ? ' / ' + fiche.commune.quota_go + ' Go' : ' (aucun quota défini)')"></span>
-                <span class="bo-info" x-show="fiche.commune.quota_go" x-text="pourcentageStockage() + ' %'"></span>
-              </div>
-              <div class="bo-jauge" x-show="fiche.commune.quota_go">
-                <div class="bo-jauge__rempli" :class="classeJauge()" :style="'width:' + Math.min(100, pourcentageStockage()) + '%'"></div>
-              </div>
             </div>
           </div>
 
