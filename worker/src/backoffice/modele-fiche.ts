@@ -48,6 +48,14 @@ export const MODELE_FICHE_DEFAUT = `
         <h2>Découvrez l'application en direct</h2>
         <p>Scannez ce QR code avec l'appareil photo de votre téléphone pour ouvrir immédiatement l'application de la commune.</p>
         <span class="acces__url">{{url}}</span>
+        <div class="installation">
+          <div class="installation__titre">Pour l'installer comme une vraie application</div>
+          <ol class="installation__etapes">
+            <li>Scannez le QR code avec l'appareil photo de votre téléphone.</li>
+            <li>Ouvrez le lien qui s'affiche.</li>
+            <li><strong>iPhone</strong>&nbsp;: bouton Partager, puis « Sur l'écran d'accueil ». <strong>Android</strong>&nbsp;: menu ⋮, puis « Ajouter à l'écran d'accueil ».</li>
+          </ol>
+        </div>
       </div>
     </div>
 

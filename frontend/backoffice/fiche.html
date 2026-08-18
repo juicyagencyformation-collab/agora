@@ -1,85 +1,149 @@
 <!DOCTYPE html>
 <!-- frontend/backoffice/fiche.html — fiche de présentation imprimable (A4) d'une commune,
      personnalisée au nom de la commune + QR vers l'app en direct. Outil de prospection.
-     Paramètres d'URL : ?slug=eaucourt&nom=Eaucourt-sur-Somme -->
+     Paramètres d'URL : ?slug=eaucourt&nom=Eaucourt-sur-Somme
+     Design (2026-08-18) : refonte visuelle uniquement, inspirée du logo (navy/vert/or/corail),
+     fond blanc — le CONTENU vit dans worker/src/backoffice/modele-fiche.ts et ne doit jamais
+     changer de classes CSS sans mettre à jour ce fichier en miroir. -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Plateforme-Agora — Fiche de présentation</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-2" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <style>
     :root {
+      --navy: #1c3b57;
+      --navy-clair: #2f5779;
       --vert: #2c5f2d;
       --vert-clair: #4a8c4a;
-      --encre: #1b2a1c;
-      --gris: #5b6b5c;
-      --bord: #dfe7df;
-      --fond-doux: #f4f8f4;
+      --or: #b9791a;
+      --or-fond: #fbeed9;
+      --corail: #c85a3f;
+      --corail-fond: #fbe8e2;
+      --encre: #1c2226;
+      --gris: #5c6b74;
+      --bord: #e3e7ea;
+      --fond-doux: #f7f9fb;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--encre); background: #e9ede9; line-height: 1.5; }
-
-    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 10px; justify-content: flex-end; padding: 0 12px; }
-    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--vert); color: #fff; }
-    .btn--sec { background: #fff; color: var(--vert); border: 1px solid var(--vert); }
-
-    .feuille {
-      width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; padding: 20mm 18mm;
-      box-shadow: 0 8px 30px rgba(0,0,0,.12);
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--encre); background: #e9edf0; line-height: 1.5;
+    }
+    h1, h2, h3 {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      font-weight: 600;
     }
 
-    header { display: flex; align-items: flex-start; justify-content: space-between; border-bottom: 3px solid var(--vert); padding-bottom: 16px; }
-    .marque { font-size: 30px; font-weight: 800; color: var(--vert); letter-spacing: -.5px; }
+    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 10px; justify-content: flex-end; padding: 0 12px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--navy); color: #fff; }
+    .btn--sec { background: #fff; color: var(--navy); border: 1px solid var(--bord); }
+
+    .feuille {
+      width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; padding: 16mm 16mm 14mm;
+      box-shadow: 0 10px 34px rgba(15, 30, 45, .14);
+    }
+
+    /* — En-tête — */
+    header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; border-bottom: 2.5px solid var(--navy); padding-bottom: 14px; }
+    header img { max-height: 60px; max-width: 210px; object-fit: contain; display: block; margin-bottom: 6px; }
+    .marque { font-size: 28px; font-weight: 800; color: var(--navy); letter-spacing: -.4px; }
     .marque span { color: var(--vert-clair); }
-    .baseline { color: var(--gris); font-size: 14px; margin-top: 2px; }
-    .editeur { text-align: right; font-size: 12px; color: var(--gris); }
-    .editeur strong { color: var(--encre); }
+    .baseline { color: var(--gris); font-size: 12.5px; letter-spacing: .03em; text-transform: uppercase; }
+    .editeur { text-align: right; font-size: 12px; color: var(--gris); line-height: 1.6; }
+    .editeur strong { color: var(--navy); }
 
-    .hero { margin: 26px 0 8px; }
-    .hero h1 { font-size: 26px; line-height: 1.25; }
+    /* — Accroche — */
+    .hero { margin: 24px 0 6px; }
+    .hero h1 { font-size: 25px; line-height: 1.28; color: var(--navy); max-width: 90%; }
     .hero h1 em { color: var(--vert); font-style: normal; }
-    .hero p { color: var(--gris); font-size: 15px; margin-top: 10px; max-width: 70%; }
+    .hero p { color: var(--gris); font-size: 14px; margin-top: 8px; max-width: 74%; line-height: 1.6; }
 
-    .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 24px 0; }
-    .mod { border: 1px solid var(--bord); border-radius: 10px; padding: 14px 16px; background: var(--fond-doux); }
-    .mod h3 { font-size: 15px; margin-bottom: 3px; display: flex; align-items: center; gap: 8px; }
-    .mod p { font-size: 13px; color: var(--gris); }
-    .puce { width: 9px; height: 9px; border-radius: 3px; background: var(--vert-clair); flex-shrink: 0; }
+    /* — Grille des modules — */
+    .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+    .mod {
+      border: 1px solid var(--bord); border-left: 3px solid var(--navy); border-radius: 8px;
+      padding: 10px 13px; background: var(--fond-doux);
+    }
+    .mod h3 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13.5px; font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 7px; color: var(--encre);
+    }
+    .mod p { font-size: 11.5px; color: var(--gris); line-height: 1.45; }
+    .puce { width: 7px; height: 7px; border-radius: 50%; background: var(--navy); flex-shrink: 0; }
+    .grille .mod:nth-child(4n+2) { border-left-color: var(--vert); }
+    .grille .mod:nth-child(4n+2) .puce { background: var(--vert); }
+    .grille .mod:nth-child(4n+3) { border-left-color: var(--or); }
+    .grille .mod:nth-child(4n+3) .puce { background: var(--or); }
+    .grille .mod:nth-child(4n+4) { border-left-color: var(--corail); }
+    .grille .mod:nth-child(4n+4) .puce { background: var(--corail); }
 
-    .atouts { display: flex; gap: 10px; margin: 22px 0; }
-    .atout { flex: 1; text-align: center; padding: 14px 8px; border-radius: 10px; background: var(--vert); color: #fff; }
-    .atout b { display: block; font-size: 13px; }
-    .atout span { font-size: 11px; opacity: .85; }
+    /* — Atouts (bande foncée, seul aplat de couleur de la page) — */
+    .atouts { display: flex; gap: 0; margin: 22px 0; background: var(--navy); border-radius: 10px; overflow: hidden; }
+    .atout { flex: 1; text-align: center; padding: 14px 8px; color: #fff; border-left: 1px solid rgba(255,255,255,.14); }
+    .atout:first-child { border-left: none; }
+    .atout b { display: block; font-size: 12.5px; font-weight: 700; }
+    .atout span { font-size: 10.5px; color: #c7d5e0; }
 
-    .acces { display: flex; align-items: center; gap: 24px; margin-top: 26px; padding: 20px; border: 2px dashed var(--vert-clair); border-radius: 14px; background: var(--fond-doux); }
-    .acces__qr { width: 150px; height: 150px; flex-shrink: 0; background: #fff; border-radius: 8px; padding: 8px; display: flex; align-items: center; justify-content: center; }
+    /* — Accès / QR : le point fort de la page — */
+    .acces {
+      display: flex; align-items: stretch; gap: 22px; margin-top: 20px; padding: 18px 22px;
+      border: 1px solid var(--bord); border-radius: 14px;
+      background: linear-gradient(135deg, var(--fond-doux) 0%, #fff 60%);
+      box-shadow: 0 6px 18px rgba(28, 59, 87, .07);
+    }
+    .acces__qr {
+      width: 128px; height: 128px; flex-shrink: 0; background: #fff; border: 1.5px solid var(--navy);
+      border-radius: 10px; padding: 8px; display: flex; align-items: center; justify-content: center;
+      align-self: center;
+    }
     .acces__qr svg { width: 100%; height: 100%; }
-    .acces__txt h2 { font-size: 19px; color: var(--vert); }
-    .acces__txt p { font-size: 14px; color: var(--gris); margin-top: 4px; }
-    .acces__url { display: inline-block; margin-top: 10px; font-weight: 700; font-size: 15px; color: var(--encre); word-break: break-all; }
+    .acces__txt { flex: 1; min-width: 0; }
+    .acces__txt h2 { font-size: 17px; color: var(--navy); }
+    .acces__txt > p { font-size: 12.5px; color: var(--gris); margin-top: 3px; line-height: 1.5; }
+    .acces__url {
+      display: inline-block; margin-top: 8px; font-weight: 700; font-size: 12.5px; color: var(--navy);
+      background: var(--fond-doux); border: 1px solid var(--bord); border-radius: 999px;
+      padding: 3px 12px; word-break: break-all;
+    }
 
-    footer { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; font-size: 12px; color: var(--gris); }
+    .installation { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--bord); }
+    .installation__titre { font-size: 11.5px; font-weight: 700; color: var(--vert); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
+    .installation__etapes { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .installation__etapes li {
+      font-size: 11.5px; color: var(--encre); line-height: 1.45; padding-left: 22px; position: relative; counter-increment: etape;
+    }
+    .installation__etapes { counter-reset: etape; }
+    .installation__etapes li::before {
+      content: counter(etape); position: absolute; left: 0; top: 0.5px;
+      width: 15px; height: 15px; border-radius: 50%; background: var(--vert); color: #fff;
+      font-size: 9.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+
+    footer { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; font-size: 11px; color: var(--gris); }
 
     @media (max-width: 720px) {
       .barre-actions { max-width: 100%; }
       .feuille { width: auto; min-height: auto; padding: 20px 16px; margin: 0 8px 16px; }
-      header { flex-direction: column; gap: 10px; }
+      header { flex-direction: column; align-items: flex-start; gap: 10px; }
       .editeur { text-align: left; }
-      .hero h1 { font-size: 22px; }
-      .hero p { max-width: 100%; }
+      .hero h1, .hero p { max-width: 100%; }
       .grille { grid-template-columns: 1fr; }
       .atouts { flex-wrap: wrap; }
-      .atout { flex: 1 1 45%; }
+      .atout { flex: 1 1 45%; border-left: none; border-top: 1px solid rgba(255,255,255,.14); }
       .acces { flex-direction: column; text-align: center; }
+      .acces__qr { margin: 0 auto; }
+      .installation__etapes li { text-align: left; }
       footer { flex-direction: column; gap: 6px; }
     }
 
     @media print {
       body { background: #fff; }
       .barre-actions { display: none; }
-      .feuille { box-shadow: none; margin: 0; width: auto; min-height: auto; padding: 12mm; }
+      .feuille { box-shadow: none; margin: 0; width: auto; min-height: auto; padding: 10mm 12mm; }
+      .atouts, .mod, .acces { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       @page { size: A4; margin: 0; }
     }
   </style>
@@ -93,7 +157,7 @@
   <!-- Contenu injecté par fiche.js à partir du modèle éditable (backoffice). -->
   <div class="feuille" id="feuille"></div>
 
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-2"></script>
-  <script src="/backoffice/js/fiche.js?v=20260817-2"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
+  <script src="/backoffice/js/fiche.js?v=20260818-1"></script>
 </body>
 </html>
