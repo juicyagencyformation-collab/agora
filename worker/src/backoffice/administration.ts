@@ -1029,6 +1029,99 @@ app.put('/onglets-gratuits', async (c) => {
   return c.json({ ok: true, onglets: body.data.onglets, nb_communes_mises_a_jour: communesGratuites.length });
 });
 
+// GET /activite — flux d'activité citoyenne cross-communes façon CRM (inscriptions +
+// publications), pour repérer d'un coup d'œil qui est actif. Distinct de journal_activite
+// (qui trace uniquement MES actions de staff, pas celles des citoyens). Agrégation à la
+// LECTURE plutôt qu'une nouvelle table alimentée à l'écriture partout dans le code citoyen :
+// zéro changement, donc zéro risque, sur les routes existantes (auth, actus, mur, agenda...) —
+// le coût est plusieurs requêtes ici, largement acceptable pour un tableau de bord interne
+// consulté occasionnellement, pas un flux temps réel à fort trafic.
+const TYPES_ACTIVITE = ['compte', 'article', 'alerte', 'mur', 'agenda', 'entraide', 'memoire', 'photo', 'sondage'] as const;
+// Fenêtre de temps déjà bornée (depuis/jours) : une limite par source, pas une pagination
+// complète, suffit largement pour de petites communes — ce n'est pas un export exhaustif.
+const LIMITE_PAR_SOURCE = '300';
+
+app.get('/activite', async (c) => {
+  const communeId = c.req.query('commune_id');
+  const typesDemandes = c.req.query('types')?.split(',').filter((t) => (TYPES_ACTIVITE as readonly string[]).includes(t));
+  const types = typesDemandes?.length ? typesDemandes : [...TYPES_ACTIVITE];
+  const jours = Math.min(365, Math.max(1, parseInt(c.req.query('depuis') || '30', 10) || 30));
+  const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
+  const taille = 50;
+
+  const depuisISO = new Date(Date.now() - jours * 24 * 3600 * 1000).toISOString();
+  const filtreBase: Record<string, string> = { created_at: `gte.${depuisISO}`, limit: LIMITE_PAR_SOURCE, order: 'created_at.desc' };
+  if (communeId) filtreBase.commune_id = `eq.${communeId}`;
+
+  const requetes: Record<string, Promise<any[]>> = {};
+  if (types.includes('compte')) requetes.compte = supabaseSelect(c.env, 'users', { ...filtreBase, select: 'id,commune_id,prenom,nom,role,created_at' });
+  if (types.includes('article')) requetes.article = supabaseSelect(c.env, 'articles', { ...filtreBase, select: 'id,commune_id,auteur_id,titre,section,created_at' });
+  if (types.includes('alerte')) requetes.alerte = supabaseSelect(c.env, 'alertes', { ...filtreBase, select: 'id,commune_id,user_id,titre,urgent,created_at' });
+  if (types.includes('mur')) requetes.mur = supabaseSelect(c.env, 'posts', { ...filtreBase, select: 'id,commune_id,user_id,contenu,created_at' });
+  if (types.includes('agenda')) requetes.agenda = supabaseSelect(c.env, 'events', { ...filtreBase, select: 'id,commune_id,user_id,titre,created_at' });
+  if (types.includes('entraide')) requetes.entraide = supabaseSelect(c.env, 'coups_de_main', { ...filtreBase, select: 'id,commune_id,user_id,titre,type,created_at' });
+  if (types.includes('memoire')) requetes.memoire = supabaseSelect(c.env, 'souvenirs', { ...filtreBase, select: 'id,commune_id,user_id,titre,created_at' }).catch(() => []);
+  if (types.includes('photo')) requetes.photo = supabaseSelect(c.env, 'photos_du_jour', { ...filtreBase, select: 'id,commune_id,user_id,created_at' });
+  if (types.includes('sondage')) requetes.sondage = supabaseSelect(c.env, 'sondages', { ...filtreBase, select: 'id,commune_id,user_id,question,created_at' });
+
+  const cles = Object.keys(requetes);
+  const resultats = await Promise.all(Object.values(requetes));
+
+  const evenements: any[] = [];
+  cles.forEach((type, i) => {
+    for (const ligne of resultats[i]) {
+      evenements.push({
+        type,
+        commune_id: ligne.commune_id,
+        auteur_id: type === 'compte' ? null : (ligne.user_id ?? ligne.auteur_id ?? null),
+        auteur_nom_direct: type === 'compte' ? `${ligne.prenom} ${ligne.nom}` : null,
+        titre: type === 'compte' ? null : (ligne.titre ?? ligne.question ?? (type === 'mur' ? (ligne.contenu || '').slice(0, 80) : null)),
+        badge: type === 'compte' ? ligne.role
+          : type === 'article' ? (ligne.section === 'conseil' ? 'conseil' : 'actualité')
+          : type === 'alerte' ? (ligne.urgent ? 'urgent' : null)
+          : type === 'entraide' ? ligne.type
+          : null,
+        created_at: ligne.created_at,
+      });
+    }
+  });
+  evenements.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+  // Compteurs pour les cartes de résumé, dérivés des mêmes données (pas de requête en plus).
+  const il7 = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const resume = {
+    comptes_7j: evenements.filter((e) => e.type === 'compte' && e.created_at >= il7).length,
+    comptes_30j: evenements.filter((e) => e.type === 'compte').length,
+    publications_7j: evenements.filter((e) => e.type !== 'compte' && e.created_at >= il7).length,
+    publications_30j: evenements.filter((e) => e.type !== 'compte').length,
+  };
+
+  const total = evenements.length;
+  const debut = (page - 1) * taille;
+  const pageEvenements = evenements.slice(debut, debut + taille);
+
+  // Enrichissement (noms de commune/utilisateur) uniquement pour ce qui est affiché.
+  const idsCommunes = [...new Set(pageEvenements.map((e) => e.commune_id).filter(Boolean))];
+  const idsUtilisateurs = [...new Set(pageEvenements.map((e) => e.auteur_id).filter(Boolean))];
+  const [communes, utilisateurs] = await Promise.all([
+    idsCommunes.length ? supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `in.(${idsCommunes.join(',')})` }) : [],
+    idsUtilisateurs.length ? supabaseSelect(c.env, 'users', { select: 'id,prenom,nom', id: `in.(${idsUtilisateurs.join(',')})` }) : [],
+  ]);
+  const communeParId = new Map(communes.map((cm: any) => [cm.id, cm]));
+  const nomParUtilisateur = new Map(utilisateurs.map((u: any) => [u.id, `${u.prenom} ${u.nom}`]));
+
+  const enrichis = pageEvenements.map((e) => {
+    const commune = communeParId.get(e.commune_id) as any;
+    return {
+      type: e.type, titre: e.titre, badge: e.badge, created_at: e.created_at,
+      commune_id: e.commune_id, commune_nom: commune?.nom ?? null, commune_slug: commune?.slug ?? null,
+      auteur_nom: e.auteur_nom_direct ?? nomParUtilisateur.get(e.auteur_id) ?? null,
+    };
+  });
+
+  return c.json({ evenements: enrichis, page, taille, total, resume });
+});
+
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
   // Comptages exacts (Prefer: count=exact) plutôt qu'un .length sur les lignes chargées :

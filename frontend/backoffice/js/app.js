@@ -44,6 +44,16 @@ function backoffice() {
     historiqueProspection: { prospect: null, interactions: [] },
     rgpd: null,
     qrCommune: '',
+    // — Activité (flux CRM cross-communes) —
+    activite: [],
+    resumeActivite: { comptes_7j: 0, comptes_30j: 0, publications_7j: 0, publications_30j: 0 },
+    pageActivite: 1,
+    tailleActivite: 50,
+    totalActivite: 0,
+    filtreActiviteDepuis: 30,
+    filtreActiviteTypes: [],
+    filtreActiviteCommune: '',
+    activiteCommune: [],       // flux borné à la commune ouverte, pour le tiroir de la fiche
     rolesGerables: ['citoyen', 'admin', 'elu', 'maire'],
     communeActiveId: null,
     communeActiveNom: '',
@@ -225,6 +235,7 @@ function backoffice() {
       this.historiqueProspection = { prospect: null, interactions: [] };
       this.rgpd = null;
       this.qrCommune = '';
+      this.activiteCommune = [];
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
         this.forfaitNom = this.fiche.commune.forfait || '';
@@ -234,6 +245,7 @@ function backoffice() {
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
         try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
         try { this.historiqueProspection = await boFetch('/administration/communes/' + id + '/historique-prospection'); } catch {}
+        try { this.activiteCommune = (await boFetch('/administration/activite?commune_id=' + id + '&depuis=90')).evenements; } catch {}
         try { this.rgpd = await boFetch('/administration/communes/' + id + '/rgpd'); } catch {}
         this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
         this.devisMsg = '';
@@ -691,6 +703,63 @@ function backoffice() {
 
     allerReglages() {
       this.vue = 'reglages';
+    },
+
+    // — Activité (flux CRM cross-communes) —
+    async allerActivite() {
+      this.vue = 'activite';
+      this.pageActivite = 1;
+      await this.chargerActivite();
+    },
+    appliquerFiltresActivite() {
+      this.pageActivite = 1;
+      this.chargerActivite();
+    },
+    async chargerActivite() {
+      this.erreurChargement = '';
+      const params = new URLSearchParams();
+      if (this.filtreActiviteDepuis) params.set('depuis', this.filtreActiviteDepuis);
+      if (this.filtreActiviteTypes.length) params.set('types', this.filtreActiviteTypes.join(','));
+      if (this.filtreActiviteCommune) params.set('commune_id', this.filtreActiviteCommune);
+      params.set('page', this.pageActivite);
+      try {
+        const r = await boFetch('/administration/activite' + (params.toString() ? '?' + params : ''));
+        this.activite = r.evenements;
+        this.totalActivite = r.total ?? r.evenements.length;
+        this.tailleActivite = r.taille ?? 50;
+        this.resumeActivite = r.resume;
+      } catch (e) {
+        this.erreurChargement = e.message || "Erreur de chargement de l'activité";
+      }
+    },
+    basculerTypeActivite(type) {
+      const i = this.filtreActiviteTypes.indexOf(type);
+      if (i === -1) this.filtreActiviteTypes.push(type); else this.filtreActiviteTypes.splice(i, 1);
+      this.appliquerFiltresActivite();
+    },
+    nbPagesActivite() {
+      return Math.max(1, Math.ceil(this.totalActivite / this.tailleActivite));
+    },
+    allerPageActivite(delta) {
+      const cible = Math.min(this.nbPagesActivite(), Math.max(1, this.pageActivite + delta));
+      if (cible === this.pageActivite) return;
+      this.pageActivite = cible;
+      this.chargerActivite();
+    },
+    libelleTypeActivite(type) {
+      const labels = {
+        compte: 'Nouveau compte', article: 'Actu publiée', alerte: 'Signalement/alerte',
+        mur: 'Post mur des voisins', agenda: 'Événement agenda', entraide: 'Coup de main',
+        memoire: 'Mémoire du village', photo: 'Photo du jour', sondage: 'Sondage',
+      };
+      return labels[type] || type;
+    },
+    iconeTypeActivite(type) {
+      const icones = {
+        compte: '🆕', article: '📰', alerte: '🚨', mur: '💬', agenda: '📅',
+        entraide: '🤝', memoire: '📖', photo: '📷', sondage: '📊',
+      };
+      return icones[type] || '•';
     },
 
     // — Prospection —

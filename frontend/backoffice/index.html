@@ -18,6 +18,7 @@
       <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260818-1" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__pied">
@@ -662,6 +663,70 @@
         </div>
       </template>
 
+      <!-- Vue : Activité (flux CRM cross-communes — inscriptions + publications) -->
+      <template x-if="!chargement && vue === 'activite'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">Activité</div>
+              <div class="bo-sous">Inscriptions et publications citoyennes, toutes communes confondues.</div>
+            </div>
+          </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
+
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_7j"></div><div class="bo-stat__lib">Nouveaux comptes (7j)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_30j"></div><div class="bo-stat__lib">Nouveaux comptes (30j)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.publications_7j"></div><div class="bo-stat__lib">Publications (7j)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.publications_30j"></div><div class="bo-stat__lib">Publications (30j)</div></div>
+          </div>
+
+          <div class="bo-outils">
+            <select x-model.number="filtreActiviteDepuis" @change="appliquerFiltresActivite()">
+              <option :value="7">7 derniers jours</option>
+              <option :value="30">30 derniers jours</option>
+              <option :value="90">90 derniers jours</option>
+              <option :value="365">12 derniers mois</option>
+            </select>
+            <template x-for="t in ['compte','article','alerte','mur','agenda','entraide','memoire','photo','sondage']" :key="t">
+              <label style="display:flex; align-items:center; gap:5px; white-space:nowrap; font-size:13px">
+                <input type="checkbox" :checked="filtreActiviteTypes.includes(t)" @change="basculerTypeActivite(t)">
+                <span x-text="iconeTypeActivite(t) + ' ' + libelleTypeActivite(t)"></span>
+              </label>
+            </template>
+          </div>
+
+          <div class="bo-carte" style="padding:6px 18px">
+            <template x-for="e in activite" :key="e.type + e.created_at + (e.auteur_nom || '')">
+              <div class="bo-timeline-item">
+                <span class="bo-timeline__type"><span class="bo-badge" x-text="iconeTypeActivite(e.type) + ' ' + libelleTypeActivite(e.type)"></span></span>
+                <div class="bo-timeline__corps">
+                  <div>
+                    <span x-text="e.auteur_nom || '—'"></span>
+                    <template x-if="e.titre"><span> — <span x-text="e.titre"></span></span></template>
+                    <template x-if="e.badge"><span class="bo-badge" style="margin-left:6px" x-text="e.badge"></span></template>
+                  </div>
+                  <div class="bo-timeline__meta">
+                    <span x-text="e.commune_nom || '—'" style="cursor:pointer; text-decoration:underline" @click="e.commune_id ? ouvrirFiche(e.commune_id) : null"></span>
+                    · <span x-text="formatDateHeure(e.created_at)"></span>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <template x-if="activite.length === 0">
+              <div class="bo-vide" style="text-align:center; padding:24px 0">Aucune activité sur cette période.</div>
+            </template>
+          </div>
+          <div class="bo-outils" x-show="activite.length > 0" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="totalActivite.toLocaleString('fr-FR') + ' événement(s) · page ' + pageActivite + ' sur ' + nbPagesActivite()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageActivite(-1)" :disabled="pageActivite <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageActivite(1)" :disabled="pageActivite >= nbPagesActivite()">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Vue : fiche d'une commune -->
       <template x-if="!chargement && vue === 'fiche' && fiche">
         <div>
@@ -741,6 +806,29 @@
               </div>
             </div>
           </template>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('activite_commune')">
+              <span>Activité récente<span class="bo-tiroir__compte" x-show="activiteCommune.length" x-text="'— ' + activiteCommune.length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.activite_commune}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.activite_commune">
+              <div class="bo-info" style="margin-bottom:8px">Inscriptions et publications de cette commune, 90 derniers jours.</div>
+              <template x-for="e in activiteCommune" :key="e.type + e.created_at + (e.auteur_nom || '')">
+                <div class="bo-timeline-item">
+                  <span class="bo-timeline__type"><span class="bo-badge" x-text="iconeTypeActivite(e.type) + ' ' + libelleTypeActivite(e.type)"></span></span>
+                  <div class="bo-timeline__corps">
+                    <div>
+                      <span x-text="e.auteur_nom || '—'"></span>
+                      <template x-if="e.titre"><span> — <span x-text="e.titre"></span></span></template>
+                    </div>
+                    <div class="bo-timeline__meta" x-text="formatDateHeure(e.created_at)"></div>
+                  </div>
+                </div>
+              </template>
+              <template x-if="activiteCommune.length === 0"><div class="bo-vide">Aucune activité sur les 90 derniers jours.</div></template>
+            </div>
+          </div>
 
           <template x-if="doublons && doublons.length">
             <div>
@@ -1452,7 +1540,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-4"></script>
-  <script src="/backoffice/js/app.js?v=20260818-5"></script>
+  <script src="/backoffice/js/app.js?v=20260818-6"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
