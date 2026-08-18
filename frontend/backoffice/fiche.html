@@ -11,7 +11,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Plateforme-Agora — Fiche de présentation</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260818-2" />
   <style>
     :root {
       --navy: #1c3b57;
@@ -46,12 +46,25 @@
       box-shadow: 0 10px 34px rgba(15, 30, 45, .14);
     }
 
-    /* — En-tête — */
-    header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; border-bottom: 2.5px solid var(--navy); padding-bottom: 14px; }
-    header img { max-height: 60px; max-width: 210px; object-fit: contain; display: block; margin-bottom: 6px; }
-    .marque { font-size: 28px; font-weight: 800; color: var(--navy); letter-spacing: -.4px; }
+    /* — En-tête : le logo est la pièce maîtresse, tout le reste s'organise autour — */
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      border-bottom: 2.5px solid var(--navy); padding-bottom: 18px;
+    }
+    header > div:first-child { display: flex; align-items: center; gap: 18px; }
+    .logo-halo {
+      width: 118px; height: 118px; flex-shrink: 0; border-radius: 50%;
+      background: radial-gradient(circle, var(--fond-doux) 0%, #fff 72%);
+      border: 1px solid var(--bord);
+      display: flex; align-items: center; justify-content: center;
+    }
+    header img { max-height: 100px; max-width: 100px; object-fit: contain; display: block; }
+    /* Repli texte (aucun logo uploadé) : garde le halo cohérent sans débordement. */
+    .logo-halo .marque { font-size: 14px; text-align: center; line-height: 1.2; padding: 0 8px; }
+    .logo-texte { display: flex; flex-direction: column; gap: 4px; }
+    .marque { font-size: 32px; font-weight: 800; color: var(--navy); letter-spacing: -.4px; }
     .marque span { color: var(--vert-clair); }
-    .baseline { color: var(--gris); font-size: 12.5px; letter-spacing: .03em; text-transform: uppercase; }
+    .baseline { color: var(--gris); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; }
     .editeur { text-align: right; font-size: 12px; color: var(--gris); line-height: 1.6; }
     .editeur strong { color: var(--navy); }
 
@@ -157,7 +170,7 @@
   <!-- Contenu injecté par fiche.js à partir du modèle éditable (backoffice). -->
   <div class="feuille" id="feuille"></div>
 
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
-  <script src="/backoffice/js/fiche.js?v=20260818-1"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-2"></script>
+  <script src="/backoffice/js/fiche.js?v=20260818-2"></script>
 </body>
 </html>

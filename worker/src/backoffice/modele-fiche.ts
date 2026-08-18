@@ -9,8 +9,10 @@ import { supabaseSelect } from '../db';
 export const MODELE_FICHE_DEFAUT = `
     <header>
       <div>
-        {{logo}}
-        <div class="baseline">La plateforme citoyenne de votre commune</div>
+        <div class="logo-halo">{{logo}}</div>
+        <div class="logo-texte">
+          <div class="baseline">La plateforme citoyenne de votre commune</div>
+        </div>
       </div>
       <div class="editeur">
         Édité par <strong>Juicy Solutions</strong><br />
