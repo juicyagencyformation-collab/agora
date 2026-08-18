@@ -6,7 +6,7 @@
 // Toutes les routes sont derrière backofficeMiddleware (périmètre staff transverse).
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseCount } from '../db';
+import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
@@ -84,9 +84,11 @@ app.get('/prospects', async (c) => {
   // activée pour ce prospect — bien plus fort qu'un simple envoi d'email (voir onboarding.ts →
   // declencherBienvenuePremiereInscription). Calculé à part (pas de embedding PostgREST) pour
   // rester simple ; ?inscrits=1 filtre la liste sur ce seul signal.
-  const communesInscrites = await supabaseSelect(c.env, 'communes', {
+  // Résilient : si la migration 044 (colonne premiere_inscription_citoyen_le) n'est pas encore
+  // passée, la liste doit quand même se charger (signal simplement absent) plutôt que 500.
+  const communesInscrites = await supabaseSelectTout(c.env, 'communes', {
     select: 'id', premiere_inscription_citoyen_le: 'not.is.null',
-  });
+  }).catch(() => []);
   const idsCommunesInscrites = new Set(communesInscrites.map((cm: any) => cm.id));
 
   if (c.req.query('inscrits') === '1') {
@@ -139,10 +141,12 @@ app.get('/prospects-export.csv', async (c) => {
     if (recherche) where.nom = `ilike.*${recherche}*`;
   }
 
-  const prospects = await supabaseSelect(c.env, 'prospects', {
+  // Export = tout ce qui correspond, donc pagination complète (même piège que /apercu : un
+  // simple limit élevé ne suffit pas, Supabase plafonne à 1000 lignes par réponse).
+  const prospects = await supabaseSelectTout(c.env, 'prospects', {
     ...where,
     select: 'nom,departement,population,statut,contact_email,contact_telephone,site_web,prochaine_relance_le,created_at',
-    order: 'nom.asc', limit: '20000',
+    order: 'nom.asc',
   });
   const csv = versCsv(prospects, [
     { cle: 'nom', titre: 'Commune' }, { cle: 'departement', titre: 'Département' },
@@ -191,8 +195,12 @@ app.get('/carte', async (c) => {
 
 // — Aperçu : compteurs par statut + relances dues aujourd'hui —
 app.get('/apercu', async (c) => {
-  const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'statut,prochaine_relance_le,commune_id', limit: '20000',
+  // Pagination complète (pas un simple limit élevé) : Supabase plafonne chaque réponse à 1000
+  // lignes quel que soit le `limit` demandé, donc la répartition par statut sous-comptait
+  // silencieusement dès que la table dépassait 1000 prospects (piège découvert le 2026-08-18,
+  // même cause que /administration/apercu — voir supabaseSelectTout dans db.ts).
+  const prospects = await supabaseSelectTout(c.env, 'prospects', {
+    select: 'statut,prochaine_relance_le,commune_id',
   });
   const parStatut: Record<string, number> = {};
   for (const s of STATUTS) parStatut[s] = 0;
@@ -342,14 +350,16 @@ app.post('/prospects/corriger-emails-invalides', async (c) => {
 // plusieurs envois sous des variantes différentes (la connexion est alors comptée pour chacune) —
 // acceptable pour un funnel indicatif, pas un système de stats exhaustif.
 app.get('/stats-variantes', async (c) => {
-  const envois = await supabaseSelect(c.env, 'envois_prospection', {
-    select: 'prospect_id,variante,ouvert_le,clique_le,rejete_le', est_test: 'eq.false', limit: '20000',
+  // Pagination complète : sur une grosse série d'envois, un simple limit élevé ne suffit pas
+  // (Supabase plafonne à 1000 lignes par réponse, voir supabaseSelectTout dans db.ts).
+  const envois = await supabaseSelectTout(c.env, 'envois_prospection', {
+    select: 'prospect_id,variante,ouvert_le,clique_le,rejete_le', est_test: 'eq.false',
   });
 
   const prospectIds = [...new Set(envois.map((e: any) => e.prospect_id).filter(Boolean))];
   const prospectCommune = new Map<string, string>();
   if (prospectIds.length) {
-    const prospects = await supabaseSelect(c.env, 'prospects', {
+    const prospects = await supabaseSelectTout(c.env, 'prospects', {
       select: 'id,commune_id', id: `in.(${prospectIds.join(',')})`,
     });
     for (const p of prospects) if (p.commune_id) prospectCommune.set(p.id, p.commune_id);
@@ -358,7 +368,7 @@ app.get('/stats-variantes', async (c) => {
   const communeIds = [...new Set(prospectCommune.values())];
   const communesConnectees = new Set<string>();
   if (communeIds.length) {
-    const maires = await supabaseSelect(c.env, 'users', {
+    const maires = await supabaseSelectTout(c.env, 'users', {
       select: 'commune_id,derniere_connexion_streak', role: 'eq.maire', commune_id: `in.(${communeIds.join(',')})`,
     });
     for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);

@@ -11,6 +11,25 @@ export async function supabaseSelect(env: any, table: string, filtres: Record<st
   return res.json();
 }
 
+// ⚠️ Supabase/PostgREST plafonne CHAQUE réponse à 1000 lignes par défaut, quel que soit le
+// `limit` demandé dans les filtres — un simple `supabaseSelect(...).length` ment silencieusement
+// dès qu'une table dépasse 1000 lignes (piège rencontré sur /administration/apercu et
+// /prospection/apercu : les compteurs semblaient "bloqués" à 1000). Pour un total exact, utiliser
+// supabaseCount ci-dessous ; pour agréger sur TOUTES les lignes (ex: répartition par statut),
+// paginer avec supabaseSelectTout.
+export async function supabaseSelectTout(env: any, table: string, filtres: Record<string, string>): Promise<any[]> {
+  const page = 1000;
+  let offset = 0;
+  let tout: any[] = [];
+  for (;;) {
+    const lignes = await supabaseSelect(env, table, { ...filtres, limit: String(page), offset: String(offset) });
+    tout = tout.concat(lignes);
+    if (lignes.length < page) break;
+    offset += page;
+  }
+  return tout;
+}
+
 // Compte total de lignes correspondant aux filtres, SANS toutes les charger : PostgREST renvoie
 // le total dans l'en-tête Content-Range quand on demande Prefer: count=exact + Range 0-0.
 export async function supabaseCount(env: any, table: string, filtres: Record<string, string>): Promise<number> {

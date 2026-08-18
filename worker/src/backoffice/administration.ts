@@ -5,7 +5,7 @@
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, journaliser } from '../db';
+import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
 import {
@@ -91,17 +91,19 @@ async function calculerStockageR2(env: any, commune_id: string): Promise<{ octet
 // GET /communes — liste des communes clientes avec quelques indicateurs de suivi.
 // La commune "nationale" (niveau_national=true) n'est pas une cliente : on l'exclut.
 app.get('/communes', async (c) => {
-  const communes = await supabaseSelect(c.env, 'communes', {
+  // Pagination complète (pas un simple limit élevé, qui NE marche PAS : Supabase plafonne
+  // chaque réponse à 1000 lignes côté serveur quel que soit le `limit` demandé côté client —
+  // piège découvert le 2026-08-18, la liste et les comptages par commune étaient tronqués dès
+  // que le total dépassait 1000, voir supabaseSelectTout dans db.ts).
+  const communes = await supabaseSelectTout(c.env, 'communes', {
     select: 'id,slug,nom,population,logo_url,contact_email,forfait,quota_go,statut_client,prochaine_echeance,email_invalide,created_at',
     niveau_national: 'not.is.true', // exclut seulement la commune nationale (garde false ET null)
     order: 'nom.asc',
-    limit: '5000',
   });
 
-  // Deux lectures agrégées côté Worker plutôt qu'une requête par commune (N+1). Limite haute
-  // explicite : sans elle, PostgREST plafonne à ~1000 lignes et fausse les comptages.
-  const users = await supabaseSelect(c.env, 'users', { select: 'commune_id', limit: '100000' });
-  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'commune_id,note', limit: '100000' });
+  // Deux lectures agrégées côté Worker plutôt qu'une requête par commune (N+1).
+  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id' });
+  const avis = await supabaseSelectTout(c.env, 'avis_application', { select: 'commune_id,note' }).catch(() => []);
 
   const nbCitoyens = new Map<string, number>();
   for (const u of users) nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
@@ -129,9 +131,10 @@ app.get('/communes', async (c) => {
 // GET /communes-export.csv — export brut, pour sauvegarde/analyse externe (aucun export natif
 // n'existait jusqu'ici en dehors d'une requête directe sur Supabase).
 app.get('/communes-export.csv', async (c) => {
-  const communes = await supabaseSelect(c.env, 'communes', {
+  // Export = tout, donc pagination complète (voir supabaseSelectTout dans db.ts).
+  const communes = await supabaseSelectTout(c.env, 'communes', {
     select: 'nom,slug,statut_client,population,forfait,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,contact_email,created_at',
-    niveau_national: 'not.is.true', order: 'nom.asc', limit: '5000',
+    niveau_national: 'not.is.true', order: 'nom.asc',
   });
   const csv = versCsv(communes, [
     { cle: 'nom', titre: 'Commune' }, { cle: 'slug', titre: 'Slug' },
@@ -1014,7 +1017,9 @@ app.put('/onglets-gratuits', async (c) => {
     if (!clesActuelles.has(cle)) await supabaseInsert(c.env, 'onglets_gratuits', { cle });
   }
 
-  const communesGratuites = await supabaseSelect(c.env, 'communes', { select: 'id', forfait: 'eq.Gratuit', limit: '5000' });
+  // Pagination complète : le nombre de communes gratuites peut désormais dépasser 1000
+  // (activation automatique à l'envoi de la présentation), un simple limit ne suffit pas.
+  const communesGratuites = await supabaseSelectTout(c.env, 'communes', { select: 'id', forfait: 'eq.Gratuit' });
   for (const commune of communesGratuites) {
     await appliquerOngletsSurCommune(c.env, commune.id, body.data.onglets);
   }
@@ -1026,22 +1031,24 @@ app.put('/onglets-gratuits', async (c) => {
 
 // GET /apercu — indicateurs globaux pour la page d'accueil du backoffice.
 app.get('/apercu', async (c) => {
-  const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id', niveau_national: 'not.is.true', limit: '5000',
-  });
-  const users = await supabaseSelect(c.env, 'users', { select: 'id', limit: '100000' });
-  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'note', limit: '100000' });
+  // Comptages exacts (Prefer: count=exact) plutôt qu'un .length sur les lignes chargées :
+  // Supabase plafonne chaque réponse à 1000 lignes quel que soit le `limit` demandé, donc un
+  // .length "mentait" silencieusement dès que communes/users dépassait 1000 (piège découvert le
+  // 2026-08-18 — les chiffres semblaient "bloqués" à 1000).
+  const [nb_communes, nb_citoyens, nb_avis] = await Promise.all([
+    supabaseCount(c.env, 'communes', { niveau_national: 'not.is.true' }),
+    supabaseCount(c.env, 'users', {}),
+    supabaseCount(c.env, 'avis_application', {}),
+  ]);
 
+  // La moyenne, elle, a besoin des notes elles-mêmes : peu de risque de dépasser 1000 avis avant
+  // longtemps, donc un simple select limité suffit ici (résilient si la table n'existe pas encore).
+  const avis = await supabaseSelect(c.env, 'avis_application', { select: 'note', limit: '5000' }).catch(() => []);
   const note_moyenne = avis.length
     ? Math.round((avis.reduce((s: number, a: any) => s + a.note, 0) / avis.length) * 10) / 10
     : null;
 
-  return c.json({
-    nb_communes: communes.length,
-    nb_citoyens: users.length,
-    note_moyenne,
-    nb_avis: avis.length,
-  });
+  return c.json({ nb_communes, nb_citoyens, note_moyenne, nb_avis });
 });
 
 // — Comptes staff (Léandre & co) — AUCUN endpoint de création ici, volontairement : les comptes
