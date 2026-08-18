@@ -1122,13 +1122,15 @@
               </template>
               <template x-if="statsVariantes.length > 0">
                 <table>
-                  <thead><tr><th>Variante</th><th>Envoyés</th><th>Ouverts</th><th>Cliqués</th><th>Rejetés</th><th>Connectés</th></tr></thead>
+                  <thead><tr><th>Variante</th><th>Période d'envoi</th><th>Envoyés</th><th>Ouverts</th><th>Ouverture (≥7j)</th><th>Cliqués</th><th>Rejetés</th><th>Connectés</th></tr></thead>
                   <tbody>
                     <template x-for="v in statsVariantes" :key="v.nom">
                       <tr style="cursor:default">
                         <td x-text="v.nom"></td>
+                        <td class="bo-info" x-text="periodeEnvoi(v)"></td>
                         <td x-text="v.envoyes"></td>
                         <td x-text="pct(v.ouverts, v.envoyes)"></td>
+                        <td :title="'Sur les ' + v.envoyes_matures + ' envoi(s) vieux d\'au moins 7 jours'" x-text="v.taux_ouverture_mature === null ? '—' : v.taux_ouverture_mature + ' %'"></td>
                         <td x-text="pct(v.cliques, v.envoyes)"></td>
                         <td x-text="pct(v.rejetes, v.envoyes)"></td>
                         <td x-text="pct(v.connectes, v.envoyes)"></td>
@@ -1141,6 +1143,9 @@
                 « Connectés » = le maire s'est réellement connecté au moins une fois — signal plus fiable que l'ouverture
                 (faussée par Apple Mail qui précharge le pixel de tracking chez une partie des destinataires).
                 Ouvertures et clics nécessitent le tracking activé côté Resend (Domaines → Configuration).
+                « Ouverture (≥7j) » ne compte que les envois vieux d'au moins 7 jours (une variante envoyée
+                récemment n'a pas fini d'accumuler ses ouvertures) — plus fiable que le taux brut pour comparer
+                deux variantes envoyées à des périodes différentes.
               </div>
             </div>
           </div>
@@ -1544,7 +1549,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260818-6"></script>
+  <script src="/backoffice/js/app.js?v=20260818-7"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

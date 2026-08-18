@@ -1234,6 +1234,12 @@ function backoffice() {
     pct(n, total) {
       return total ? `${n} (${Math.round((n / total) * 100)}%)` : String(n);
     },
+    periodeEnvoi(v) {
+      if (!v.premier_envoi_le) return '—';
+      const debut = this.formatDate(v.premier_envoi_le);
+      const fin = this.formatDate(v.dernier_envoi_le);
+      return debut === fin ? debut : debut + ' → ' + fin;
+    },
 
     // — Palette de recherche globale (Ctrl/Cmd+K) —
     ouvrirPalette() {

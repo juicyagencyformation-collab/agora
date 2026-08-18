@@ -369,8 +369,14 @@ app.get('/stats-variantes', async (c) => {
   // Pagination complète : sur une grosse série d'envois, un simple limit élevé ne suffit pas
   // (Supabase plafonne à 1000 lignes par réponse, voir supabaseSelectTout dans db.ts).
   const envois = await supabaseSelectTout(c.env, 'envois_prospection', {
-    select: 'prospect_id,variante,ouvert_le,clique_le,rejete_le', est_test: 'eq.false',
+    select: 'prospect_id,variante,envoye_le,ouvert_le,clique_le,rejete_le', est_test: 'eq.false',
   });
+
+  // Un envoi d'hier n'a pas fini d'être ouvert (les ouvertures s'étalent sur plusieurs jours) :
+  // comparer le taux d'ouverture brut d'une variante ancienne à une variante récente favorise
+  // artificiellement l'ancienne. On calcule donc aussi un taux "mature", restreint aux envois
+  // vieux d'au moins 7 jours — comparable entre variantes quel que soit leur âge respectif.
+  const seuilMaturite = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
   const prospectIds = [...new Set(envois.map((e: any) => e.prospect_id).filter(Boolean))];
   const prospectCommune = new Map<string, string>();
@@ -388,20 +394,40 @@ app.get('/stats-variantes', async (c) => {
     for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
   }
 
-  const parVariante: Record<string, { envoyes: number; ouverts: number; cliques: number; rejetes: number; connectes: number }> = {};
+  type Stat = {
+    envoyes: number; ouverts: number; cliques: number; rejetes: number; connectes: number;
+    envoyes_matures: number; ouverts_matures: number;
+    premier_envoi_le: string | null; dernier_envoi_le: string | null;
+  };
+  const parVariante: Record<string, Stat> = {};
   for (const e of envois) {
     const cle = e.variante || '(sans nom)';
-    const v = (parVariante[cle] ??= { envoyes: 0, ouverts: 0, cliques: 0, rejetes: 0, connectes: 0 });
+    const v = (parVariante[cle] ??= {
+      envoyes: 0, ouverts: 0, cliques: 0, rejetes: 0, connectes: 0,
+      envoyes_matures: 0, ouverts_matures: 0, premier_envoi_le: null, dernier_envoi_le: null,
+    });
     v.envoyes += 1;
     if (e.ouvert_le) v.ouverts += 1;
     if (e.clique_le) v.cliques += 1;
     if (e.rejete_le) v.rejetes += 1;
     const communeId = e.prospect_id ? prospectCommune.get(e.prospect_id) : undefined;
     if (communeId && communesConnectees.has(communeId)) v.connectes += 1;
+
+    if (e.envoye_le) {
+      if (!v.premier_envoi_le || e.envoye_le < v.premier_envoi_le) v.premier_envoi_le = e.envoye_le;
+      if (!v.dernier_envoi_le || e.envoye_le > v.dernier_envoi_le) v.dernier_envoi_le = e.envoye_le;
+      if (e.envoye_le < seuilMaturite) {
+        v.envoyes_matures += 1;
+        if (e.ouvert_le) v.ouverts_matures += 1;
+      }
+    }
   }
 
   const variantes = Object.entries(parVariante)
-    .map(([nom, v]) => ({ nom, ...v }))
+    .map(([nom, v]) => ({
+      nom, ...v,
+      taux_ouverture_mature: v.envoyes_matures ? Math.round((v.ouverts_matures / v.envoyes_matures) * 1000) / 10 : null,
+    }))
     .sort((a, b) => b.envoyes - a.envoyes);
   return c.json({ variantes });
 });
