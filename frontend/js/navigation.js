@@ -111,6 +111,16 @@ function activerOnglet(cle) {
     b.classList.toggle('active', b.dataset.onglet === cle);
   });
 
+  // Bouton retour du téléphone (voir aussi le popstate dans utils.js) : depuis un onglet ≠
+  // Accueil, un seul niveau d'historique suffit (Accueil ↔ onglet courant), qu'on pousse en
+  // le quittant et qu'on consomme en y revenant — que ce soit via un clic direct sur "Accueil"
+  // ou via le bouton retour lui-même.
+  if (cle !== 'accueil' && !history.state?.agoraOnglet) {
+    history.pushState({ agoraOnglet: true }, '');
+  } else if (cle === 'accueil' && history.state?.agoraOnglet) {
+    history.back();
+  }
+
   if (cle === 'accueil' || cle === 'profil' || !dejaCharges.has(cle)) {
     CHARGEURS[cle]?.();
     dejaCharges.add(cle);

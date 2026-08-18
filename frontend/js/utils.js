@@ -430,6 +430,15 @@ async function demarrerScannerJsQr(zoneElementId, onCodeDetecte) {
 
 // ── Modal réutilisable pour tous les formulaires de création/édition ──
 // Remonte en feuille depuis le bas sur mobile, centrée sur desktop.
+// Pile des modales ouvertes, couplée à l'historique du navigateur : chaque ouverture pousse
+// une entrée d'historique, pour que le bouton retour physique (Android) ferme la modale au
+// lieu de quitter la PWA installée — sans ça, une app installée n'a rien à "consommer" et le
+// retour sort direct de l'app. fermetureModaleProgrammatique évite que le history.back()
+// qu'on déclenche nous-mêmes (fermeture via ✕/clic à côté/succès) ne redéclenche à tort la
+// redirection vers l'onglet Accueil dans le popstate ci-dessous.
+let pileModalesHistorique = [];
+let fermetureModaleProgrammatique = false;
+
 function ouvrirModaleFormulaire(titre, contenuHtml) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay-modale-formulaire';
@@ -444,6 +453,8 @@ function ouvrirModaleFormulaire(titre, contenuHtml) {
   `;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('visible'));
+  history.pushState({ agoraModale: true }, '');
+  pileModalesHistorique.push(overlay);
 
   // Clic sur le fond ou sur ✕ : si des champs ont été saisis, on confirme avant de fermer,
   // pour ne pas perdre le travail sur un clic à côté par erreur (fermeture libre si rien n'est
@@ -473,7 +484,35 @@ function demanderFermetureModale(overlay) {
 function fermerModaleFormulaire(overlay) {
   overlay.classList.remove('visible');
   setTimeout(() => overlay.remove(), 250);
+  const i = pileModalesHistorique.indexOf(overlay);
+  if (i !== -1) {
+    pileModalesHistorique.splice(i, 1);
+    // Fermeture "depuis l'app" (✕, clic à côté, succès du formulaire) : on consomme
+    // nous-mêmes l'entrée d'historique posée à l'ouverture (sauf si popstate l'a déjà fait).
+    if (history.state?.agoraModale) {
+      fermetureModaleProgrammatique = true;
+      history.back();
+    }
+  }
 }
+
+// Bouton retour du téléphone : ferme la modale la plus récente s'il y en a une ; sinon,
+// s'il on n'est pas sur l'onglet Accueil, y revenir plutôt que quitter l'app. Si on est déjà
+// sur Accueil sans rien d'ouvert, on ne fait rien : le comportement par défaut (quitter l'app)
+// s'applique, comme sur une app native.
+window.addEventListener('popstate', () => {
+  if (fermetureModaleProgrammatique) { fermetureModaleProgrammatique = false; return; }
+  if (pileModalesHistorique.length) {
+    const overlay = pileModalesHistorique.pop();
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 250);
+    return;
+  }
+  const ongletActif = document.querySelector('.barre-onglets button.active, .sidebar-nav button.active')?.dataset.onglet;
+  if (ongletActif && ongletActif !== 'accueil' && typeof activerOnglet === 'function') {
+    activerOnglet('accueil');
+  }
+});
 
 // Toast de message générique (succès/erreur/info) — plus élégant qu'un alert() natif du navigateur.
 function afficherToastMessage(texte, type = 'info') {
