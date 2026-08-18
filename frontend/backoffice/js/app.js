@@ -285,6 +285,21 @@ function backoffice() {
         this.modeEditeurFiche = 'visuel';
         if (ed) ed.innerHTML = this.modeleFiche.contenu_html || '';
       }
+      this.synchroniserApercuFiche();
+    },
+    // Pousse le brouillon en cours (pas encore enregistré) dans l'iframe d'aperçu, par
+    // postMessage — voir frontend/backoffice/js/fiche.js. Permet de voir le vrai rendu A4 sans
+    // avoir à enregistrer à chaque essai.
+    synchroniserApercuFiche() {
+      const ed = document.getElementById('editeur-fiche');
+      if (this.modeEditeurFiche === 'visuel' && ed) this.modeleFiche.contenu_html = ed.innerHTML;
+      const iframe = document.getElementById('apercu-fiche-iframe');
+      if (!iframe || !iframe.contentWindow) return;
+      iframe.contentWindow.postMessage({
+        type: 'apercu-fiche',
+        contenu_html: this.modeleFiche.contenu_html,
+        logo_url: this.modele.logo_image_url || null,
+      }, window.location.origin);
     },
 
     async enregistrerModeleFiche() {

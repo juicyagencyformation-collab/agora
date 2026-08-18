@@ -6,16 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Backoffice Agora</title>
-  <link rel="icon" href="/backoffice/logo.png?v=20260817-52" />
-  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260817-52" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260817-52" />
+  <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
+  <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260818-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
        @keydown.window.ctrl.k.prevent="ouvrirPalette()" @keydown.window.meta.k.prevent="ouvrirPalette()">
     <!-- Navigation -->
     <nav class="bo-nav">
-      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260817-52" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260818-1" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
@@ -530,40 +530,53 @@
               <div class="bo-info" style="margin-bottom:12px">
                 Éditeur visuel de la fiche A4. Tu édites les textes ; la mise en page reste fixe.
                 Variables : <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{qr}}</code> (QR code), <code>{{url}}</code>.
-                Le logo est celui uploadé ci-dessus. <a href="/backoffice/fiche?slug=eaucourt&nom=Aperçu" target="_blank">Prévisualiser en vrai</a>.
+                Le logo est celui uploadé ci-dessus. L'aperçu à droite montre le <strong>vrai rendu, en direct</strong>,
+                même sans avoir enregistré. <a href="/backoffice/fiche?slug=eaucourt&nom=Aperçu" target="_blank">Ouvrir en plein écran</a>.
               </div>
-              <div class="bo-toolbar">
-                <template x-if="modeEditeurFiche === 'visuel'">
-                  <span style="display:contents">
-                    <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
-                    <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
-                    <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
-                    <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
-                    <span class="sep"></span>
-                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
-                      <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
-                      <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
-                      <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
-                      <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
-                      <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
-                    </span>
-                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
-                      <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
-                      <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
-                      <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
-                      <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
-                    </span>
-                    <span class="sep"></span>
-                  </span>
-                </template>
-                <button type="button" @click="basculerModeFiche()" x-text="modeEditeurFiche === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
-              </div>
-              <div x-show="modeEditeurFiche === 'visuel'" id="editeur-fiche" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurFiche()"></div>
-              <textarea x-show="modeEditeurFiche === 'code'" x-model="modeleFiche.contenu_html" style="min-height:280px; font-family:monospace; font-size:12.5px"></textarea>
-              <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
-                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModeleFiche()" :disabled="modeleFicheEnCours"
-                        x-text="modeleFicheEnCours ? 'Enregistrement…' : 'Enregistrer la fiche'"></button>
-                <span class="bo-info" x-text="modeleFicheMsg"></span>
+              <div class="bo-grille-2" style="align-items:start">
+                <div>
+                  <div class="bo-toolbar">
+                    <template x-if="modeEditeurFiche === 'visuel'">
+                      <span style="display:contents">
+                        <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                        <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                        <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                        <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                        <span class="sep"></span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                          <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                          <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                          <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                        </span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                          <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                          <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                        </span>
+                        <span class="sep"></span>
+                      </span>
+                    </template>
+                    <button type="button" @click="basculerModeFiche()" x-text="modeEditeurFiche === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+                  </div>
+                  <div x-show="modeEditeurFiche === 'visuel'" id="editeur-fiche" contenteditable="true" class="bo-wysiwyg"
+                       x-init="initEditeurFiche()" @input.debounce.400ms="synchroniserApercuFiche()"></div>
+                  <textarea x-show="modeEditeurFiche === 'code'" x-model="modeleFiche.contenu_html"
+                            @input.debounce.400ms="synchroniserApercuFiche()" style="min-height:280px; font-family:monospace; font-size:12.5px"></textarea>
+                  <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModeleFiche()" :disabled="modeleFicheEnCours"
+                            x-text="modeleFicheEnCours ? 'Enregistrement…' : 'Enregistrer la fiche'"></button>
+                    <span class="bo-info" x-text="modeleFicheMsg"></span>
+                  </div>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu en direct</label>
+                  <iframe id="apercu-fiche-iframe" src="/backoffice/fiche?slug=eaucourt&nom=Aper%C3%A7u"
+                          @load="synchroniserApercuFiche()"
+                          style="width:100%; height:560px; border:1px solid var(--bo-border); border-radius:8px; background:#fff"></iframe>
+                </div>
               </div>
             </div>
           </div>
@@ -1348,10 +1361,10 @@
     </main>
   </div>
 
-  <script src="/backoffice/vendor/leaflet.js?v=20260817-52"></script>
-  <script src="/backoffice/vendor/qrcode.min.js?v=20260817-52"></script>
-  <script src="/backoffice/js/api.js?v=20260817-52"></script>
-  <script src="/backoffice/js/app.js?v=20260817-52"></script>
-  <script src="/backoffice/vendor/alpine.min.js?v=20260817-52" defer></script>
+  <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
+  <script src="/backoffice/js/api.js?v=20260818-1"></script>
+  <script src="/backoffice/js/app.js?v=20260818-1"></script>
+  <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
