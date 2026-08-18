@@ -805,7 +805,6 @@ function backoffice() {
     // gratuit si elle n'existe pas encore (voir activerCommuneGratuite côté Worker) : confirmation
     // nécessaire, ce n'est plus un simple envoi d'email.
     async envoyerPresentationLigne(p) {
-      if (!confirm(`Envoyer la présentation à ${p.nom} ? Si cette commune n'a pas encore d'espace, il sera créé à l'instant en version gratuite, avec un compte maire.`)) return;
       this.envoiLigneId = p.id;
       try {
         await boFetch('/prospection/prospects/' + p.id + '/prospecter', { method: 'POST' });
