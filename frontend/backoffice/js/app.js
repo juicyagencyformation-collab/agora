@@ -33,6 +33,7 @@ function backoffice() {
     tiroirsOuverts: (() => { try { return JSON.parse(localStorage.getItem('bo_tiroirs') || '{}'); } catch { return {}; } })(),
     communes: [],
     triCommunes: { cle: null, sens: 'asc' },
+    pageCommunes: 1,
     paletteOuverte: false,
     paletteRecherche: '',
     paletteResultats: [],
@@ -1343,6 +1344,7 @@ function backoffice() {
       } else {
         this.triCommunes = { cle, sens: 'asc' };
       }
+      this.pageCommunes = 1; // un nouveau tri repart de la première page
     },
     flecheTri(cle) {
       if (this.triCommunes.cle !== cle) return '';
@@ -1371,6 +1373,20 @@ function backoffice() {
         return sens === 'asc' ? cmp : -cmp;
       });
       return copie;
+    },
+    // Pagination du tableau (côté client : le tri porte sur des champs calculés comme
+    // "santé", donc plus simple de trier/paginer la liste déjà chargée que de tout refaire
+    // porter par le serveur). 100 par page, même taille que la liste des prospects.
+    nbPagesCommunes() {
+      return Math.max(1, Math.ceil(this.communesTriees().length / 100));
+    },
+    allerPageCommunes(delta) {
+      const cible = Math.min(this.nbPagesCommunes(), Math.max(1, this.pageCommunes + delta));
+      this.pageCommunes = cible;
+    },
+    communesPage() {
+      const debut = (this.pageCommunes - 1) * 100;
+      return this.communesTriees().slice(debut, debut + 100);
     },
     classeEcheance(dateStr) {
       const j = this.joursAvantEcheance(dateStr);

@@ -86,7 +86,7 @@
                 </tr>
               </thead>
               <tbody>
-                <template x-for="c in communesTriees()" :key="c.id">
+                <template x-for="c in communesPage()" :key="c.id">
                   <tr @click="ouvrirFiche(c.id)">
                     <td><span class="bo-sante" :title="santeCommune(c).titre" x-text="santeCommune(c).icone"></span></td>
                     <td class="bo-nom-commune" x-text="c.nom"></td>
@@ -108,6 +108,13 @@
                 </template>
               </tbody>
             </table>
+          </div>
+          <div class="bo-outils" x-show="communes.length > 0" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="communesTriees().length.toLocaleString('fr-FR') + ' commune(s) · page ' + pageCommunes + ' sur ' + nbPagesCommunes()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(-1)" :disabled="pageCommunes <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(1)" :disabled="pageCommunes >= nbPagesCommunes()">Suivant →</button>
+            </div>
           </div>
 
           <div class="bo-tiroir">
@@ -1445,7 +1452,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-4"></script>
-  <script src="/backoffice/js/app.js?v=20260818-4"></script>
+  <script src="/backoffice/js/app.js?v=20260818-5"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
