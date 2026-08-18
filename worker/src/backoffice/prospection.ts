@@ -100,14 +100,22 @@ app.get('/prospects', async (c) => {
 
 // GET /prospects-export.csv — mêmes filtres que la liste (statut/departement/recherche), mais
 // sans pagination : tout ce qui correspond, pour sauvegarde/analyse externe.
+// rattrapage=1 : ignore les autres filtres et applique exactement le critère de
+// « candidats-rattrapage » ci-dessous (contacté/relancé/rdv sans commune activée), pour
+// obtenir la liste nominative (avec email) de ce que le compteur "contactes_sans_commune" compte.
 app.get('/prospects-export.csv', async (c) => {
   const where: Record<string, string> = {};
-  const statut = c.req.query('statut');
-  const departement = c.req.query('departement');
-  const recherche = c.req.query('recherche');
-  if (statut && STATUTS.includes(statut as any)) where.statut = `eq.${statut}`;
-  if (departement) where.departement = `eq.${departement.toUpperCase()}`;
-  if (recherche) where.nom = `ilike.*${recherche}*`;
+  if (c.req.query('rattrapage') === '1') {
+    where.commune_id = 'is.null';
+    where.statut = 'in.(contacte,relance,rdv)';
+  } else {
+    const statut = c.req.query('statut');
+    const departement = c.req.query('departement');
+    const recherche = c.req.query('recherche');
+    if (statut && STATUTS.includes(statut as any)) where.statut = `eq.${statut}`;
+    if (departement) where.departement = `eq.${departement.toUpperCase()}`;
+    if (recherche) where.nom = `ilike.*${recherche}*`;
+  }
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
     ...where,

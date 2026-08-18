@@ -984,6 +984,8 @@
             </span>
             <div style="display:flex; align-items:center; gap:10px">
               <span class="bo-info" x-text="rattrapageMsg"></span>
+              <a class="bo-btn bo-btn--sec bo-btn--compact" href="/api/backoffice/prospection/prospects-export.csv?rattrapage=1"
+                 target="_blank" rel="noopener">Voir la liste (CSV)</a>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="rattraperActivation()" :disabled="rattrapageEnCours"
                       x-text="rattrapageEnCours ? 'En cours…' : 'Activer et renvoyer'"></button>
             </div>
