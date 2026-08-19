@@ -2372,7 +2372,7 @@
 
           <!-- Barre d'action groupée -->
           <div class="bo-outils" x-show="sousVueProspection === 'liste' && nbSelection() > 0" style="justify-content:space-between; flex-wrap:wrap; row-gap:10px">
-            <span class="bo-info" x-text="nbSelection() + ' commune(s) sélectionnée(s)' + (nbSelection() > 40 ? ' — max 40 par envoi' : '')"></span>
+            <span class="bo-info" x-text="nbSelection() + ' commune(s) sélectionnée(s)'"></span>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
               <select x-model="statutLotChoisi" style="width:auto">
                 <option value="">Changer le statut…</option>
@@ -2383,6 +2383,15 @@
               <button class="bo-btn bo-btn--compact" @click="envoyerLot()" :disabled="lotEnCours || nbSelection() === 0 || envoiLigneId !== null || rattrapageEnCours"
                       x-text="lotEnCours ? (lotMsg || 'Envoi…') : ('✉ Envoyer la présentation aux ' + nbSelection() + ' sélectionnés')"></button>
             </div>
+          </div>
+
+          <!-- Échecs du dernier envoi groupé : reprend UNIQUEMENT ceux-là, jamais les déjà-envoyés
+               (pas de double-envoi) — voir envoyerLot()/relancerEchecsLot() dans app.js. -->
+          <div class="bo-outils" x-show="sousVueProspection === 'liste' && lotEchecs.length > 0" style="justify-content:space-between; flex-wrap:wrap; row-gap:10px; background:rgba(248,113,113,.08); border-radius:8px; padding:10px 12px">
+            <span class="bo-info" x-text="lotEchecs.length + ' échec(s) au dernier envoi — pas encore réessayés'"></span>
+            <button class="bo-btn bo-btn--sec bo-btn--compact" @click="relancerEchecsLot()" :disabled="lotEnCours">
+              <span x-text="lotEnCours ? (lotMsg || 'Envoi…') : ('↻ Relancer les ' + lotEchecs.length + ' échec(s)')"></span>
+            </button>
           </div>
 
           <div class="bo-carte" x-show="sousVueProspection === 'liste'">
@@ -2708,7 +2717,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-12"></script>
+  <script src="/backoffice/js/app.js?v=20260819-13"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

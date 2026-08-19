@@ -195,6 +195,7 @@ function backoffice() {
     tailleProspects: 100,
     lotEnCours: false,
     lotMsg: '',
+    lotEchecs: [],
     statutLotChoisi: '',
     statutLotEnCours: false,
     envoiLigneId: null,   // id du prospect dont l'envoi ligne est en cours
@@ -1048,35 +1049,61 @@ function backoffice() {
     // trop long) saturaient le Worker/Resend (503) et faisaient courir une course sur le
     // rafraîchissement de session (401). Un par un, boFetch gère proprement le rafraîchissement
     // s'il expire en cours de route. Pas de plafond arbitraire à 40.
-    async envoyerLot() {
-      const ids = Object.keys(this.selectionProspects);
-      if (!ids.length) return;
-      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune. Traité un par un : ça peut prendre un moment pour une grande liste.`)) return;
+    // Les échecs (503 compris) sont mémorisés dans lotEchecs plutôt que perdus : le bouton
+    // "Relancer les échecs" ne retape QUE ceux-là, jamais ceux déjà envoyés avec succès (voir
+    // relancerEchecsLot ci-dessous) — sinon relancer toute la liste enverrait des doublons.
+    async envoyerLotParIds(ids) {
       this.lotEnCours = true;
       this.lotMsg = '';
       const prospectsParId = new Map(this.prospects.map((p) => [p.id, p]));
-      let envoyes = 0, sansEmail = 0, erreurs = 0;
+      const echecs = [];
+      let envoyes = 0, sansEmail = 0;
       for (let i = 0; i < ids.length; i++) {
         const p = prospectsParId.get(ids[i]);
         this.lotMsg = `${i + 1}/${ids.length}${p ? ' — ' + p.nom : ''}…`;
         try {
-          await boFetch('/prospection/prospects/' + ids[i] + '/prospecter', { method: 'POST' });
+          await this.prospecterAvecRetry(ids[i]);
           envoyes += 1;
           if (p) {
             if (p.statut === 'a_contacter') p.statut = 'contacte';
             p.prochaine_relance_le = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
           }
         } catch (e) {
-          if (e.status === 422) sansEmail += 1; else erreurs += 1;
+          if (e.status === 422) sansEmail += 1;
+          else echecs.push({ id: ids[i], nom: p ? p.nom : ids[i] });
         }
         // Petite pause entre deux envois : laisse respirer le Worker/Resend, évite l'effet de
         // rafale qui causait les 503 quand beaucoup d'envois partaient en même temps.
-        if (i < ids.length - 1) await new Promise((r) => setTimeout(r, 250));
+        if (i < ids.length - 1) await new Promise((r) => setTimeout(r, 400));
       }
-      this.lotMsg = `${envoyes} envoyé(s), ${sansEmail} sans email${erreurs ? `, ${erreurs} en erreur` : ''}.`;
-      this.selectionProspects = {};
+      this.lotEchecs = echecs;
+      this.lotMsg = `${envoyes} envoyé(s), ${sansEmail} sans email${echecs.length ? `, ${echecs.length} en erreur (voir « Relancer les échecs » ci-dessus)` : ''}.`;
       try { this.apProsp = await boFetch('/prospection/apercu'); } catch {}
       this.lotEnCours = false;
+    },
+    // Un 503 est presque toujours transitoire (Worker/Resend momentanément saturé) : une seconde
+    // tentative après une pause plus longue réussit souvent, sans risquer de double-envoi
+    // puisqu'on ne retente QUE si la première tentative a explicitement échoué.
+    async prospecterAvecRetry(id) {
+      try {
+        return await boFetch('/prospection/prospects/' + id + '/prospecter', { method: 'POST' });
+      } catch (e) {
+        if (e.status !== 503) throw e;
+        await new Promise((r) => setTimeout(r, 2000));
+        return await boFetch('/prospection/prospects/' + id + '/prospecter', { method: 'POST' });
+      }
+    },
+    async envoyerLot() {
+      const ids = Object.keys(this.selectionProspects);
+      if (!ids.length) return;
+      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune. Traité un par un : ça peut prendre un moment pour une grande liste.`)) return;
+      this.selectionProspects = {};
+      await this.envoyerLotParIds(ids);
+    },
+    async relancerEchecsLot() {
+      const ids = this.lotEchecs.map((e) => e.id);
+      if (!ids.length) return;
+      await this.envoyerLotParIds(ids);
     },
 
     async appliquerStatutLot() {
