@@ -68,6 +68,14 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 .barre-onglets button .ic { font-size: 18px; }
 .barre-onglets button.active { color: var(--eau); font-weight: 600; }
 
+/* Module non activé par la mairie : visible mais grisé, avec un cadenas — volontairement pas
+   caché (display:none), le clic dessus est un signal fort côté séquence d'onboarding/upsell. */
+.sidebar-nav button.onglet-verrouille,
+.barre-onglets button.onglet-verrouille { opacity: .45; position: relative; }
+.sidebar-nav button.onglet-verrouille::after,
+.barre-onglets button.onglet-verrouille::after { content: '🔒'; font-size: 10px; margin-left: 4px; }
+.barre-onglets button.onglet-verrouille::after { position: absolute; top: 2px; right: 10px; margin-left: 0; }
+
 /* ─── Layout responsive ─── */
 @media (min-width: 900px) {
   body { padding-bottom: 0; }

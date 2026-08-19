@@ -3,7 +3,7 @@ import { estGestionnaire, peutGererRoles, peutAttribuerRole } from '../lib/permi
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete } from '../db';
+import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete, enregistrerEvenementActivation } from '../db';
 import { uploaderFichier } from '../storage';
 
 const app = new Hono();
@@ -40,6 +40,19 @@ app.get('/onglets', async (c) => {
   ];
 
   return c.json({ onglets: completes });
+});
+
+// POST /onglets/:cle/verrouille-clique — signal d'intention (quelqu'un a cliqué un module que
+// la mairie n'a pas activé) : le clic le plus significatif de toute la séquence d'onboarding/
+// upsell, car il capture une intention réelle au moment où elle se produit (voir
+// backoffice/onboarding-drip.ts et frontend/js/navigation.js). Accessible à tout utilisateur
+// connecté (citoyen inclus) : ce n'est qu'un ping, aucune donnée sensible en jeu.
+app.post('/onglets/:cle/verrouille-clique', async (c) => {
+  const cle = c.req.param('cle');
+  if (!ONGLETS_VALIDES.includes(cle as any)) return c.json({ erreur: 'Onglet invalide' }, 400);
+  const commune_id = c.get('commune_id');
+  await enregistrerEvenementActivation(c.env, commune_id, 'module_verrouille_clique');
+  return c.json({ ok: true });
 });
 
 app.patch('/onglets/:cle', async (c) => {

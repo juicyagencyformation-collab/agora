@@ -5,6 +5,7 @@ import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisation
 import { envoyerEmailEcheance } from './backoffice/email-commune';
 import { corrigerEmailsInvalides } from './backoffice/prospection';
 import { verifierRelanceInactivite } from './backoffice/onboarding';
+import { verifierSequenceOnboarding } from './backoffice/onboarding-drip';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -198,5 +199,12 @@ export async function corrigerEmailsProspectsInvalides(env: any) {
 // depuis 5 à 9 jours (voir verifierRelanceInactivite dans backoffice/onboarding.ts).
 export async function verifierRelancesInactiviteProspection(env: any) {
   await verifierRelanceInactivite(env);
+}
+
+// Séquence d'onboarding/upsell des communes gratuites (voir backoffice/onboarding-drip.ts) :
+// 4 emails déclenchés par ancienneté du compte (J+3/J+7) et par signaux d'activation réels
+// (jamais l'email 5 sur un critère de date seul).
+export async function verifierSequenceOnboardingCommunes(env: any) {
+  await verifierSequenceOnboarding(env);
 }
 

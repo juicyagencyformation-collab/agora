@@ -41,6 +41,19 @@ function blocIdentifiants(url: string, maireEmail: string, motDePasse: string): 
     </div>`;
 }
 
+// PS qui plante la graine de l'upsell sans vendre — ajouté après la signature des DEUX emails
+// qui jouent le rôle de "compte créé" selon le chemin d'activation (voir envoyerEmailBienvenue,
+// utilisé par la conversion manuelle d'un prospect ; et envoyerPresentation ci-dessous, utilisé
+// par l'activation automatique et gratuite). Contenu fourni tel quel, non inventé ici.
+function blocPsModules(): string {
+  return `
+    <div style="font-size:12px;color:#5b6b5c;margin-top:14px;font-style:italic">
+      PS — Vous verrez d'autres modules dans l'interface (conseil municipal, entraide entre
+      voisins, mémoire du village…) : ils s'activent quand vous voulez aller plus loin. On en
+      parle dès que vous êtes prêts, pas avant.
+    </div>`;
+}
+
 export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const url = `${d.frontendUrl}/${d.slug}/`;
   const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
@@ -73,6 +86,7 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
       Juicy Solutions — Léandre Sallé · plateforme-agora.fr<br />
       Une question&nbsp;? Répondez simplement à cet email.
     </div>
+    ${blocPsModules()}
   </div>`;
 }
 
@@ -350,6 +364,160 @@ export const MODELE_RELANCE_INACTIVITE_DEFAUT = {
   </div>`,
 };
 
+// — Séquence d'onboarding/upsell des communes gratuites (voir backoffice/onboarding-drip.ts),
+//   déclenchée par activation_events plutôt que par un simple délai — sauf ces 4 messages qui
+//   restent ancrés sur communes.created_at (J+3/J+7), CE contenu a été fourni intégralement par
+//   Léandre (pas inventé ici), seule la mise en HTML suit le style déjà en place. —
+
+// J+3, aucune activation détectée : rappel simple, sans culpabiliser.
+export const MODELE_ONBOARDING_RELANCE_J3_DEFAUT = {
+  objet: '{{commune}} : 2 minutes pour débloquer le plus utile',
+  corps_html: `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Bonjour,<br /><br />
+      Petit rappel amical : votre espace <strong>{{commune}}</strong> est prêt, mais encore vide
+      pour vos habitants.
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Deux actions, 2 minutes chacune, qui font toute la différence :
+    </p>
+    <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <div style="font-size:14px;color:#3a4a3b;line-height:1.8">
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Publier un premier article</strong> — même une actu simple suffit à donner vie à l'appli<br />
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Renseigner le calendrier de collecte des déchets</strong> — c'est souvent ce qui déclenche le plus d'inscriptions côté habitants
+      </div>
+    </div>
+    <p style="margin:24px 0">
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Retourner sur Agora</a>
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Une question, un blocage technique ? Répondez à cet email ou appelez-moi directement.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme · 06 48 06 10 97
+    </div>
+  </div>`,
+};
+
+// J+7, toujours aucune activation : on arrête le "conseil produit", place à l'humain. Volontairement
+// SANS bouton — l'objectif est une réponse par email/téléphone, pas un clic vers l'appli.
+export const MODELE_ONBOARDING_CHECKIN_J7_DEFAUT = {
+  objet: '{{commune}}, un frein en particulier ?',
+  corps_html: `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Bonjour,<br /><br />
+      Je vois que vous n'avez pas encore eu l'occasion de démarrer sur Agora — ce n'est pas une
+      relance automatique de plus, je me pose juste la question : y a-t-il un frein en
+      particulier ? Manque de temps, une question technique, besoin de valider en interne avant
+      d'aller plus loin ?
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Dites-le-moi simplement en répondant à cet email, ou appelez-moi directement au
+      06&nbsp;48&nbsp;06&nbsp;10&nbsp;97 — je préfère qu'on règle ça en 5 minutes au téléphone
+      plutôt que de vous laisser un compte qui prend la poussière.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme
+    </div>
+  </div>`,
+};
+
+// J+7, au moins une activation détectée : encouragement + graine upsell douce (pas de prix ici).
+export const MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT = {
+  objet: '{{commune}} a bien démarré 👍',
+  corps_html: `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Bonjour,<br /><br />
+      <strong>{{commune}}</strong> a franchi le pas — votre espace est en ligne et vos habitants
+      peuvent déjà le consulter. Bien joué.
+    </p>
+    <p style="margin:24px 0">
+      <a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Voir mon espace Agora</a>
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Pour la suite, à votre rythme, l'accès découverte reste gratuit sans limite de temps. Si un
+      jour vous voulez activer les modules plus poussés — conseil municipal en ligne, entraide
+      entre voisins, mémoire du village, alertes ciblées par quartier — je vous montre volontiers
+      ce que ça donne concrètement pour {{commune}}. Aucune urgence, aucune obligation.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme · 06 48 06 10 97
+    </div>
+  </div>`,
+};
+
+// Déclenché par signal fort (3 types d'événements distincts atteints), jamais par une date seule
+// — seul email de toute la séquence où le prix apparaît. Le bloc tarifs ci-dessous diffère
+// volontairement du contenu fourni : Agora n'a pas de paliers nommés "Essentiel/Pro/Premium" à
+// prix fixes, le vrai tarif dépend de la population (grille éditable dans Réglages) — un montant
+// inventé ici serait faux pour la commune qui le recevrait. Le CTA renvoie vers {{lien_fiche}}
+// (pas de {{lien_offre}}, variable inexistante dans le projet) : la fiche de présentation liste
+// déjà tous les modules, c'est ce qu'il y a de plus proche d'une page "formules" aujourd'hui.
+export const MODELE_ONBOARDING_UPSELL_DEFAUT = {
+  objet: '{{commune}} : ce que la version complète changerait concrètement',
+  corps_html: `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
+
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Bonjour,<br /><br />
+      <strong>{{commune}}</strong> utilise déjà bien l'espace gratuit — c'est exactement pour ça
+      que je vous écris maintenant plutôt qu'au premier jour, quand vous n'aviez pas encore vu ce
+      qu'Agora pouvait apporter concrètement.
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Voici ce qui s'activerait avec une formule payante, très concrètement pour votre commune :
+    </p>
+    <div style="background:#f4f8f4;border:1px solid #dfe7df;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <div style="font-size:14px;color:#3a4a3b;line-height:1.8">
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Conseil municipal en ligne</strong> — comptes-rendus, ordre du jour, participation citoyenne facilitée<br />
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Entraide entre voisins</strong> — mobiliser les habitants prêts à donner un coup de main (entretien, petits projets)<br />
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Mémoire du village</strong> — valoriser la parole des anciens, l'histoire locale<br />
+        <span style="color:#4a8c4a;font-weight:700">✓</span> <strong>Alertes ciblées</strong> par quartier ou zone géographique
+      </div>
+    </div>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Le tarif dépend simplement de la taille de {{commune}}, sans surprise — je vous fais un
+      chiffrage exact sur demande.
+    </p>
+    <p style="margin:24px 0">
+      <a href="{{lien_fiche}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Voir le détail des modules pour {{commune}}</a>
+    </p>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Je peux aussi vous faire une démo rapide par téléphone ou en visio, adaptée à ce que vous
+      avez déjà mis en place — dites-moi simplement ce qui vous arrangerait.
+    </p>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
+      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Élu à Eaucourt-sur-Somme · 06 48 06 10 97
+    </div>
+  </div>`,
+};
+
 export async function envoyerBienvenueInscription(
   env: any, contactEmail: string, ctx: ContextePresentation, varianteId?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
@@ -367,6 +535,22 @@ export async function envoyerRelanceInactivite(
   const modele = varianteId
     ? await chargerVarianteGeneriqueParId(env, 'relance_inactivite', varianteId, MODELE_RELANCE_INACTIVITE_DEFAUT)
     : await chargerModeleParCle(env, 'relance_inactivite', MODELE_RELANCE_INACTIVITE_DEFAUT);
+  const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
+  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
+  return { variante: modele.nom || null, resendEmailId };
+}
+
+// Version paramétrée par cle de envoyerBienvenueInscription/envoyerRelanceInactivite ci-dessus —
+// mêmes deux fonctions existantes intentionnellement laissées telles quelles (ne pas retoucher
+// ce qui marche déjà) ; celle-ci sert aux 4 nouveaux modèles de la séquence d'onboarding/upsell
+// (voir backoffice/onboarding-drip.ts) plutôt que d'écrire 4 fonctions de plus, identiques.
+export async function envoyerModeleGenerique(
+  env: any, cle: string, defaut: { objet: string; corps_html: string },
+  contactEmail: string, ctx: ContextePresentation, varianteId?: string,
+): Promise<{ variante: string | null; resendEmailId: string | null }> {
+  const modele = varianteId
+    ? await chargerVarianteGeneriqueParId(env, cle, varianteId, defaut)
+    : await chargerModeleParCle(env, cle, defaut);
   const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
   const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
   return { variante: modele.nom || null, resendEmailId };
@@ -411,7 +595,7 @@ export async function envoyerPresentation(
     logo: baliseLogo(modele.logo_image_url),
   };
   let corps = rendrePresentation(modele.corps_html, ctxComplet);
-  if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse);
+  if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse) + blocPsModules();
   corps = injecterPreviewText(corps, modele.preview_text);
   const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps);
   return { variante: modele.nom || null, resendEmailId };

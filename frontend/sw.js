@@ -5,7 +5,7 @@
 // iOS/PWA) peut alors rester bloquée sur une version cassée (page d'accueil vide, etc.). Le
 // changement de nom force la ré-installation du SW puis la suppression des anciens caches
 // dans l'événement 'activate' ci-dessous. Voir CLAUDE.md (pièges de cache).
-const CACHE_NAME = 'agora-shell-20260818-4';
+const CACHE_NAME = 'agora-shell-20260819-1';
 const FICHIERS_A_METTRE_EN_CACHE = [
   '/index.html',
   '/connexion.html',

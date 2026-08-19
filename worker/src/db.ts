@@ -99,3 +99,13 @@ export async function journaliser(env: any, staffId: any, action: string, detail
     await supabaseInsert(env, 'journal_activite', { staff_id: staffId, action, details: details || null });
   } catch { /* le journal ne doit jamais bloquer l'action réelle */ }
 }
+
+// Événements d'activation (migration 047) : signaux qu'une commune gratuite s'approprie
+// réellement l'outil (publication d'article, calendrier déchets rempli, clic sur un module
+// verrouillé...), utilisés par la séquence d'onboarding/upsell (voir backoffice/onboarding-drip.ts).
+// Même logique que journaliser() : ne doit jamais faire échouer l'action réelle de l'utilisateur.
+export async function enregistrerEvenementActivation(env: any, communeId: any, eventType: string): Promise<void> {
+  try {
+    await supabaseInsert(env, 'activation_events', { commune_id: communeId, event_type: eventType });
+  } catch { /* ne doit jamais bloquer l'action réelle */ }
+}

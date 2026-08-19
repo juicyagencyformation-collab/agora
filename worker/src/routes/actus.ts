@@ -3,7 +3,7 @@ import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
+import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect, enregistrerEvenementActivation } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
 import { sanitizeHtml } from '../lib/sanitize';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur } from '../lib/gamification';
@@ -154,6 +154,7 @@ app.post('/', async (c) => {
     fichier_pv_url: data.fichier_pv_url ?? null,
     fichier_pv_type: data.fichier_pv_type ?? null,
   });
+  await enregistrerEvenementActivation(c.env, commune_id, 'article_publie');
 
   if (data.image_r2_keys?.length) {
     await supabaseInsert(c.env, 'article_images', data.image_r2_keys.map((key, i) => ({

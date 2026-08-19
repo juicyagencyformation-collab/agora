@@ -11,11 +11,14 @@ import { hasherMotDePasse } from '../lib/password';
 import {
   envoyerEmailBienvenue, genererMotDePasseTemporaire,
   envoyerPresentation, contextePresentation, chargerModelePresentation,
-  envoyerBienvenueInscription, envoyerRelanceInactivite,
+  envoyerBienvenueInscription, envoyerRelanceInactivite, envoyerModeleGenerique,
   MODELE_PRESENTATION_DEFAUT, MODELE_BIENVENUE_INSCRIPTION_DEFAUT, MODELE_RELANCE_INACTIVITE_DEFAUT,
+  MODELE_ONBOARDING_RELANCE_J3_DEFAUT, MODELE_ONBOARDING_CHECKIN_J7_DEFAUT,
+  MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT, MODELE_ONBOARDING_UPSELL_DEFAUT,
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
+import { verifierSequenceOnboarding } from './onboarding-drip';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -341,9 +344,42 @@ app.post('/email-test-generique/:cle', async (c) => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinataire)) return c.json({ erreur: 'Adresse email invalide.' }, 400);
 
   const ctx = contextePresentation(c.env.FRONTEND_URL, 'Commune Test', 'decouverte-gratuite');
-  const envoyer = cle === 'bienvenue_inscription' ? envoyerBienvenueInscription : envoyerRelanceInactivite;
-  const { variante } = await envoyer(c.env, destinataire, ctx, varianteId);
+  let variante: string | null;
+  if (cle === 'bienvenue_inscription') {
+    ({ variante } = await envoyerBienvenueInscription(c.env, destinataire, ctx, varianteId));
+  } else if (cle === 'relance_inactivite') {
+    ({ variante } = await envoyerRelanceInactivite(c.env, destinataire, ctx, varianteId));
+  } else {
+    ({ variante } = await envoyerModeleGenerique(c.env, cle, DEFAUTS_MODELES_GENERIQUES[cle], destinataire, ctx, varianteId));
+  }
   return c.json({ ok: true, destinataire, variante });
+});
+
+// POST /onboarding-drip/executer — lance la séquence d'onboarding/upsell MAINTENANT (les 4
+// conditions J+3/J+7/événements), sans attendre le cron quotidien. Pratique pour tester : modifie
+// communes.created_at d'une commune de test dans Supabase (ex. -3 jours) et/ou ajoute des lignes
+// dans activation_events, puis appelle cette route. ATTENTION : envoie de VRAIS emails à toute
+// commune actuellement éligible, pas seulement à une commune de test — à utiliser avec une
+// commune dédiée aux essais, jamais en pointant vers de vraies communes clientes par erreur.
+app.post('/onboarding-drip/executer', async (c) => {
+  await verifierSequenceOnboarding(c.env);
+  return c.json({ ok: true });
+});
+
+// GET /onboarding-drip/communes/:id — état d'une commune face à la séquence : utile pour
+// vérifier AVANT de déclencher (ci-dessus) pourquoi elle serait ou non ciblée.
+app.get('/onboarding-drip/communes/:id', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', {
+    select: 'id,nom,forfait,statut_client,created_at', id: `eq.${id}`,
+  });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+  const [evenements, emailsEnvoyes] = await Promise.all([
+    supabaseSelect(c.env, 'activation_events', { select: 'event_type,created_at', commune_id: `eq.${id}`, order: 'created_at.asc' }),
+    supabaseSelect(c.env, 'sequence_emails_sent', { select: 'email_type,sent_at', commune_id: `eq.${id}` }),
+  ]);
+  const joursDepuisCreation = Math.floor((Date.now() - new Date(commune.created_at).getTime()) / 86400000);
+  return c.json({ commune, jours_depuis_creation: joursDepuisCreation, evenements, emails_envoyes: emailsEnvoyes });
 });
 
 // PATCH /communes/:id/statut — statut du cycle de vie client (active | suspendue | resiliee).
@@ -486,10 +522,20 @@ app.delete('/modeles-presentation/:id', async (c) => {
 //   logo/photo de signature configurables) : ce sont des messages courts et personnels, pas le
 //   pitch commercial. Whitelist stricte : jamais 'presentation'/'fiche', qui restent gérés par
 //   leurs routes dédiées ci-dessus. —
-const CLES_MODELES_GENERIQUES = ['bienvenue_inscription', 'relance_inactivite'] as const;
+const CLES_MODELES_GENERIQUES = [
+  'bienvenue_inscription', 'relance_inactivite',
+  // Séquence d'onboarding/upsell des communes gratuites (voir backoffice/onboarding-drip.ts) :
+  // 4 messages ancrés sur communes.created_at ou sur activation_events, jamais sur les deux à
+  // la fois pour email_5 (règle dure : pas d'upsell sur un critère de date seul).
+  'onboarding_relance_j3', 'onboarding_checkin_j7', 'onboarding_encouragement_j7', 'onboarding_upsell',
+] as const;
 const DEFAUTS_MODELES_GENERIQUES: Record<string, { objet: string; corps_html: string }> = {
   bienvenue_inscription: MODELE_BIENVENUE_INSCRIPTION_DEFAUT,
   relance_inactivite: MODELE_RELANCE_INACTIVITE_DEFAUT,
+  onboarding_relance_j3: MODELE_ONBOARDING_RELANCE_J3_DEFAUT,
+  onboarding_checkin_j7: MODELE_ONBOARDING_CHECKIN_J7_DEFAUT,
+  onboarding_encouragement_j7: MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT,
+  onboarding_upsell: MODELE_ONBOARDING_UPSELL_DEFAUT,
 };
 
 app.get('/modeles-email/:cle', async (c) => {

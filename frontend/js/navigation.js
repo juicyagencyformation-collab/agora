@@ -40,25 +40,38 @@ async function initUtilisateur() {
   } catch {}
 }
 
+// Onglets désactivés par la mairie : cle (API) -> data-onglet (HTML), pour retrouver les
+// boutons de nav correspondants dans les deux sens (verrouillage ET clic, voir ci-dessous).
+const CORRESPONDANCE_ONGLETS = {
+  actualites: 'actualites', alertes: 'alertes', thermometre: 'thermometre',
+  mur: 'mur', agenda: 'agenda', coups_de_main: 'coups-de-main',
+  chasse_tresor: 'chasse-tresor', conseil: 'conseil', profil: 'profil',
+  annuaire: 'annuaire', bulletin: 'bulletin', photo_du_jour: 'photo-du-jour', enigmes: 'enigmes',
+  lois: 'lois', memoire: 'memoire',
+};
+// cle HTML (data-onglet) -> cle API, sens inverse de CORRESPONDANCE_ONGLETS, pour le clic.
+const CORRESPONDANCE_ONGLETS_INVERSE = Object.fromEntries(
+  Object.entries(CORRESPONDANCE_ONGLETS).map(([api, html]) => [html, api]),
+);
+// Onglets actuellement verrouillés (non actifs pour cette commune) — alimenté par
+// initVisibiliteOnglets, lu par le gestionnaire de clic global plus bas.
+const ongletsVerrouilles = new Set();
+
 async function initVisibiliteOnglets() {
   try {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/onglets`);
     if (!res.ok) return;
     const { onglets } = await res.json();
 
-    const CORRESPONDANCE = {
-      actualites: 'actualites', alertes: 'alertes', thermometre: 'thermometre',
-      mur: 'mur', agenda: 'agenda', coups_de_main: 'coups-de-main',
-      chasse_tresor: 'chasse-tresor', conseil: 'conseil', profil: 'profil',
-      annuaire: 'annuaire', bulletin: 'bulletin', photo_du_jour: 'photo-du-jour', enigmes: 'enigmes',
-      lois: 'lois', memoire: 'memoire',
-    };
-
     onglets.forEach(({ cle, actif }) => {
-      const cleHtml = CORRESPONDANCE[cle];
+      const cleHtml = CORRESPONDANCE_ONGLETS[cle];
       if (!cleHtml || actif) return;
+      ongletsVerrouilles.add(cleHtml);
+      // Volontairement PAS caché (display:none) : un module verrouillé reste visible mais
+      // grisé, pour que le clic dessus (signal d'intention fort, voir moderation.js) reste
+      // possible — c'est le déclencheur le plus efficace de la séquence d'onboarding/upsell.
       document.querySelectorAll(`[data-onglet="${cleHtml}"], [data-sousonglet="${cleHtml}"]`).forEach((btn) => {
-        btn.style.display = 'none';
+        btn.classList.add('onglet-verrouille');
       });
     });
   } catch {}
@@ -127,8 +140,28 @@ function activerOnglet(cle) {
   }
 }
 
+// Modale affichée au clic sur un module verrouillé — réutilise ouvrirModaleFormulaire (utils.js)
+// plutôt que de dupliquer la mécanique d'overlay. Log aussi l'événement d'activation côté
+// serveur (best-effort, ne bloque jamais l'affichage de la modale si l'appel échoue).
+function ouvrirModaleModuleVerrouille(cleHtml) {
+  const cleApi = CORRESPONDANCE_ONGLETS_INVERSE[cleHtml];
+  const libelle = (typeof LABELS_ONGLET !== 'undefined' && LABELS_ONGLET[cleApi]) || 'Ce module';
+  ouvrirModaleFormulaire('Ce module fait partie de l\'offre complète', `
+    <p>Le module <strong>${libelle}</strong> s'active avec les formules Essentiel, Pro ou Premium.</p>
+    <p>Vous voulez voir ce que ça donnerait concrètement pour votre commune&nbsp;? Répondez à
+    l'email de bienvenue ou appelez Léandre au <a href="tel:0648061097">06 48 06 10 97</a> —
+    pas de formulaire à remplir, juste une conversation.</p>
+  `);
+  if (cleApi) {
+    appelApi(`/${window.COMMUNE_SLUG}/moderation/onglets/${cleApi}/verrouille-clique`, { method: 'POST' }).catch(() => {});
+  }
+}
+
 document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach((btn) => {
-  btn.addEventListener('click', () => activerOnglet(btn.dataset.onglet));
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('onglet-verrouille')) { ouvrirModaleModuleVerrouille(btn.dataset.onglet); return; }
+    activerOnglet(btn.dataset.onglet);
+  });
 });
 
 (async function initApp() {

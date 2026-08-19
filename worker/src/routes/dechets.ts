@@ -3,7 +3,7 @@ import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseDelete } from '../db';
+import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseDelete, enregistrerEvenementActivation } from '../db';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -98,6 +98,7 @@ app.post('/', async (c) => {
       frequence: data.frequence, couleur: data.couleur ?? '#8B7355',
     });
   }
+  await enregistrerEvenementActivation(c.env, commune_id, 'calendrier_dechets_rempli');
 
   return c.json({ ok: true });
 });
