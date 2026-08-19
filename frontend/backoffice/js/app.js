@@ -44,6 +44,7 @@ function backoffice() {
     historiqueProspection: { prospect: null, interactions: [] },
     rgpd: null,
     qrCommune: '',
+    chiffreAffaires: null,
     // — Activité (flux CRM cross-communes) —
     activite: [],
     resumeActivite: {
@@ -845,6 +846,29 @@ function backoffice() {
 
     allerReglages() {
       this.vue = 'reglages';
+    },
+
+    // — Chiffre d'affaires : réel (factures encaissées) vs projection (abonnements actifs),
+    //   jamais mélangés dans un même total (voir GET /administration/chiffre-affaires). —
+    async allerChiffreAffaires() {
+      this.vue = 'chiffre_affaires';
+      this.erreurChargement = '';
+      try {
+        this.chiffreAffaires = await boFetch('/administration/chiffre-affaires');
+      } catch (e) {
+        this.erreurChargement = e.message || "Erreur de chargement du chiffre d'affaires";
+      }
+    },
+    maxCaMois() {
+      if (!this.chiffreAffaires) return 0;
+      return Math.max(1, ...this.chiffreAffaires.ca_reel.par_mois.map((m) => m.montant));
+    },
+    libelleMois(cle) {
+      const [annee, mois] = cle.split('-').map(Number);
+      return new Date(annee, mois - 1, 1).toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+    },
+    libelleChurnType(t) {
+      return t === 'passage_gratuit' ? 'Repassée en gratuit' : t === 'resiliation' ? 'Résiliée' : t;
     },
 
     // — Activité (flux CRM cross-communes) —

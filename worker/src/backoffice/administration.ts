@@ -403,6 +403,19 @@ app.patch('/communes/:id/statut', async (c) => {
   const id = c.req.param('id');
   const body = z.object({ statut_client: z.enum(STATUTS_CLIENT) }).safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Statut invalide' }, 400);
+
+  // Churn (migration 048) : une résiliation ne compte que si la commune payait réellement —
+  // résilier une commune déjà gratuite (ex. la démo decouverte-gratuite) n'est pas une perte de
+  // revenu, donc pas un churn.
+  if (body.data.statut_client === 'resiliee') {
+    const [avant] = await supabaseSelect(c.env, 'communes', { select: 'forfait,prix_annuel_ttc', id: `eq.${id}` });
+    if (avant && avant.forfait && avant.forfait !== 'Gratuit' && avant.prix_annuel_ttc) {
+      await supabaseInsert(c.env, 'churn_events', {
+        commune_id: id, type: 'resiliation', ancien_forfait: avant.forfait, prix_annuel_perdu: avant.prix_annuel_ttc,
+      });
+    }
+  }
+
   await supabaseUpdate(c.env, 'communes', { statut_client: body.data.statut_client }, { id: `eq.${id}` });
   await journaliser(c.env, c.get('staff_id'), 'statut_commune_modifie', `Commune ${id} → ${body.data.statut_client}`);
   return c.json({ ok: true, statut_client: body.data.statut_client });
@@ -1030,6 +1043,73 @@ app.get('/echeances', async (c) => {
   return c.json({ communes, factures });
 });
 
+// GET /chiffre-affaires — page "Chiffre d'affaires" : distingue explicitement le RÉEL (factures
+// encaissées, statut=payee — la seule donnée qui représente de l'argent vraiment reçu) de la
+// PROJECTION (abonnements payants actifs, prix_annuel_ttc — théorique, seulement si tout
+// renouvelle). Ne jamais additionner les deux dans un même total : ce sont deux natures de
+// chiffre différentes. Le churn (migration 048) n'a d'historique qu'à partir du 2026-08-19 —
+// avant, seul l'état actuel de la commune était stocké, aucune transition passée n'existe.
+app.get('/chiffre-affaires', async (c) => {
+  const [facturesPayees, facturesEnAttente] = await Promise.all([
+    supabaseSelectTout(c.env, 'factures', { select: 'montant_ht,payee_le,commune_id', statut: 'eq.payee' }),
+    supabaseSelectTout(c.env, 'factures', { select: 'montant_ht,statut', statut: 'neq.payee' }),
+  ]);
+
+  const caReelTotal = facturesPayees.reduce((s: number, f: any) => s + Number(f.montant_ht), 0);
+  const enAttenteTotal = facturesEnAttente.reduce((s: number, f: any) => s + Number(f.montant_ht), 0);
+
+  const parMois = new Map<string, number>();
+  const parAnnee = new Map<string, number>();
+  for (const f of facturesPayees) {
+    if (!f.payee_le) continue;
+    const mois = f.payee_le.slice(0, 7);
+    const annee = f.payee_le.slice(0, 4);
+    parMois.set(mois, (parMois.get(mois) ?? 0) + Number(f.montant_ht));
+    parAnnee.set(annee, (parAnnee.get(annee) ?? 0) + Number(f.montant_ht));
+  }
+  const serieMois: { mois: string; montant: number }[] = [];
+  const maintenant = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(maintenant.getFullYear(), maintenant.getMonth() - i, 1);
+    const cle = d.toISOString().slice(0, 7);
+    serieMois.push({ mois: cle, montant: Math.round((parMois.get(cle) ?? 0) * 100) / 100 });
+  }
+  const serieAnnees = [...parAnnee.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([annee, montant]) => ({ annee, montant: Math.round(montant * 100) / 100 }));
+
+  // Projection : forfait <> 'Gratuit' exclut aussi NULL en SQL (une commune sans forfait défini
+  // n'est pas comptée comme payante), donc pas besoin d'un filtre "is not null" séparé.
+  const communesPayantes = await supabaseSelectTout(c.env, 'communes', {
+    select: 'id,nom,prix_annuel_ttc,forfait', niveau_national: 'not.is.true', statut_client: 'eq.active', forfait: 'neq.Gratuit',
+  });
+  const projectionTotal = communesPayantes.reduce((s: number, cm: any) => s + (Number(cm.prix_annuel_ttc) || 0), 0);
+  const incoherences = communesPayantes
+    .filter((cm: any) => !cm.prix_annuel_ttc)
+    .map((cm: any) => ({ id: cm.id, nom: cm.nom, forfait: cm.forfait }));
+
+  const churnEvents = await supabaseSelectTout(c.env, 'churn_events', {
+    select: 'commune_id,type,ancien_forfait,prix_annuel_perdu,created_at', order: 'created_at.desc',
+  });
+  const idsChurn = [...new Set(churnEvents.map((e: any) => e.commune_id))];
+  const communesChurn = idsChurn.length
+    ? await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `in.(${idsChurn.join(',')})` })
+    : [];
+  const nomParCommune = new Map(communesChurn.map((cm: any) => [cm.id, cm.nom]));
+  const churnEnrichi = churnEvents.map((e: any) => ({ ...e, commune_nom: nomParCommune.get(e.commune_id) || '—' }));
+  const churnPerduTotal = churnEvents.reduce((s: number, e: any) => s + (Number(e.prix_annuel_perdu) || 0), 0);
+
+  return c.json({
+    ca_reel: {
+      total: Math.round(caReelTotal * 100) / 100, nb_factures: facturesPayees.length,
+      par_mois: serieMois, par_annee: serieAnnees,
+    },
+    en_attente: { total: Math.round(enAttenteTotal * 100) / 100, nb_factures: facturesEnAttente.length },
+    projection: { total: Math.round(projectionTotal * 100) / 100, nb_communes: communesPayantes.length, incoherences },
+    churn: { evenements: churnEnrichi, prix_annuel_perdu_total: Math.round(churnPerduTotal * 100) / 100, nb: churnEvents.length },
+  });
+});
+
 // POST /communes/:id/onglets/preset — applique en un clic le palier « gratuit » (périmètre
 // courant de la table onglets_gratuits) ou « complet » (tout actif). Met aussi à jour le
 // libellé forfait affiché.
@@ -1045,10 +1125,19 @@ app.post('/communes/:id/onglets/preset', async (c) => {
 
   const forfait = body.data.preset === 'complet' ? 'Version complète' : 'Gratuit';
   const donnees: Record<string, unknown> = { forfait };
-  // Une commune gratuite ne doit plus traîner de prix/échéance : sinon elle continue de
-  // ressortir en 🔴/🟡 (santé) et dans "Facturation à traiter" alors qu'elle ne doit rien
-  // (bug constaté le 2026-08-18 — passer en Gratuit ne nettoyait jamais ces champs).
   if (body.data.preset === 'gratuit') {
+    // Churn (migration 048) : uniquement si la commune payait réellement avant ce geste — sinon
+    // une commune déjà gratuite qu'on "repasse en gratuit" par erreur/habitude compterait comme
+    // un churn fantôme. Capturé AVANT le nettoyage ci-dessous qui vide prix_annuel_ttc.
+    const [avant] = await supabaseSelect(c.env, 'communes', { select: 'forfait,prix_annuel_ttc', id: `eq.${id}` });
+    if (avant && avant.forfait && avant.forfait !== 'Gratuit') {
+      await supabaseInsert(c.env, 'churn_events', {
+        commune_id: id, type: 'passage_gratuit', ancien_forfait: avant.forfait, prix_annuel_perdu: avant.prix_annuel_ttc,
+      });
+    }
+    // Une commune gratuite ne doit plus traîner de prix/échéance : sinon elle continue de
+    // ressortir en 🔴/🟡 (santé) et dans "Facturation à traiter" alors qu'elle ne doit rien
+    // (bug constaté le 2026-08-18 — passer en Gratuit ne nettoyait jamais ces champs).
     donnees.prix_annuel_ttc = null;
     donnees.prochaine_echeance = null;
   }

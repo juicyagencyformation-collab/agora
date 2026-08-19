@@ -19,6 +19,7 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__pied">
@@ -1667,6 +1668,90 @@
         </div>
       </template>
 
+      <!-- Vue : Chiffre d'affaires (réel encaissé vs projection, jamais mélangés) -->
+      <template x-if="vue === 'chiffre_affaires' && chiffreAffaires">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">💰 Chiffre d'affaires</div>
+              <div class="bo-sous">Réel = factures encaissées. Projection = abonnements payants actifs, si tout renouvelle. Jamais additionnés.</div>
+            </div>
+          </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
+
+          <div class="bo-section-titre" style="margin-top:0">Réel encaissé</div>
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="chiffreAffaires.ca_reel.total.toLocaleString('fr-FR') + ' €'"></div><div class="bo-stat__lib">CA réel total (HT)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="chiffreAffaires.ca_reel.nb_factures"></div><div class="bo-stat__lib">Factures encaissées</div></div>
+            <div class="bo-stat" title="Factures émises ou déposées sur Chorus Pro, pas encore marquées payées">
+              <div class="bo-stat__val" x-text="chiffreAffaires.en_attente.total.toLocaleString('fr-FR') + ' €'"></div>
+              <div class="bo-stat__lib">En attente d'encaissement</div>
+            </div>
+          </div>
+
+          <div class="bo-carte" style="padding:16px 18px; margin-bottom:28px">
+            <div style="font-weight:600; margin-bottom:4px">Encaissé par mois (12 derniers mois)</div>
+            <div class="bo-freq-barres">
+              <template x-for="(m, i) in chiffreAffaires.ca_reel.par_mois" :key="i">
+                <div class="bo-freq-barre" :style="'height:' + Math.round(m.montant / maxCaMois() * 100) + '%'" :title="libelleMois(m.mois) + ' : ' + m.montant.toLocaleString('fr-FR') + ' €'"></div>
+              </template>
+            </div>
+            <template x-if="chiffreAffaires.ca_reel.par_annee.length">
+              <table style="margin-top:16px">
+                <thead><tr><th>Année</th><th>Encaissé (HT)</th></tr></thead>
+                <tbody>
+                  <template x-for="a in chiffreAffaires.ca_reel.par_annee" :key="a.annee">
+                    <tr style="cursor:default"><td x-text="a.annee"></td><td x-text="a.montant.toLocaleString('fr-FR') + ' €'"></td></tr>
+                  </template>
+                </tbody>
+              </table>
+            </template>
+            <div class="bo-vide" x-show="chiffreAffaires.ca_reel.nb_factures === 0" style="margin-top:12px">Aucune facture encaissée pour l'instant.</div>
+          </div>
+
+          <div class="bo-section-titre">Projection (abonnements actifs)</div>
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="chiffreAffaires.projection.total.toLocaleString('fr-FR') + ' €'"></div><div class="bo-stat__lib">CA annualisé théorique</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="chiffreAffaires.projection.nb_communes"></div><div class="bo-stat__lib">Communes payantes actives</div></div>
+          </div>
+          <template x-if="chiffreAffaires.projection.incoherences.length">
+            <div class="bo-carte" style="padding:14px 18px; margin-bottom:28px; border-color:var(--bo-jaune)">
+              <div style="font-weight:600; margin-bottom:8px">⚠ Payantes sans prix renseigné (exclues du total ci-dessus)</div>
+              <div class="bo-info" style="margin-bottom:10px">
+                Ces communes ont un forfait payant actif mais aucun <code>Prix TTC / an</code> sur leur fiche — la
+                projection les ignore tant que ce n'est pas rempli. Ouvre la fiche → Abonnement pour corriger.
+              </div>
+              <template x-for="cm in chiffreAffaires.projection.incoherences" :key="cm.id">
+                <div class="bo-info" style="cursor:pointer; text-decoration:underline; margin-bottom:4px" @click="ouvrirFiche(cm.id)" x-text="cm.nom + ' — ' + cm.forfait"></div>
+              </template>
+            </div>
+          </template>
+
+          <div class="bo-section-titre">Churn (suivi depuis le 19 août 2026 — aucun historique avant)</div>
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="chiffreAffaires.churn.nb"></div><div class="bo-stat__lib">Communes perdues</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="chiffreAffaires.churn.prix_annuel_perdu_total.toLocaleString('fr-FR') + ' €'"></div><div class="bo-stat__lib">CA annuel perdu (théorique)</div></div>
+          </div>
+          <div class="bo-carte" style="padding:0 18px" x-show="chiffreAffaires.churn.evenements.length">
+            <table>
+              <thead><tr><th>Commune</th><th>Type</th><th>Ancien forfait</th><th>Prix perdu</th><th>Date</th></tr></thead>
+              <tbody>
+                <template x-for="e in chiffreAffaires.churn.evenements" :key="e.commune_id + e.created_at">
+                  <tr @click="ouvrirFiche(e.commune_id)">
+                    <td class="bo-nom-commune" x-text="e.commune_nom"></td>
+                    <td x-text="libelleChurnType(e.type)"></td>
+                    <td x-text="e.ancien_forfait || '—'"></td>
+                    <td x-text="e.prix_annuel_perdu ? e.prix_annuel_perdu.toLocaleString('fr-FR') + ' €' : '—'"></td>
+                    <td x-text="formatDate(e.created_at)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <div class="bo-vide" x-show="!chiffreAffaires.churn.evenements.length">Aucun churn constaté depuis la mise en place du suivi.</div>
+        </div>
+      </template>
+
       <!-- Vue : Activité (flux CRM cross-communes — inscriptions + publications) -->
       <template x-if="!chargement && vue === 'activite'">
         <div>
@@ -2622,7 +2707,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-10"></script>
+  <script src="/backoffice/js/app.js?v=20260819-11"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
