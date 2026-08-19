@@ -1879,16 +1879,16 @@
             <div>
               <div class="bo-section-titre" title="Rôle citoyen uniquement — hors maire/élu/admin">📊 Fréquentation de l'app</div>
               <div class="bo-grille-stats">
-                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.actifs_aujourdhui"></div><div class="bo-stat__lib" x-text="'Actifs aujourd\'hui' + pctPop(frequentation.actifs_aujourdhui)"></div></div>
-                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.actifs_semaine"></div><div class="bo-stat__lib" x-text="'Actifs sur 7 jours' + pctPop(frequentation.actifs_semaine)"></div></div>
-                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.actifs_mois"></div><div class="bo-stat__lib" x-text="'Actifs sur 30 jours' + pctPop(frequentation.actifs_mois)"></div></div>
-                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation.inscrits"></div><div class="bo-stat__lib" x-text="'Inscrits' + pctPop(frequentation.inscrits)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation?.actifs_aujourdhui"></div><div class="bo-stat__lib" x-text="'Actifs aujourd\'hui' + pctPop(frequentation?.actifs_aujourdhui)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation?.actifs_semaine"></div><div class="bo-stat__lib" x-text="'Actifs sur 7 jours' + pctPop(frequentation?.actifs_semaine)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation?.actifs_mois"></div><div class="bo-stat__lib" x-text="'Actifs sur 30 jours' + pctPop(frequentation?.actifs_mois)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation?.inscrits"></div><div class="bo-stat__lib" x-text="'Inscrits' + pctPop(frequentation?.inscrits)"></div></div>
               </div>
               <div class="bo-carte" style="padding:14px 18px">
                 <div style="font-weight:600">Connexions par jour (30 derniers jours)</div>
-                <div class="bo-info" x-show="!frequentation.population" style="margin-top:4px">Population non renseignée → les pourcentages n'apparaissent pas.</div>
+                <div class="bo-info" x-show="!frequentation?.population" style="margin-top:4px">Population non renseignée → les pourcentages n'apparaissent pas.</div>
                 <div class="bo-freq-barres">
-                  <template x-for="(s, i) in frequentation.serie" :key="i">
+                  <template x-for="(s, i) in (frequentation?.serie || [])" :key="i">
                     <div class="bo-freq-barre" :style="'height:' + (maxFreq() ? Math.round(s.count / maxFreq() * 100) : 0) + '%'" :title="s.jour + ' : ' + s.count + ' connexion(s)'"></div>
                   </template>
                 </div>
@@ -1896,12 +1896,12 @@
             </div>
           </template>
 
-          <template x-if="historiqueProspection.prospect">
+          <template x-if="historiqueProspection?.prospect">
             <div>
               <div class="bo-section-titre">Historique de prospection</div>
               <div class="bo-carte" style="padding:14px 18px">
-                <div class="bo-info" style="margin-bottom:8px" x-text="'Devenue cliente depuis le prospect « ' + historiqueProspection.prospect.nom + ' » (statut : ' + historiqueProspection.prospect.statut + ').'"></div>
-                <template x-for="(it, i) in historiqueProspection.interactions" :key="i">
+                <div class="bo-info" style="margin-bottom:8px" x-text="'Devenue cliente depuis le prospect « ' + historiqueProspection.prospect?.nom + ' » (statut : ' + historiqueProspection.prospect?.statut + ').'"></div>
+                <template x-for="(it, i) in (historiqueProspection?.interactions || [])" :key="i">
                   <div class="bo-timeline-item">
                     <span class="bo-timeline__type"><span class="bo-badge" x-text="libelleType(it.type)"></span></span>
                     <div class="bo-timeline__corps">
@@ -2012,15 +2012,15 @@
             <div>
               <div class="bo-section-titre">🔒 Vie privée (RGPD)</div>
               <div class="bo-grille-stats">
-                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd.nb_exports"></div><div class="bo-stat__lib">Exports de données demandés</div></div>
-                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd.nb_suppressions"></div><div class="bo-stat__lib" x-text="'Comptes supprimés' + pctRgpd(rgpd.nb_suppressions)"></div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_exports"></div><div class="bo-stat__lib">Exports de données demandés</div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_suppressions"></div><div class="bo-stat__lib" x-text="'Comptes supprimés' + pctRgpd(rgpd?.nb_suppressions)"></div></div>
               </div>
               <div class="bo-carte" style="padding:14px 18px">
                 <div style="font-weight:600; margin-bottom:8px">Derniers exports de données (portabilité)</div>
-                <template x-for="(e, i) in rgpd.exports.slice(0, 8)" :key="i">
+                <template x-for="(e, i) in (rgpd?.exports || []).slice(0, 8)" :key="i">
                   <div class="bo-info" x-text="e.nom + (e.email ? ' (' + e.email + ')' : '') + ' — ' + formatDate(e.created_at)"></div>
                 </template>
-                <template x-if="rgpd.exports.length === 0"><div class="bo-vide">Aucun export demandé pour l'instant.</div></template>
+                <template x-if="(rgpd?.exports || []).length === 0"><div class="bo-vide">Aucun export demandé pour l'instant.</div></template>
               </div>
             </div>
           </template>
