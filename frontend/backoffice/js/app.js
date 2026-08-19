@@ -1107,9 +1107,22 @@ function backoffice() {
     async envoyerLot() {
       const ids = Object.keys(this.selectionProspects);
       if (!ids.length) return;
-      if (!confirm(`Envoyer la présentation à ${ids.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune. Traité un par un : ça peut prendre un moment pour une grande liste.`)) return;
+      // Garde-fou : le bouton groupé sert à démarcher des prospects jamais contactés. Si la
+      // sélection contient des prospects déjà à un statut ultérieur (contacté, relance, rdv,
+      // gagné, perdu), on ne les renvoie pas ici pour ne pas gaspiller un email en double —
+      // une relance volontaire d'un prospect déjà contacté passe par « Activer et renvoyer »
+      // (rattrapage) ou par le bouton ✉ ligne par ligne, des actions délibérées et ciblées.
+      const prospectsParId = new Map(this.prospects.map((p) => [p.id, p]));
+      const dejaContactes = ids.filter((id) => prospectsParId.get(id)?.statut !== 'a_contacter');
+      const aEnvoyer = ids.filter((id) => !dejaContactes.includes(id));
       this.selectionProspects = {};
-      await this.envoyerLotParIds(ids);
+      if (!aEnvoyer.length) {
+        alert(`Les ${ids.length} prospect(s) sélectionné(s) sont déjà contacté(s) — aucun envoi pour éviter les doublons. Pour relancer volontairement un prospect déjà contacté, utilise le bouton ✉ sur sa ligne, ou « Activer et renvoyer » dans le rattrapage.`);
+        return;
+      }
+      const avertissement = dejaContactes.length ? `\n\n⚠ ${dejaContactes.length} déjà contacté(s) dans la sélection : ignoré(s), pas de renvoi automatique.` : '';
+      if (!confirm(`Envoyer la présentation à ${aEnvoyer.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune. Traité un par un : ça peut prendre un moment pour une grande liste.${avertissement}`)) return;
+      await this.envoyerLotParIds(aEnvoyer);
     },
     async relancerEchecsLot() {
       const ids = this.lotEchecs.map((e) => e.id);
