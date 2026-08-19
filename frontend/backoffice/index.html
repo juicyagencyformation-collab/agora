@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-4" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-5" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -211,7 +211,14 @@
                     <td><span class="bo-statut" :class="'bo-statut--' + (c.statut_client || 'active')" x-text="libelleStatutClient(c.statut_client)"></span></td>
                     <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
                     <td x-text="c.nb_citoyens"></td>
-                    <td><span :class="{ 'bo-vide': !c.forfait }" x-text="c.forfait ? (c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')) : '—'"></span></td>
+                    <td>
+                      <template x-if="c.forfait">
+                        <span class="bo-statut" :class="'bo-statut--' + (c.forfait === 'Gratuit' ? 'gratuit' : 'complet')"
+                              :title="c.forfait === 'Gratuit' ? 'Palier gratuit — pas (encore) une cliente payante' : 'Forfait payant'"
+                              x-text="c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')"></span>
+                      </template>
+                      <span class="bo-vide" x-show="!c.forfait">—</span>
+                    </td>
                     <td>
                       <template x-if="c.note_moyenne !== null">
                         <span class="bo-note" :class="classeNote(c.note_moyenne)" x-text="'★ ' + c.note_moyenne + ' (' + c.nb_avis + ')'"></span>
