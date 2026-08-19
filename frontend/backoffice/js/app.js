@@ -1961,7 +1961,7 @@ function backoffice() {
         const parRole = this.fiche.citoyens.par_role || {};
         const c = this.communes.find((x) => x.id === this.communeActiveId);
         if (c) {
-          c.nb_citoyens = parRole.citoyen ?? 0;
+          c.nb_citoyens = this.fiche.citoyens.total; // citoyen + admin + elu, déjà calculé côté serveur
           c.nb_admin = parRole.admin ?? 0;
           c.nb_elu = parRole.elu ?? 0;
         }

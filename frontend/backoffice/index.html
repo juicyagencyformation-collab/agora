@@ -68,7 +68,7 @@
 
           <div class="bo-grille-stats">
             <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_communes ?? '—'"></div><div class="bo-stat__lib">Communes</div></div>
-            <div class="bo-stat" title="Comptes rôle citoyen uniquement — hors maire/élu/admin"><div class="bo-stat__val" x-text="apercu.nb_citoyens ?? '—'"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
+            <div class="bo-stat" title="Citoyens + admin + élu (comptes réels) — hors maire, quasi toujours auto-créé à l'activation"><div class="bo-stat__val" x-text="apercu.nb_citoyens ?? '—'"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.note_moyenne ?? '—'"></div><div class="bo-stat__lib">Note moyenne app</div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_avis ?? '—'"></div><div class="bo-stat__lib">Avis déposés</div></div>
           </div>
@@ -198,7 +198,7 @@
                   <th class="bo-th-tri" @click="trierPar('nom')">Commune<span x-text="flecheTri('nom')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('statut_client')">Statut<span x-text="flecheTri('statut_client')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('population')">Population<span x-text="flecheTri('population')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('nb_citoyens')" title="Rôle citoyen uniquement — hors maire/élu/admin">Citoyens<span x-text="flecheTri('nb_citoyens')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('nb_citoyens')" title="Citoyens + admin + élu (comptes réels) — hors maire, quasi toujours auto-créé à l'activation">Citoyens<span x-text="flecheTri('nb_citoyens')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('nb_admin')" title="Comptes admin réellement inscrits ou promus — hors maire (quasi toujours auto-créé à l'activation)">Admin<span x-text="flecheTri('nb_admin')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('nb_elu')" title="Comptes élu réellement inscrits ou promus — hors maire (quasi toujours auto-créé à l'activation)">Élu<span x-text="flecheTri('nb_elu')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('forfait')">Forfait<span x-text="flecheTri('forfait')"></span></th>
@@ -1863,7 +1863,7 @@
           </div>
 
           <div class="bo-grille-stats">
-            <div class="bo-stat" title="Comptes rôle citoyen uniquement — voir Répartition des rôles plus bas pour maire/élu/admin"><div class="bo-stat__val" x-text="fiche?.citoyens.total"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
+            <div class="bo-stat" title="Citoyens + admin + élu (comptes réels) — hors maire ; voir Répartition des rôles plus bas pour le détail"><div class="bo-stat__val" x-text="fiche?.citoyens.total"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche?.avis.note_moyenne ?? '—'"></div><div class="bo-stat__lib" x-text="'Note app (' + fiche?.avis.nb + ' avis)'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche?.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche?.stockage.nb_fichiers + ' fichiers R2'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="fiche?.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
@@ -1879,7 +1879,7 @@
 
           <template x-if="frequentation">
             <div>
-              <div class="bo-section-titre" title="Rôle citoyen uniquement — hors maire/élu/admin">📊 Fréquentation de l'app</div>
+              <div class="bo-section-titre" title="Citoyens + admin + élu (comptes réels) — hors maire, quasi toujours auto-créé à l'activation">📊 Fréquentation de l'app</div>
               <div class="bo-grille-stats">
                 <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation?.actifs_aujourdhui"></div><div class="bo-stat__lib" x-text="'Actifs aujourd\'hui' + pctPop(frequentation?.actifs_aujourdhui)"></div></div>
                 <div class="bo-stat"><div class="bo-stat__val" x-text="frequentation?.actifs_semaine"></div><div class="bo-stat__lib" x-text="'Actifs sur 7 jours' + pctPop(frequentation?.actifs_semaine)"></div></div>
@@ -2735,7 +2735,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-19"></script>
+  <script src="/backoffice/js/app.js?v=20260819-20"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

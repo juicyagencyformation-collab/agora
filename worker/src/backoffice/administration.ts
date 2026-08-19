@@ -108,14 +108,14 @@ app.get('/communes', async (c) => {
   });
 
   // Deux lectures agrégées côté Worker plutôt qu'une requête par commune (N+1).
-  // On lit tous les rôles (pas juste citoyen) pour distinguer : citoyens inscrits (grand public)
-  // vs équipe (admin/élu réellement promus/inscrits — un maire réel a fait cette démarche, ce
-  // n'est pas un artefact). Le rôle maire lui-même est exclu de l'équipe : découvert le
-  // 2026-08-19 sur Montaigu et Blérancourt, où un élu réellement inscrit (promu par le maire,
-  // pas un artefact d'activation) était invisible car compté nulle part — seul le compte maire
-  // auto-provisionné à l'activation (prospection.ts) doit rester hors des deux compteurs.
+  // On lit tous les rôles pour calculer "citoyens" = citoyen + admin + elu (un admin/élu est une
+  // vraie personne, souvent un citoyen promu par le maire — demandé par Léandre le 2026-08-19
+  // pour que ces comptes comptent dans les calculs d'engagement, pas seulement dans les colonnes
+  // Admin/Élu dédiées ci-dessous). Seuls maire (quasi toujours auto-provisionné à l'activation,
+  // voir prospection.ts) et superadmin restent hors de "citoyens".
   // compte_supprime_le: is.null — même raison que sur la fiche : un compte anonymisé garde son
   // ancien rôle mais ne doit plus être compté (sinon désaccord avec "Gérer les utilisateurs").
+  const ROLES_CITOYENS = ['citoyen', 'admin', 'elu'];
   const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id,role', compte_supprime_le: 'is.null' });
   const avis = await supabaseSelectTout(c.env, 'avis_application', { select: 'commune_id,note' }).catch(() => []);
 
@@ -123,8 +123,8 @@ app.get('/communes', async (c) => {
   const nbAdmin = new Map<string, number>();
   const nbElu = new Map<string, number>();
   for (const u of users) {
-    if (u.role === 'citoyen') nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
-    else if (u.role === 'admin') nbAdmin.set(u.commune_id, (nbAdmin.get(u.commune_id) ?? 0) + 1);
+    if (ROLES_CITOYENS.includes(u.role)) nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
+    if (u.role === 'admin') nbAdmin.set(u.commune_id, (nbAdmin.get(u.commune_id) ?? 0) + 1);
     else if (u.role === 'elu') nbElu.set(u.commune_id, (nbElu.get(u.commune_id) ?? 0) + 1);
   }
 
@@ -205,11 +205,12 @@ app.get('/communes/:id', async (c) => {
 
   return c.json({
     commune,
-    // total = uniquement role=citoyen, pas membres.length : sinon le compte maire provisionné
+    // total = citoyen + admin + elu, pas membres.length : sinon le compte maire provisionné
     // automatiquement à l'activation (toujours présent, même sans aucune vraie inscription)
-    // gonfle "Citoyens inscrits" de 1 sur chaque commune. par_role garde le détail complet
-    // (maire/elu/admin inclus) pour qui veut la vue d'ensemble.
-    citoyens: { total: parRole.citoyen ?? 0, par_role: parRole },
+    // gonfle "Citoyens inscrits" de 1 sur chaque commune. admin/elu comptent comme citoyens
+    // (une vraie personne, souvent un citoyen promu) depuis le 2026-08-19. par_role garde le
+    // détail complet (maire/elu/admin inclus) pour qui veut la vue d'ensemble par rôle.
+    citoyens: { total: (parRole.citoyen ?? 0) + (parRole.admin ?? 0) + (parRole.elu ?? 0), par_role: parRole },
     avis: { note_moyenne, nb: avis.length, liste: avis },
     stockage,
   });
@@ -770,14 +771,14 @@ app.get('/communes/:id/frequentation', async (c) => {
   const il7 = jourISO(6);
   const il30 = jourISO(29);
 
-  // role: eq.citoyen — même raison que "Citoyens inscrits" plus haut sur la fiche : sans ce
-  // filtre, le compte maire provisionné automatiquement compte comme "inscrit" et peut fausser
-  // les taux d'activité d'une commune sans aucun vrai citoyen engagé.
+  // role: in.(citoyen,admin,elu) — même raison que "Citoyens inscrits" plus haut sur la fiche :
+  // sans ce filtre, le compte maire provisionné automatiquement compte comme "inscrit" et peut
+  // fausser les taux d'activité d'une commune. admin/elu comptent comme citoyens (2026-08-19).
   // compte_supprime_le: is.null — un compte anonymisé garde sa derniere_connexion_streak d'avant
   // suppression, il ne doit plus compter comme "actif" (même raison que partout ailleurs).
   const [commune, users, connexions] = await Promise.all([
     supabaseSelect(c.env, 'communes', { select: 'population', id: `eq.${id}` }),
-    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, role: 'eq.citoyen', compte_supprime_le: 'is.null' }),
+    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null' }),
     supabaseSelect(c.env, 'connexions_journalieres', {
       select: 'jour', commune_id: `eq.${id}`, jour: `gte.${il30}`, limit: '5000',
     }),
@@ -1420,13 +1421,14 @@ app.get('/apercu', async (c) => {
   // Supabase plafonne chaque réponse à 1000 lignes quel que soit le `limit` demandé, donc un
   // .length "mentait" silencieusement dès que communes/users dépassait 1000 (piège découvert le
   // 2026-08-18 — les chiffres semblaient "bloqués" à 1000).
-  // role: eq.citoyen sur nb_citoyens — sinon chaque compte maire provisionné automatiquement
-  // (des centaines) se compte comme "citoyen inscrit" et gonfle massivement ce chiffre.
+  // role: in.(citoyen,admin,elu) sur nb_citoyens — sinon chaque compte maire provisionné
+  // automatiquement (des centaines) se compte comme "citoyen inscrit" et gonfle massivement ce
+  // chiffre. admin/elu comptent comme citoyens (une vraie personne) depuis le 2026-08-19.
   // compte_supprime_le: is.null — un compte anonymisé (RGPD) garde son rôle mais ne doit plus
   // compter (même raison que sur la fiche commune et le tableau Communes clientes).
   const [nb_communes, nb_citoyens, nb_avis] = await Promise.all([
     supabaseCount(c.env, 'communes', { niveau_national: 'not.is.true' }),
-    supabaseCount(c.env, 'users', { role: 'eq.citoyen', compte_supprime_le: 'is.null' }),
+    supabaseCount(c.env, 'users', { role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null' }),
     supabaseCount(c.env, 'avis_application', {}),
   ]);
 
