@@ -362,8 +362,8 @@ app.post('/email-test-generique/:cle', async (c) => {
 // commune actuellement éligible, pas seulement à une commune de test — à utiliser avec une
 // commune dédiée aux essais, jamais en pointant vers de vraies communes clientes par erreur.
 app.post('/onboarding-drip/executer', async (c) => {
-  await verifierSequenceOnboarding(c.env);
-  return c.json({ ok: true });
+  const rapport = await verifierSequenceOnboarding(c.env);
+  return c.json({ ok: true, rapport });
 });
 
 // GET /onboarding-drip/communes/:id — état d'une commune face à la séquence : utile pour

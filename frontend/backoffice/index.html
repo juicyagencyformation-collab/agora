@@ -1173,6 +1173,20 @@
                   (ou ajoute des lignes dans <code>activation_events</code>), reviens ici pour vérifier l'état
                   ci-dessus, puis clique.
                 </div>
+
+                <template x-if="onboardingDripRapport">
+                  <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--bo-border)">
+                    <div style="font-weight:600; font-size:13px; margin-bottom:8px">Détail du dernier passage</div>
+                    <template x-for="cle in ['email_2', 'email_3', 'email_4', 'email_5']" :key="cle">
+                      <div style="margin-bottom:10px">
+                        <div class="bo-info" x-text="cle + ' — ' + onboardingDripRapport[cle].candidates + ' candidat(s), ' + onboardingDripRapport[cle].eligibles + ' envoyé(s)' + (onboardingDripRapport[cle].erreur ? ' — ERREUR : ' + onboardingDripRapport[cle].erreur : '')"></div>
+                        <template x-for="(l, i) in onboardingDripRapport[cle].lignes" :key="i">
+                          <div style="font-size:12px; color:var(--bo-text-faible); padding-left:10px" x-text="l.commune_nom + ' — ' + l.resultat"></div>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </template>
               </div>
             </div>
           </template>
@@ -1919,7 +1933,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-5"></script>
+  <script src="/backoffice/js/app.js?v=20260819-6"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

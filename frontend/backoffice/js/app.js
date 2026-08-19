@@ -83,6 +83,7 @@ function backoffice() {
     onboardingDrip: null,
     onboardingDripEnCours: false,
     onboardingDripMsg: '',
+    onboardingDripRapport: null,
     presentEnCours: false,
     presentMsg: '',
     modele: { objet: '', corps_html: '', preview_text: '', angle_teste: '', signature_image_url: null, logo_image_url: null },
@@ -280,10 +281,12 @@ function backoffice() {
       if (!confirm('Ça va lancer la séquence pour TOUTES les communes éligibles à cet instant (pas seulement celle-ci) — de vrais emails peuvent partir. Continuer ?')) return;
       this.onboardingDripEnCours = true;
       this.onboardingDripMsg = '';
+      this.onboardingDripRapport = null;
       try {
-        await boFetch('/administration/onboarding-drip/executer', { method: 'POST' });
+        const r = await boFetch('/administration/onboarding-drip/executer', { method: 'POST' });
+        this.onboardingDripRapport = r.rapport;
         this.onboardingDrip = await boFetch('/administration/onboarding-drip/communes/' + this.fiche.commune.id);
-        this.onboardingDripMsg = 'Séquence exécutée — état mis à jour ci-dessus.';
+        this.onboardingDripMsg = 'Séquence exécutée — détail ci-dessous, état de cette commune mis à jour ci-dessus.';
       } catch (e) {
         this.onboardingDripMsg = e.message || 'Échec';
       } finally {
