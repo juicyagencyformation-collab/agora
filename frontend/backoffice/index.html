@@ -1673,9 +1673,21 @@
 
           <div class="bo-grille-stats">
             <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_7j"></div><div class="bo-stat__lib">Nouveaux comptes (7j)</div></div>
-            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_30j"></div><div class="bo-stat__lib">Nouveaux comptes (30j)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_30j"></div><div class="bo-stat__lib" x-text="'Nouveaux comptes (' + filtreActiviteDepuis + 'j)'"></div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.publications_7j"></div><div class="bo-stat__lib">Publications (7j)</div></div>
-            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.publications_30j"></div><div class="bo-stat__lib">Publications (30j)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.publications_30j"></div><div class="bo-stat__lib" x-text="'Publications (' + filtreActiviteDepuis + 'j)'"></div></div>
+            <div class="bo-stat" title="Nombre de communes différentes ayant eu au moins un événement sur la période — un total élevé peut cacher une activité concentrée sur 1 ou 2 communes.">
+              <div class="bo-stat__val" x-text="resumeActivite.communes_actives + (resumeActivite.total_communes_clientes != null ? ' / ' + resumeActivite.total_communes_clientes : '')"></div>
+              <div class="bo-stat__lib">Communes actives</div>
+            </div>
+            <div class="bo-stat" title="Nombre de citoyens différents ayant publié quelque chose sur la période (hors créations de compte) — distingue une activité large d'une activité portée par une seule personne très active.">
+              <div class="bo-stat__val" x-text="resumeActivite.auteurs_distincts"></div>
+              <div class="bo-stat__lib">Auteurs distincts</div>
+            </div>
+            <div class="bo-stat" title="Publications sur la période divisées par nouveaux comptes sur la période — indique si les nouveaux inscrits utilisent vraiment l'appli ou se contentent de créer un compte.">
+              <div class="bo-stat__val" x-text="resumeActivite.publications_par_nouveau_compte ?? '—'"></div>
+              <div class="bo-stat__lib">Publications / nouveau compte</div>
+            </div>
           </div>
 
           <div class="bo-outils">
@@ -2599,7 +2611,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-8"></script>
+  <script src="/backoffice/js/app.js?v=20260819-9"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

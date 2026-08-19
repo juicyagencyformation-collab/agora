@@ -46,7 +46,10 @@ function backoffice() {
     qrCommune: '',
     // — Activité (flux CRM cross-communes) —
     activite: [],
-    resumeActivite: { comptes_7j: 0, comptes_30j: 0, publications_7j: 0, publications_30j: 0 },
+    resumeActivite: {
+      comptes_7j: 0, comptes_30j: 0, publications_7j: 0, publications_30j: 0,
+      communes_actives: 0, total_communes_clientes: null, auteurs_distincts: 0, publications_par_nouveau_compte: null,
+    },
     pageActivite: 1,
     tailleActivite: 50,
     totalActivite: 0,

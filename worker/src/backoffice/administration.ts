@@ -1183,11 +1183,24 @@ app.get('/activite', async (c) => {
 
   // Compteurs pour les cartes de résumé, dérivés des mêmes données (pas de requête en plus).
   const il7 = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+  const comptesPeriode = evenements.filter((e) => e.type === 'compte').length;
+  const publicationsPeriode = evenements.filter((e) => e.type !== 'compte').length;
+  // Deux signaux qu'un simple total ne montre pas : la BASE (combien de communes différentes
+  // contribuent, pas juste une ou deux qui gonflent le chiffre) et la PROFONDEUR (combien de
+  // personnes différentes publient, vs un seul auteur très actif) — un total élevé peut cacher
+  // une activité très concentrée, ce qui change complètement l'interprétation.
+  const communesActives = new Set(evenements.map((e) => e.commune_id).filter(Boolean)).size;
+  const auteursDistincts = new Set(evenements.filter((e) => e.type !== 'compte').map((e) => e.auteur_id).filter(Boolean)).size;
+  const totalCommunesClientes = communeId ? null : await supabaseCount(c.env, 'communes', { niveau_national: 'not.is.true' });
   const resume = {
     comptes_7j: evenements.filter((e) => e.type === 'compte' && e.created_at >= il7).length,
-    comptes_30j: evenements.filter((e) => e.type === 'compte').length,
+    comptes_30j: comptesPeriode,
     publications_7j: evenements.filter((e) => e.type !== 'compte' && e.created_at >= il7).length,
-    publications_30j: evenements.filter((e) => e.type !== 'compte').length,
+    publications_30j: publicationsPeriode,
+    communes_actives: communesActives,
+    total_communes_clientes: totalCommunesClientes,
+    auteurs_distincts: auteursDistincts,
+    publications_par_nouveau_compte: comptesPeriode > 0 ? Math.round((publicationsPeriode / comptesPeriode) * 10) / 10 : null,
   };
 
   const total = evenements.length;
