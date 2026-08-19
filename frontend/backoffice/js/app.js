@@ -1962,7 +1962,8 @@ function backoffice() {
         const c = this.communes.find((x) => x.id === this.communeActiveId);
         if (c) {
           c.nb_citoyens = parRole.citoyen ?? 0;
-          c.nb_equipe = (parRole.admin ?? 0) + (parRole.elu ?? 0);
+          c.nb_admin = parRole.admin ?? 0;
+          c.nb_elu = parRole.elu ?? 0;
         }
       } catch { /* purement cosmétique : ne doit jamais bloquer le retour à l'utilisateur */ }
     },

@@ -120,10 +120,12 @@ app.get('/communes', async (c) => {
   const avis = await supabaseSelectTout(c.env, 'avis_application', { select: 'commune_id,note' }).catch(() => []);
 
   const nbCitoyens = new Map<string, number>();
-  const nbEquipe = new Map<string, number>();
+  const nbAdmin = new Map<string, number>();
+  const nbElu = new Map<string, number>();
   for (const u of users) {
     if (u.role === 'citoyen') nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
-    else if (u.role === 'admin' || u.role === 'elu') nbEquipe.set(u.commune_id, (nbEquipe.get(u.commune_id) ?? 0) + 1);
+    else if (u.role === 'admin') nbAdmin.set(u.commune_id, (nbAdmin.get(u.commune_id) ?? 0) + 1);
+    else if (u.role === 'elu') nbElu.set(u.commune_id, (nbElu.get(u.commune_id) ?? 0) + 1);
   }
 
   const cumulAvis = new Map<string, { total: number; n: number }>();
@@ -138,7 +140,8 @@ app.get('/communes', async (c) => {
     return {
       ...commune,
       nb_citoyens: nbCitoyens.get(commune.id) ?? 0,
-      nb_equipe: nbEquipe.get(commune.id) ?? 0,
+      nb_admin: nbAdmin.get(commune.id) ?? 0,
+      nb_elu: nbElu.get(commune.id) ?? 0,
       note_moyenne: av ? Math.round((av.total / av.n) * 10) / 10 : null,
       nb_avis: av ? av.n : 0,
     };
