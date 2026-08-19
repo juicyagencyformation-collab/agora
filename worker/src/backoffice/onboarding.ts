@@ -2,14 +2,19 @@
 // Phase 3 du backoffice : transformer un prospect gagné en commune cliente. Crée la ligne
 // communes + le compte maire (rôle 'maire' — attribution légitime ici car le staff backoffice
 // est l'équivalent superadmin, seul habilité à nommer un maire), puis relie le prospect.
-// Les onglets restent actifs par défaut : le code considère une commune sans ligne
-// onglets_config comme tout-actif (voir routes/moderation.ts), rien à insérer.
+// Forfait Gratuit par défaut (avec le périmètre de modules qui va avec, voir
+// appliquerOngletsSurCommune) — décidé le 2026-08-19 : avant cette date, la commune n'avait
+// aucun forfait tant que le staff ne cliquait pas ensuite sur "Passer en Gratuit"/"Version
+// complète" sur sa fiche, ce qui a piégé un test de la séquence d'onboarding/upsell (celle-ci
+// ignore toute commune sans forfait='Gratuit'). Passer en Version complète reste un choix
+// explicite a posteriori sur la fiche, comme avant.
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { hasherMotDePasse } from '../lib/password';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerEmailBienvenue, envoyerBienvenueInscription, envoyerRelanceInactivite, contextePresentation } from './email-commune';
+import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -61,7 +66,9 @@ app.post('/creer', async (c) => {
     population: population ?? null,
     lat, lng,
     niveau_national: false,
+    forfait: 'Gratuit',
   });
+  await appliquerOngletsSurCommune(c.env, commune.id, await chargerOngletsGratuits(c.env));
 
   // Compte maire. consentement_rgpd_le renseigné : compte pro créé dans un cadre contractuel.
   const password_hash = await hasherMotDePasse(maire.password);
