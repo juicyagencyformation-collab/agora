@@ -2211,16 +2211,28 @@
             </div>
           </div>
 
-          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px">
-            <div>
-              <div style="font-weight:600">Accès du maire</div>
-              <div class="bo-info">Régénère un mot de passe temporaire et renvoie l'email de bienvenue au maire.</div>
+          <div class="bo-carte" style="padding:14px 18px; margin-top:16px">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+              <div>
+                <div style="font-weight:600">Accès du maire</div>
+                <div class="bo-info">Régénère un mot de passe temporaire et renvoie l'email de bienvenue au maire.</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px">
+                <span class="bo-info" x-text="accesMsg"></span>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
+                        x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
+              </div>
             </div>
-            <div style="display:flex; align-items:center; gap:10px">
-              <span class="bo-info" x-text="accesMsg"></span>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
-                      x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
-            </div>
+            <template x-if="accesGeneres">
+              <div style="margin-top:14px; padding:12px 14px; background:var(--bo-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+                <div style="font-size:13px">
+                  Identifiant&nbsp;: <strong x-text="accesGeneres.email"></strong> ·
+                  Mot de passe&nbsp;: <strong style="font-family:monospace" x-text="accesGeneres.motDePasse"></strong>
+                  <div class="bo-info" style="margin-top:2px">Affiché une seule fois ici — le maire l'a aussi reçu par email. Utilisable directement si tu dois configurer la commune toi-même.</div>
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="copierAccesGeneres()">📋 Copier</button>
+              </div>
+            </template>
           </div>
 
           <div class="bo-section-titre">Répartition des rôles</div>
@@ -2717,7 +2729,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-13"></script>
+  <script src="/backoffice/js/app.js?v=20260819-14"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

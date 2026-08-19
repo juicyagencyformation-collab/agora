@@ -77,6 +77,7 @@ function backoffice() {
     coordsMsg: '',
     accesEnCours: false,
     accesMsg: '',
+    accesGeneres: null,
     forfaitNom: '',
     forfaitQuota: '',
     forfaitEnCours: false,
@@ -277,6 +278,7 @@ function backoffice() {
       this.vue = 'fiche';
       this.coordsMsg = '';
       this.accesMsg = '';
+      this.accesGeneres = null;
       this.forfaitMsg = '';
       this.presentMsg = '';
       this.frequentation = null;
@@ -815,14 +817,23 @@ function backoffice() {
       if (!confirm('Régénérer un mot de passe temporaire et renvoyer l\'email au maire ?')) return;
       this.accesEnCours = true;
       this.accesMsg = '';
+      this.accesGeneres = null;
       try {
         const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/renvoyer-acces', { method: 'POST' });
         this.accesMsg = 'Accès renvoyés à ' + r.email;
+        // Affiché une seule fois ici (pas stocké ailleurs) : utile pour se connecter soi-même
+        // configurer la commune sans attendre le maire — le mot de passe précédent n'est de
+        // toute façon plus valable, celui-ci vient de le remplacer.
+        this.accesGeneres = { email: r.email, motDePasse: r.mot_de_passe };
       } catch (e) {
         this.accesMsg = e.message || 'Envoi impossible';
       } finally {
         this.accesEnCours = false;
       }
+    },
+    copierAccesGeneres() {
+      if (!this.accesGeneres) return;
+      navigator.clipboard?.writeText(`${this.accesGeneres.email} / ${this.accesGeneres.motDePasse}`);
     },
 
     async recupererCoords() {

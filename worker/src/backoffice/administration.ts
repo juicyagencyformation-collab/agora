@@ -267,7 +267,10 @@ app.post('/communes/:id/renvoyer-acces', async (c) => {
     nomCommune: commune.nom, slug: commune.slug, maireEmail: maire.email, motDePasse,
     frontendUrl: c.env.FRONTEND_URL,
   });
-  return c.json({ ok: true, email: maire.email });
+  // Renvoyé aussi au staff (pas seulement au maire par email) : utile pour se connecter
+  // soi-même configurer la commune sans attendre un retour du maire. Affiché une seule fois
+  // côté backoffice, jamais stocké en clair ailleurs que dans cette réponse.
+  return c.json({ ok: true, email: maire.email, mot_de_passe: motDePasse });
 });
 
 // POST /email-test — diagnostic d'envoi. Appelle Resend EN DIRECT (pas via envoyerEmail, qui
