@@ -102,12 +102,12 @@ function backoffice() {
       bienvenue_inscription: {
         variantes: [], editeeId: null,
         modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
-        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '',
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
       },
       relance_inactivite: {
         variantes: [], editeeId: null,
         modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
-        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '',
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
       },
     },
     signatureEnCours: false,
@@ -474,11 +474,35 @@ function backoffice() {
       etat.editeeId = id;
       etat.modele = r.variante;
       etat.msg = '';
+      const ed = document.getElementById('editeur-email-' + cle);
+      if (ed && etat.modeEditeur === 'visuel') ed.innerHTML = etat.modele.corps_html || '';
+    },
+    // Éditeur visuel (WYSIWYG) des modèles génériques — mêmes commandes que exec()/couleurTexte()
+    // etc. ci-dessous (déjà cle-agnostiques, elles agissent sur l'élément focus du navigateur),
+    // seuls le ciblage par id et la synchro avec le bon `modele` sont spécifiques à ce cle.
+    initEditeurEmailGenerique(cle) {
+      const ed = document.getElementById('editeur-email-' + cle);
+      if (ed) ed.innerHTML = this.modelesGeneriques[cle].modele.corps_html || '';
+    },
+    basculerModeEditeurGenerique(cle) {
+      const etat = this.modelesGeneriques[cle];
+      const ed = document.getElementById('editeur-email-' + cle);
+      if (etat.modeEditeur === 'visuel') {
+        if (ed) etat.modele.corps_html = ed.innerHTML;
+        etat.modeEditeur = 'code';
+      } else {
+        etat.modeEditeur = 'visuel';
+        if (ed) ed.innerHTML = etat.modele.corps_html || '';
+      }
     },
     async nouvelleVarianteGenerique(cle) {
       const nom = prompt('Nom de la nouvelle variante (ex. « B - ton plus direct ») :');
       if (!nom) return;
       const etat = this.modelesGeneriques[cle];
+      // Reprend le contenu actuellement affiché comme point de départ (mode visuel : on le
+      // récupère depuis l'éditeur avant de dupliquer).
+      const ed = document.getElementById('editeur-email-' + cle);
+      if (etat.modeEditeur === 'visuel' && ed) etat.modele.corps_html = ed.innerHTML;
       etat.enCours = true;
       etat.msg = '';
       try {
@@ -529,6 +553,9 @@ function backoffice() {
     },
     async enregistrerVarianteGenerique(cle) {
       const etat = this.modelesGeneriques[cle];
+      // En mode visuel, on récupère le HTML produit par l'éditeur avant d'enregistrer.
+      const ed = document.getElementById('editeur-email-' + cle);
+      if (etat.modeEditeur === 'visuel' && ed) etat.modele.corps_html = ed.innerHTML;
       etat.enCours = true;
       etat.msg = '';
       try {
