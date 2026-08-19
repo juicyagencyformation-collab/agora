@@ -2215,10 +2215,12 @@
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
               <div>
                 <div style="font-weight:600">Accès du maire</div>
-                <div class="bo-info">Régénère un mot de passe temporaire et renvoie l'email de bienvenue au maire.</div>
+                <div class="bo-info">« Se connecter en tant que » ouvre une session sans toucher au mot de passe du maire — réutilisable à volonté. « Renvoyer les accès » régénère un mot de passe temporaire et écrase le sien : à réserver au cas où il a vraiment perdu ses accès.</div>
               </div>
               <div style="display:flex; align-items:center; gap:10px">
                 <span class="bo-info" x-text="accesMsg"></span>
+                <button class="bo-btn bo-btn--compact" @click="seConnecterEnTantQueMaire()" :disabled="connexionMaireEnCours"
+                        x-text="connexionMaireEnCours ? 'Ouverture…' : '🔑 Se connecter en tant que'"></button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
                         x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
               </div>
@@ -2729,7 +2731,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-15"></script>
+  <script src="/backoffice/js/app.js?v=20260819-16"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

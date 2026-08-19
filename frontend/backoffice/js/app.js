@@ -78,6 +78,7 @@ function backoffice() {
     accesEnCours: false,
     accesMsg: '',
     accesGeneres: null,
+    connexionMaireEnCours: false,
     forfaitNom: '',
     forfaitQuota: '',
     forfaitEnCours: false,
@@ -813,16 +814,30 @@ function backoffice() {
       return '';
     },
 
+    // Ouvre une session côté app citoyenne pour le maire, sans toucher à son mot de passe —
+    // à la différence de renvoyerAcces() ci-dessous. Réutilisable à volonté sur n'importe quelle
+    // commune pour la configurer soi-même, sans jamais risquer de couper les vrais accès du maire.
+    async seConnecterEnTantQueMaire() {
+      this.connexionMaireEnCours = true;
+      this.accesMsg = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/se-connecter-en-tant-que', { method: 'POST' });
+        window.open('/' + r.slug + '/', '_blank', 'noopener');
+      } catch (e) {
+        this.accesMsg = e.message || 'Connexion impossible';
+      } finally {
+        this.connexionMaireEnCours = false;
+      }
+    },
     async renvoyerAcces() {
-      if (!confirm('Régénérer un mot de passe temporaire et renvoyer l\'email au maire ?')) return;
+      if (!confirm('Régénérer un mot de passe temporaire et renvoyer l\'email au maire ? Écrase son mot de passe actuel (à réserver au cas où il a vraiment perdu ses accès — pour te connecter toi-même, utilise plutôt « Se connecter en tant que »).')) return;
       this.accesEnCours = true;
       this.accesMsg = '';
       this.accesGeneres = null;
       try {
         const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/renvoyer-acces', { method: 'POST' });
         this.accesMsg = 'Accès renvoyés à ' + r.email;
-        // Affiché une seule fois ici (pas stocké ailleurs) : utile pour se connecter soi-même
-        // configurer la commune sans attendre le maire — le mot de passe précédent n'est de
+        // Affiché une seule fois ici (pas stocké ailleurs) : le mot de passe précédent n'est de
         // toute façon plus valable, celui-ci vient de le remplacer.
         this.accesGeneres = { email: r.email, motDePasse: r.mot_de_passe };
       } catch (e) {

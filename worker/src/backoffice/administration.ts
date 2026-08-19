@@ -5,6 +5,8 @@
 // le stockage R2 réellement consommé par commune via le préfixe de clé `${commune_id}/`.
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { sign } from '@tsndr/cloudflare-worker-jwt';
+import { setCookie } from 'hono/cookie';
 import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
@@ -271,6 +273,44 @@ app.post('/communes/:id/renvoyer-acces', async (c) => {
   // soi-même configurer la commune sans attendre un retour du maire. Affiché une seule fois
   // côté backoffice, jamais stocké en clair ailleurs que dans cette réponse.
   return c.json({ ok: true, email: maire.email, mot_de_passe: motDePasse });
+});
+
+async function hasherTokenSession(token: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+// POST /communes/:id/se-connecter-en-tant-que — ouvre une session côté app citoyenne pour le
+// maire de la commune (mêmes cookies agora_access/agora_refresh que worker/src/auth.ts, coexistent
+// avec les cookies backoffice agora_bo/agora_bo_refresh, noms distincts). Contrairement à
+// /renvoyer-acces, ne touche JAMAIS au mot de passe du maire : réutilisable à volonté sans risquer
+// d'invalider ses vrais accès s'il s'est déjà connecté depuis. Journalisé.
+app.post('/communes/:id/se-connecter-en-tant-que', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const [maire] = await supabaseSelect(c.env, 'users', {
+    select: 'id,email,role', commune_id: `eq.${id}`, role: 'eq.maire', order: 'created_at.asc',
+  });
+  if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
+
+  const accessToken = await sign(
+    { user_id: maire.id, commune_id: id, role: maire.role, exp: Math.floor(Date.now() / 1000) + 900 },
+    c.env.JWT_SECRET,
+  );
+  const refreshToken = crypto.randomUUID() + crypto.randomUUID();
+  await supabaseInsert(c.env, 'refresh_tokens', {
+    commune_id: id, user_id: maire.id,
+    token_hash: await hasherTokenSession(refreshToken),
+    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+  });
+
+  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+
+  await journaliser(c.env, c.get('staff_id'), 'connexion_en_tant_que_maire', `${commune.nom} (${id}) — maire ${maire.email}`);
+  return c.json({ ok: true, slug: commune.slug, email: maire.email });
 });
 
 // POST /email-test — diagnostic d'envoi. Appelle Resend EN DIRECT (pas via envoyerEmail, qui
