@@ -1841,12 +1841,12 @@
           <div class="bo-retour" @click="allerCommunes()">← Retour aux communes</div>
 
           <div class="bo-fiche-entete">
-            <img class="bo-logo" :src="fiche.commune.logo_url || '/icons/icon-192.png'" alt="" />
+            <img class="bo-logo" :src="fiche?.commune.logo_url || '/icons/icon-192.png'" alt="" />
             <div>
-              <div class="bo-titre" x-text="fiche.commune.nom"></div>
+              <div class="bo-titre" x-text="fiche?.commune.nom"></div>
               <div class="bo-sous">
-                <span x-text="'/' + fiche.commune.slug"></span>
-                <template x-if="fiche.commune.email_mairie"><span> · <span x-text="fiche.commune.email_mairie"></span></span></template>
+                <span x-text="'/' + fiche?.commune.slug"></span>
+                <template x-if="fiche?.commune.email_mairie"><span> · <span x-text="fiche?.commune.email_mairie"></span></span></template>
               </div>
             </div>
           </div>
@@ -1855,16 +1855,16 @@
             <div x-html="qrCommune" style="width:118px; height:118px; background:#fff; border-radius:8px; padding:6px; flex-shrink:0"></div>
             <div>
               <div style="font-weight:600; margin-bottom:2px">Accès à l'application</div>
-              <div class="bo-info" x-text="'plateforme-agora.fr/' + fiche.commune.slug + '/'"></div>
-              <a class="bo-btn bo-btn--compact" :href="'/' + fiche.commune.slug + '/'" target="_blank" rel="noopener" style="margin-top:10px; text-decoration:none; display:inline-block">Visiter l'app ↗</a>
+              <div class="bo-info" x-text="'plateforme-agora.fr/' + fiche?.commune.slug + '/'"></div>
+              <a class="bo-btn bo-btn--compact" :href="'/' + fiche?.commune.slug + '/'" target="_blank" rel="noopener" style="margin-top:10px; text-decoration:none; display:inline-block">Visiter l'app ↗</a>
             </div>
           </div>
 
           <div class="bo-grille-stats">
-            <div class="bo-stat" title="Comptes rôle citoyen uniquement — voir Répartition des rôles plus bas pour maire/élu/admin"><div class="bo-stat__val" x-text="fiche.citoyens.total"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
-            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.avis.note_moyenne ?? '—'"></div><div class="bo-stat__lib" x-text="'Note app (' + fiche.avis.nb + ' avis)'"></div></div>
-            <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche.stockage.nb_fichiers + ' fichiers R2'"></div></div>
-            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
+            <div class="bo-stat" title="Comptes rôle citoyen uniquement — voir Répartition des rôles plus bas pour maire/élu/admin"><div class="bo-stat__val" x-text="fiche?.citoyens.total"></div><div class="bo-stat__lib">Citoyens inscrits</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche?.avis.note_moyenne ?? '—'"></div><div class="bo-stat__lib" x-text="'Note app (' + fiche?.avis.nb + ' avis)'"></div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="formatOctets(fiche?.stockage.octets)"></div><div class="bo-stat__lib" x-text="fiche?.stockage.nb_fichiers + ' fichiers R2'"></div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="fiche?.commune.population ? fiche.commune.population.toLocaleString('fr-FR') : '—'"></div><div class="bo-stat__lib">Population</div></div>
           </div>
 
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px">
@@ -2076,24 +2076,24 @@
 
             <div style="margin-top:16px">
               <div style="display:flex; justify-content:space-between; font-size:14px">
-                <span x-text="'Stockage utilisé : ' + formatOctets(fiche.stockage.octets) + (fiche.commune.quota_go ? ' / ' + fiche.commune.quota_go + ' Go' : ' (aucun quota défini)')"></span>
-                <span class="bo-info" x-show="fiche.commune.quota_go" x-text="pourcentageStockage() + ' %'"></span>
+                <span x-text="'Stockage utilisé : ' + formatOctets(fiche?.stockage.octets) + (fiche?.commune.quota_go ? ' / ' + fiche.commune.quota_go + ' Go' : ' (aucun quota défini)')"></span>
+                <span class="bo-info" x-show="fiche?.commune.quota_go" x-text="pourcentageStockage() + ' %'"></span>
               </div>
-              <div class="bo-jauge" x-show="fiche.commune.quota_go">
+              <div class="bo-jauge" x-show="fiche?.commune.quota_go">
                 <div class="bo-jauge__rempli" :class="classeJauge()" :style="'width:' + Math.min(100, pourcentageStockage()) + '%'"></div>
               </div>
             </div>
           </div>
 
           <div class="bo-section-titre">Abonnement</div>
-          <div class="bo-info" style="margin:-8px 0 10px" x-show="fiche.commune.forfait === 'Gratuit'">
+          <div class="bo-info" style="margin:-8px 0 10px" x-show="fiche?.commune.forfait === 'Gratuit'">
             Commune sur le palier Gratuit — un prix/échéance renseigné ici n'a normalement pas lieu d'être
             (passer en Version complète ci-dessus d'abord si elle doit être facturée).
           </div>
           <div class="bo-carte" style="padding:16px 18px">
             <div class="bo-info" style="margin-bottom:10px">
-              <span x-show="trancheSuggeree(fiche.commune.population)" x-text="'Tranche suggérée : ' + libelleTranche(trancheSuggeree(fiche.commune.population)) + ' — ' + (trancheSuggeree(fiche.commune.population) ? trancheSuggeree(fiche.commune.population).prix_annuel_ttc : 0) + ' € TTC/an'"></span>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerTarifSuggere()" style="margin-left:8px" x-show="trancheSuggeree(fiche.commune.population)">Appliquer ce tarif</button>
+              <span x-show="fiche && trancheSuggeree(fiche.commune.population)" x-text="'Tranche suggérée : ' + libelleTranche(trancheSuggeree(fiche?.commune.population)) + ' — ' + (trancheSuggeree(fiche?.commune.population) ? trancheSuggeree(fiche.commune.population).prix_annuel_ttc : 0) + ' € TTC/an'"></span>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerTarifSuggere()" style="margin-left:8px" x-show="fiche && trancheSuggeree(fiche.commune.population)">Appliquer ce tarif</button>
             </div>
             <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
               <div class="bo-champ-inline">
@@ -2112,11 +2112,11 @@
                 <input type="date" x-model="fiche.commune.prochaine_echeance" />
               </div>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerAbonnement()" :disabled="abonnementEnCours">Enregistrer</button>
-              <button class="bo-btn bo-btn--compact" @click="marquerAbonnementPaye()" :disabled="abonnementEnCours || !fiche.commune.prochaine_echeance">✓ Marquer payé</button>
+              <button class="bo-btn bo-btn--compact" @click="marquerAbonnementPaye()" :disabled="abonnementEnCours || !fiche?.commune.prochaine_echeance">✓ Marquer payé</button>
             </div>
             <div style="margin-top:10px">
               <span class="bo-info" x-text="abonnementMsg"></span>
-              <span x-show="fiche.commune.prochaine_echeance" :class="classeEcheance(fiche.commune.prochaine_echeance)" x-text="fiche.commune.prochaine_echeance ? ' · ' + joursAvantEcheance(fiche.commune.prochaine_echeance) + ' jour(s) avant échéance' : ''"></span>
+              <span x-show="fiche?.commune.prochaine_echeance" :class="classeEcheance(fiche?.commune.prochaine_echeance)" x-text="fiche?.commune.prochaine_echeance ? ' · ' + joursAvantEcheance(fiche.commune.prochaine_echeance) + ' jour(s) avant échéance' : ''"></span>
             </div>
           </div>
 
@@ -2204,7 +2204,7 @@
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px">
             <div>
               <div style="font-weight:600">Coordonnées GPS</div>
-              <div class="bo-info" x-text="(fiche.commune.lat && fiche.commune.lng) ? (fiche.commune.lat.toFixed(4) + ', ' + fiche.commune.lng.toFixed(4)) : 'Non renseignées — la météo affichée est erronée sans elles.'"></div>
+              <div class="bo-info" x-text="(fiche?.commune.lat && fiche.commune.lng) ? (fiche.commune.lat.toFixed(4) + ', ' + fiche.commune.lng.toFixed(4)) : 'Non renseignées — la météo affichée est erronée sans elles.'"></div>
             </div>
             <div style="display:flex; align-items:center; gap:10px">
               <span class="bo-info" x-text="coordsMsg"></span>
@@ -2241,15 +2241,15 @@
 
           <div class="bo-section-titre">Répartition des rôles</div>
           <div class="bo-repartition">
-            <template x-for="(nb, role) in fiche.citoyens.par_role" :key="role">
+            <template x-for="(nb, role) in (fiche?.citoyens.par_role || {})" :key="role">
               <span class="bo-badge" x-text="role + ' · ' + nb"></span>
             </template>
-            <template x-if="Object.keys(fiche.citoyens.par_role).length === 0"><span class="bo-vide">Aucun compte.</span></template>
+            <template x-if="Object.keys(fiche?.citoyens.par_role || {}).length === 0"><span class="bo-vide">Aucun compte.</span></template>
           </div>
 
-          <div class="bo-section-titre" x-text="'Avis des citoyens (' + fiche.avis.nb + ')'"></div>
+          <div class="bo-section-titre" x-text="'Avis des citoyens (' + fiche?.avis.nb + ')'"></div>
           <div class="bo-carte" style="padding:0 18px">
-            <template x-for="(a, i) in fiche.avis.liste" :key="i">
+            <template x-for="(a, i) in (fiche?.avis.liste || [])" :key="i">
               <div class="bo-avis-item">
                 <div class="bo-avis-item__tete">
                   <span class="bo-note" :class="classeNote(a.note)" x-text="'★ ' + a.note + '/5'"></span>
@@ -2258,7 +2258,7 @@
                 <div x-text="a.commentaire || '(sans commentaire)'" :class="{ 'bo-vide': !a.commentaire }"></div>
               </div>
             </template>
-            <template x-if="fiche.avis.nb === 0">
+            <template x-if="fiche?.avis.nb === 0">
               <div class="bo-avis-item bo-vide">Aucun avis déposé.</div>
             </template>
           </div>
