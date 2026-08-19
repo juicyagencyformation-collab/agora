@@ -113,6 +113,28 @@ function backoffice() {
         modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
         enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
       },
+      // Séquence d'onboarding/upsell des communes gratuites (voir backoffice/onboarding-drip.ts) —
+      // mêmes fonctions génériques, juste 4 cle de plus.
+      onboarding_relance_j3: {
+        variantes: [], editeeId: null,
+        modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
+      },
+      onboarding_checkin_j7: {
+        variantes: [], editeeId: null,
+        modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
+      },
+      onboarding_encouragement_j7: {
+        variantes: [], editeeId: null,
+        modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
+      },
+      onboarding_upsell: {
+        variantes: [], editeeId: null,
+        modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '', modeEditeur: 'visuel',
+      },
     },
     signatureEnCours: false,
     signatureMsg: '',
@@ -200,6 +222,10 @@ function backoffice() {
         try { await this.chargerVariantes(); } catch {}
         try { await this.chargerModelesGeneriques('bienvenue_inscription'); } catch {}
         try { await this.chargerModelesGeneriques('relance_inactivite'); } catch {}
+        try { await this.chargerModelesGeneriques('onboarding_relance_j3'); } catch {}
+        try { await this.chargerModelesGeneriques('onboarding_checkin_j7'); } catch {}
+        try { await this.chargerModelesGeneriques('onboarding_encouragement_j7'); } catch {}
+        try { await this.chargerModelesGeneriques('onboarding_upsell'); } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
         try {

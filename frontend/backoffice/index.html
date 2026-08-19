@@ -250,7 +250,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('diagnostic_email')">
-              <span>Diagnostic email</span>
+              <span>🔧 Diagnostic email</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.diagnostic_email}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.diagnostic_email">
@@ -275,7 +275,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('palier_gratuit')">
-              <span>Palier gratuit (modules inclus)</span>
+              <span>🆓 Palier gratuit (modules inclus)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.palier_gratuit}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.palier_gratuit">
@@ -301,7 +301,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('grille_tarifaire')">
-              <span>Grille tarifaire (abonnement annuel TTC, par population)</span>
+              <span>💶 Grille tarifaire (abonnement annuel TTC, par population)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.grille_tarifaire}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.grille_tarifaire">
@@ -331,7 +331,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('entreprise')">
-              <span>Informations légales de l'entreprise (devis &amp; factures)</span>
+              <span>🧾 Informations légales de l'entreprise (devis &amp; factures)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.entreprise}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.entreprise">
@@ -399,7 +399,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('staff')">
-              <span>Comptes staff</span>
+              <span>🧑‍💼 Comptes staff</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.staff}">▸</span>
             </button>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.staff" x-init="chargerStaff()">
@@ -430,7 +430,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('journal')">
-              <span>Journal d'activité</span>
+              <span>📜 Journal d'activité</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.journal}">▸</span>
             </button>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.journal" x-init="chargerJournal()">
@@ -459,7 +459,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_email')">
-              <span>Modèle d'email de présentation</span>
+              <span>✉️ Modèle d'email de présentation</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_email}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_email">
@@ -643,7 +643,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_bienvenue')">
-              <span>Modèle d'email — Bienvenue à la 1ère inscription</span>
+              <span>👋 Modèle d'email — Bienvenue à la 1ère inscription</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_bienvenue}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_bienvenue">
@@ -803,7 +803,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_relance_inactivite')">
-              <span>Modèle d'email — Relance douce (inscrit puis inactif)</span>
+              <span>💤 Modèle d'email — Relance douce (inscrit puis inactif)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_relance_inactivite}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_relance_inactivite">
@@ -960,10 +960,647 @@
               </div>
             </div>
           </div>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_onboarding_relance_j3')">
+              <span>🔁 Modèle d'email — Onboarding : relance activation (J+3)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_onboarding_relance_j3}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_onboarding_relance_j3">
+              <div class="bo-info" style="margin-bottom:12px">
+                Email 2 de la séquence onboarding/upsell : envoyé à J+3 si la commune n'a encore montré aucun
+                signe d'activation (article, calendrier déchets, clic module verrouillé). Variables :
+                <code>{{commune}}</code>, <code>{{url}}</code>. Voir Communes clientes → fiche → « Séquence onboarding / upsell ».
+              </div>
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <div class="bo-champ-inline">
+                  <label style="margin-top:0">Variante</label>
+                  <select :value="modelesGeneriques.onboarding_relance_j3.editeeId" @change="chargerVarianteGenerique('onboarding_relance_j3', $event.target.value)" style="width:auto; min-width:220px">
+                    <template x-for="v in modelesGeneriques.onboarding_relance_j3.variantes" :key="v.id">
+                      <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="bo-champ-inline" style="flex:1; min-width:180px">
+                  <label style="margin-top:0">Angle testé <span class="bo-info">(pour s'y retrouver, sans effet sur l'envoi)</span></label>
+                  <input type="text" x-model="modelesGeneriques.onboarding_relance_j3.modele.angle_teste" placeholder="ex. sans pression, rappel utile…" />
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('onboarding_relance_j3')" :disabled="modelesGeneriques.onboarding_relance_j3.enCours">📋 Dupliquer / nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('onboarding_relance_j3')"
+                        :disabled="modelesGeneriques.onboarding_relance_j3.enCours || (modelesGeneriques.onboarding_relance_j3.variantes.find(v => v.id === modelesGeneriques.onboarding_relance_j3.editeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('onboarding_relance_j3')"
+                        :disabled="modelesGeneriques.onboarding_relance_j3.enCours || modelesGeneriques.onboarding_relance_j3.variantes.length <= 1 || (modelesGeneriques.onboarding_relance_j3.variantes.find(v => v.id === modelesGeneriques.onboarding_relance_j3.editeeId) || {}).actif">Supprimer</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact"
+                        @click="modelesGeneriques.onboarding_relance_j3.vue = modelesGeneriques.onboarding_relance_j3.vue === 'edition' ? 'comparaison' : 'edition'"
+                        x-text="modelesGeneriques.onboarding_relance_j3.vue === 'edition' ? '🔀 Comparer les variantes' : '✏ Retour à l\'édition'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_relance_j3.msg"></span>
+              </div>
+
+              <!-- Vue comparaison : toutes les variantes côte à côte, lecture seule (pas de stats -
+                   ce modèle n'est pas suivi ouverture/clic, voir note de la route côté Worker) -->
+              <div x-show="modelesGeneriques.onboarding_relance_j3.vue === 'comparaison'" class="bo-comparaison">
+                <template x-for="v in modelesGeneriques.onboarding_relance_j3.variantes" :key="'cmp-' + v.id">
+                  <div class="bo-comparaison__col" :class="{ 'bo-comparaison__col--active': v.actif }">
+                    <div class="bo-comparaison__entete">
+                      <strong x-text="v.nom"></strong>
+                      <span class="bo-statut bo-statut--gagne" x-show="v.actif">active</span>
+                    </div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Angle testé</span><div x-text="v.angle_teste || '—'"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Objet</span><div x-text="v.objet"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Preview text</span><div x-text="v.preview_text || '—'"></div></div>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="ouvrirEditionVarianteGenerique('onboarding_relance_j3', v.id)">Éditer cette variante</button>
+                  </div>
+                </template>
+                <div class="bo-vide" x-show="modelesGeneriques.onboarding_relance_j3.variantes.length === 0">Aucune variante pour l'instant.</div>
+              </div>
+
+              <div x-show="modelesGeneriques.onboarding_relance_j3.vue === 'edition'">
+              <label style="margin-top:0">
+                Objet
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_relance_j3.modele.objet || '').length > 50 }"
+                      x-text="(modelesGeneriques.onboarding_relance_j3.modele.objet || '').length + ' / 50'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_relance_j3.modele.objet">
+
+              <label>
+                Preview text <span class="bo-info">(texte d'aperçu sous l'objet)</span>
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_relance_j3.modele.preview_text || '').length > 100 }"
+                      x-text="(modelesGeneriques.onboarding_relance_j3.modele.preview_text || '').length + ' / 100'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_relance_j3.modele.preview_text" placeholder="Ce que verra le destinataire avant même d'ouvrir l'email…" />
+
+              <div class="bo-inbox-apercu">
+                <div class="bo-inbox-apercu__entete">
+                  <span class="bo-info">Aperçu boîte de réception</span>
+                  <div class="bo-inbox-apercu__bascule">
+                    <button type="button" :class="{ actif: apercuInboxMode === 'mobile' }" @click="apercuInboxMode = 'mobile'">📱 Mobile</button>
+                    <button type="button" :class="{ actif: apercuInboxMode === 'desktop' }" @click="apercuInboxMode = 'desktop'">💻 Desktop</button>
+                  </div>
+                </div>
+                <div class="bo-inbox-ligne" :class="'bo-inbox-ligne--' + apercuInboxMode">
+                  <div class="bo-inbox-ligne__logo">A</div>
+                  <div class="bo-inbox-ligne__corps">
+                    <div class="bo-inbox-ligne__expediteur">Plateforme-Agora</div>
+                    <div class="bo-inbox-ligne__texte">
+                      <span class="bo-inbox-ligne__objet" x-text="modelesGeneriques.onboarding_relance_j3.modele.objet || '(objet vide)'"></span>
+                      <span class="bo-inbox-ligne__preview" x-text="' — ' + tronquer(modelesGeneriques.onboarding_relance_j3.modele.preview_text, apercuInboxMode === 'mobile' ? 45 : 90)"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bo-grille-2" style="margin-top:16px; align-items:start">
+                <div>
+                  <label style="margin-top:0">Corps du message</label>
+                  <div class="bo-toolbar">
+                    <template x-if="modelesGeneriques.onboarding_relance_j3.modeEditeur === 'visuel'">
+                      <span style="display:contents">
+                        <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                        <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                        <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                        <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                        <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                        <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                        <span class="sep"></span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                          <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                          <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
+                          <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
+                          <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
+                          <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                          <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
+                        </span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                          <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
+                          <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
+                          <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                        </span>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <span class="sep"></span>
+                      </span>
+                    </template>
+                    <button type="button" @click="basculerModeEditeurGenerique('onboarding_relance_j3')"
+                            x-text="modelesGeneriques.onboarding_relance_j3.modeEditeur === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+                  </div>
+                  <div x-show="modelesGeneriques.onboarding_relance_j3.modeEditeur === 'visuel'" id="editeur-email-onboarding_relance_j3" contenteditable="true" class="bo-wysiwyg"
+                       x-init="initEditeurEmailGenerique('onboarding_relance_j3')"
+                       @input.debounce.400ms="modelesGeneriques.onboarding_relance_j3.modele.corps_html = $event.target.innerHTML"></div>
+                  <textarea x-show="modelesGeneriques.onboarding_relance_j3.modeEditeur === 'code'" x-model="modelesGeneriques.onboarding_relance_j3.modele.corps_html" class="bo-code-html" style="min-height:200px"></textarea>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu rendu <span class="bo-info">(valeurs d'exemple)</span></label>
+                  <div class="bo-email-apercu" x-html="rendreApercuGenerique(modelesGeneriques.onboarding_relance_j3.modele.corps_html)"></div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('onboarding_relance_j3')" :disabled="modelesGeneriques.onboarding_relance_j3.enCours"
+                        x-text="modelesGeneriques.onboarding_relance_j3.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid #e5e9e5; flex-wrap:wrap">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire du test" style="width:auto; min-width:220px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestGenerique('onboarding_relance_j3')" :disabled="modelesGeneriques.onboarding_relance_j3.testEnCours"
+                        x-text="modelesGeneriques.onboarding_relance_j3.testEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_relance_j3.testMsg"></span>
+              </div>
+              </div>
+            </div>
+          </div>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_onboarding_checkin_j7')">
+              <span>🆘 Modèle d'email — Onboarding : check-in humain (J+7)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_onboarding_checkin_j7}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_onboarding_checkin_j7">
+              <div class="bo-info" style="margin-bottom:12px">
+                Email 3 de la séquence onboarding/upsell : envoyé à J+7 si la commune n'a toujours montré aucun
+                signe d'activation — message humain, volontairement sans bouton (l'objectif est une réponse,
+                pas un clic). Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
+              </div>
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <div class="bo-champ-inline">
+                  <label style="margin-top:0">Variante</label>
+                  <select :value="modelesGeneriques.onboarding_checkin_j7.editeeId" @change="chargerVarianteGenerique('onboarding_checkin_j7', $event.target.value)" style="width:auto; min-width:220px">
+                    <template x-for="v in modelesGeneriques.onboarding_checkin_j7.variantes" :key="v.id">
+                      <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="bo-champ-inline" style="flex:1; min-width:180px">
+                  <label style="margin-top:0">Angle testé <span class="bo-info">(pour s'y retrouver, sans effet sur l'envoi)</span></label>
+                  <input type="text" x-model="modelesGeneriques.onboarding_checkin_j7.modele.angle_teste" placeholder="ex. sans pression, rappel utile…" />
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('onboarding_checkin_j7')" :disabled="modelesGeneriques.onboarding_checkin_j7.enCours">📋 Dupliquer / nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('onboarding_checkin_j7')"
+                        :disabled="modelesGeneriques.onboarding_checkin_j7.enCours || (modelesGeneriques.onboarding_checkin_j7.variantes.find(v => v.id === modelesGeneriques.onboarding_checkin_j7.editeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('onboarding_checkin_j7')"
+                        :disabled="modelesGeneriques.onboarding_checkin_j7.enCours || modelesGeneriques.onboarding_checkin_j7.variantes.length <= 1 || (modelesGeneriques.onboarding_checkin_j7.variantes.find(v => v.id === modelesGeneriques.onboarding_checkin_j7.editeeId) || {}).actif">Supprimer</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact"
+                        @click="modelesGeneriques.onboarding_checkin_j7.vue = modelesGeneriques.onboarding_checkin_j7.vue === 'edition' ? 'comparaison' : 'edition'"
+                        x-text="modelesGeneriques.onboarding_checkin_j7.vue === 'edition' ? '🔀 Comparer les variantes' : '✏ Retour à l\'édition'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_checkin_j7.msg"></span>
+              </div>
+
+              <!-- Vue comparaison : toutes les variantes côte à côte, lecture seule (pas de stats -
+                   ce modèle n'est pas suivi ouverture/clic, voir note de la route côté Worker) -->
+              <div x-show="modelesGeneriques.onboarding_checkin_j7.vue === 'comparaison'" class="bo-comparaison">
+                <template x-for="v in modelesGeneriques.onboarding_checkin_j7.variantes" :key="'cmp-' + v.id">
+                  <div class="bo-comparaison__col" :class="{ 'bo-comparaison__col--active': v.actif }">
+                    <div class="bo-comparaison__entete">
+                      <strong x-text="v.nom"></strong>
+                      <span class="bo-statut bo-statut--gagne" x-show="v.actif">active</span>
+                    </div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Angle testé</span><div x-text="v.angle_teste || '—'"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Objet</span><div x-text="v.objet"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Preview text</span><div x-text="v.preview_text || '—'"></div></div>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="ouvrirEditionVarianteGenerique('onboarding_checkin_j7', v.id)">Éditer cette variante</button>
+                  </div>
+                </template>
+                <div class="bo-vide" x-show="modelesGeneriques.onboarding_checkin_j7.variantes.length === 0">Aucune variante pour l'instant.</div>
+              </div>
+
+              <div x-show="modelesGeneriques.onboarding_checkin_j7.vue === 'edition'">
+              <label style="margin-top:0">
+                Objet
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_checkin_j7.modele.objet || '').length > 50 }"
+                      x-text="(modelesGeneriques.onboarding_checkin_j7.modele.objet || '').length + ' / 50'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_checkin_j7.modele.objet">
+
+              <label>
+                Preview text <span class="bo-info">(texte d'aperçu sous l'objet)</span>
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_checkin_j7.modele.preview_text || '').length > 100 }"
+                      x-text="(modelesGeneriques.onboarding_checkin_j7.modele.preview_text || '').length + ' / 100'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_checkin_j7.modele.preview_text" placeholder="Ce que verra le destinataire avant même d'ouvrir l'email…" />
+
+              <div class="bo-inbox-apercu">
+                <div class="bo-inbox-apercu__entete">
+                  <span class="bo-info">Aperçu boîte de réception</span>
+                  <div class="bo-inbox-apercu__bascule">
+                    <button type="button" :class="{ actif: apercuInboxMode === 'mobile' }" @click="apercuInboxMode = 'mobile'">📱 Mobile</button>
+                    <button type="button" :class="{ actif: apercuInboxMode === 'desktop' }" @click="apercuInboxMode = 'desktop'">💻 Desktop</button>
+                  </div>
+                </div>
+                <div class="bo-inbox-ligne" :class="'bo-inbox-ligne--' + apercuInboxMode">
+                  <div class="bo-inbox-ligne__logo">A</div>
+                  <div class="bo-inbox-ligne__corps">
+                    <div class="bo-inbox-ligne__expediteur">Plateforme-Agora</div>
+                    <div class="bo-inbox-ligne__texte">
+                      <span class="bo-inbox-ligne__objet" x-text="modelesGeneriques.onboarding_checkin_j7.modele.objet || '(objet vide)'"></span>
+                      <span class="bo-inbox-ligne__preview" x-text="' — ' + tronquer(modelesGeneriques.onboarding_checkin_j7.modele.preview_text, apercuInboxMode === 'mobile' ? 45 : 90)"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bo-grille-2" style="margin-top:16px; align-items:start">
+                <div>
+                  <label style="margin-top:0">Corps du message</label>
+                  <div class="bo-toolbar">
+                    <template x-if="modelesGeneriques.onboarding_checkin_j7.modeEditeur === 'visuel'">
+                      <span style="display:contents">
+                        <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                        <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                        <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                        <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                        <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                        <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                        <span class="sep"></span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                          <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                          <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
+                          <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
+                          <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
+                          <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                          <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
+                        </span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                          <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
+                          <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
+                          <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                        </span>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <span class="sep"></span>
+                      </span>
+                    </template>
+                    <button type="button" @click="basculerModeEditeurGenerique('onboarding_checkin_j7')"
+                            x-text="modelesGeneriques.onboarding_checkin_j7.modeEditeur === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+                  </div>
+                  <div x-show="modelesGeneriques.onboarding_checkin_j7.modeEditeur === 'visuel'" id="editeur-email-onboarding_checkin_j7" contenteditable="true" class="bo-wysiwyg"
+                       x-init="initEditeurEmailGenerique('onboarding_checkin_j7')"
+                       @input.debounce.400ms="modelesGeneriques.onboarding_checkin_j7.modele.corps_html = $event.target.innerHTML"></div>
+                  <textarea x-show="modelesGeneriques.onboarding_checkin_j7.modeEditeur === 'code'" x-model="modelesGeneriques.onboarding_checkin_j7.modele.corps_html" class="bo-code-html" style="min-height:200px"></textarea>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu rendu <span class="bo-info">(valeurs d'exemple)</span></label>
+                  <div class="bo-email-apercu" x-html="rendreApercuGenerique(modelesGeneriques.onboarding_checkin_j7.modele.corps_html)"></div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('onboarding_checkin_j7')" :disabled="modelesGeneriques.onboarding_checkin_j7.enCours"
+                        x-text="modelesGeneriques.onboarding_checkin_j7.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid #e5e9e5; flex-wrap:wrap">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire du test" style="width:auto; min-width:220px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestGenerique('onboarding_checkin_j7')" :disabled="modelesGeneriques.onboarding_checkin_j7.testEnCours"
+                        x-text="modelesGeneriques.onboarding_checkin_j7.testEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_checkin_j7.testMsg"></span>
+              </div>
+              </div>
+            </div>
+          </div>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_onboarding_encouragement_j7')">
+              <span>👍 Modèle d'email — Onboarding : encouragement (J+7)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_onboarding_encouragement_j7}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_onboarding_encouragement_j7">
+              <div class="bo-info" style="margin-bottom:12px">
+                Email 4 de la séquence onboarding/upsell : envoyé à J+7 si la commune a déjà montré au moins un
+                signe d'activation — encouragement + graine upsell douce, sans prix. Variables :
+                <code>{{commune}}</code>, <code>{{url}}</code>.
+              </div>
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <div class="bo-champ-inline">
+                  <label style="margin-top:0">Variante</label>
+                  <select :value="modelesGeneriques.onboarding_encouragement_j7.editeeId" @change="chargerVarianteGenerique('onboarding_encouragement_j7', $event.target.value)" style="width:auto; min-width:220px">
+                    <template x-for="v in modelesGeneriques.onboarding_encouragement_j7.variantes" :key="v.id">
+                      <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="bo-champ-inline" style="flex:1; min-width:180px">
+                  <label style="margin-top:0">Angle testé <span class="bo-info">(pour s'y retrouver, sans effet sur l'envoi)</span></label>
+                  <input type="text" x-model="modelesGeneriques.onboarding_encouragement_j7.modele.angle_teste" placeholder="ex. sans pression, rappel utile…" />
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('onboarding_encouragement_j7')" :disabled="modelesGeneriques.onboarding_encouragement_j7.enCours">📋 Dupliquer / nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('onboarding_encouragement_j7')"
+                        :disabled="modelesGeneriques.onboarding_encouragement_j7.enCours || (modelesGeneriques.onboarding_encouragement_j7.variantes.find(v => v.id === modelesGeneriques.onboarding_encouragement_j7.editeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('onboarding_encouragement_j7')"
+                        :disabled="modelesGeneriques.onboarding_encouragement_j7.enCours || modelesGeneriques.onboarding_encouragement_j7.variantes.length <= 1 || (modelesGeneriques.onboarding_encouragement_j7.variantes.find(v => v.id === modelesGeneriques.onboarding_encouragement_j7.editeeId) || {}).actif">Supprimer</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact"
+                        @click="modelesGeneriques.onboarding_encouragement_j7.vue = modelesGeneriques.onboarding_encouragement_j7.vue === 'edition' ? 'comparaison' : 'edition'"
+                        x-text="modelesGeneriques.onboarding_encouragement_j7.vue === 'edition' ? '🔀 Comparer les variantes' : '✏ Retour à l\'édition'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_encouragement_j7.msg"></span>
+              </div>
+
+              <!-- Vue comparaison : toutes les variantes côte à côte, lecture seule (pas de stats -
+                   ce modèle n'est pas suivi ouverture/clic, voir note de la route côté Worker) -->
+              <div x-show="modelesGeneriques.onboarding_encouragement_j7.vue === 'comparaison'" class="bo-comparaison">
+                <template x-for="v in modelesGeneriques.onboarding_encouragement_j7.variantes" :key="'cmp-' + v.id">
+                  <div class="bo-comparaison__col" :class="{ 'bo-comparaison__col--active': v.actif }">
+                    <div class="bo-comparaison__entete">
+                      <strong x-text="v.nom"></strong>
+                      <span class="bo-statut bo-statut--gagne" x-show="v.actif">active</span>
+                    </div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Angle testé</span><div x-text="v.angle_teste || '—'"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Objet</span><div x-text="v.objet"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Preview text</span><div x-text="v.preview_text || '—'"></div></div>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="ouvrirEditionVarianteGenerique('onboarding_encouragement_j7', v.id)">Éditer cette variante</button>
+                  </div>
+                </template>
+                <div class="bo-vide" x-show="modelesGeneriques.onboarding_encouragement_j7.variantes.length === 0">Aucune variante pour l'instant.</div>
+              </div>
+
+              <div x-show="modelesGeneriques.onboarding_encouragement_j7.vue === 'edition'">
+              <label style="margin-top:0">
+                Objet
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_encouragement_j7.modele.objet || '').length > 50 }"
+                      x-text="(modelesGeneriques.onboarding_encouragement_j7.modele.objet || '').length + ' / 50'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_encouragement_j7.modele.objet">
+
+              <label>
+                Preview text <span class="bo-info">(texte d'aperçu sous l'objet)</span>
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_encouragement_j7.modele.preview_text || '').length > 100 }"
+                      x-text="(modelesGeneriques.onboarding_encouragement_j7.modele.preview_text || '').length + ' / 100'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_encouragement_j7.modele.preview_text" placeholder="Ce que verra le destinataire avant même d'ouvrir l'email…" />
+
+              <div class="bo-inbox-apercu">
+                <div class="bo-inbox-apercu__entete">
+                  <span class="bo-info">Aperçu boîte de réception</span>
+                  <div class="bo-inbox-apercu__bascule">
+                    <button type="button" :class="{ actif: apercuInboxMode === 'mobile' }" @click="apercuInboxMode = 'mobile'">📱 Mobile</button>
+                    <button type="button" :class="{ actif: apercuInboxMode === 'desktop' }" @click="apercuInboxMode = 'desktop'">💻 Desktop</button>
+                  </div>
+                </div>
+                <div class="bo-inbox-ligne" :class="'bo-inbox-ligne--' + apercuInboxMode">
+                  <div class="bo-inbox-ligne__logo">A</div>
+                  <div class="bo-inbox-ligne__corps">
+                    <div class="bo-inbox-ligne__expediteur">Plateforme-Agora</div>
+                    <div class="bo-inbox-ligne__texte">
+                      <span class="bo-inbox-ligne__objet" x-text="modelesGeneriques.onboarding_encouragement_j7.modele.objet || '(objet vide)'"></span>
+                      <span class="bo-inbox-ligne__preview" x-text="' — ' + tronquer(modelesGeneriques.onboarding_encouragement_j7.modele.preview_text, apercuInboxMode === 'mobile' ? 45 : 90)"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bo-grille-2" style="margin-top:16px; align-items:start">
+                <div>
+                  <label style="margin-top:0">Corps du message</label>
+                  <div class="bo-toolbar">
+                    <template x-if="modelesGeneriques.onboarding_encouragement_j7.modeEditeur === 'visuel'">
+                      <span style="display:contents">
+                        <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                        <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                        <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                        <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                        <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                        <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                        <span class="sep"></span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                          <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                          <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
+                          <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
+                          <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
+                          <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                          <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
+                        </span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                          <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
+                          <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
+                          <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                        </span>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <span class="sep"></span>
+                      </span>
+                    </template>
+                    <button type="button" @click="basculerModeEditeurGenerique('onboarding_encouragement_j7')"
+                            x-text="modelesGeneriques.onboarding_encouragement_j7.modeEditeur === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+                  </div>
+                  <div x-show="modelesGeneriques.onboarding_encouragement_j7.modeEditeur === 'visuel'" id="editeur-email-onboarding_encouragement_j7" contenteditable="true" class="bo-wysiwyg"
+                       x-init="initEditeurEmailGenerique('onboarding_encouragement_j7')"
+                       @input.debounce.400ms="modelesGeneriques.onboarding_encouragement_j7.modele.corps_html = $event.target.innerHTML"></div>
+                  <textarea x-show="modelesGeneriques.onboarding_encouragement_j7.modeEditeur === 'code'" x-model="modelesGeneriques.onboarding_encouragement_j7.modele.corps_html" class="bo-code-html" style="min-height:200px"></textarea>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu rendu <span class="bo-info">(valeurs d'exemple)</span></label>
+                  <div class="bo-email-apercu" x-html="rendreApercuGenerique(modelesGeneriques.onboarding_encouragement_j7.modele.corps_html)"></div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('onboarding_encouragement_j7')" :disabled="modelesGeneriques.onboarding_encouragement_j7.enCours"
+                        x-text="modelesGeneriques.onboarding_encouragement_j7.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid #e5e9e5; flex-wrap:wrap">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire du test" style="width:auto; min-width:220px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestGenerique('onboarding_encouragement_j7')" :disabled="modelesGeneriques.onboarding_encouragement_j7.testEnCours"
+                        x-text="modelesGeneriques.onboarding_encouragement_j7.testEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_encouragement_j7.testMsg"></span>
+              </div>
+              </div>
+            </div>
+          </div>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_onboarding_upsell')">
+              <span>💶 Modèle d'email — Onboarding : upsell (3 actions)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_onboarding_upsell}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_onboarding_upsell">
+              <div class="bo-info" style="margin-bottom:12px">
+                Email 5 de la séquence onboarding/upsell : le seul avec un vrai argumentaire payant, déclenché
+                uniquement quand la commune a réalisé les 3 types d'action distincts (jamais sur une date).
+                Variables : <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>.
+              </div>
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <div class="bo-champ-inline">
+                  <label style="margin-top:0">Variante</label>
+                  <select :value="modelesGeneriques.onboarding_upsell.editeeId" @change="chargerVarianteGenerique('onboarding_upsell', $event.target.value)" style="width:auto; min-width:220px">
+                    <template x-for="v in modelesGeneriques.onboarding_upsell.variantes" :key="v.id">
+                      <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="bo-champ-inline" style="flex:1; min-width:180px">
+                  <label style="margin-top:0">Angle testé <span class="bo-info">(pour s'y retrouver, sans effet sur l'envoi)</span></label>
+                  <input type="text" x-model="modelesGeneriques.onboarding_upsell.modele.angle_teste" placeholder="ex. sans pression, rappel utile…" />
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('onboarding_upsell')" :disabled="modelesGeneriques.onboarding_upsell.enCours">📋 Dupliquer / nouvelle variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('onboarding_upsell')"
+                        :disabled="modelesGeneriques.onboarding_upsell.enCours || (modelesGeneriques.onboarding_upsell.variantes.find(v => v.id === modelesGeneriques.onboarding_upsell.editeeId) || {}).actif">Activer cette variante</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('onboarding_upsell')"
+                        :disabled="modelesGeneriques.onboarding_upsell.enCours || modelesGeneriques.onboarding_upsell.variantes.length <= 1 || (modelesGeneriques.onboarding_upsell.variantes.find(v => v.id === modelesGeneriques.onboarding_upsell.editeeId) || {}).actif">Supprimer</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact"
+                        @click="modelesGeneriques.onboarding_upsell.vue = modelesGeneriques.onboarding_upsell.vue === 'edition' ? 'comparaison' : 'edition'"
+                        x-text="modelesGeneriques.onboarding_upsell.vue === 'edition' ? '🔀 Comparer les variantes' : '✏ Retour à l\'édition'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_upsell.msg"></span>
+              </div>
+
+              <!-- Vue comparaison : toutes les variantes côte à côte, lecture seule (pas de stats -
+                   ce modèle n'est pas suivi ouverture/clic, voir note de la route côté Worker) -->
+              <div x-show="modelesGeneriques.onboarding_upsell.vue === 'comparaison'" class="bo-comparaison">
+                <template x-for="v in modelesGeneriques.onboarding_upsell.variantes" :key="'cmp-' + v.id">
+                  <div class="bo-comparaison__col" :class="{ 'bo-comparaison__col--active': v.actif }">
+                    <div class="bo-comparaison__entete">
+                      <strong x-text="v.nom"></strong>
+                      <span class="bo-statut bo-statut--gagne" x-show="v.actif">active</span>
+                    </div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Angle testé</span><div x-text="v.angle_teste || '—'"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Objet</span><div x-text="v.objet"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Preview text</span><div x-text="v.preview_text || '—'"></div></div>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="ouvrirEditionVarianteGenerique('onboarding_upsell', v.id)">Éditer cette variante</button>
+                  </div>
+                </template>
+                <div class="bo-vide" x-show="modelesGeneriques.onboarding_upsell.variantes.length === 0">Aucune variante pour l'instant.</div>
+              </div>
+
+              <div x-show="modelesGeneriques.onboarding_upsell.vue === 'edition'">
+              <label style="margin-top:0">
+                Objet
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_upsell.modele.objet || '').length > 50 }"
+                      x-text="(modelesGeneriques.onboarding_upsell.modele.objet || '').length + ' / 50'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_upsell.modele.objet">
+
+              <label>
+                Preview text <span class="bo-info">(texte d'aperçu sous l'objet)</span>
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.onboarding_upsell.modele.preview_text || '').length > 100 }"
+                      x-text="(modelesGeneriques.onboarding_upsell.modele.preview_text || '').length + ' / 100'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.onboarding_upsell.modele.preview_text" placeholder="Ce que verra le destinataire avant même d'ouvrir l'email…" />
+
+              <div class="bo-inbox-apercu">
+                <div class="bo-inbox-apercu__entete">
+                  <span class="bo-info">Aperçu boîte de réception</span>
+                  <div class="bo-inbox-apercu__bascule">
+                    <button type="button" :class="{ actif: apercuInboxMode === 'mobile' }" @click="apercuInboxMode = 'mobile'">📱 Mobile</button>
+                    <button type="button" :class="{ actif: apercuInboxMode === 'desktop' }" @click="apercuInboxMode = 'desktop'">💻 Desktop</button>
+                  </div>
+                </div>
+                <div class="bo-inbox-ligne" :class="'bo-inbox-ligne--' + apercuInboxMode">
+                  <div class="bo-inbox-ligne__logo">A</div>
+                  <div class="bo-inbox-ligne__corps">
+                    <div class="bo-inbox-ligne__expediteur">Plateforme-Agora</div>
+                    <div class="bo-inbox-ligne__texte">
+                      <span class="bo-inbox-ligne__objet" x-text="modelesGeneriques.onboarding_upsell.modele.objet || '(objet vide)'"></span>
+                      <span class="bo-inbox-ligne__preview" x-text="' — ' + tronquer(modelesGeneriques.onboarding_upsell.modele.preview_text, apercuInboxMode === 'mobile' ? 45 : 90)"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bo-grille-2" style="margin-top:16px; align-items:start">
+                <div>
+                  <label style="margin-top:0">Corps du message</label>
+                  <div class="bo-toolbar">
+                    <template x-if="modelesGeneriques.onboarding_upsell.modeEditeur === 'visuel'">
+                      <span style="display:contents">
+                        <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                        <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                        <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                        <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                        <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                        <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                        <span class="sep"></span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                          <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                          <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
+                          <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
+                          <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
+                          <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                          <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
+                        </span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                          <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
+                          <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
+                          <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                        </span>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche de présentation">+ lien fiche</button>
+                        <span class="sep"></span>
+                      </span>
+                    </template>
+                    <button type="button" @click="basculerModeEditeurGenerique('onboarding_upsell')"
+                            x-text="modelesGeneriques.onboarding_upsell.modeEditeur === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+                  </div>
+                  <div x-show="modelesGeneriques.onboarding_upsell.modeEditeur === 'visuel'" id="editeur-email-onboarding_upsell" contenteditable="true" class="bo-wysiwyg"
+                       x-init="initEditeurEmailGenerique('onboarding_upsell')"
+                       @input.debounce.400ms="modelesGeneriques.onboarding_upsell.modele.corps_html = $event.target.innerHTML"></div>
+                  <textarea x-show="modelesGeneriques.onboarding_upsell.modeEditeur === 'code'" x-model="modelesGeneriques.onboarding_upsell.modele.corps_html" class="bo-code-html" style="min-height:200px"></textarea>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu rendu <span class="bo-info">(valeurs d'exemple)</span></label>
+                  <div class="bo-email-apercu" x-html="rendreApercuGenerique(modelesGeneriques.onboarding_upsell.modele.corps_html)"></div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('onboarding_upsell')" :disabled="modelesGeneriques.onboarding_upsell.enCours"
+                        x-text="modelesGeneriques.onboarding_upsell.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid #e5e9e5; flex-wrap:wrap">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire du test" style="width:auto; min-width:220px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestGenerique('onboarding_upsell')" :disabled="modelesGeneriques.onboarding_upsell.testEnCours"
+                        x-text="modelesGeneriques.onboarding_upsell.testEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.onboarding_upsell.testMsg"></span>
+              </div>
+              </div>
+            </div>
+          </div>
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('modele_fiche')">
-              <span>Modèle de fiche de présentation (imprimable)</span>
+              <span>🖨️ Modèle de fiche de présentation (imprimable)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.modele_fiche}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_fiche">
@@ -1962,7 +2599,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-7"></script>
+  <script src="/backoffice/js/app.js?v=20260819-8"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
