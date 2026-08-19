@@ -1201,6 +1201,7 @@ app.get('/activite', async (c) => {
     total_communes_clientes: totalCommunesClientes,
     auteurs_distincts: auteursDistincts,
     publications_par_nouveau_compte: comptesPeriode > 0 ? Math.round((publicationsPeriode / comptesPeriode) * 10) / 10 : null,
+    comptes_par_jour: Math.round((comptesPeriode / jours) * 10) / 10,
   };
 
   const total = evenements.length;
