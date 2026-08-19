@@ -1138,6 +1138,45 @@
             </div>
           </template>
 
+          <template x-if="onboardingDrip">
+            <div>
+              <div class="bo-section-titre">Séquence onboarding / upsell</div>
+              <div class="bo-carte" style="padding:14px 18px">
+                <div class="bo-info" style="margin-bottom:10px">
+                  Compte créé <strong x-text="onboardingDrip.jours_depuis_creation"></strong> jour(s) avant aujourd'hui
+                  (<span x-text="formatDate(onboardingDrip.commune.created_at)"></span>) —
+                  forfait <strong x-text="onboardingDrip.commune.forfait || '—'"></strong>.
+                </div>
+
+                <div style="font-weight:600; font-size:13px; margin-bottom:4px">Événements d'activation</div>
+                <template x-if="onboardingDrip.evenements.length === 0"><div class="bo-vide" style="margin-bottom:10px">Aucun pour l'instant.</div></template>
+                <div style="margin-bottom:10px" x-show="onboardingDrip.evenements.length">
+                  <template x-for="(ev, i) in onboardingDrip.evenements" :key="i">
+                    <div class="bo-info" x-text="ev.event_type + ' — ' + formatDateHeure(ev.created_at)"></div>
+                  </template>
+                </div>
+
+                <div style="font-weight:600; font-size:13px; margin-bottom:4px">Emails de la séquence déjà envoyés</div>
+                <template x-if="onboardingDrip.emails_envoyes.length === 0"><div class="bo-vide" style="margin-bottom:10px">Aucun pour l'instant.</div></template>
+                <div style="margin-bottom:14px" x-show="onboardingDrip.emails_envoyes.length">
+                  <template x-for="(em, i) in onboardingDrip.emails_envoyes" :key="i">
+                    <div class="bo-info" x-text="em.email_type + ' — ' + formatDateHeure(em.sent_at)"></div>
+                  </template>
+                </div>
+
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="declencherSequenceOnboardingMaintenant()" :disabled="onboardingDripEnCours"
+                        x-text="onboardingDripEnCours ? 'Exécution…' : '▶ Lancer la séquence maintenant'"></button>
+                <span class="bo-info" style="margin-left:8px" x-text="onboardingDripMsg"></span>
+                <div class="bo-info" style="margin-top:8px">
+                  ⚠️ Traite TOUTES les communes éligibles à cet instant, pas seulement celle-ci — de vrais emails
+                  peuvent partir. Utile pour tester : modifie <code>created_at</code> de cette commune dans Supabase
+                  (ou ajoute des lignes dans <code>activation_events</code>), reviens ici pour vérifier l'état
+                  ci-dessus, puis clique.
+                </div>
+              </div>
+            </div>
+          </template>
+
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('activite_commune')">
               <span>Activité récente<span class="bo-tiroir__compte" x-show="activiteCommune.length" x-text="'— ' + activiteCommune.length"></span></span>
@@ -1880,7 +1919,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-4"></script>
+  <script src="/backoffice/js/app.js?v=20260819-5"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

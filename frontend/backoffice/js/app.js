@@ -80,6 +80,9 @@ function backoffice() {
     presetEnCours: false,
     presetMsg: '',
     ongletsCommune: [],
+    onboardingDrip: null,
+    onboardingDripEnCours: false,
+    onboardingDripMsg: '',
     presentEnCours: false,
     presentMsg: '',
     modele: { objet: '', corps_html: '', preview_text: '', angle_teste: '', signature_image_url: null, logo_image_url: null },
@@ -263,8 +266,28 @@ function backoffice() {
         this.devisMsg = '';
         try { await this.chargerDevisFactures(id); } catch {}
         try { this.ongletsCommune = (await boFetch('/administration/communes/' + id + '/onglets')).onglets; } catch {}
+        this.onboardingDripMsg = '';
+        try { this.onboardingDrip = await boFetch('/administration/onboarding-drip/communes/' + id); } catch { this.onboardingDrip = null; }
       } finally {
         this.chargement = false;
+      }
+    },
+
+    // Séquence d'onboarding/upsell (voir backoffice/onboarding-drip.ts) : déclenche MAINTENANT,
+    // sans attendre le cron quotidien — pratique pour tester après avoir modifié created_at
+    // et/ou ajouté des lignes dans activation_events pour cette commune depuis Supabase.
+    async declencherSequenceOnboardingMaintenant() {
+      if (!confirm('Ça va lancer la séquence pour TOUTES les communes éligibles à cet instant (pas seulement celle-ci) — de vrais emails peuvent partir. Continuer ?')) return;
+      this.onboardingDripEnCours = true;
+      this.onboardingDripMsg = '';
+      try {
+        await boFetch('/administration/onboarding-drip/executer', { method: 'POST' });
+        this.onboardingDrip = await boFetch('/administration/onboarding-drip/communes/' + this.fiche.commune.id);
+        this.onboardingDripMsg = 'Séquence exécutée — état mis à jour ci-dessus.';
+      } catch (e) {
+        this.onboardingDripMsg = e.message || 'Échec';
+      } finally {
+        this.onboardingDripEnCours = false;
       }
     },
 
