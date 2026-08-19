@@ -408,10 +408,13 @@ app.patch('/communes/:id/statut', async (c) => {
   // résilier une commune déjà gratuite (ex. la démo decouverte-gratuite) n'est pas une perte de
   // revenu, donc pas un churn.
   if (body.data.statut_client === 'resiliee') {
-    const [avant] = await supabaseSelect(c.env, 'communes', { select: 'forfait,prix_annuel_ttc', id: `eq.${id}` });
+    const [avant] = await supabaseSelect(c.env, 'communes', {
+      select: 'forfait,prix_annuel_ttc,duree_engagement_mois', id: `eq.${id}`,
+    });
     if (avant && avant.forfait && avant.forfait !== 'Gratuit' && avant.prix_annuel_ttc) {
       await supabaseInsert(c.env, 'churn_events', {
-        commune_id: id, type: 'resiliation', ancien_forfait: avant.forfait, prix_annuel_perdu: avant.prix_annuel_ttc,
+        commune_id: id, type: 'resiliation', ancien_forfait: avant.forfait,
+        prix_annuel_perdu: avant.prix_annuel_ttc, duree_engagement_mois: avant.duree_engagement_mois,
       });
     }
   }
@@ -1049,6 +1052,15 @@ app.get('/echeances', async (c) => {
 // renouvelle). Ne jamais additionner les deux dans un même total : ce sont deux natures de
 // chiffre différentes. Le churn (migration 048) n'a d'historique qu'à partir du 2026-08-19 —
 // avant, seul l'état actuel de la commune était stocké, aucune transition passée n'existe.
+// communes.prix_annuel_ttc n'est un vrai prix ANNUEL que pour un engagement 12 mois. Pour 36
+// mois, appliquerTarifSuggere() (frontend) y stocke le total du contrat 3 ans (déjà réduit des
+// mois offerts) — donc /3 pour ramener à un run-rate annuel comparable. Sans cette conversion,
+// toute commune en engagement 3 ans fausserait la projection et le churn (~3x trop haut).
+function montantAnnualise(prix: number | null | undefined, dureeEngagementMois: number | null | undefined): number {
+  if (!prix) return 0;
+  return dureeEngagementMois === 36 ? prix / 3 : prix;
+}
+
 app.get('/chiffre-affaires', async (c) => {
   const [facturesPayees, facturesEnAttente] = await Promise.all([
     supabaseSelectTout(c.env, 'factures', { select: 'montant_ht,payee_le,commune_id', statut: 'eq.payee' }),
@@ -1081,23 +1093,31 @@ app.get('/chiffre-affaires', async (c) => {
   // Projection : forfait <> 'Gratuit' exclut aussi NULL en SQL (une commune sans forfait défini
   // n'est pas comptée comme payante), donc pas besoin d'un filtre "is not null" séparé.
   const communesPayantes = await supabaseSelectTout(c.env, 'communes', {
-    select: 'id,nom,prix_annuel_ttc,forfait', niveau_national: 'not.is.true', statut_client: 'eq.active', forfait: 'neq.Gratuit',
+    select: 'id,nom,prix_annuel_ttc,forfait,duree_engagement_mois',
+    niveau_national: 'not.is.true', statut_client: 'eq.active', forfait: 'neq.Gratuit',
   });
-  const projectionTotal = communesPayantes.reduce((s: number, cm: any) => s + (Number(cm.prix_annuel_ttc) || 0), 0);
+  const projectionTotal = communesPayantes.reduce(
+    (s: number, cm: any) => s + montantAnnualise(cm.prix_annuel_ttc, cm.duree_engagement_mois), 0,
+  );
   const incoherences = communesPayantes
     .filter((cm: any) => !cm.prix_annuel_ttc)
     .map((cm: any) => ({ id: cm.id, nom: cm.nom, forfait: cm.forfait }));
 
   const churnEvents = await supabaseSelectTout(c.env, 'churn_events', {
-    select: 'commune_id,type,ancien_forfait,prix_annuel_perdu,created_at', order: 'created_at.desc',
+    select: 'commune_id,type,ancien_forfait,prix_annuel_perdu,duree_engagement_mois,created_at', order: 'created_at.desc',
   });
   const idsChurn = [...new Set(churnEvents.map((e: any) => e.commune_id))];
   const communesChurn = idsChurn.length
     ? await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `in.(${idsChurn.join(',')})` })
     : [];
   const nomParCommune = new Map(communesChurn.map((cm: any) => [cm.id, cm.nom]));
-  const churnEnrichi = churnEvents.map((e: any) => ({ ...e, commune_nom: nomParCommune.get(e.commune_id) || '—' }));
-  const churnPerduTotal = churnEvents.reduce((s: number, e: any) => s + (Number(e.prix_annuel_perdu) || 0), 0);
+  const churnEnrichi = churnEvents.map((e: any) => ({
+    ...e, commune_nom: nomParCommune.get(e.commune_id) || '—',
+    prix_annuel_perdu_annualise: Math.round(montantAnnualise(e.prix_annuel_perdu, e.duree_engagement_mois) * 100) / 100,
+  }));
+  const churnPerduTotal = churnEvents.reduce(
+    (s: number, e: any) => s + montantAnnualise(e.prix_annuel_perdu, e.duree_engagement_mois), 0,
+  );
 
   return c.json({
     ca_reel: {
@@ -1129,10 +1149,13 @@ app.post('/communes/:id/onglets/preset', async (c) => {
     // Churn (migration 048) : uniquement si la commune payait réellement avant ce geste — sinon
     // une commune déjà gratuite qu'on "repasse en gratuit" par erreur/habitude compterait comme
     // un churn fantôme. Capturé AVANT le nettoyage ci-dessous qui vide prix_annuel_ttc.
-    const [avant] = await supabaseSelect(c.env, 'communes', { select: 'forfait,prix_annuel_ttc', id: `eq.${id}` });
+    const [avant] = await supabaseSelect(c.env, 'communes', {
+      select: 'forfait,prix_annuel_ttc,duree_engagement_mois', id: `eq.${id}`,
+    });
     if (avant && avant.forfait && avant.forfait !== 'Gratuit') {
       await supabaseInsert(c.env, 'churn_events', {
-        commune_id: id, type: 'passage_gratuit', ancien_forfait: avant.forfait, prix_annuel_perdu: avant.prix_annuel_ttc,
+        commune_id: id, type: 'passage_gratuit', ancien_forfait: avant.forfait,
+        prix_annuel_perdu: avant.prix_annuel_ttc, duree_engagement_mois: avant.duree_engagement_mois,
       });
     }
     // Une commune gratuite ne doit plus traîner de prix/échéance : sinon elle continue de
