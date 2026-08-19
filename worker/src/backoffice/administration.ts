@@ -1145,7 +1145,10 @@ app.get('/activite', async (c) => {
   if (communeId) filtreBase.commune_id = `eq.${communeId}`;
 
   const requetes: Record<string, Promise<any[]>> = {};
-  if (types.includes('compte')) requetes.compte = supabaseSelect(c.env, 'users', { ...filtreBase, select: 'id,commune_id,prenom,nom,role,created_at' });
+  // role: neq.maire — un compte maire est provisionné automatiquement à l'activation d'une
+  // commune (prospection), ce n'est pas une inscription citoyenne : sans ce filtre, le flux
+  // (des centaines de comptes) noie les vraies inscriptions/publications sous du bruit.
+  if (types.includes('compte')) requetes.compte = supabaseSelect(c.env, 'users', { ...filtreBase, select: 'id,commune_id,prenom,nom,role,created_at', role: 'neq.maire' });
   if (types.includes('article')) requetes.article = supabaseSelect(c.env, 'articles', { ...filtreBase, select: 'id,commune_id,auteur_id,titre,section,created_at' });
   if (types.includes('alerte')) requetes.alerte = supabaseSelect(c.env, 'alertes', { ...filtreBase, select: 'id,commune_id,user_id,titre,urgent,created_at' });
   if (types.includes('mur')) requetes.mur = supabaseSelect(c.env, 'posts', { ...filtreBase, select: 'id,commune_id,user_id,contenu,created_at' });
