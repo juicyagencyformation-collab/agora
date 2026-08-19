@@ -2,6 +2,14 @@ name = "agora-worker"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
+# Relève le plafond de temps CPU par requête (défaut 10ms sur Workers Free, 50ms "bundled" sur
+# Workers Paid) — le hash PBKDF2 volontairement coûteux (100k itérations, mot de passe temporaire
+# d'un maire) à chaque activation de commune peut suffire à le dépasser, provoquant des 503 en
+# rafale lors des envois groupés en prospection (constaté le 2026-08-19). Ne fait effet que sur
+# Workers Paid — sur Workers Free, le plafond reste 10ms quoi qu'il arrive, il faudrait upgrader.
+[limits]
+cpu_ms = 30000
+
 [vars]
 R2_PUBLIC_BASE = "https://pub-5c0f5a71b091421086656f471ed44251.r2.dev"
 FRONTEND_URL = "https://plateforme-agora.fr"
