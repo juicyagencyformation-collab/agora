@@ -108,14 +108,21 @@ app.get('/communes', async (c) => {
   });
 
   // Deux lectures agrégées côté Worker plutôt qu'une requête par commune (N+1).
-  // role: eq.citoyen — sinon un compte maire provisionné automatiquement à l'activation (voir
-  // prospection.ts) compte comme "citoyen inscrit", ce qui fausse le total pour chaque commune
-  // sans aucune vraie inscription citoyenne.
-  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id', role: 'eq.citoyen' });
+  // On lit tous les rôles (pas juste citoyen) pour distinguer : citoyens inscrits (grand public)
+  // vs équipe (admin/élu réellement promus/inscrits — un maire réel a fait cette démarche, ce
+  // n'est pas un artefact). Le rôle maire lui-même est exclu de l'équipe : découvert le
+  // 2026-08-19 sur Montaigu et Blérancourt, où un élu réellement inscrit (promu par le maire,
+  // pas un artefact d'activation) était invisible car compté nulle part — seul le compte maire
+  // auto-provisionné à l'activation (prospection.ts) doit rester hors des deux compteurs.
+  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id,role' });
   const avis = await supabaseSelectTout(c.env, 'avis_application', { select: 'commune_id,note' }).catch(() => []);
 
   const nbCitoyens = new Map<string, number>();
-  for (const u of users) nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
+  const nbEquipe = new Map<string, number>();
+  for (const u of users) {
+    if (u.role === 'citoyen') nbCitoyens.set(u.commune_id, (nbCitoyens.get(u.commune_id) ?? 0) + 1);
+    else if (u.role === 'admin' || u.role === 'elu') nbEquipe.set(u.commune_id, (nbEquipe.get(u.commune_id) ?? 0) + 1);
+  }
 
   const cumulAvis = new Map<string, { total: number; n: number }>();
   for (const a of avis) {
@@ -129,6 +136,7 @@ app.get('/communes', async (c) => {
     return {
       ...commune,
       nb_citoyens: nbCitoyens.get(commune.id) ?? 0,
+      nb_equipe: nbEquipe.get(commune.id) ?? 0,
       note_moyenne: av ? Math.round((av.total / av.n) * 10) / 10 : null,
       nb_avis: av ? av.n : 0,
     };

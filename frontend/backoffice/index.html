@@ -199,6 +199,7 @@
                   <th class="bo-th-tri" @click="trierPar('statut_client')">Statut<span x-text="flecheTri('statut_client')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('population')">Population<span x-text="flecheTri('population')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('nb_citoyens')" title="Rôle citoyen uniquement — hors maire/élu/admin">Citoyens<span x-text="flecheTri('nb_citoyens')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('nb_equipe')" title="Comptes admin/élu réellement inscrits ou promus — hors maire (quasi toujours auto-créé à l'activation)">Équipe<span x-text="flecheTri('nb_equipe')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('forfait')">Forfait<span x-text="flecheTri('forfait')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('note_moyenne')">Note app<span x-text="flecheTri('note_moyenne')"></span></th>
                   <th class="bo-th-tri" @click="trierPar('created_at')">Cliente depuis<span x-text="flecheTri('created_at')"></span></th>
@@ -212,6 +213,7 @@
                     <td><span class="bo-statut" :class="'bo-statut--' + (c.statut_client || 'active')" x-text="libelleStatutClient(c.statut_client)"></span></td>
                     <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
                     <td x-text="c.nb_citoyens"></td>
+                    <td x-text="c.nb_equipe"></td>
                     <td>
                       <template x-if="c.forfait">
                         <span class="bo-statut" :class="'bo-statut--' + (c.forfait === 'Gratuit' ? 'gratuit' : 'complet')"
@@ -230,7 +232,7 @@
                   </tr>
                 </template>
                 <template x-if="communes.length === 0">
-                  <tr><td colspan="8" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
+                  <tr><td colspan="9" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
                 </template>
               </tbody>
             </table>
