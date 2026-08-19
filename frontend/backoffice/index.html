@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260818-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -441,14 +441,20 @@
                 Plusieurs variantes possibles (A/B testing) : une seule est active à la fois, c'est elle qui part dans tous les envois.
               </div>
 
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
-                <label style="margin:0">Variante</label>
-                <select :value="varianteEditeeId" @change="chargerVariante($event.target.value)" style="width:auto; min-width:220px">
-                  <template x-for="v in variantes" :key="v.id">
-                    <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
-                  </template>
-                </select>
-                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVariante()" :disabled="varianteEnCours">+ Nouvelle variante</button>
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <div class="bo-champ-inline">
+                  <label style="margin-top:0">Variante</label>
+                  <select :value="varianteEditeeId" @change="chargerVariante($event.target.value)" style="width:auto; min-width:220px">
+                    <template x-for="v in variantes" :key="v.id">
+                      <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="bo-champ-inline" style="flex:1; min-width:180px">
+                  <label style="margin-top:0">Angle testé <span class="bo-info">(pour s'y retrouver, sans effet sur l'envoi)</span></label>
+                  <input type="text" x-model="modele.angle_teste" placeholder="ex. curiosité, urgence, preuve sociale…" />
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVariante()" :disabled="varianteEnCours">📋 Dupliquer / nouvelle variante</button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVariante()"
                         :disabled="varianteEnCours || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Activer cette variante</button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVariante()"
@@ -456,56 +462,96 @@
                 <span class="bo-info" x-text="varianteMsg"></span>
               </div>
 
-              <label style="margin-top:0">Objet</label>
+              <label style="margin-top:0">
+                Objet
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modele.objet || '').length > 50 }"
+                      x-text="(modele.objet || '').length + ' / 50 — au-delà, risque de troncature mobile'"></span>
+              </label>
               <input type="text" x-model="modele.objet" />
 
-              <label>Corps du message</label>
-              <div class="bo-toolbar">
-                <template x-if="modeEditeurEmail === 'visuel'">
-                  <span style="display:contents">
-                    <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
-                    <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
-                    <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
-                    <span class="sep"></span>
-                    <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
-                    <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
-                    <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
-                    <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
-                    <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
-                    <span class="sep"></span>
-                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
-                      <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
-                      <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
-                      <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
-                      <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
-                      <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
-                      <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
-                      <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
-                      <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
-                      <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
-                      <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
-                    </span>
-                    <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
-                      <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
-                      <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
-                      <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
-                      <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
-                      <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
-                      <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
-                      <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
-                      <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
-                    </span>
-                    <span class="sep"></span>
-                    <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
-                    <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app / la démo">+ lien app</button>
-                    <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche">+ lien fiche</button>
-                    <span class="sep"></span>
-                  </span>
-                </template>
-                <button type="button" @click="basculerModeEditeur()" x-text="modeEditeurEmail === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+              <label>
+                Preview text <span class="bo-info">(texte d'aperçu, affiché par Gmail/Outlook sous l'objet — jamais le corps du mail lui-même)</span>
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modele.preview_text || '').length > 100 }"
+                      x-text="(modele.preview_text || '').length + ' / 100'"></span>
+              </label>
+              <input type="text" x-model="modele.preview_text" placeholder="Ce que verra le destinataire avant même d'ouvrir l'email…" />
+
+              <div class="bo-inbox-apercu">
+                <div class="bo-inbox-apercu__entete">
+                  <span class="bo-info">Aperçu boîte de réception</span>
+                  <div class="bo-inbox-apercu__bascule">
+                    <button type="button" :class="{ actif: apercuInboxMode === 'mobile' }" @click="apercuInboxMode = 'mobile'">📱 Mobile</button>
+                    <button type="button" :class="{ actif: apercuInboxMode === 'desktop' }" @click="apercuInboxMode = 'desktop'">💻 Desktop</button>
+                  </div>
+                </div>
+                <div class="bo-inbox-ligne" :class="'bo-inbox-ligne--' + apercuInboxMode">
+                  <div class="bo-inbox-ligne__logo">A</div>
+                  <div class="bo-inbox-ligne__corps">
+                    <div class="bo-inbox-ligne__expediteur">Plateforme-Agora</div>
+                    <div class="bo-inbox-ligne__texte">
+                      <span class="bo-inbox-ligne__objet" x-text="modele.objet || '(objet vide)'"></span>
+                      <span class="bo-inbox-ligne__preview" x-text="' — ' + tronquer(modele.preview_text, apercuInboxMode === 'mobile' ? 45 : 90)"></span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div x-show="modeEditeurEmail === 'visuel'" id="editeur-email" contenteditable="true" class="bo-wysiwyg" x-init="initEditeurEmail()"></div>
-              <textarea x-show="modeEditeurEmail === 'code'" x-model="modele.corps_html" style="min-height:240px; font-family:monospace; font-size:12.5px"></textarea>
+
+              <div class="bo-grille-2" style="margin-top:16px; align-items:start">
+                <div>
+                  <label style="margin-top:0">Corps du message</label>
+                  <div class="bo-toolbar">
+                    <template x-if="modeEditeurEmail === 'visuel'">
+                      <span style="display:contents">
+                        <button type="button" @mousedown.prevent="exec('bold')" title="Gras"><b>G</b></button>
+                        <button type="button" @mousedown.prevent="exec('italic')" title="Italique"><i>I</i></button>
+                        <button type="button" @mousedown.prevent="exec('underline')" title="Souligné"><u>S</u></button>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;h2&gt;')" title="Titre">Titre</button>
+                        <button type="button" @mousedown.prevent="exec('formatBlock','&lt;p&gt;')" title="Paragraphe normal">¶</button>
+                        <button type="button" @mousedown.prevent="exec('insertUnorderedList')" title="Liste à puces">• Liste</button>
+                        <button type="button" @mousedown.prevent="insererLien()" title="Insérer un lien">🔗 Lien</button>
+                        <button type="button" @mousedown.prevent="insererBoutonCta()" title="Insérer un bouton vers l'application">Bouton « app »</button>
+                        <span class="sep"></span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Couleur du texte">A</span>
+                          <button type="button" class="bo-swatch" style="background:#1b2a1c" @mousedown.prevent="couleurTexte('#1b2a1c')" title="Noir"></button>
+                          <button type="button" class="bo-swatch" style="background:#6b7280" @mousedown.prevent="couleurTexte('#6b7280')" title="Gris"></button>
+                          <button type="button" class="bo-swatch" style="background:#2c5f2d" @mousedown.prevent="couleurTexte('#2c5f2d')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#0d9488" @mousedown.prevent="couleurTexte('#0d9488')" title="Turquoise"></button>
+                          <button type="button" class="bo-swatch" style="background:#1d4ed8" @mousedown.prevent="couleurTexte('#1d4ed8')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#7c3aed" @mousedown.prevent="couleurTexte('#7c3aed')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#db2777" @mousedown.prevent="couleurTexte('#db2777')" title="Rose"></button>
+                          <button type="button" class="bo-swatch" style="background:#c0392b" @mousedown.prevent="couleurTexte('#c0392b')" title="Rouge"></button>
+                          <button type="button" class="bo-swatch" style="background:#b8860b" @mousedown.prevent="couleurTexte('#b8860b')" title="Orangé"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="couleurTexteLibre($event.target.value)" title="Autre couleur…" />
+                        </span>
+                        <span class="bo-toolbar__grp"><span class="bo-toolbar__label" title="Surlignage">✎</span>
+                          <button type="button" class="bo-swatch" style="background:#fff3a3" @mousedown.prevent="surligner('#fff3a3')" title="Jaune"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd8a8" @mousedown.prevent="surligner('#ffd8a8')" title="Orange"></button>
+                          <button type="button" class="bo-swatch" style="background:#c8f0d0" @mousedown.prevent="surligner('#c8f0d0')" title="Vert"></button>
+                          <button type="button" class="bo-swatch" style="background:#cfe3ff" @mousedown.prevent="surligner('#cfe3ff')" title="Bleu"></button>
+                          <button type="button" class="bo-swatch" style="background:#e9d5ff" @mousedown.prevent="surligner('#e9d5ff')" title="Violet"></button>
+                          <button type="button" class="bo-swatch" style="background:#ffd6e7" @mousedown.prevent="surligner('#ffd6e7')" title="Rose"></button>
+                          <input type="color" class="bo-swatch-input" @mousedown="sauvegarderSelection()" @change="surlignerLibre($event.target.value)" title="Autre surlignage…" />
+                          <button type="button" class="bo-swatch bo-swatch--vide" @mousedown.prevent="surligner('transparent')" title="Retirer le surlignage"></button>
+                        </span>
+                        <span class="sep"></span>
+                        <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app / la démo">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche">+ lien fiche</button>
+                        <span class="sep"></span>
+                      </span>
+                    </template>
+                    <button type="button" @click="basculerModeEditeur()" x-text="modeEditeurEmail === 'visuel' ? '&lt;/&gt; Code HTML' : '👁 Éditeur visuel'"></button>
+                  </div>
+                  <div x-show="modeEditeurEmail === 'visuel'" id="editeur-email" contenteditable="true" class="bo-wysiwyg"
+                       x-init="initEditeurEmail()" @input.debounce.400ms="modele.corps_html = $event.target.innerHTML"></div>
+                  <textarea x-show="modeEditeurEmail === 'code'" x-model="modele.corps_html" class="bo-code-html" style="min-height:240px"></textarea>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu rendu <span class="bo-info">(valeurs d'exemple à la place des variables)</span></label>
+                  <div class="bo-email-apercu" x-html="rendreApercuEmail(modele.corps_html)"></div>
+                </div>
+              </div>
 
               <label>Logo de l'en-tête</label>
               <div style="display:flex; align-items:center; gap:14px">
@@ -521,10 +567,16 @@
                 <span class="bo-info" x-text="signatureEnCours ? 'Envoi…' : signatureMsg"></span>
               </div>
 
-              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap">
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerModele()" :disabled="modeleEnCours"
                         x-text="modeleEnCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
                 <span class="bo-info" x-text="modeleMsg"></span>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid #e5e9e5; flex-wrap:wrap">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire du test" style="width:auto; min-width:220px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestVariante()" :disabled="testVarianteEnCours"
+                        x-text="testVarianteEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
+                <span class="bo-info" x-text="testVarianteMsg"></span>
               </div>
             </div>
           </div>
@@ -1549,7 +1601,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260818-7"></script>
+  <script src="/backoffice/js/app.js?v=20260819-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

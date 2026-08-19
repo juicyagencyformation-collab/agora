@@ -293,14 +293,16 @@ app.post('/email-test', async (c) => {
   return c.json({ ok: true, destinataire, from: c.env.EMAIL_FROM || 'onboarding@resend.dev' });
 });
 
-// POST /email-test-presentation — envoie un email de test avec le VRAI modèle de présentation
-// (variante active), pour vérifier le rendu ET le suivi (ouverture/clic, voir migrations 040/041)
-// sans créer de commune ni toucher un prospect réel. Marqué est_test=true : exclu de l'entonnoir
-// par variante (GET /prospection/stats-variantes).
+// POST /email-test-presentation — envoie un email de test avec le VRAI modèle de présentation,
+// pour vérifier le rendu ET le suivi (ouverture/clic, voir migrations 040/041) sans créer de
+// commune ni toucher un prospect réel. Marqué est_test=true : exclu de l'entonnoir par variante
+// (GET /prospection/stats-variantes). variante_id (optionnel) : teste CETTE variante précise
+// (celle ouverte dans l'éditeur), pas forcément l'active — sinon retombe sur l'active.
 app.post('/email-test-presentation', async (c) => {
   const staff_id = c.get('staff_id');
   const body: any = await c.req.json().catch(() => ({}));
   let destinataire = (body?.destinataire || '').trim();
+  const varianteId = typeof body?.variante_id === 'string' && body.variante_id ? body.variante_id : undefined;
   if (!destinataire) {
     const [staff] = await supabaseSelect(c.env, 'staff_backoffice', { select: 'email', id: `eq.${staff_id}` });
     destinataire = staff?.email || '';
@@ -310,7 +312,7 @@ app.post('/email-test-presentation', async (c) => {
   const ctx = contextePresentation(c.env.FRONTEND_URL, 'Votre Commune (aperçu de test)', 'decouverte-gratuite');
   const { variante, resendEmailId } = await envoyerPresentation(c.env, destinataire, ctx, {
     maireEmail: destinataire, motDePasse: '(exemple — ceci est un test, pas un vrai compte)',
-  });
+  }, varianteId);
 
   if (resendEmailId) {
     await supabaseInsert(c.env, 'envois_prospection', {
@@ -378,7 +380,7 @@ app.get('/modeles-presentation', async (c) => {
 // GET /modeles-presentation/:id — contenu complet d'une variante, pour la charger dans l'éditeur.
 app.get('/modeles-presentation/:id', async (c) => {
   const [variante] = await supabaseSelect(c.env, 'modeles_email', {
-    select: 'id,nom,actif,objet,corps_html,signature_image_url,logo_image_url',
+    select: 'id,nom,actif,objet,corps_html,preview_text,angle_teste,signature_image_url,logo_image_url',
     cle: 'eq.presentation', id: `eq.${c.req.param('id')}`,
   });
   if (!variante) return c.json({ erreur: 'Variante introuvable' }, 404);
@@ -389,6 +391,8 @@ const varianteSchema = z.object({
   nom: z.string().min(1).max(80),
   objet: z.string().min(1).max(200),
   corps_html: z.string().min(1).max(20000),
+  preview_text: z.string().max(300).optional().nullable(),
+  angle_teste: z.string().max(200).optional().nullable(),
 });
 
 // POST /modeles-presentation — crée une nouvelle variante (inactive par défaut : on ne bascule

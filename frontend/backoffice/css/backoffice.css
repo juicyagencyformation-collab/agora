@@ -235,6 +235,31 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 .bo-wysiwyg:focus { outline: none; border-color: var(--bo-accent); }
 .bo-wysiwyg a { color: #2c5f2d; }
 .bo-wysiwyg h1, .bo-wysiwyg h2 { color: #2c5f2d; }
+.bo-code-html { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 12.5px; color: #d4dce6; background: #0b1220; }
+
+/* Aperçu du rendu (même contenu que le WYSIWYG, mais lecture seule — pas de bordure de focus) */
+.bo-email-apercu { background: #fff; color: #1b2a1c; border: 1px solid var(--bo-border); border-radius: 8px; padding: 16px 18px; min-height: 240px; font-size: 14px; line-height: 1.6; overflow: auto; }
+.bo-email-apercu a { color: #2c5f2d; }
+
+/* Compteur de caractères (objet / preview text) */
+.bo-compteur { float: right; font-size: 11.5px; color: var(--bo-text-faible); font-weight: 400; }
+.bo-compteur--alerte { color: var(--bo-jaune); }
+
+/* Aperçu boîte de réception (Gmail/Outlook) */
+.bo-inbox-apercu { margin-top: 14px; border: 1px solid var(--bo-border); border-radius: 8px; overflow: hidden; }
+.bo-inbox-apercu__entete { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bo-surface-2); }
+.bo-inbox-apercu__bascule { display: flex; gap: 4px; }
+.bo-inbox-apercu__bascule button { background: transparent; color: var(--bo-text-faible); border: 1px solid var(--bo-border); border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+.bo-inbox-apercu__bascule button.actif { background: var(--bo-accent-fort); color: #04121e; border-color: var(--bo-accent-fort); }
+.bo-inbox-ligne { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #fff; }
+.bo-inbox-ligne__logo { width: 34px; height: 34px; border-radius: 50%; background: #2c5f2d; color: #fff; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.bo-inbox-ligne__corps { min-width: 0; flex: 1; }
+.bo-inbox-ligne__expediteur { font-size: 12.5px; font-weight: 700; color: #1b2a1c; margin-bottom: 2px; }
+.bo-inbox-ligne__texte { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bo-inbox-ligne__objet { font-weight: 700; color: #1b2a1c; }
+.bo-inbox-ligne__preview { color: #70757a; }
+.bo-inbox-ligne--mobile { max-width: 320px; }
+.bo-inbox-ligne--desktop { max-width: 560px; }
 .bo-toolbar__grp { display: inline-flex; align-items: center; gap: 3px; }
 .bo-toolbar__label { font-size: 11px; color: var(--bo-text-faible); margin: 0 1px; }
 .bo-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); padding: 0; cursor: pointer; }

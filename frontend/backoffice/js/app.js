@@ -82,7 +82,7 @@ function backoffice() {
     ongletsCommune: [],
     presentEnCours: false,
     presentMsg: '',
-    modele: { objet: '', corps_html: '', signature_image_url: null, logo_image_url: null },
+    modele: { objet: '', corps_html: '', preview_text: '', angle_teste: '', signature_image_url: null, logo_image_url: null },
     modeEditeurEmail: 'visuel', // 'visuel' | 'code'
     modeleEnCours: false,
     modeleMsg: '',
@@ -90,6 +90,9 @@ function backoffice() {
     varianteEditeeId: null, // id de la variante actuellement chargée dans l'éditeur
     varianteEnCours: false,
     varianteMsg: '',
+    apercuInboxMode: 'mobile', // 'mobile' | 'desktop' — bascule de l'aperçu boîte de réception
+    testVarianteEnCours: false,
+    testVarianteMsg: '',
     // Modèles génériques (bienvenue à la 1ère inscription, relance douce en cas d'inactivité) :
     // même mécanisme A/B que l'email de présentation ci-dessus (table modeles_email, routes
     // /administration/modeles-email/:cle), mais fonctions partagées entre les deux plutôt que
@@ -400,7 +403,10 @@ function backoffice() {
       try {
         const r = await boFetch('/administration/modeles-presentation', {
           method: 'POST',
-          body: JSON.stringify({ nom, objet: this.modele.objet, corps_html: this.modele.corps_html }),
+          body: JSON.stringify({
+            nom, objet: this.modele.objet, corps_html: this.modele.corps_html,
+            preview_text: this.modele.preview_text || null, angle_teste: this.modele.angle_teste || null,
+          }),
         });
         await this.chargerVariantes();
         await this.chargerVariante(r.variante.id);
@@ -594,7 +600,10 @@ function backoffice() {
       try {
         await boFetch('/administration/modeles-presentation/' + this.varianteEditeeId, {
           method: 'PUT',
-          body: JSON.stringify({ nom: this.modele.nom, objet: this.modele.objet, corps_html: this.modele.corps_html }),
+          body: JSON.stringify({
+            nom: this.modele.nom, objet: this.modele.objet, corps_html: this.modele.corps_html,
+            preview_text: this.modele.preview_text || null, angle_teste: this.modele.angle_teste || null,
+          }),
         });
         await this.rafraichirListeVariantes();
         this.modeleMsg = 'Modèle enregistré.';
@@ -1174,6 +1183,49 @@ function backoffice() {
       } finally {
         this.testPresentationEnCours = false;
       }
+    },
+
+    // Envoie la variante actuellement OUVERTE DANS L'ÉDITEUR (pas forcément l'active) — pour
+    // relire un test avant d'activer une variante en cours de rédaction.
+    async envoyerTestVariante() {
+      if (!this.varianteEditeeId) return;
+      this.testVarianteEnCours = true;
+      this.testVarianteMsg = '';
+      try {
+        const r = await boFetch('/administration/email-test-presentation', {
+          method: 'POST',
+          body: JSON.stringify({ destinataire: this.testEmailDest, variante_id: this.varianteEditeeId }),
+        });
+        this.testVarianteMsg = `Envoyé à ${r.destinataire} (variante « ${r.variante || '—'} »).`;
+      } catch (e) {
+        this.testVarianteMsg = e.message || 'Échec de l\'envoi';
+      } finally {
+        this.testVarianteEnCours = false;
+      }
+    },
+
+    // Troncature réaliste de l'aperçu boîte de réception (n caractères selon mobile/desktop).
+    tronquer(txt, n) {
+      const t = txt || '';
+      return t.length > n ? t.slice(0, n) + '…' : t;
+    },
+
+    // Aperçu rendu du corps HTML avec des valeurs d'exemple à la place des variables — même
+    // substitution que côté serveur (rendrePresentation dans email-commune.ts), simplifiée
+    // puisque c'est un aperçu, pas un envoi réel.
+    rendreApercuEmail(corpsHtml) {
+      const logo = this.modele.logo_image_url
+        ? `<img src="${this.modele.logo_image_url}" style="max-height:56px;max-width:160px;object-fit:contain" alt="" />`
+        : '<div style="font-weight:800;color:#2c5f2d;font-size:22px">Plateforme-Agora</div>';
+      const signature = this.modele.signature_image_url
+        ? `<img src="${this.modele.signature_image_url}" style="width:48px;height:48px;border-radius:50%;object-fit:cover" alt="" />`
+        : '';
+      return (corpsHtml || '')
+        .replace(/\{\{commune\}\}/g, 'Commune Test')
+        .replace(/\{\{url\}\}/g, 'https://plateforme-agora.fr/commune-test/')
+        .replace(/\{\{lien_fiche\}\}/g, 'https://plateforme-agora.fr/backoffice/fiche?slug=commune-test&nom=Commune+Test')
+        .replace(/\{\{logo\}\}/g, logo)
+        .replace(/\{\{signature_photo\}\}/g, signature);
     },
 
     async envoyerEmailTest() {

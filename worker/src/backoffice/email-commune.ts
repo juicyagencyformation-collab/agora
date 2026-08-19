@@ -193,17 +193,49 @@ export function rendrePresentation(modele: string, ctx: ContextePresentation): s
     .replace(/\{\{logo\}\}/g, ctx.logo || baliseLogo(null));
 }
 
+type ModelePresentation = {
+  objet: string; corps_html: string; nom?: string;
+  preview_text?: string | null; signature_image_url?: string | null; logo_image_url?: string | null;
+};
+
+const SELECT_MODELE_PRESENTATION = 'objet,corps_html,nom,preview_text,signature_image_url,logo_image_url';
+
 // Charge la variante ACTIVE (ou le défaut de secours si aucune n'existe / lecture échouée).
 // Plusieurs variantes peuvent exister pour cle='presentation' (A/B testing, voir migration 037
 // et /administration/modeles-presentation) : une seule a actif=true à la fois.
-export async function chargerModelePresentation(env: any): Promise<{ objet: string; corps_html: string; nom?: string; signature_image_url?: string | null; logo_image_url?: string | null }> {
+export async function chargerModelePresentation(env: any): Promise<ModelePresentation> {
   try {
     const [row] = await supabaseSelect(env, 'modeles_email', {
-      select: 'objet,corps_html,nom,signature_image_url,logo_image_url', cle: 'eq.presentation', actif: 'eq.true',
+      select: SELECT_MODELE_PRESENTATION, cle: 'eq.presentation', actif: 'eq.true',
     });
     if (row?.objet && row?.corps_html) return row;
   } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
   return MODELE_PRESENTATION_DEFAUT;
+}
+
+// Charge une variante précise par id, quel que soit son statut actif — pour l'envoi de test
+// depuis l'éditeur (« tester cette variante », pas forcément celle en production). Retombe sur
+// le défaut si l'id est introuvable, plutôt que d'échouer l'envoi.
+export async function chargerVarianteParId(env: any, id: string): Promise<ModelePresentation> {
+  try {
+    const [row] = await supabaseSelect(env, 'modeles_email', {
+      select: SELECT_MODELE_PRESENTATION, cle: 'eq.presentation', id: `eq.${id}`,
+    });
+    if (row?.objet && row?.corps_html) return row;
+  } catch { /* lecture KO : on retombe sur le défaut */ }
+  return MODELE_PRESENTATION_DEFAUT;
+}
+
+// Preview text (preheader) affiché par Gmail/Outlook sous l'objet : injecté à la volée au
+// rendu final, jamais stocké dans corps_html (voir migration 046) — pour ne plus jamais avoir
+// à taper le bloc caché ni l'espaceur anti-logo à la main. Le bloc espaceur (caractères
+// invisibles répétés) empêche le client mail de compléter avec le texte alt de la 1ère image.
+function injecterPreviewText(html: string, previewText?: string | null): string {
+  if (!previewText) return html;
+  const style = 'display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all';
+  const cache = `<div style="${style}">${echapper(previewText)}</div>`;
+  const espaceur = `<div style="${style}">${'&zwnj;&nbsp;'.repeat(15)}</div>`;
+  return cache + espaceur + html;
 }
 
 // Version générique de chargerModelePresentation, pour les modèles d'email plus simples
@@ -347,8 +379,9 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
 export async function envoyerPresentation(
   env: any, contactEmail: string, ctx: ContextePresentation,
   identifiants?: { maireEmail: string; motDePasse: string },
+  varianteId?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
-  const modele = await chargerModelePresentation(env);
+  const modele = varianteId ? await chargerVarianteParId(env, varianteId) : await chargerModelePresentation(env);
   const ctxComplet = {
     ...ctx,
     signaturePhoto: baliseSignature(modele.signature_image_url),
@@ -356,6 +389,7 @@ export async function envoyerPresentation(
   };
   let corps = rendrePresentation(modele.corps_html, ctxComplet);
   if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse);
+  corps = injecterPreviewText(corps, modele.preview_text);
   const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps);
   return { variante: modele.nom || null, resendEmailId };
 }
