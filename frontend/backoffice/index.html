@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-2" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-3" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -72,55 +72,9 @@
             <div class="bo-stat"><div class="bo-stat__val" x-text="apercu.nb_avis ?? '—'"></div><div class="bo-stat__lib">Avis déposés</div></div>
           </div>
 
-          <div class="bo-carte">
-            <table>
-              <thead>
-                <tr>
-                  <th class="bo-th-tri" @click="trierPar('sante')" title="Statut, échéance et délivrabilité en un coup d'œil">Santé<span x-text="flecheTri('sante')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('nom')">Commune<span x-text="flecheTri('nom')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('statut_client')">Statut<span x-text="flecheTri('statut_client')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('population')">Population<span x-text="flecheTri('population')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('nb_citoyens')">Citoyens<span x-text="flecheTri('nb_citoyens')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('forfait')">Forfait<span x-text="flecheTri('forfait')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('note_moyenne')">Note app<span x-text="flecheTri('note_moyenne')"></span></th>
-                  <th class="bo-th-tri" @click="trierPar('created_at')">Cliente depuis<span x-text="flecheTri('created_at')"></span></th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="c in communesPage()" :key="c.id">
-                  <tr @click="ouvrirFiche(c.id)">
-                    <td><span class="bo-sante" :title="santeCommune(c).titre" x-text="santeCommune(c).icone"></span></td>
-                    <td class="bo-nom-commune" x-text="c.nom"></td>
-                    <td><span class="bo-statut" :class="'bo-statut--' + (c.statut_client || 'active')" x-text="libelleStatutClient(c.statut_client)"></span></td>
-                    <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
-                    <td x-text="c.nb_citoyens"></td>
-                    <td><span :class="{ 'bo-vide': !c.forfait }" x-text="c.forfait ? (c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')) : '—'"></span></td>
-                    <td>
-                      <template x-if="c.note_moyenne !== null">
-                        <span class="bo-note" :class="classeNote(c.note_moyenne)" x-text="'★ ' + c.note_moyenne + ' (' + c.nb_avis + ')'"></span>
-                      </template>
-                      <template x-if="c.note_moyenne === null"><span class="bo-vide">—</span></template>
-                    </td>
-                    <td x-text="formatDate(c.created_at)"></td>
-                  </tr>
-                </template>
-                <template x-if="communes.length === 0">
-                  <tr><td colspan="8" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-          <div class="bo-outils" x-show="communes.length > 0" style="justify-content:space-between; margin-top:14px">
-            <span class="bo-info" x-text="communesTriees().length.toLocaleString('fr-FR') + ' commune(s) · page ' + pageCommunes + ' sur ' + nbPagesCommunes()"></span>
-            <div style="display:flex; gap:8px">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(-1)" :disabled="pageCommunes <= 1">← Précédent</button>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(1)" :disabled="pageCommunes >= nbPagesCommunes()">Suivant →</button>
-            </div>
-          </div>
-
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('echeances')">
-              <span>Facturation à traiter<span class="bo-tiroir__compte" x-show="echeances.length + facturesEnAttente.length" x-text="'— ' + (echeances.length + facturesEnAttente.length)"></span></span>
+              <span>⚠ Facturation à traiter<span class="bo-tiroir__compte" x-show="echeances.length + facturesEnAttente.length" x-text="'— ' + (echeances.length + facturesEnAttente.length)"></span></span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.echeances}">▸</span>
             </button>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.echeances">
@@ -170,7 +124,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('onboarding_sans_contact')">
-              <span>Onboarding : aucun contact joignable<span class="bo-tiroir__compte" x-show="onboardingSansContact.length" x-text="'— ' + onboardingSansContact.length"></span></span>
+              <span>⚠ Onboarding : aucun contact joignable<span class="bo-tiroir__compte" x-show="onboardingSansContact.length" x-text="'— ' + onboardingSansContact.length"></span></span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.onboarding_sans_contact}">▸</span>
             </button>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.onboarding_sans_contact">
@@ -198,7 +152,7 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('emails_rejetes')">
-              <span>Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="'— ' + emailsRejetes.length"></span></span>
+              <span>⚠ Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="'— ' + emailsRejetes.length"></span></span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.emails_rejetes}">▸</span>
             </button>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.emails_rejetes">
@@ -234,6 +188,53 @@
               </template>
             </div>
           </div>
+
+          <div class="bo-carte">
+            <table>
+              <thead>
+                <tr>
+                  <th class="bo-th-tri" @click="trierPar('sante')" title="Statut, échéance et délivrabilité en un coup d'œil">Santé<span x-text="flecheTri('sante')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('nom')">Commune<span x-text="flecheTri('nom')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('statut_client')">Statut<span x-text="flecheTri('statut_client')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('population')">Population<span x-text="flecheTri('population')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('nb_citoyens')">Citoyens<span x-text="flecheTri('nb_citoyens')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('forfait')">Forfait<span x-text="flecheTri('forfait')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('note_moyenne')">Note app<span x-text="flecheTri('note_moyenne')"></span></th>
+                  <th class="bo-th-tri" @click="trierPar('created_at')">Cliente depuis<span x-text="flecheTri('created_at')"></span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="c in communesPage()" :key="c.id">
+                  <tr @click="ouvrirFiche(c.id)">
+                    <td><span class="bo-sante" :title="santeCommune(c).titre" x-text="santeCommune(c).icone"></span></td>
+                    <td class="bo-nom-commune" x-text="c.nom"></td>
+                    <td><span class="bo-statut" :class="'bo-statut--' + (c.statut_client || 'active')" x-text="libelleStatutClient(c.statut_client)"></span></td>
+                    <td x-text="c.population ? c.population.toLocaleString('fr-FR') : '—'"></td>
+                    <td x-text="c.nb_citoyens"></td>
+                    <td><span :class="{ 'bo-vide': !c.forfait }" x-text="c.forfait ? (c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')) : '—'"></span></td>
+                    <td>
+                      <template x-if="c.note_moyenne !== null">
+                        <span class="bo-note" :class="classeNote(c.note_moyenne)" x-text="'★ ' + c.note_moyenne + ' (' + c.nb_avis + ')'"></span>
+                      </template>
+                      <template x-if="c.note_moyenne === null"><span class="bo-vide">—</span></template>
+                    </td>
+                    <td x-text="formatDate(c.created_at)"></td>
+                  </tr>
+                </template>
+                <template x-if="communes.length === 0">
+                  <tr><td colspan="8" class="bo-vide" style="text-align:center">Aucune commune cliente pour l'instant.</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+          <div class="bo-outils" x-show="communes.length > 0" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="communesTriees().length.toLocaleString('fr-FR') + ' commune(s) · page ' + pageCommunes + ' sur ' + nbPagesCommunes()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(-1)" :disabled="pageCommunes <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(1)" :disabled="pageCommunes >= nbPagesCommunes()">Suivant →</button>
+            </div>
+          </div>
+
         </div>
       </template>
 

@@ -158,6 +158,10 @@ tbody tr:hover { background: var(--bo-surface-2); }
 .bo-tiroir__chevron.ouvert { transform: rotate(90deg); }
 .bo-tiroir__corps { border-top: 1px solid var(--bo-border); padding: 16px 18px; }
 .bo-tiroir__corps.bo-tiroir__corps--table { padding: 0; }
+/* Une liste longue défile DANS le tiroir plutôt que d'allonger toute la page. */
+.bo-tiroir__corps--table table { display: block; max-height: 320px; overflow-y: auto; }
+.bo-tiroir__corps--table thead, .bo-tiroir__corps--table tbody tr { display: table; width: 100%; table-layout: fixed; }
+.bo-tiroir__corps--table thead { position: sticky; top: 0; background: var(--bo-surface); z-index: 1; }
 
 /* — Badge de santé (tableau des communes) — */
 .bo-sante { font-size: 15px; cursor: default; }
