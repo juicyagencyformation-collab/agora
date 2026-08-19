@@ -169,6 +169,34 @@
           </div>
 
           <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('onboarding_sans_contact')">
+              <span>Onboarding : aucun contact joignable<span class="bo-tiroir__compte" x-show="onboardingSansContact.length" x-text="'— ' + onboardingSansContact.length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.onboarding_sans_contact}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.onboarding_sans_contact">
+              <div style="padding:16px 18px" class="bo-info">
+                Ces communes ont montré au moins un signe d'activité (article publié, calendrier déchets, clic sur
+                un module verrouillé) mais aucun compte n'a pu être trouvé pour leur écrire — la séquence
+                onboarding/upsell est bloquée pour elles. Ouvre leur fiche et promeus la bonne personne (elu/admin)
+                depuis « Gérer les utilisateurs » pour débloquer.
+              </div>
+              <template x-if="onboardingSansContact.length === 0">
+                <div style="padding:0 18px 16px" class="bo-info">Aucune — tout le monde est joignable.</div>
+              </template>
+              <template x-if="onboardingSansContact.length > 0">
+                <table>
+                  <thead><tr><th>Commune</th></tr></thead>
+                  <tbody>
+                    <template x-for="c in onboardingSansContact" :key="c.id">
+                      <tr @click="ouvrirFiche(c.id)"><td class="bo-nom-commune" x-text="c.nom"></td></tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('emails_rejetes')">
               <span>Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="'— ' + emailsRejetes.length"></span></span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.emails_rejetes}">▸</span>
@@ -1933,7 +1961,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-6"></script>
+  <script src="/backoffice/js/app.js?v=20260819-7"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

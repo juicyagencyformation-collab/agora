@@ -18,7 +18,7 @@ import {
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
-import { verifierSequenceOnboarding } from './onboarding-drip';
+import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -380,6 +380,15 @@ app.get('/onboarding-drip/communes/:id', async (c) => {
   ]);
   const joursDepuisCreation = Math.floor((Date.now() - new Date(commune.created_at).getTime()) / 86400000);
   return c.json({ commune, jours_depuis_creation: joursDepuisCreation, evenements, emails_envoyes: emailsEnvoyes });
+});
+
+// GET /onboarding-drip/a-traiter — communes actives dans la séquence mais injoignables (aucun
+// compte à qui écrire) : ce que le cron quotidien découvre en silence chaque jour sans que
+// personne ne le voie jamais (voir communesSansContactJoignable). Alimente l'alerte du tableau
+// de bord (tiroir "Communes clientes"), même logique que "Facturation à traiter".
+app.get('/onboarding-drip/a-traiter', async (c) => {
+  const communes = await communesSansContactJoignable(c.env);
+  return c.json({ communes });
 });
 
 // PATCH /communes/:id/statut — statut du cycle de vie client (active | suspendue | resiliee).

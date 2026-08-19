@@ -60,18 +60,23 @@ async function communesGratuitesCreeesIlYA(env: any, joursAvant: number): Promis
 // Priorité : le maire, SI il s'est déjà connecté au moins une fois (users.derniere_connexion_streak).
 // Sinon (cas vécu : un élu gère l'appli au quotidien sous son propre compte, le maire n'a jamais
 // ouvert le sien) on écrit plutôt à la personne la plus active parmi les rôles gestionnaires
-// (admin/elu/maire/superadmin — jamais un citoyen, qui ne peut de toute façon pas décider d'un
-// abonnement). Dernier recours : l'email du maire même jamais connecté, plutôt que rien du tout.
-async function destinataireCommune(env: any, communeId: string): Promise<string | null> {
+// (admin/elu/maire/superadmin). inclureCitoyen élargit ce dernier recours à N'IMPORTE QUEL
+// compte connecté (citoyen inclus) — réservé aux emails 2/3/4 (simple encouragement) : jamais
+// pour l'email 5, qui affiche un prix et ne doit aller qu'à quelqu'un qui peut légitimement
+// décider d'un abonnement (sinon : promouvoir ce compte en elu/admin depuis la gestion des
+// rôles, ce qui le fait ressortir naturellement ET lui donne les bons droits dans l'appli).
+// Dernier recours dans tous les cas : l'email du maire même jamais connecté, plutôt que rien.
+export async function destinataireCommune(env: any, communeId: string, inclureCitoyen: boolean): Promise<string | null> {
   const [maire] = await supabaseSelect(env, 'users', {
     select: 'email,derniere_connexion_streak', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc', limit: '1',
   });
   if (maire?.email && maire.derniere_connexion_streak) return maire.email;
 
+  const filtresRole: Record<string, string> = { commune_id: `eq.${communeId}` };
+  if (!inclureCitoyen) filtresRole.role = 'in.(admin,elu,maire,superadmin)';
   const [plusActif] = await supabaseSelect(env, 'users', {
-    select: 'email,derniere_connexion_streak', commune_id: `eq.${communeId}`,
-    role: 'in.(admin,elu,maire,superadmin)', derniere_connexion_streak: 'not.is.null',
-    order: 'derniere_connexion_streak.desc', limit: '1',
+    select: 'email,derniere_connexion_streak', ...filtresRole,
+    derniere_connexion_streak: 'not.is.null', order: 'derniere_connexion_streak.desc', limit: '1',
   });
   if (plusActif?.email) return plusActif.email;
 
@@ -101,11 +106,12 @@ async function communesDejaEnvoyees(env: any, communeIds: string[], emailType: s
 // silencieusement sauté (ex. pas de compte maire) sans avoir à lire les logs du Worker.
 async function envoyerEtJournaliser(
   env: any, commune: any, emailType: string, cle: string, defaut: { objet: string; corps_html: string },
+  inclureCitoyen: boolean,
 ): Promise<LigneRapport> {
   const base = { commune_id: commune.id, commune_nom: commune.nom, email_type: emailType };
   try {
-    const destinataire = await destinataireCommune(env, commune.id);
-    if (!destinataire) return { ...base, resultat: 'ignoré — aucun compte gestionnaire (maire/elu/admin) trouvé pour cette commune' };
+    const destinataire = await destinataireCommune(env, commune.id, inclureCitoyen);
+    if (!destinataire) return { ...base, resultat: `ignoré — aucun compte ${inclureCitoyen ? '' : 'gestionnaire (maire/elu/admin) '}trouvé pour cette commune` };
     const ctx = contextePresentation(env.FRONTEND_URL, commune.nom, commune.slug);
     const { resendEmailId } = await envoyerModeleGenerique(env, cle, defaut, destinataire, ctx);
     if (!resendEmailId) return { ...base, resultat: `échec d'envoi Resend vers ${destinataire} (RESEND_API_KEY manquant ou API en erreur — voir logs Worker)` };
@@ -131,7 +137,7 @@ async function traiterEmail2J3SansEvenement(env: any): Promise<RapportCondition>
     for (const commune of communes) {
       if (avecEvenement.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_2', resultat: 'écarté — a déjà au moins un événement' }); continue; }
       if (dejaEnvoyees.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_2', resultat: 'écarté — déjà envoyé précédemment' }); continue; }
-      lignes.push(await envoyerEtJournaliser(env, commune, 'email_2', 'onboarding_relance_j3', MODELE_ONBOARDING_RELANCE_J3_DEFAUT));
+      lignes.push(await envoyerEtJournaliser(env, commune, 'email_2', 'onboarding_relance_j3', MODELE_ONBOARDING_RELANCE_J3_DEFAUT, true));
     }
     return { candidates: communes.length, eligibles: lignes.filter((l) => l.resultat.startsWith('envoyé')).length, lignes };
   } catch (err: any) {
@@ -151,7 +157,7 @@ async function traiterEmail3J7SansEvenement(env: any): Promise<RapportCondition>
     for (const commune of communes) {
       if (avecEvenement.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_3', resultat: 'écarté — a déjà au moins un événement (candidat pour email_4 à la place)' }); continue; }
       if (dejaEnvoyees.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_3', resultat: 'écarté — déjà envoyé précédemment' }); continue; }
-      lignes.push(await envoyerEtJournaliser(env, commune, 'email_3', 'onboarding_checkin_j7', MODELE_ONBOARDING_CHECKIN_J7_DEFAUT));
+      lignes.push(await envoyerEtJournaliser(env, commune, 'email_3', 'onboarding_checkin_j7', MODELE_ONBOARDING_CHECKIN_J7_DEFAUT, true));
     }
     return { candidates: communes.length, eligibles: lignes.filter((l) => l.resultat.startsWith('envoyé')).length, lignes };
   } catch (err: any) {
@@ -171,7 +177,7 @@ async function traiterEmail4J7AvecEvenement(env: any): Promise<RapportCondition>
     for (const commune of communes) {
       if (!avecEvenement.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_4', resultat: 'écarté — aucun événement (candidat pour email_3 à la place)' }); continue; }
       if (dejaEnvoyees.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_4', resultat: 'écarté — déjà envoyé précédemment' }); continue; }
-      lignes.push(await envoyerEtJournaliser(env, commune, 'email_4', 'onboarding_encouragement_j7', MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT));
+      lignes.push(await envoyerEtJournaliser(env, commune, 'email_4', 'onboarding_encouragement_j7', MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT, true));
     }
     return { candidates: communes.length, eligibles: lignes.filter((l) => l.resultat.startsWith('envoyé')).length, lignes };
   } catch (err: any) {
@@ -211,7 +217,7 @@ async function traiterEmail5SignalFort(env: any): Promise<RapportCondition> {
       if (commune.forfait !== 'Gratuit') { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_5', resultat: `écarté — forfait "${commune.forfait || '(vide)'}" au lieu de "Gratuit"` }); continue; }
       if (commune.statut_client !== 'active') { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_5', resultat: `écarté — statut_client "${commune.statut_client}"` }); continue; }
       if (dejaEnvoyees.has(commune.id)) { lignes.push({ commune_id: commune.id, commune_nom: commune.nom, email_type: 'email_5', resultat: 'écarté — déjà envoyé précédemment' }); continue; }
-      lignes.push(await envoyerEtJournaliser(env, commune, 'email_5', 'onboarding_upsell', MODELE_ONBOARDING_UPSELL_DEFAUT));
+      lignes.push(await envoyerEtJournaliser(env, commune, 'email_5', 'onboarding_upsell', MODELE_ONBOARDING_UPSELL_DEFAUT, false));
     }
     return { candidates: idsEligibles.length, eligibles: lignes.filter((l) => l.resultat.startsWith('envoyé')).length, lignes };
   } catch (err: any) {
@@ -226,4 +232,26 @@ export async function verifierSequenceOnboarding(env: any): Promise<RapportSeque
     email_4: await traiterEmail4J7AvecEvenement(env),
     email_5: await traiterEmail5SignalFort(env),
   };
+}
+
+// Communes qui ont montré au moins un signal d'activation mais qu'AUCUN envoi de la séquence ne
+// peut jamais atteindre (pas un seul compte gestionnaire ni citoyen trouvé) — le cas qui, avant
+// ce correctif, échouait en silence chaque jour dans le cron sans que personne ne le voie jamais.
+// Utilisé pour l'alerte "à traiter" sur le tableau de bord (voir GET .../onboarding-drip/a-traiter).
+export async function communesSansContactJoignable(env: any): Promise<{ id: string; nom: string }[]> {
+  const evenements = await supabaseSelectTout(env, 'activation_events', { select: 'commune_id' });
+  const idsAvecEvenement = [...new Set(evenements.map((e: any) => e.commune_id))];
+  if (!idsAvecEvenement.length) return [];
+
+  const communes = await supabaseSelectTout(env, 'communes', {
+    select: 'id,nom', id: `in.(${idsAvecEvenement.join(',')})`,
+    niveau_national: 'not.is.true', forfait: 'eq.Gratuit', statut_client: 'eq.active',
+  });
+
+  const resultat: { id: string; nom: string }[] = [];
+  for (const commune of communes) {
+    const destinataire = await destinataireCommune(env, commune.id, true);
+    if (!destinataire) resultat.push({ id: commune.id, nom: commune.nom });
+  }
+  return resultat;
 }

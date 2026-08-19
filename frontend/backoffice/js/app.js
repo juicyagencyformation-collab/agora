@@ -146,6 +146,7 @@ function backoffice() {
     journalActivite: [],
     echeances: [],
     facturesEnAttente: [],
+    onboardingSansContact: [],
     abonnementEnCours: false,
     abonnementMsg: '',
     nouveauDevis: { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 },
@@ -231,6 +232,7 @@ function backoffice() {
           this.echeances = r.communes;
           this.facturesEnAttente = r.factures;
         } catch {}
+        try { this.onboardingSansContact = (await boFetch('/administration/onboarding-drip/a-traiter')).communes; } catch {}
       } catch (e) {
         // Ne pas rester silencieusement vide : afficher la cause (souvent une migration manquante).
         this.erreurChargement = e.message || 'Erreur de chargement des communes';
