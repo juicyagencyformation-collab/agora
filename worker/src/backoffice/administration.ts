@@ -114,7 +114,9 @@ app.get('/communes', async (c) => {
   // 2026-08-19 sur Montaigu et Blérancourt, où un élu réellement inscrit (promu par le maire,
   // pas un artefact d'activation) était invisible car compté nulle part — seul le compte maire
   // auto-provisionné à l'activation (prospection.ts) doit rester hors des deux compteurs.
-  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id,role' });
+  // compte_supprime_le: is.null — même raison que sur la fiche : un compte anonymisé garde son
+  // ancien rôle mais ne doit plus être compté (sinon désaccord avec "Gérer les utilisateurs").
+  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id,role', compte_supprime_le: 'is.null' });
   const avis = await supabaseSelectTout(c.env, 'avis_application', { select: 'commune_id,note' }).catch(() => []);
 
   const nbCitoyens = new Map<string, number>();
@@ -180,7 +182,11 @@ app.get('/communes/:id', async (c) => {
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
   const [membres, avis, stockage] = await Promise.all([
-    supabaseSelect(c.env, 'users', { select: 'role', commune_id: `eq.${id}` }),
+    // compte_supprime_le: is.null — un compte anonymisé (RGPD) garde son ancien rôle en base
+    // mais ne doit plus compter nulle part : sinon "Répartition des rôles" et le total Équipe
+    // restent gonflés d'un fantôme après suppression, en désaccord avec "Gérer les utilisateurs"
+    // qui l'exclut déjà (constaté le 2026-08-19 sur Eaucourt : élu=5 affiché ici pour 4 réels).
+    supabaseSelect(c.env, 'users', { select: 'role', commune_id: `eq.${id}`, compte_supprime_le: 'is.null' }),
     supabaseSelect(c.env, 'avis_application', {
       select: 'note,commentaire,created_at', commune_id: `eq.${id}`, order: 'created_at.desc',
     }),
@@ -764,9 +770,11 @@ app.get('/communes/:id/frequentation', async (c) => {
   // role: eq.citoyen — même raison que "Citoyens inscrits" plus haut sur la fiche : sans ce
   // filtre, le compte maire provisionné automatiquement compte comme "inscrit" et peut fausser
   // les taux d'activité d'une commune sans aucun vrai citoyen engagé.
+  // compte_supprime_le: is.null — un compte anonymisé garde sa derniere_connexion_streak d'avant
+  // suppression, il ne doit plus compter comme "actif" (même raison que partout ailleurs).
   const [commune, users, connexions] = await Promise.all([
     supabaseSelect(c.env, 'communes', { select: 'population', id: `eq.${id}` }),
-    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, role: 'eq.citoyen' }),
+    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, role: 'eq.citoyen', compte_supprime_le: 'is.null' }),
     supabaseSelect(c.env, 'connexions_journalieres', {
       select: 'jour', commune_id: `eq.${id}`, jour: `gte.${il30}`, limit: '5000',
     }),
@@ -1411,9 +1419,11 @@ app.get('/apercu', async (c) => {
   // 2026-08-18 — les chiffres semblaient "bloqués" à 1000).
   // role: eq.citoyen sur nb_citoyens — sinon chaque compte maire provisionné automatiquement
   // (des centaines) se compte comme "citoyen inscrit" et gonfle massivement ce chiffre.
+  // compte_supprime_le: is.null — un compte anonymisé (RGPD) garde son rôle mais ne doit plus
+  // compter (même raison que sur la fiche commune et le tableau Communes clientes).
   const [nb_communes, nb_citoyens, nb_avis] = await Promise.all([
     supabaseCount(c.env, 'communes', { niveau_national: 'not.is.true' }),
-    supabaseCount(c.env, 'users', { role: 'eq.citoyen' }),
+    supabaseCount(c.env, 'users', { role: 'eq.citoyen', compte_supprime_le: 'is.null' }),
     supabaseCount(c.env, 'avis_application', {}),
   ]);
 
