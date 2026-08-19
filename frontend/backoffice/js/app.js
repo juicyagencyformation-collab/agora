@@ -1913,6 +1913,7 @@ function backoffice() {
         });
         this.formUtilisateurOuvert = false;
         await this.chargerUtilisateurs();
+        await this.rafraichirCompteursCommune();
       } catch (e) {
         this.msgUtilisateurs = e.message || 'Création impossible';
       } finally {
@@ -1939,11 +1940,31 @@ function backoffice() {
           }),
         });
         this.msgUtilisateurs = 'Enregistré.';
+        await this.chargerUtilisateurs();
+        await this.rafraichirCompteursCommune();
       } catch (e) {
         this.msgUtilisateurs = e.message || 'Échec';
       } finally {
         this.utilisateurEnCours = false;
       }
+    },
+
+    // L'enregistrement se fait bien côté serveur (voir PATCH .../utilisateurs/:id), mais rien
+    // ne rafraîchissait jusqu'ici la fiche ni le tableau "Communes clientes" affichés à l'écran
+    // (chargés une fois à l'ouverture) : après un changement de rôle, l'ancien total restait
+    // visible partout — au point de ressembler à un enregistrement qui a échoué (constaté le
+    // 2026-08-19). Recalcule localement à partir de fiche.citoyens.par_role, sans re-fetch coûteux
+    // de la liste complète des ~5000 communes.
+    async rafraichirCompteursCommune() {
+      try {
+        this.fiche = await boFetch('/administration/communes/' + this.communeActiveId);
+        const parRole = this.fiche.citoyens.par_role || {};
+        const c = this.communes.find((x) => x.id === this.communeActiveId);
+        if (c) {
+          c.nb_citoyens = parRole.citoyen ?? 0;
+          c.nb_equipe = (parRole.admin ?? 0) + (parRole.elu ?? 0);
+        }
+      } catch { /* purement cosmétique : ne doit jamais bloquer le retour à l'utilisateur */ }
     },
 
     async reinitialiserMdpUtilisateur() {
@@ -1967,6 +1988,7 @@ function backoffice() {
         await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id, { method: 'DELETE' });
         this.vue = 'utilisateurs';
         await this.chargerUtilisateurs();
+        await this.rafraichirCompteursCommune();
       } catch (e) {
         this.msgUtilisateurs = e.message || 'Échec';
       } finally {
