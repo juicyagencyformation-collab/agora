@@ -99,8 +99,16 @@ function backoffice() {
     // /administration/modeles-email/:cle), mais fonctions partagées entre les deux plutôt que
     // dupliquées — voir chargerModelesGeneriques et consorts.
     modelesGeneriques: {
-      bienvenue_inscription: { variantes: [], editeeId: null, modele: { nom: '', objet: '', corps_html: '' }, enCours: false, msg: '' },
-      relance_inactivite: { variantes: [], editeeId: null, modele: { nom: '', objet: '', corps_html: '' }, enCours: false, msg: '' },
+      bienvenue_inscription: {
+        variantes: [], editeeId: null,
+        modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '',
+      },
+      relance_inactivite: {
+        variantes: [], editeeId: null,
+        modele: { nom: '', objet: '', corps_html: '', preview_text: '', angle_teste: '' },
+        enCours: false, msg: '', vue: 'edition', testEnCours: false, testMsg: '',
+      },
     },
     signatureEnCours: false,
     signatureMsg: '',
@@ -476,7 +484,10 @@ function backoffice() {
       try {
         const r = await boFetch('/administration/modeles-email/' + cle, {
           method: 'POST',
-          body: JSON.stringify({ nom, objet: etat.modele.objet, corps_html: etat.modele.corps_html }),
+          body: JSON.stringify({
+            nom, objet: etat.modele.objet, corps_html: etat.modele.corps_html,
+            preview_text: etat.modele.preview_text || null, angle_teste: etat.modele.angle_teste || null,
+          }),
         });
         await this.rafraichirListeVarianteGenerique(cle);
         await this.chargerVarianteGenerique(cle, r.variante.id);
@@ -523,7 +534,10 @@ function backoffice() {
       try {
         await boFetch('/administration/modeles-email/' + cle + '/' + etat.editeeId, {
           method: 'PUT',
-          body: JSON.stringify({ nom: etat.modele.nom, objet: etat.modele.objet, corps_html: etat.modele.corps_html }),
+          body: JSON.stringify({
+            nom: etat.modele.nom, objet: etat.modele.objet, corps_html: etat.modele.corps_html,
+            preview_text: etat.modele.preview_text || null, angle_teste: etat.modele.angle_teste || null,
+          }),
         });
         await this.rafraichirListeVarianteGenerique(cle);
         etat.msg = 'Modèle enregistré.';
@@ -532,6 +546,40 @@ function backoffice() {
       } finally {
         etat.enCours = false;
       }
+    },
+
+    ouvrirEditionVarianteGenerique(cle, id) {
+      this.modelesGeneriques[cle].vue = 'edition';
+      this.chargerVarianteGenerique(cle, id);
+    },
+
+    // Envoie un test de la variante ouverte dans l'éditeur (pas forcément l'active) — même
+    // logique que envoyerTestVariante, mais pour les modèles génériques (pas de suivi
+    // ouverture/clic sur ceux-ci, voir commentaire de la route côté Worker).
+    async envoyerTestGenerique(cle) {
+      const etat = this.modelesGeneriques[cle];
+      if (!etat.editeeId) return;
+      etat.testEnCours = true;
+      etat.testMsg = '';
+      try {
+        const r = await boFetch('/administration/email-test-generique/' + cle, {
+          method: 'POST',
+          body: JSON.stringify({ destinataire: this.testEmailDest, variante_id: etat.editeeId }),
+        });
+        etat.testMsg = `Envoyé à ${r.destinataire} (variante « ${r.variante || '—'} »).`;
+      } catch (e) {
+        etat.testMsg = e.message || 'Échec de l\'envoi';
+      } finally {
+        etat.testEnCours = false;
+      }
+    },
+
+    // Aperçu rendu du corps pour les modèles génériques : seulement {{commune}}/{{url}} (pas
+    // de logo/signature sur ces messages courts et personnels).
+    rendreApercuGenerique(corpsHtml) {
+      return (corpsHtml || '')
+        .replace(/\{\{commune\}\}/g, 'Commune Test')
+        .replace(/\{\{url\}\}/g, 'https://plateforme-agora.fr/commune-test/');
     },
 
     exec(commande, valeur = null) {

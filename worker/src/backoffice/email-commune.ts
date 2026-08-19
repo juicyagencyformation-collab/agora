@@ -238,17 +238,34 @@ function injecterPreviewText(html: string, previewText?: string | null): string 
   return cache + espaceur + html;
 }
 
+type ModeleGenerique = { objet: string; corps_html: string; nom?: string; preview_text?: string | null };
+
 // Version générique de chargerModelePresentation, pour les modèles d'email plus simples
 // (pas de logo/signature) gérés via /administration/modeles-email/:cle — voir onboarding.ts.
 export async function chargerModeleParCle(
   env: any, cle: string, defaut: { objet: string; corps_html: string },
-): Promise<{ objet: string; corps_html: string; nom?: string }> {
+): Promise<ModeleGenerique> {
   try {
     const [row] = await supabaseSelect(env, 'modeles_email', {
-      select: 'objet,corps_html,nom', cle: `eq.${cle}`, actif: 'eq.true',
+      select: 'objet,corps_html,nom,preview_text', cle: `eq.${cle}`, actif: 'eq.true',
     });
     if (row?.objet && row?.corps_html) return row;
   } catch { /* table absente ou lecture KO : on retombe sur le défaut */ }
+  return defaut;
+}
+
+// Équivalent de chargerVarianteParId, mais pour les modèles génériques (bienvenue_inscription,
+// relance_inactivite) — charge une variante précise par id, quel que soit son statut actif,
+// pour l'envoi de test depuis l'éditeur.
+export async function chargerVarianteGeneriqueParId(
+  env: any, cle: string, id: string, defaut: { objet: string; corps_html: string },
+): Promise<ModeleGenerique> {
+  try {
+    const [row] = await supabaseSelect(env, 'modeles_email', {
+      select: 'objet,corps_html,nom,preview_text', cle: `eq.${cle}`, id: `eq.${id}`,
+    });
+    if (row?.objet && row?.corps_html) return row;
+  } catch { /* lecture KO : on retombe sur le défaut */ }
   return defaut;
 }
 
@@ -334,18 +351,24 @@ export const MODELE_RELANCE_INACTIVITE_DEFAUT = {
 };
 
 export async function envoyerBienvenueInscription(
-  env: any, contactEmail: string, ctx: ContextePresentation,
+  env: any, contactEmail: string, ctx: ContextePresentation, varianteId?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
-  const modele = await chargerModeleParCle(env, 'bienvenue_inscription', MODELE_BIENVENUE_INSCRIPTION_DEFAUT);
-  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), rendrePresentation(modele.corps_html, ctx));
+  const modele = varianteId
+    ? await chargerVarianteGeneriqueParId(env, 'bienvenue_inscription', varianteId, MODELE_BIENVENUE_INSCRIPTION_DEFAUT)
+    : await chargerModeleParCle(env, 'bienvenue_inscription', MODELE_BIENVENUE_INSCRIPTION_DEFAUT);
+  const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
+  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
   return { variante: modele.nom || null, resendEmailId };
 }
 
 export async function envoyerRelanceInactivite(
-  env: any, contactEmail: string, ctx: ContextePresentation,
+  env: any, contactEmail: string, ctx: ContextePresentation, varianteId?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
-  const modele = await chargerModeleParCle(env, 'relance_inactivite', MODELE_RELANCE_INACTIVITE_DEFAUT);
-  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), rendrePresentation(modele.corps_html, ctx));
+  const modele = varianteId
+    ? await chargerVarianteGeneriqueParId(env, 'relance_inactivite', varianteId, MODELE_RELANCE_INACTIVITE_DEFAUT)
+    : await chargerModeleParCle(env, 'relance_inactivite', MODELE_RELANCE_INACTIVITE_DEFAUT);
+  const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
+  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
   return { variante: modele.nom || null, resendEmailId };
 }
 

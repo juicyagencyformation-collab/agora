@@ -11,6 +11,7 @@ import { hasherMotDePasse } from '../lib/password';
 import {
   envoyerEmailBienvenue, genererMotDePasseTemporaire,
   envoyerPresentation, contextePresentation, chargerModelePresentation,
+  envoyerBienvenueInscription, envoyerRelanceInactivite,
   MODELE_PRESENTATION_DEFAUT, MODELE_BIENVENUE_INSCRIPTION_DEFAUT, MODELE_RELANCE_INACTIVITE_DEFAUT,
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
@@ -322,6 +323,29 @@ app.post('/email-test-presentation', async (c) => {
   return c.json({ ok: true, destinataire, variante });
 });
 
+// POST /email-test-generique/:cle — même principe que /email-test-presentation, mais pour les
+// modèles génériques (bienvenue_inscription, relance_inactivite). Pas de suivi ouverture/clic
+// ici : ces emails transactionnels ne passent pas par envois_prospection (table dédiée à la
+// campagne de prospection), donc pas d'entonnoir à alimenter — un simple test de rendu/envoi.
+app.post('/email-test-generique/:cle', async (c) => {
+  const cle = c.req.param('cle');
+  if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
+  const staff_id = c.get('staff_id');
+  const body: any = await c.req.json().catch(() => ({}));
+  let destinataire = (body?.destinataire || '').trim();
+  const varianteId = typeof body?.variante_id === 'string' && body.variante_id ? body.variante_id : undefined;
+  if (!destinataire) {
+    const [staff] = await supabaseSelect(c.env, 'staff_backoffice', { select: 'email', id: `eq.${staff_id}` });
+    destinataire = staff?.email || '';
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(destinataire)) return c.json({ erreur: 'Adresse email invalide.' }, 400);
+
+  const ctx = contextePresentation(c.env.FRONTEND_URL, 'Commune Test', 'decouverte-gratuite');
+  const envoyer = cle === 'bienvenue_inscription' ? envoyerBienvenueInscription : envoyerRelanceInactivite;
+  const { variante } = await envoyer(c.env, destinataire, ctx, varianteId);
+  return c.json({ ok: true, destinataire, variante });
+});
+
 // PATCH /communes/:id/statut — statut du cycle de vie client (active | suspendue | resiliee).
 app.patch('/communes/:id/statut', async (c) => {
   const id = c.req.param('id');
@@ -473,7 +497,7 @@ app.get('/modeles-email/:cle', async (c) => {
   if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
 
   let variantes = await supabaseSelect(c.env, 'modeles_email', {
-    select: 'id,nom,actif,objet,updated_at', cle: `eq.${cle}`, order: 'created_at.asc',
+    select: 'id,nom,actif,objet,preview_text,angle_teste,updated_at', cle: `eq.${cle}`, order: 'created_at.asc',
   });
   if (!variantes.length) {
     const defaut = DEFAUTS_MODELES_GENERIQUES[cle];
@@ -489,7 +513,7 @@ app.get('/modeles-email/:cle/:id', async (c) => {
   const cle = c.req.param('cle');
   if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
   const [variante] = await supabaseSelect(c.env, 'modeles_email', {
-    select: 'id,nom,actif,objet,corps_html', cle: `eq.${cle}`, id: `eq.${c.req.param('id')}`,
+    select: 'id,nom,actif,objet,corps_html,preview_text,angle_teste', cle: `eq.${cle}`, id: `eq.${c.req.param('id')}`,
   });
   if (!variante) return c.json({ erreur: 'Variante introuvable' }, 404);
   return c.json({ variante });
