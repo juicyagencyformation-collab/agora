@@ -19,22 +19,6 @@ app.use('*', backofficeMiddleware);
 const STATUTS = ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'] as const;
 const TYPES_INTERACTION = ['note', 'appel', 'email', 'courrier', 'rdv'] as const;
 
-// Un `id in.(...)` avec trop d'UUID dépasse la longueur d'URL acceptée par Supabase (500 sec)
-// — découpe en lots pour rester sûr quel que soit le volume (bug rencontré le 2026-08-18 sur
-// stats-variantes, une fois passé plusieurs centaines de prospects contactés).
-async function selectionnerParLots(
-  env: any, table: string, colonne: string, ids: string[], filtres: Record<string, string>,
-): Promise<any[]> {
-  const TAILLE_LOT = 150;
-  let resultats: any[] = [];
-  for (let i = 0; i < ids.length; i += TAILLE_LOT) {
-    const lot = ids.slice(i, i + TAILLE_LOT);
-    const lignes = await supabaseSelectTout(env, table, { ...filtres, [colonne]: `in.(${lot.join(',')})` });
-    resultats = resultats.concat(lignes);
-  }
-  return resultats;
-}
-
 // — Import depuis geo.api.gouv.fr —
 const importSchema = z.object({
   departement: z.string().regex(/^(\d{2,3}|2[ab])$/i),  // 01-976, Corse 2A/2B
@@ -378,21 +362,23 @@ app.get('/stats-variantes', async (c) => {
   // vieux d'au moins 7 jours — comparable entre variantes quel que soit leur âge respectif.
   const seuilMaturite = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
 
-  const prospectIds = [...new Set(envois.map((e: any) => e.prospect_id).filter(Boolean))];
+  // Pas de filtre par liste d'id (chunking par lots de 150) : ça plafonnait le nombre de
+  // sous-requêtes autorisées par invocation une fois la campagne à plusieurs milliers de
+  // prospects activés (500 constaté le 2026-08-19, la limite de lots précédente — bug du
+  // 2026-08-18 — ne suffisait déjà plus). Un simple filtre commune_id/role, comme
+  // GET /administration/communes, tient à n'importe quelle échelle : le nombre de requêtes ne
+  // dépend que du nombre total de lignes (pagination par 1000), pas du nombre d'id à chercher.
+  const prospectsActives = await supabaseSelectTout(c.env, 'prospects', {
+    select: 'id,commune_id', commune_id: 'not.is.null',
+  });
   const prospectCommune = new Map<string, string>();
-  if (prospectIds.length) {
-    const prospects = await selectionnerParLots(c.env, 'prospects', 'id', prospectIds, { select: 'id,commune_id' });
-    for (const p of prospects) if (p.commune_id) prospectCommune.set(p.id, p.commune_id);
-  }
+  for (const p of prospectsActives) prospectCommune.set(p.id, p.commune_id);
 
-  const communeIds = [...new Set(prospectCommune.values())];
+  const maires = await supabaseSelectTout(c.env, 'users', {
+    select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
+  });
   const communesConnectees = new Set<string>();
-  if (communeIds.length) {
-    const maires = await selectionnerParLots(c.env, 'users', 'commune_id', communeIds, {
-      select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
-    });
-    for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
-  }
+  for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
 
   type Stat = {
     envoyes: number; ouverts: number; cliques: number; rejetes: number; connectes: number;
