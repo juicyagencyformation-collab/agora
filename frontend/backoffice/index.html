@@ -736,27 +736,104 @@
                 sa toute première inscription citoyenne. Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
                 Plusieurs variantes possibles (A/B) : une seule active à la fois.
               </div>
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
-                <label style="margin:0">Variante</label>
-                <select :value="modelesGeneriques.relance_inactivite.editeeId" @change="chargerVarianteGenerique('relance_inactivite', $event.target.value)" style="width:auto; min-width:220px">
-                  <template x-for="v in modelesGeneriques.relance_inactivite.variantes" :key="v.id">
-                    <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
-                  </template>
-                </select>
-                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('relance_inactivite')" :disabled="modelesGeneriques.relance_inactivite.enCours">+ Nouvelle variante</button>
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
+                <div class="bo-champ-inline">
+                  <label style="margin-top:0">Variante</label>
+                  <select :value="modelesGeneriques.relance_inactivite.editeeId" @change="chargerVarianteGenerique('relance_inactivite', $event.target.value)" style="width:auto; min-width:220px">
+                    <template x-for="v in modelesGeneriques.relance_inactivite.variantes" :key="v.id">
+                      <option :value="v.id" x-text="v.nom + (v.actif ? ' (active)' : '')"></option>
+                    </template>
+                  </select>
+                </div>
+                <div class="bo-champ-inline" style="flex:1; min-width:180px">
+                  <label style="margin-top:0">Angle testé <span class="bo-info">(pour s'y retrouver, sans effet sur l'envoi)</span></label>
+                  <input type="text" x-model="modelesGeneriques.relance_inactivite.modele.angle_teste" placeholder="ex. sans pression, rappel utile…" />
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="nouvelleVarianteGenerique('relance_inactivite')" :disabled="modelesGeneriques.relance_inactivite.enCours">📋 Dupliquer / nouvelle variante</button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="activerVarianteGenerique('relance_inactivite')"
                         :disabled="modelesGeneriques.relance_inactivite.enCours || (modelesGeneriques.relance_inactivite.variantes.find(v => v.id === modelesGeneriques.relance_inactivite.editeeId) || {}).actif">Activer cette variante</button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVarianteGenerique('relance_inactivite')"
                         :disabled="modelesGeneriques.relance_inactivite.enCours || modelesGeneriques.relance_inactivite.variantes.length <= 1 || (modelesGeneriques.relance_inactivite.variantes.find(v => v.id === modelesGeneriques.relance_inactivite.editeeId) || {}).actif">Supprimer</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact"
+                        @click="modelesGeneriques.relance_inactivite.vue = modelesGeneriques.relance_inactivite.vue === 'edition' ? 'comparaison' : 'edition'"
+                        x-text="modelesGeneriques.relance_inactivite.vue === 'edition' ? '🔀 Comparer les variantes' : '✏ Retour à l\'édition'"></button>
                 <span class="bo-info" x-text="modelesGeneriques.relance_inactivite.msg"></span>
               </div>
-              <label>Objet</label>
+
+              <!-- Vue comparaison : toutes les variantes côte à côte, lecture seule (pas de stats -
+                   ce modèle n'est pas suivi ouverture/clic, voir note de la route côté Worker) -->
+              <div x-show="modelesGeneriques.relance_inactivite.vue === 'comparaison'" class="bo-comparaison">
+                <template x-for="v in modelesGeneriques.relance_inactivite.variantes" :key="'cmp-' + v.id">
+                  <div class="bo-comparaison__col" :class="{ 'bo-comparaison__col--active': v.actif }">
+                    <div class="bo-comparaison__entete">
+                      <strong x-text="v.nom"></strong>
+                      <span class="bo-statut bo-statut--gagne" x-show="v.actif">active</span>
+                    </div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Angle testé</span><div x-text="v.angle_teste || '—'"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Objet</span><div x-text="v.objet"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Preview text</span><div x-text="v.preview_text || '—'"></div></div>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="ouvrirEditionVarianteGenerique('relance_inactivite', v.id)">Éditer cette variante</button>
+                  </div>
+                </template>
+                <div class="bo-vide" x-show="modelesGeneriques.relance_inactivite.variantes.length === 0">Aucune variante pour l'instant.</div>
+              </div>
+
+              <div x-show="modelesGeneriques.relance_inactivite.vue === 'edition'">
+              <label style="margin-top:0">
+                Objet
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.relance_inactivite.modele.objet || '').length > 50 }"
+                      x-text="(modelesGeneriques.relance_inactivite.modele.objet || '').length + ' / 50'"></span>
+              </label>
               <input type="text" x-model="modelesGeneriques.relance_inactivite.modele.objet">
-              <label style="margin-top:10px">Corps (HTML)</label>
-              <textarea x-model="modelesGeneriques.relance_inactivite.modele.corps_html" rows="14" style="font-family:monospace; font-size:13px"></textarea>
-              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+
+              <label>
+                Preview text <span class="bo-info">(texte d'aperçu sous l'objet)</span>
+                <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modelesGeneriques.relance_inactivite.modele.preview_text || '').length > 100 }"
+                      x-text="(modelesGeneriques.relance_inactivite.modele.preview_text || '').length + ' / 100'"></span>
+              </label>
+              <input type="text" x-model="modelesGeneriques.relance_inactivite.modele.preview_text" placeholder="Ce que verra le destinataire avant même d'ouvrir l'email…" />
+
+              <div class="bo-inbox-apercu">
+                <div class="bo-inbox-apercu__entete">
+                  <span class="bo-info">Aperçu boîte de réception</span>
+                  <div class="bo-inbox-apercu__bascule">
+                    <button type="button" :class="{ actif: apercuInboxMode === 'mobile' }" @click="apercuInboxMode = 'mobile'">📱 Mobile</button>
+                    <button type="button" :class="{ actif: apercuInboxMode === 'desktop' }" @click="apercuInboxMode = 'desktop'">💻 Desktop</button>
+                  </div>
+                </div>
+                <div class="bo-inbox-ligne" :class="'bo-inbox-ligne--' + apercuInboxMode">
+                  <div class="bo-inbox-ligne__logo">A</div>
+                  <div class="bo-inbox-ligne__corps">
+                    <div class="bo-inbox-ligne__expediteur">Plateforme-Agora</div>
+                    <div class="bo-inbox-ligne__texte">
+                      <span class="bo-inbox-ligne__objet" x-text="modelesGeneriques.relance_inactivite.modele.objet || '(objet vide)'"></span>
+                      <span class="bo-inbox-ligne__preview" x-text="' — ' + tronquer(modelesGeneriques.relance_inactivite.modele.preview_text, apercuInboxMode === 'mobile' ? 45 : 90)"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bo-grille-2" style="margin-top:16px; align-items:start">
+                <div>
+                  <label style="margin-top:0">Corps (HTML)</label>
+                  <textarea x-model="modelesGeneriques.relance_inactivite.modele.corps_html" rows="14" class="bo-code-html"></textarea>
+                </div>
+                <div>
+                  <label style="margin-top:0">Aperçu rendu <span class="bo-info">(valeurs d'exemple)</span></label>
+                  <div class="bo-email-apercu" x-html="rendreApercuGenerique(modelesGeneriques.relance_inactivite.modele.corps_html)"></div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap">
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerVarianteGenerique('relance_inactivite')" :disabled="modelesGeneriques.relance_inactivite.enCours"
                         x-text="modelesGeneriques.relance_inactivite.enCours ? 'Enregistrement…' : 'Enregistrer le modèle'"></button>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid #e5e9e5; flex-wrap:wrap">
+                <input type="email" x-model="testEmailDest" placeholder="destinataire du test" style="width:auto; min-width:220px" />
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestGenerique('relance_inactivite')" :disabled="modelesGeneriques.relance_inactivite.testEnCours"
+                        x-text="modelesGeneriques.relance_inactivite.testEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
+                <span class="bo-info" x-text="modelesGeneriques.relance_inactivite.testMsg"></span>
+              </div>
               </div>
             </div>
           </div>
