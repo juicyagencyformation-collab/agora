@@ -188,7 +188,8 @@ tbody tr:hover { background: var(--bo-surface-2); }
 
 /* Barre d'outils (filtres) */
 .bo-outils { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
-.bo-outils input, .bo-outils select { width: auto; min-width: 140px; padding: 8px 10px; font-size: 14px; }
+.bo-outils input:not([type="checkbox"]):not([type="radio"]), .bo-outils select { width: auto; min-width: 140px; padding: 8px 10px; font-size: 14px; }
+.bo-outils input[type="checkbox"], .bo-outils input[type="radio"] { width: auto; min-width: 0; flex-shrink: 0; }
 .bo-form-import { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: var(--bo-radius); padding: 16px 18px; margin-bottom: 22px; }
 .bo-form-import label { margin: 0 0 6px; }
 .bo-form-import .bo-champ { display: flex; flex-direction: column; }
