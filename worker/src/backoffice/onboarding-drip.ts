@@ -57,10 +57,24 @@ async function communesGratuitesCreeesIlYA(env: any, joursAvant: number): Promis
   return communes.filter((cm: any) => cm.created_at < fin);
 }
 
-async function emailMaire(env: any, communeId: string): Promise<string | null> {
+// Priorité : le maire, SI il s'est déjà connecté au moins une fois (users.derniere_connexion_streak).
+// Sinon (cas vécu : un élu gère l'appli au quotidien sous son propre compte, le maire n'a jamais
+// ouvert le sien) on écrit plutôt à la personne la plus active parmi les rôles gestionnaires
+// (admin/elu/maire/superadmin — jamais un citoyen, qui ne peut de toute façon pas décider d'un
+// abonnement). Dernier recours : l'email du maire même jamais connecté, plutôt que rien du tout.
+async function destinataireCommune(env: any, communeId: string): Promise<string | null> {
   const [maire] = await supabaseSelect(env, 'users', {
-    select: 'email', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc', limit: '1',
+    select: 'email,derniere_connexion_streak', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc', limit: '1',
   });
+  if (maire?.email && maire.derniere_connexion_streak) return maire.email;
+
+  const [plusActif] = await supabaseSelect(env, 'users', {
+    select: 'email,derniere_connexion_streak', commune_id: `eq.${communeId}`,
+    role: 'in.(admin,elu,maire,superadmin)', derniere_connexion_streak: 'not.is.null',
+    order: 'derniere_connexion_streak.desc', limit: '1',
+  });
+  if (plusActif?.email) return plusActif.email;
+
   return maire?.email || null;
 }
 
@@ -90,8 +104,8 @@ async function envoyerEtJournaliser(
 ): Promise<LigneRapport> {
   const base = { commune_id: commune.id, commune_nom: commune.nom, email_type: emailType };
   try {
-    const destinataire = await emailMaire(env, commune.id);
-    if (!destinataire) return { ...base, resultat: 'ignoré — aucun compte maire (role=maire) trouvé pour cette commune' };
+    const destinataire = await destinataireCommune(env, commune.id);
+    if (!destinataire) return { ...base, resultat: 'ignoré — aucun compte gestionnaire (maire/elu/admin) trouvé pour cette commune' };
     const ctx = contextePresentation(env.FRONTEND_URL, commune.nom, commune.slug);
     const { resendEmailId } = await envoyerModeleGenerique(env, cle, defaut, destinataire, ctx);
     if (!resendEmailId) return { ...base, resultat: `échec d'envoi Resend vers ${destinataire} (RESEND_API_KEY manquant ou API en erreur — voir logs Worker)` };
