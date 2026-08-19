@@ -365,7 +365,7 @@ app.get('/modele-email', async (c) => {
 // dans les emails.
 app.get('/modeles-presentation', async (c) => {
   let variantes = await supabaseSelect(c.env, 'modeles_email', {
-    select: 'id,nom,actif,objet,updated_at', cle: 'eq.presentation', order: 'created_at.asc',
+    select: 'id,nom,actif,objet,preview_text,angle_teste,updated_at', cle: 'eq.presentation', order: 'created_at.asc',
   });
   if (!variantes.length) {
     const [creee] = await supabaseInsert(c.env, 'modeles_email', {

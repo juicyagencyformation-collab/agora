@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-2" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -459,9 +459,39 @@
                         :disabled="varianteEnCours || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Activer cette variante</button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="supprimerVariante()"
                         :disabled="varianteEnCours || variantes.length <= 1 || (variantes.find(v => v.id === varianteEditeeId) || {}).actif">Supprimer</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact"
+                        @click="vueVarianteEmail = vueVarianteEmail === 'edition' ? 'comparaison' : 'edition'"
+                        x-text="vueVarianteEmail === 'edition' ? '🔀 Comparer les variantes' : '✏ Retour à l\'édition'"></button>
                 <span class="bo-info" x-text="varianteMsg"></span>
               </div>
 
+              <!-- Vue comparaison : toutes les variantes côte à côte, lecture seule -->
+              <div x-show="vueVarianteEmail === 'comparaison'" class="bo-comparaison">
+                <template x-for="v in variantes" :key="'cmp-' + v.id">
+                  <div class="bo-comparaison__col" :class="{ 'bo-comparaison__col--active': v.actif }">
+                    <div class="bo-comparaison__entete">
+                      <strong x-text="v.nom"></strong>
+                      <span class="bo-statut bo-statut--gagne" x-show="v.actif">active</span>
+                    </div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Angle testé</span><div x-text="v.angle_teste || '—'"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Objet</span><div x-text="v.objet"></div></div>
+                    <div class="bo-comparaison__ligne"><span class="bo-info">Preview text</span><div x-text="v.preview_text || '—'"></div></div>
+                    <template x-if="statsPourVariante(v.nom)">
+                      <div class="bo-comparaison__stats">
+                        <div><span x-text="statsPourVariante(v.nom).envoyes"></span><small>Envoyés</small></div>
+                        <div><span x-text="pct(statsPourVariante(v.nom).ouverts, statsPourVariante(v.nom).envoyes)"></span><small>Ouverts</small></div>
+                        <div><span x-text="pct(statsPourVariante(v.nom).cliques, statsPourVariante(v.nom).envoyes)"></span><small>Cliqués</small></div>
+                        <div><span x-text="pct(statsPourVariante(v.nom).connectes, statsPourVariante(v.nom).envoyes)"></span><small>Connectés</small></div>
+                      </div>
+                    </template>
+                    <template x-if="!statsPourVariante(v.nom)"><div class="bo-info" style="margin-top:8px">Aucun envoi suivi pour l'instant.</div></template>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="ouvrirEditionVariante(v.id)">Éditer cette variante</button>
+                  </div>
+                </template>
+                <div class="bo-vide" x-show="variantes.length === 0">Aucune variante pour l'instant.</div>
+              </div>
+
+              <div x-show="vueVarianteEmail === 'edition'">
               <label style="margin-top:0">
                 Objet
                 <span class="bo-compteur" :class="{ 'bo-compteur--alerte': (modele.objet || '').length > 50 }"
@@ -577,6 +607,7 @@
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerTestVariante()" :disabled="testVarianteEnCours"
                         x-text="testVarianteEnCours ? 'Envoi…' : '✉ Envoyer un test de cette variante'"></button>
                 <span class="bo-info" x-text="testVarianteMsg"></span>
+              </div>
               </div>
             </div>
           </div>
@@ -1601,7 +1632,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-1"></script>
+  <script src="/backoffice/js/app.js?v=20260819-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

@@ -260,6 +260,18 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 .bo-inbox-ligne__preview { color: #70757a; }
 .bo-inbox-ligne--mobile { max-width: 320px; }
 .bo-inbox-ligne--desktop { max-width: 560px; }
+
+/* Comparaison des variantes côte à côte (lecture seule) */
+.bo-comparaison { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; }
+.bo-comparaison__col { flex: 0 0 260px; background: var(--bo-surface-2); border: 1px solid var(--bo-border); border-radius: 10px; padding: 14px; }
+.bo-comparaison__col--active { border-color: var(--bo-vert); }
+.bo-comparaison__entete { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 15px; }
+.bo-comparaison__ligne { margin-bottom: 10px; font-size: 13px; }
+.bo-comparaison__ligne > div { margin-top: 2px; word-break: break-word; }
+.bo-comparaison__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--bo-border); }
+.bo-comparaison__stats > div { text-align: center; }
+.bo-comparaison__stats span { display: block; font-size: 15px; font-weight: 700; }
+.bo-comparaison__stats small { color: var(--bo-text-faible); font-size: 11px; }
 .bo-toolbar__grp { display: inline-flex; align-items: center; gap: 3px; }
 .bo-toolbar__label { font-size: 11px; color: var(--bo-text-faible); margin: 0 1px; }
 .bo-swatch { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(255,255,255,.25); padding: 0; cursor: pointer; }

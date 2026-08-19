@@ -90,6 +90,7 @@ function backoffice() {
     varianteEditeeId: null, // id de la variante actuellement chargée dans l'éditeur
     varianteEnCours: false,
     varianteMsg: '',
+    vueVarianteEmail: 'edition', // 'edition' | 'comparaison' — bascule dans le tiroir Modèle d'email
     apercuInboxMode: 'mobile', // 'mobile' | 'desktop' — bascule de l'aperçu boîte de réception
     testVarianteEnCours: false,
     testVarianteMsg: '',
@@ -1202,6 +1203,16 @@ function backoffice() {
       } finally {
         this.testVarianteEnCours = false;
       }
+    },
+
+    // Vue comparaison (colonnes) : stats déjà chargées à l'init (this.statsVariantes),
+    // rapprochées par nom de variante — pas de requête supplémentaire.
+    statsPourVariante(nom) {
+      return this.statsVariantes.find((v) => v.nom === nom) || null;
+    },
+    ouvrirEditionVariante(id) {
+      this.vueVarianteEmail = 'edition';
+      this.chargerVariante(id);
     },
 
     // Troncature réaliste de l'aperçu boîte de réception (n caractères selon mobile/desktop).
