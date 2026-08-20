@@ -17,7 +17,7 @@ const app = new Hono();
 app.use('*', backofficeMiddleware);
 
 const STATUTS = ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'] as const;
-const TYPES_INTERACTION = ['note', 'appel', 'email', 'courrier', 'rdv'] as const;
+const TYPES_INTERACTION = ['note', 'appel', 'email', 'courrier', 'rdv', 'ferme'] as const;
 
 // — Import depuis geo.api.gouv.fr —
 const importSchema = z.object({

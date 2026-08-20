@@ -2522,6 +2522,23 @@
                 </select>
                 <label>Prochaine relance</label>
                 <input type="date" x-model="prospect.prochaine_relance_le" @change="majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" />
+
+                <template x-if="!fermeture.ouvert">
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="fermeture.ouvert = true">🏛 Mairie fermée</button>
+                </template>
+                <template x-if="fermeture.ouvert">
+                  <div style="margin-top:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                    <label style="margin-top:0">Date de retour indiquée dans le message (facultatif)</label>
+                    <input type="date" x-model="fermeture.dateRetour" />
+                    <div class="bo-info" style="margin:4px 0 8px" x-show="!fermeture.dateRetour">Sans date, la relance est reprogrammée dans 14 jours.</div>
+                    <div style="display:flex; gap:8px">
+                      <button class="bo-btn bo-btn--compact" @click="confirmerFermeture()" :disabled="fermeture.enCours"
+                              x-text="fermeture.enCours ? 'Enregistrement…' : 'Confirmer'"></button>
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" @click="fermeture = { ouvert: false, dateRetour: '', enCours: false }">Annuler</button>
+                    </div>
+                  </div>
+                </template>
+
                 <label>Notes</label>
                 <textarea x-model="prospect.notes" @blur="majProspect({ notes: prospect.notes })"></textarea>
               </div>
@@ -2741,7 +2758,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260820-1"></script>
+  <script src="/backoffice/js/app.js?v=20260820-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

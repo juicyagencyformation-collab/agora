@@ -219,6 +219,7 @@ function backoffice() {
     prospEnCours: false,
     prospMsg: '',
     nouvInteraction: { type: 'note', contenu: '' },
+    fermeture: { ouvert: false, dateRetour: '', enCours: false },
     conversion: { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' },
 
     async init() {
@@ -1387,6 +1388,33 @@ function backoffice() {
       }
     },
 
+    // Bouton rapide pour les réponses automatiques « mairie fermée/absente » (vacances, congés,
+    // fermeture exceptionnelle) : journalise l'info ET reprogramme la relance en un seul geste,
+    // au lieu de devoir ajouter une note puis recalculer la date à la main.
+    async confirmerFermeture() {
+      this.fermeture.enCours = true;
+      try {
+        const dateRetour = this.fermeture.dateRetour;
+        // Sans date de retour indiquée dans le message, on retente dans 14 jours plutôt que de
+        // laisser le prospect sans relance programmée (durée courante d'une fermeture ponctuelle).
+        const dateRelance = dateRetour || new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+        const contenu = dateRetour
+          ? `Mairie fermée — retour prévu le ${this.formatDate(dateRetour)}`
+          : 'Mairie fermée (date de retour non précisée) — relance reprogrammée dans 14 jours';
+        const r = await boFetch('/prospection/prospects/' + this.prospect.id + '/interactions', {
+          method: 'POST', body: JSON.stringify({ type: 'ferme', contenu }),
+        });
+        this.interactions.unshift(r.interaction);
+        this.prospect.prochaine_relance_le = dateRelance;
+        await this.majProspect({ prochaine_relance_le: dateRelance });
+        this.fermeture = { ouvert: false, dateRetour: '', enCours: false };
+      } catch (e) {
+        alert(e.message || 'Ajout impossible');
+      } finally {
+        this.fermeture.enCours = false;
+      }
+    },
+
     async corrigerEmailsInvalides() {
       this.correctionEnCours = true;
       this.correctionMsg = '';
@@ -1514,7 +1542,7 @@ function backoffice() {
       return { a_contacter: 'À contacter', contacte: 'Contacté', relance: 'Relancé', rdv: 'RDV', gagne: 'Gagné', perdu: 'Perdu' }[s] || s;
     },
     libelleType(t) {
-      return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut', contact: 'Contact corrigé' }[t] || t;
+      return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut', contact: 'Contact corrigé', ferme: 'Fermé/absent' }[t] || t;
     },
     libelleStatutClient(s) {
       return { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[s] || 'Active';
