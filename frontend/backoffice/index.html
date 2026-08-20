@@ -661,7 +661,9 @@
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_bienvenue">
               <div class="bo-info" style="margin-bottom:12px">
                 Envoyé automatiquement quand le tout premier compte citoyen (hors compte Maire) s'inscrit
-                dans une commune issue de la prospection. Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
+                dans une commune issue de la prospection. Variables disponibles :
+                <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>,
+                <code>{{logo}}</code>, <code>{{signature_photo}}</code>.
                 Plusieurs variantes possibles (A/B) : une seule active à la fois.
               </div>
               <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
@@ -782,6 +784,7 @@
                         <span class="sep"></span>
                         <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche de présentation">+ lien fiche</button>
                         <span class="sep"></span>
                       </span>
                     </template>
@@ -821,7 +824,9 @@
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_relance_inactivite">
               <div class="bo-info" style="margin-bottom:12px">
                 Envoyé automatiquement si personne ne s'est reconnecté dans une commune 5 à 9 jours après
-                sa toute première inscription citoyenne. Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
+                sa toute première inscription citoyenne. Variables disponibles :
+                <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>,
+                <code>{{logo}}</code>, <code>{{signature_photo}}</code>.
                 Plusieurs variantes possibles (A/B) : une seule active à la fois.
               </div>
               <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
@@ -942,6 +947,7 @@
                         <span class="sep"></span>
                         <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche de présentation">+ lien fiche</button>
                         <span class="sep"></span>
                       </span>
                     </template>
@@ -980,8 +986,10 @@
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_onboarding_relance_j3">
               <div class="bo-info" style="margin-bottom:12px">
                 Email 2 de la séquence onboarding/upsell : envoyé à J+3 si la commune n'a encore montré aucun
-                signe d'activation (article, calendrier déchets, clic module verrouillé). Variables :
-                <code>{{commune}}</code>, <code>{{url}}</code>. Voir Communes clientes → fiche → « Séquence onboarding / upsell ».
+                signe d'activation (article, calendrier déchets, clic module verrouillé). Variables disponibles :
+                <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>,
+                <code>{{logo}}</code>, <code>{{signature_photo}}</code>.
+                Voir Communes clientes → fiche → « Séquence onboarding / upsell ».
               </div>
               <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
                 <div class="bo-champ-inline">
@@ -1101,6 +1109,7 @@
                         <span class="sep"></span>
                         <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche de présentation">+ lien fiche</button>
                         <span class="sep"></span>
                       </span>
                     </template>
@@ -1140,7 +1149,9 @@
               <div class="bo-info" style="margin-bottom:12px">
                 Email 3 de la séquence onboarding/upsell : envoyé à J+7 si la commune n'a toujours montré aucun
                 signe d'activation — message humain, volontairement sans bouton (l'objectif est une réponse,
-                pas un clic). Variables : <code>{{commune}}</code>, <code>{{url}}</code>.
+                pas un clic). Variables disponibles :
+                <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>,
+                <code>{{logo}}</code>, <code>{{signature_photo}}</code>.
               </div>
               <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
                 <div class="bo-champ-inline">
@@ -1260,6 +1271,7 @@
                         <span class="sep"></span>
                         <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche de présentation">+ lien fiche</button>
                         <span class="sep"></span>
                       </span>
                     </template>
@@ -1298,8 +1310,9 @@
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.modele_onboarding_encouragement_j7">
               <div class="bo-info" style="margin-bottom:12px">
                 Email 4 de la séquence onboarding/upsell : envoyé à J+7 si la commune a déjà montré au moins un
-                signe d'activation — encouragement + graine upsell douce, sans prix. Variables :
-                <code>{{commune}}</code>, <code>{{url}}</code>.
+                signe d'activation — encouragement + graine upsell douce, sans prix. Variables disponibles :
+                <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>,
+                <code>{{logo}}</code>, <code>{{signature_photo}}</code>.
               </div>
               <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
                 <div class="bo-champ-inline">
@@ -1419,6 +1432,7 @@
                         <span class="sep"></span>
                         <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app">+ lien app</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche de présentation">+ lien fiche</button>
                         <span class="sep"></span>
                       </span>
                     </template>
@@ -1458,7 +1472,8 @@
               <div class="bo-info" style="margin-bottom:12px">
                 Email 5 de la séquence onboarding/upsell : le seul avec un vrai argumentaire payant, déclenché
                 uniquement quand la commune a réalisé les 3 types d'action distincts (jamais sur une date).
-                Variables : <code>{{commune}}</code>, <code>{{url}}</code>, <code>{{lien_fiche}}</code>.
+                Variables disponibles : <code>{{commune}}</code>, <code>{{url}}</code>,
+                <code>{{lien_fiche}}</code>, <code>{{logo}}</code>, <code>{{signature_photo}}</code>.
               </div>
               <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid #e5e9e5">
                 <div class="bo-champ-inline">
