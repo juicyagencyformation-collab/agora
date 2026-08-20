@@ -45,8 +45,7 @@ async function chargerDashboard() {
   afficherSalut();
   initActionsRapidesAccueil();
   chargerChecklistOnboarding();
-  chargerMeteo();
-  chargerLune();
+  chargerCielJour();
   chargerDechetsDashboard();
   chargerDerniereActu();
   chargerResumes();
@@ -180,24 +179,31 @@ function calculerPhaseLune(date = new Date()) {
     { max: 1.01, nom: 'Nouvelle lune', icone: '🌑', conseil: 'Repos de la terre — bon moment pour préparer le sol et désherber, selon la tradition.' },
   ];
   const phase = phases.find((p) => fraction <= p.max) ?? phases[0];
-  return { ...phase, illumination };
+
+  // Échéance la plus proche (pleine ou nouvelle lune), pour donner un repère concret
+  // en plus du nom de la phase — ex. "pleine lune dans 3 j".
+  const joursAvantPleine = fraction <= 0.5 ? (0.5 - fraction) * cycle : (1.5 - fraction) * cycle;
+  const joursAvantNouvelle = (1 - fraction) * cycle;
+  const texteEcheance = joursAvantPleine < joursAvantNouvelle
+    ? (Math.round(joursAvantPleine) <= 0 ? 'pleine lune aujourd\'hui' : `pleine lune dans ${Math.round(joursAvantPleine)} j`)
+    : (Math.round(joursAvantNouvelle) <= 0 ? 'nouvelle lune aujourd\'hui' : `nouvelle lune dans ${Math.round(joursAvantNouvelle)} j`);
+
+  return { ...phase, illumination, fractionCycle: fraction, texteEcheance };
 }
 
-function chargerLune() {
-  const zone = document.getElementById('carte-lune');
-  if (!zone) return;
-  const { nom, icone, conseil, illumination } = calculerPhaseLune();
-  // Le conseil traditionnel (désherber, semer...) reste disponible en infobulle plutôt
-  // qu'imprimé en toutes lettres : c'est un complément folklorique, pas une info du jour
-  // essentielle — pas de raison de lui donner autant de place qu'au conseil municipal.
-  zone.title = conseil;
-  zone.innerHTML = `
-    <div class="lune-icone-hero">${icone}</div>
-    <div>
-      <div class="lune-label-hero">${nom}</div>
-      <div class="lune-detail-hero">${illumination}% illuminée</div>
-    </div>
-  `;
+// Point (emoji ☀️/🌙) qui glisse sur l'arc en tête de la carte "Ciel du jour", à la position
+// correspondant à la fraction écoulée de la période jour (lever→coucher) ou nuit
+// (coucher→lever suivant) — courbe de Bézier quadratique, mêmes points de contrôle que le
+// chemin SVG "arc-astre-trace" défini dans index.html.
+function positionnerAstreSurArc(t, icone) {
+  const point = document.getElementById('point-astre-emoji');
+  if (!point) return;
+  const p0 = { x: 8, y: 52 }, p1 = { x: 150, y: 4 }, p2 = { x: 292, y: 52 };
+  const x = (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x;
+  const y = (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y;
+  point.setAttribute('x', x);
+  point.setAttribute('y', y);
+  point.textContent = icone;
 }
 
 async function chargerPhotoVedette() {
@@ -251,28 +257,95 @@ function initBadgeEntete() {
   document.getElementById('btn-badge-entete')?.addEventListener('click', () => activerOnglet('profil'));
 }
 
-async function chargerMeteo() {
-  const zone = document.getElementById('carte-meteo');
-  if (!zone) return;
+// "Ciel du jour" — fusion météo + lune en une seule carte vivante : le fond glisse entre
+// teintes d'aube/jour/crépuscule/nuit selon l'heure réelle (calculé localement à partir du
+// lever/coucher du soleil renvoyés par Open-Meteo, même appel que la météo, aucune requête
+// en plus), et un petit ☀️/🌙 se déplace sur un arc pour indiquer où on en est dans la
+// journée ou la nuit en cours.
+async function chargerCielJour() {
+  const carte = document.getElementById('carte-jour-hero');
+  const zoneMeteo = document.getElementById('carte-meteo');
+  const zoneLune = document.getElementById('carte-lune');
+  const phaseLune = calculerPhaseLune();
+
   try {
     const lat = window.COMMUNE_LAT ?? 43.6047;
     const lng = window.COMMUNE_LNG ?? 1.4442;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FParis&forecast_days=1`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
+      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m` +
+      `&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=Europe%2FParis&forecast_days=2`;
     const res = await fetch(url);
     if (!res.ok) throw new Error();
     const data = await res.json();
     const code = data.current.weathercode;
     const infos = CODES_METEO[code] ?? { label: 'Météo indisponible', icone: '🌡️' };
 
-    zone.innerHTML = `
-      <div class="meteo-icone-hero">${infos.icone}</div>
+    const maintenant = new Date();
+    const leverAuj = new Date(data.daily.sunrise[0]);
+    const coucherAuj = new Date(data.daily.sunset[0]);
+    const leverDemain = new Date(data.daily.sunrise[1] ?? data.daily.sunrise[0]);
+    const estJour = maintenant >= leverAuj && maintenant <= coucherAuj;
+
+    // Fenêtre de transition (teintes d'aube/crépuscule) : ±40 min autour du lever/coucher.
+    const TRANSITION_MS = 40 * 60 * 1000;
+    let phaseCiel = estJour ? 'jour' : 'nuit';
+    if (Math.abs(maintenant - leverAuj) < TRANSITION_MS) phaseCiel = 'aube';
+    else if (Math.abs(maintenant - coucherAuj) < TRANSITION_MS) phaseCiel = 'crepuscule';
+    if (carte) {
+      carte.classList.remove('ciel--jour', 'ciel--nuit', 'ciel--aube', 'ciel--crepuscule');
+      carte.classList.add(`ciel--${phaseCiel}`);
+    }
+
+    // Position de l'astre sur l'arc : fraction de la période jour (lever→coucher) ou nuit
+    // (coucher→lever du lendemain) déjà écoulée, bornée à [0,1] pour rester sur l'arc même
+    // dans les cas limites (ex. app ouverte juste avant le lever calculé).
+    let fraction, astre;
+    if (estJour) {
+      fraction = (maintenant - leverAuj) / (coucherAuj - leverAuj);
+      astre = '☀️';
+    } else {
+      const debutNuit = maintenant < leverAuj ? new Date(leverAuj.getTime() - 24 * 3600 * 1000) : coucherAuj;
+      const finNuit = maintenant < leverAuj ? leverAuj : leverDemain;
+      fraction = (maintenant - debutNuit) / (finNuit - debutNuit);
+      astre = phaseLune.icone;
+    }
+    positionnerAstreSurArc(Math.max(0, Math.min(1, fraction)), astre);
+
+    if (zoneMeteo) {
+      zoneMeteo.innerHTML = `
+        <div class="meteo-icone-hero">${infos.icone}</div>
+        <div class="meteo-corps-hero">
+          <div class="meteo-temp-hero">${Math.round(data.current.temperature_2m)}°</div>
+          <div class="meteo-label-hero">${infos.label} · ↓${Math.round(data.daily.temperature_2m_min[0])}° ↑${Math.round(data.daily.temperature_2m_max[0])}°</div>
+          <div class="ciel-puces-meteo">
+            <span class="puce-meteo">💧 ${Math.round(data.current.relative_humidity_2m)}%</span>
+            <span class="puce-meteo">🤔 ${Math.round(data.current.apparent_temperature)}°</span>
+            <span class="puce-meteo">🌬️ ${Math.round(data.current.wind_speed_10m)} km/h</span>
+          </div>
+        </div>
+      `;
+    }
+  } catch {
+    if (zoneMeteo) zoneMeteo.innerHTML = `<p class="meteo-erreur">Météo indisponible.</p>`;
+    positionnerAstreSurArc(0.5, phaseLune.icone);
+  }
+
+  if (zoneLune) {
+    const diametreLune = 36;
+    const illumFrac = phaseLune.illumination / 100;
+    const croissante = phaseLune.fractionCycle <= 0.5;
+    const decalage = Math.round(diametreLune * (croissante ? -illumFrac : illumFrac));
+    // Le conseil traditionnel (désherber, semer...) reste disponible en infobulle plutôt
+    // qu'imprimé en toutes lettres : c'est un complément folklorique, pas une info du jour
+    // essentielle — pas de raison de lui donner autant de place qu'au conseil municipal.
+    zoneLune.title = phaseLune.conseil;
+    zoneLune.innerHTML = `
+      <div class="lune-disque"><div class="lune-ombre" style="transform:translateX(${decalage}px)"></div></div>
       <div>
-        <div class="meteo-temp-hero">${Math.round(data.current.temperature_2m)}°</div>
-        <div class="meteo-label-hero">${infos.label} · ↓${Math.round(data.daily.temperature_2m_min[0])}° ↑${Math.round(data.daily.temperature_2m_max[0])}°</div>
+        <div class="lune-label-hero">${phaseLune.nom}</div>
+        <div class="lune-detail-hero">${phaseLune.illumination}% illuminée · ${phaseLune.texteEcheance}</div>
       </div>
     `;
-  } catch {
-    zone.innerHTML = `<p class="meteo-erreur">Météo indisponible.</p>`;
   }
 }
 
