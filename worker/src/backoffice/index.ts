@@ -9,6 +9,7 @@ import prospection from './prospection';
 import onboarding from './onboarding';
 import facturation from './facturation';
 import { chargerFiche } from './modele-fiche';
+import { chargerAfficheCitoyens } from './modele-affiche';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
 import { traiterEmailRecu } from './emails-recus';
@@ -20,6 +21,14 @@ const app = new Hono();
 // elle, passe par /administration/modele-fiche (protégée).
 app.get('/fiche-contenu', async (c) => {
   return c.json(await chargerFiche(c.env));
+});
+
+// Contenu de l'affiche citoyenne (voir modele-affiche.ts) — PUBLIC (pas d'auth) : imprimée par
+// une commune DÉJÀ cliente pour ses administrés, lien envoyé dans l'email de bienvenue. Rien de
+// sensible (nom + logo de la commune, tous deux déjà publics sur son app).
+app.get('/affiche-citoyens-contenu', async (c) => {
+  const slug = c.req.query('slug') || '';
+  return c.json(await chargerAfficheCitoyens(c.env, slug));
 });
 
 // Webhook Resend (bounces / plaintes / ouvertures / clics / réponses reçues) — PUBLIC mais

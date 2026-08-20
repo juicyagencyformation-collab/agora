@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!-- frontend/backoffice/affiche-citoyens.html — affiche imprimable (A4) pour une commune DÉJÀ
+     cliente, à destination de ses administrés (QR pour créer leur compte). Envoyée dans l'email
+     de bienvenue au maire. À ne pas confondre avec fiche.html (fiche de présentation COMMERCIALE
+     envoyée à un prospect pas encore client) — mise en page en miroir (mêmes classes CSS), mais
+     contenu et logo différents : voir worker/src/backoffice/modele-affiche.ts pour le pourquoi.
+     Paramètre d'URL : ?slug=eaucourt -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Agora — Affiche citoyenne</title>
+  <link rel="icon" href="/backoffice/logo.png?v=20260818-3" />
+  <style>
+    :root {
+      --navy: #1c3b57;
+      --navy-clair: #2f5779;
+      --vert: #2c5f2d;
+      --vert-clair: #4a8c4a;
+      --or: #b9791a;
+      --or-fond: #fbeed9;
+      --corail: #c85a3f;
+      --corail-fond: #fbe8e2;
+      --encre: #1c2226;
+      --gris: #5c6b74;
+      --bord: #e3e7ea;
+      --fond-doux: #f7f9fb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--encre); background: #e9edf0; line-height: 1.5;
+    }
+    h1, h2, h3 {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      font-weight: 600;
+    }
+
+    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 10px; justify-content: flex-end; padding: 0 12px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--navy); color: #fff; }
+    .btn--sec { background: #fff; color: var(--navy); border: 1px solid var(--bord); }
+
+    .feuille {
+      width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; padding: 16mm 16mm 14mm;
+      box-shadow: 0 10px 34px rgba(15, 30, 45, .14);
+    }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      border-bottom: 2.5px solid var(--navy); padding-bottom: 18px;
+    }
+    header > div:first-child { display: flex; align-items: center; gap: 18px; }
+    .logo-halo {
+      width: 118px; height: 118px; flex-shrink: 0; border-radius: 50%;
+      background: radial-gradient(circle, var(--fond-doux) 0%, #fff 72%);
+      border: 1px solid var(--bord);
+      display: flex; align-items: center; justify-content: center;
+    }
+    header img { max-height: 100px; max-width: 100px; object-fit: contain; display: block; }
+    .logo-halo .marque { font-size: 14px; text-align: center; line-height: 1.2; padding: 0 8px; }
+    .logo-texte { display: flex; flex-direction: column; gap: 4px; }
+    .marque { font-size: 32px; font-weight: 800; color: var(--navy); letter-spacing: -.4px; }
+    .marque span { color: var(--vert-clair); }
+    .baseline { color: var(--gris); font-size: 13px; letter-spacing: .03em; text-transform: uppercase; }
+
+    .hero { margin: 24px 0 6px; }
+    .hero h1 { font-size: 25px; line-height: 1.28; color: var(--navy); max-width: 90%; }
+    .hero h1 em { color: var(--vert); font-style: normal; }
+    .hero p { color: var(--gris); font-size: 14px; margin-top: 8px; max-width: 74%; line-height: 1.6; }
+
+    .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 0; }
+    .mod {
+      border: 1px solid var(--bord); border-left: 3px solid var(--navy); border-radius: 8px;
+      padding: 10px 13px; background: var(--fond-doux);
+    }
+    .mod h3 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13.5px; font-weight: 700; margin-bottom: 2px; display: flex; align-items: center; gap: 7px; color: var(--encre);
+    }
+    .mod p { font-size: 11.5px; color: var(--gris); line-height: 1.45; }
+    .puce { width: 7px; height: 7px; border-radius: 50%; background: var(--navy); flex-shrink: 0; }
+    .grille .mod:nth-child(4n+2) { border-left-color: var(--vert); }
+    .grille .mod:nth-child(4n+2) .puce { background: var(--vert); }
+    .grille .mod:nth-child(4n+3) { border-left-color: var(--or); }
+    .grille .mod:nth-child(4n+3) .puce { background: var(--or); }
+    .grille .mod:nth-child(4n+4) { border-left-color: var(--corail); }
+    .grille .mod:nth-child(4n+4) .puce { background: var(--corail); }
+
+    .atouts { display: flex; gap: 0; margin: 22px 0; background: var(--navy); border-radius: 10px; overflow: hidden; }
+    .atout { flex: 1; text-align: center; padding: 14px 8px; color: #fff; border-left: 1px solid rgba(255,255,255,.14); }
+    .atout:first-child { border-left: none; }
+    .atout b { display: block; font-size: 12.5px; font-weight: 700; }
+    .atout span { font-size: 10.5px; color: #c7d5e0; }
+
+    .acces {
+      display: flex; align-items: stretch; gap: 22px; margin-top: 20px; padding: 18px 22px;
+      border: 1px solid var(--bord); border-radius: 14px;
+      background: linear-gradient(135deg, var(--fond-doux) 0%, #fff 60%);
+      box-shadow: 0 6px 18px rgba(28, 59, 87, .07);
+    }
+    .acces__qr {
+      width: 128px; height: 128px; flex-shrink: 0; background: #fff; border: 1.5px solid var(--navy);
+      border-radius: 10px; padding: 8px; display: flex; align-items: center; justify-content: center;
+      align-self: center;
+    }
+    .acces__qr svg { width: 100%; height: 100%; }
+    .acces__txt { flex: 1; min-width: 0; }
+    .acces__txt h2 { font-size: 17px; color: var(--navy); }
+    .acces__txt > p { font-size: 12.5px; color: var(--gris); margin-top: 3px; line-height: 1.5; }
+    .acces__url {
+      display: inline-block; margin-top: 8px; font-weight: 700; font-size: 12.5px; color: var(--navy);
+      background: var(--fond-doux); border: 1px solid var(--bord); border-radius: 999px;
+      padding: 3px 12px; word-break: break-all;
+    }
+
+    .installation { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--bord); }
+    .installation__titre { font-size: 11.5px; font-weight: 700; color: var(--vert); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
+    .installation__etapes { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .installation__etapes li {
+      font-size: 11.5px; color: var(--encre); line-height: 1.45; padding-left: 22px; position: relative; counter-increment: etape;
+    }
+    .installation__etapes { counter-reset: etape; }
+    .installation__etapes li::before {
+      content: counter(etape); position: absolute; left: 0; top: 0.5px;
+      width: 15px; height: 15px; border-radius: 50%; background: var(--vert); color: #fff;
+      font-size: 9.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    }
+
+    footer { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; font-size: 11px; color: var(--gris); }
+
+    @media (max-width: 720px) {
+      .barre-actions { max-width: 100%; }
+      .feuille { width: auto; min-height: auto; padding: 20px 16px; margin: 0 8px 16px; }
+      header { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .hero h1, .hero p { max-width: 100%; }
+      .grille { grid-template-columns: 1fr; }
+      .atouts { flex-wrap: wrap; }
+      .atout { flex: 1 1 45%; border-left: none; border-top: 1px solid rgba(255,255,255,.14); }
+      .acces { flex-direction: column; text-align: center; }
+      .acces__qr { margin: 0 auto; }
+      .installation__etapes li { text-align: left; }
+      footer { flex-direction: column; gap: 6px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .barre-actions { display: none; }
+      .feuille { box-shadow: none; margin: 0; width: auto; min-height: auto; padding: 10mm 12mm; }
+      .atouts, .mod, .acces { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: A4; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="barre-actions">
+    <button class="btn btn--sec" onclick="history.back()">← Retour</button>
+    <button class="btn" onclick="window.print()">Imprimer / PDF</button>
+  </div>
+
+  <!-- Contenu injecté par affiche-citoyens.js. -->
+  <div class="feuille" id="feuille"></div>
+
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-3"></script>
+  <script src="/backoffice/js/affiche-citoyens.js?v=20260820-1"></script>
+</body>
+</html>

@@ -80,7 +80,7 @@ export async function onRequest(context) {
       return context.env.ASSETS.fetch(context.request);
     }
     const nom = segments.length === 1 ? 'index' : dernierSeg;
-    const pageCible = ['index', 'connexion', 'fiche', 'document'].includes(nom) ? nom : 'index';
+    const pageCible = ['index', 'connexion', 'fiche', 'document', 'affiche-citoyens'].includes(nom) ? nom : 'index';
     const page = await recupererAssetSansRedirection(context.env, new URL(`/backoffice/${pageCible}.html`, url.origin));
     if (page) return new Response(page.body, { status: page.status, headers: page.headers });
     return context.env.ASSETS.fetch(context.request);

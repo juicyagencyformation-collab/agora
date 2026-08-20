@@ -57,6 +57,7 @@ function blocPsModules(): string {
 export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const url = `${d.frontendUrl}/${d.slug}/`;
   const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
+  const afficheUrl = `${d.frontendUrl}/backoffice/affiche-citoyens?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
   const nom = echapper(d.nomCommune);
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
@@ -80,6 +81,15 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
       Pour découvrir l'application en détail&nbsp;:
       <a href="${ficheUrl}" style="color:#2c5f2d">voir la fiche de présentation</a>.
     </p>
+
+    <div style="background:#f4f8f4;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <p style="font-size:14px;color:#1b2a1c;font-weight:600;margin-bottom:4px">📋 Envie d'inviter vos administrés ?</p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6">
+        Une affiche prête à imprimer, avec le QR code de ${nom} pour que vos habitants créent leur
+        compte en la scannant&nbsp;:
+        <a href="${afficheUrl}" style="color:#2c5f2d">imprimer l'affiche citoyenne</a>.
+      </p>
+    </div>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c">

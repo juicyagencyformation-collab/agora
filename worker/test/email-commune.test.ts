@@ -25,6 +25,9 @@ describe('emailBienvenueHtml', () => {
     expect(html).toContain('maire@eaucourt.fr');
     expect(html).toContain('Abc23xyz45');
   });
+  it('contient le lien vers l\'affiche citoyenne imprimable', () => {
+    expect(html).toContain('/backoffice/affiche-citoyens?slug=eaucourt&nom=Eaucourt-sur-Somme');
+  });
   it('échappe le nom de la commune contre l\'injection HTML', () => {
     const mechant = emailBienvenueHtml({
       nomCommune: '<script>x</script>', slug: 'x',
