@@ -271,10 +271,19 @@ app.get('/prospects/:id', async (c) => {
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
+  // Le slug ne vit que sur communes (créée à l'activation, voir activerCommuneGratuite) : sans
+  // lui, impossible de personnaliser un lien vers la fiche de présentation ou son QR pour CE
+  // prospect précis — jusqu'ici seul l'écran de conversion manuelle l'avait sous la main.
+  let commune_slug: string | null = null;
+  if (prospect.commune_id) {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
+    commune_slug = commune?.slug || null;
+  }
+
   const interactions = await supabaseSelect(c.env, 'prospect_interactions', {
     select: 'type,contenu,created_at', prospect_id: `eq.${id}`, order: 'created_at.desc',
   });
-  return c.json({ prospect, interactions });
+  return c.json({ prospect: { ...prospect, commune_slug }, interactions });
 });
 
 // — Enrichissement contact via l'annuaire (une seule commune à la fois : léger) —
