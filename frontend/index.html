@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Agora</title>
-  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260820-2" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260820-3" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260820-2">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260820-2">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260820-2">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260820-2">
+  <link rel="stylesheet" href="/css/base.css?v=20260820-3">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260820-3">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260820-3">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260820-3">
 </head>
 <body>
 
@@ -107,11 +107,11 @@
         </div>
       </div>
 
-      <h3 style="margin-top:22px;">Carte des signalements</h3>
-      <div id="carte-alertes" style="height:320px;border-radius:14px;overflow:hidden;"></div>
-
-      <h3 style="margin-top:18px;">Liste des signalements</h3>
+      <h3 style="margin-top:22px;">Liste des signalements</h3>
       <div id="liste-alertes"></div>
+
+      <button type="button" id="btn-toggle-carte-alertes" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);width:100%;margin-top:14px;">🗺️ Voir la carte</button>
+      <div id="carte-alertes" style="height:320px;border-radius:14px;overflow:hidden;margin-top:12px;" hidden></div>
     </section>
 
     <section id="onglet-thermometre" class="onglet-contenu" hidden>
@@ -596,31 +596,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260820-2"></script>
-  <script src="/js/config.js?v=20260820-2"></script>
-  <script src="/js/utils.js?v=20260820-2"></script>
-  <script src="/js/api.js?v=20260820-2"></script>
-  <script src="/js/editeur-riche.js?v=20260820-2"></script>
-  <script src="/js/dashboard.js?v=20260820-2"></script>
-  <script src="/js/articles.js?v=20260820-2"></script>
-  <script src="/js/alertes.js?v=20260820-2"></script>
-  <script src="/js/thermometre.js?v=20260820-2"></script>
-  <script src="/js/mur.js?v=20260820-2"></script>
-  <script src="/js/agenda.js?v=20260820-2"></script>
-  <script src="/js/coups-de-main.js?v=20260820-2"></script>
-  <script src="/js/coups-de-main-form.js?v=20260820-2"></script>
-  <script src="/js/chasse-tresor.js?v=20260820-2"></script>
-  <script src="/js/conseil.js?v=20260820-2"></script>
-  <script src="/js/annuaire.js?v=20260820-2"></script>
-  <script src="/js/bulletin.js?v=20260820-2"></script>
-  <script src="/js/photo-du-jour.js?v=20260820-2"></script>
-  <script src="/js/memoire.js?v=20260820-2"></script>
-  <script src="/js/enigmes.js?v=20260820-2"></script>
-  <script src="/js/profil.js?v=20260820-2"></script>
-  <script src="/js/notifications.js?v=20260820-2"></script>
-  <script src="/js/lois.js?v=20260820-2"></script>
-  <script src="/js/moderation.js?v=20260820-2"></script>
-  <script src="/js/participation-citoyenne.js?v=20260820-2"></script>
-  <script src="/js/navigation.js?v=20260820-2"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260820-3"></script>
+  <script src="/js/config.js?v=20260820-3"></script>
+  <script src="/js/utils.js?v=20260820-3"></script>
+  <script src="/js/api.js?v=20260820-3"></script>
+  <script src="/js/editeur-riche.js?v=20260820-3"></script>
+  <script src="/js/dashboard.js?v=20260820-3"></script>
+  <script src="/js/articles.js?v=20260820-3"></script>
+  <script src="/js/alertes.js?v=20260820-3"></script>
+  <script src="/js/thermometre.js?v=20260820-3"></script>
+  <script src="/js/mur.js?v=20260820-3"></script>
+  <script src="/js/agenda.js?v=20260820-3"></script>
+  <script src="/js/coups-de-main.js?v=20260820-3"></script>
+  <script src="/js/coups-de-main-form.js?v=20260820-3"></script>
+  <script src="/js/chasse-tresor.js?v=20260820-3"></script>
+  <script src="/js/conseil.js?v=20260820-3"></script>
+  <script src="/js/annuaire.js?v=20260820-3"></script>
+  <script src="/js/bulletin.js?v=20260820-3"></script>
+  <script src="/js/photo-du-jour.js?v=20260820-3"></script>
+  <script src="/js/memoire.js?v=20260820-3"></script>
+  <script src="/js/enigmes.js?v=20260820-3"></script>
+  <script src="/js/profil.js?v=20260820-3"></script>
+  <script src="/js/notifications.js?v=20260820-3"></script>
+  <script src="/js/lois.js?v=20260820-3"></script>
+  <script src="/js/moderation.js?v=20260820-3"></script>
+  <script src="/js/participation-citoyenne.js?v=20260820-3"></script>
+  <script src="/js/navigation.js?v=20260820-3"></script>
 </body>
 </html>

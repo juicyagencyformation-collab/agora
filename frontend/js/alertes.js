@@ -9,28 +9,51 @@ function estGestionnaireAlerte() {
   return ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 }
 
-async function initCarteAlertes() {
-  if (!carteAlertes) {
-    carteAlertes = L.map('carte-alertes', { maxZoom: 20 }).setView(
-      [window.COMMUNE_LAT ?? 43.6047, window.COMMUNE_LNG ?? 1.4442],
-      window.COMMUNE_COORDS_MANQUANTES ? 6 : 15,
-    );
-    L.tileLayer(
-      'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
-      { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
-    ).addTo(carteAlertes);
-  }
-
+// Charge la liste (toujours visible) et met à jour la carte SI elle est déjà ouverte —
+// la carte Leaflet elle-même (et ses requêtes de tuiles IGN) n'est créée qu'au premier clic
+// sur "Voir la carte" (voir initToggleCarteAlertes), pas à chaque ouverture de l'onglet.
+async function chargerAlertes() {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes`);
   if (!res.ok) return;
   const { alertes } = await res.json();
   alertesCache = alertes;
+  renderListeAlertes(alertes);
+  afficherAlertesSurCarte(alertes);
+}
 
+function afficherAlertesSurCarte(alertes) {
+  if (!carteAlertes) return; // carte pas encore ouverte : rien à mettre à jour
   carteAlertes.eachLayer((couche) => {
     if (couche instanceof L.Marker || couche instanceof L.CircleMarker) carteAlertes.removeLayer(couche);
   });
   alertes.forEach(ajouterMarqueurAlerte);
-  renderListeAlertes(alertes);
+}
+
+function initToggleCarteAlertes() {
+  const btn = document.getElementById('btn-toggle-carte-alertes');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const zone = document.getElementById('carte-alertes');
+    const ouverte = zone.hidden;
+    zone.hidden = !ouverte;
+    btn.textContent = ouverte ? '✕ Masquer la carte' : '🗺️ Voir la carte';
+    if (ouverte) {
+      setTimeout(() => {
+        if (!carteAlertes) {
+          carteAlertes = L.map('carte-alertes', { maxZoom: 20 }).setView(
+            [window.COMMUNE_LAT ?? 43.6047, window.COMMUNE_LNG ?? 1.4442],
+            window.COMMUNE_COORDS_MANQUANTES ? 6 : 15,
+          );
+          L.tileLayer(
+            'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+            { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+          ).addTo(carteAlertes);
+          afficherAlertesSurCarte(alertesCache);
+        }
+        carteAlertes.invalidateSize();
+      }, 50);
+    }
+  });
 }
 
 function peutSupprimerAlerte(alerte) {
@@ -42,7 +65,7 @@ async function supprimerAlerte(id) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes/${id}`, { method: 'DELETE' });
   if (res.ok) {
     afficherToastMessage('Signalement supprimé.', 'succes');
-    initCarteAlertes();
+    chargerAlertes();
   } else {
     const data = await res.json().catch(() => ({}));
     afficherToastMessage(data.erreur || 'Erreur lors de la suppression.', 'erreur');
@@ -200,7 +223,7 @@ function remplirDetailAlerte(zone, alerte) {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statut: btn.dataset.statut }),
       });
-      if (res.ok) { afficherToastMessage('Statut mis à jour.', 'succes'); initCarteAlertes(); }
+      if (res.ok) { afficherToastMessage('Statut mis à jour.', 'succes'); chargerAlertes(); }
       else afficherToastMessage('Erreur lors du changement de statut.', 'erreur');
     });
   });
@@ -213,7 +236,7 @@ function remplirDetailAlerte(zone, alerte) {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reponse }),
     });
-    if (res.ok) { afficherToastMessage('Réponse publiée.', 'succes'); initCarteAlertes(); }
+    if (res.ok) { afficherToastMessage('Réponse publiée.', 'succes'); chargerAlertes(); }
     else afficherToastMessage('Erreur lors de la publication.', 'erreur');
   });
 
@@ -276,7 +299,7 @@ function ouvrirModaleEditionAlerte(alerte) {
         ...(positionSelectionneeAlerte ? { lat: positionSelectionneeAlerte.lat, lng: positionSelectionneeAlerte.lng } : {}),
       }),
     });
-    if (res.ok) { fermerModaleFormulaire(overlay); afficherToastMessage('Signalement modifié.', 'succes'); initCarteAlertes(); }
+    if (res.ok) { fermerModaleFormulaire(overlay); afficherToastMessage('Signalement modifié.', 'succes'); chargerAlertes(); }
     else { const data = await res.json(); afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur', 'erreur'); }
   });
 }
@@ -355,7 +378,7 @@ function ouvrirModaleCreationAlerte() {
       const data = await res.json();
       fermerModaleFormulaire(overlay);
       traiterRecompense?.(data);
-      initCarteAlertes();
+      chargerAlertes();
     } else {
       const data = await res.json();
       afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur lors du signalement', 'erreur');

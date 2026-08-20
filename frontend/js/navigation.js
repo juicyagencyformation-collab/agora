@@ -99,7 +99,7 @@ async function initCommune() {
 const CHARGEURS = {
   accueil: () => chargerDashboard(),
   actualites: () => chargerArticles(),
-  alertes: () => initCarteAlertes(),
+  alertes: () => chargerAlertes(),
   thermometre: () => chargerThermometre(),
   mur: () => initMur(),
   agenda: () => chargerAgenda(),
@@ -170,6 +170,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   await initVisibiliteOnglets();
   initFormulaireArticle();
   initFormulaireAlerte();
+  initToggleCarteAlertes();
   initFormulaireAgenda();
   initToggleHistoriqueAgenda();
   initToggleCarteAgenda();
