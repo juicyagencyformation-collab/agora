@@ -95,6 +95,9 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .lune-label-hero { font-size: 13.5px; font-weight: 600; }
 .lune-detail-hero { font-size: 11.5px; opacity: .8; margin-top: 1px; }
+/* Astuce jardinier traditionnelle liée à la phase — visible en vrai texte plutôt qu'en
+   infobulle (au survol, donc jamais vue au toucher sur mobile). */
+.lune-conseil-hero { font-size: 11px; font-style: italic; opacity: .75; margin-top: 4px; line-height: 1.3; }
 
 /* Disque lunaire "réel" plutôt qu'un emoji : deux cercles de même diamètre superposés,
    celui du dessus (l'ombre) glissé horizontalement selon la phase — au recouvrement total

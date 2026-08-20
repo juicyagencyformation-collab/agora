@@ -335,15 +335,12 @@ async function chargerCielJour() {
     const illumFrac = phaseLune.illumination / 100;
     const croissante = phaseLune.fractionCycle <= 0.5;
     const decalage = Math.round(diametreLune * (croissante ? -illumFrac : illumFrac));
-    // Le conseil traditionnel (désherber, semer...) reste disponible en infobulle plutôt
-    // qu'imprimé en toutes lettres : c'est un complément folklorique, pas une info du jour
-    // essentielle — pas de raison de lui donner autant de place qu'au conseil municipal.
-    zoneLune.title = phaseLune.conseil;
     zoneLune.innerHTML = `
       <div class="lune-disque"><div class="lune-ombre" style="transform:translateX(${decalage}px)"></div></div>
       <div>
         <div class="lune-label-hero">${phaseLune.nom}</div>
         <div class="lune-detail-hero">${phaseLune.illumination}% illuminée · ${phaseLune.texteEcheance}</div>
+        <div class="lune-conseil-hero">🌱 ${phaseLune.conseil}</div>
       </div>
     `;
   }
