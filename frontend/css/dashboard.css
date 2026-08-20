@@ -114,16 +114,36 @@ h1, h2, h3, h4, p, span, a, button {
   background: var(--calc); border: 1.5px solid var(--eauL); padding: 6px;
 }
 
-.bandeau-resumes-pastilles { display: flex; flex-wrap: wrap; gap: 8px; }
-.pastille-resume {
-  display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 100px;
-  border: none; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;
+/* "En un coup d'œil" — rangée de tuiles scrollable, toujours visible (jamais masquée en
+   entier comme l'ancien bandeau de pastilles) : un repli "Tout est calme" plutôt que rien,
+   pour que la toute première section sous la météo ait toujours quelque chose à montrer. */
+.rangee-coup-oeil { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; }
+.tuile-coup-oeil {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px; min-width: 168px; max-width: 210px;
+  border: none; border-radius: 14px; padding: 11px 13px; cursor: pointer; text-align: left;
+  font-family: 'DM Sans', sans-serif; box-shadow: 0 2px 8px rgba(44,95,110,.08);
+  transition: transform .12s ease;
 }
-.pastille-icone { font-size: 14px; }
-.pastille-rouge { background: rgba(192,57,43,.12); color: #C0392B; }
-.pastille-aube { background: rgba(226,201,126,.25); color: #8B6A2A; }
-.pastille-eau { background: var(--eauXL); color: var(--eau); }
-.pastille-prairie { background: rgba(92,122,78,.15); color: var(--prairie); }
+.tuile-coup-oeil:active { transform: scale(.97); }
+.tuile-coup-oeil-icone {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.6);
+  display: flex; align-items: center; justify-content: center; font-size: 16px;
+}
+.tuile-coup-oeil-texte { min-width: 0; }
+.tuile-coup-oeil-titre {
+  display: block; font-family: 'Playfair Display', serif; font-size: 14px; font-weight: 700;
+  line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tuile-coup-oeil-sous {
+  display: block; font-size: 11px; margin-top: 1px; opacity: .8;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tuile-coup-oeil--rouge { background: rgba(192,57,43,.12); color: #C0392B; }
+.tuile-coup-oeil--aube { background: rgba(226,201,126,.28); color: #8B6A2A; }
+.tuile-coup-oeil--eau { background: var(--eauXL); color: var(--eau); }
+.tuile-coup-oeil--prairie { background: rgba(92,122,78,.15); color: var(--prairie); }
+.tuile-coup-oeil--neutre { background: var(--eauXL); color: var(--roseau); cursor: default; box-shadow: none; }
+.tuile-coup-oeil--neutre:active { transform: none; }
 
 .rangee-actions-rapides-accueil { display: flex; gap: 8px; width: 100%; margin: 6px 0 16px; }
 /* Contour plutôt que bloc plein : reste bien repérable (couleur + icône) sans dominer

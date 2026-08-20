@@ -412,30 +412,89 @@ async function chargerProchainConseil() {
   zone.onclick = () => activerOnglet('conseil');
 }
 
+// Une tuile = une icône ronde + un titre (Playfair, gras) + un sous-titre (contexte).
+// Sans onClick, la tuile devient un simple repère statique (ex. "Tout est calme").
+function creerTuileCoupOeil(couleur, icone, titreTuile, sousTitre, onClick) {
+  const tuile = document.createElement('button');
+  tuile.type = 'button';
+  tuile.className = `tuile-coup-oeil tuile-coup-oeil--${couleur}`;
+  tuile.innerHTML = `
+    <span class="tuile-coup-oeil-icone">${icone}</span>
+    <span class="tuile-coup-oeil-texte">
+      <strong class="tuile-coup-oeil-titre">${titreTuile}</strong>
+      <span class="tuile-coup-oeil-sous">${sousTitre}</span>
+    </span>
+  `;
+  if (onClick) tuile.addEventListener('click', onClick);
+  return tuile;
+}
+
+// "En un coup d'œil" : mini-synthèse vivante de la commune (agenda du jour, alertes actives,
+// sondage en cours, entraide ouverte). Toujours au moins une tuile affichée — un repli "Tout
+// est calme" plutôt qu'une section vide, pour que ce soit un vrai reflet de vie locale et pas
+// un bloc qui disparaît la plupart des jours (ancien comportement, agenda-seul).
 async function chargerResumes() {
   const zone = document.getElementById('bandeau-resumes');
-  const titre = document.getElementById('titre-coup-oeil');
   if (!zone) return;
   zone.innerHTML = '';
 
-  const agendaRes = await appelApi(`/${window.COMMUNE_SLUG}/agenda`);
+  const [agendaRes, alertesRes, sondagesRes, coupsDeMainRes] = await Promise.all([
+    appelApi(`/${window.COMMUNE_SLUG}/agenda`),
+    appelApi(`/${window.COMMUNE_SLUG}/alertes`),
+    appelApi(`/${window.COMMUNE_SLUG}/sondages`),
+    appelApi(`/${window.COMMUNE_SLUG}/coups-de-main`),
+  ]);
+
   if (agendaRes.ok) {
     const { events } = await agendaRes.json();
     if (events.length) {
       // Le plus proche événement fixe le jour affiché : s'il y en a plusieurs ce jour-là,
-      // une pastille par événement (pas seulement le premier de la liste).
+      // une tuile par événement (pas seulement le premier de la liste).
       const premierJour = new Date(events[0].date_debut);
       const memeJour = (date) => date.getFullYear() === premierJour.getFullYear()
         && date.getMonth() === premierJour.getMonth() && date.getDate() === premierJour.getDate();
       for (const evt of events.filter((e) => memeJour(new Date(e.date_debut)))) {
         const d = new Date(evt.date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-        const pastille = document.createElement('button');
-        pastille.className = 'pastille-resume pastille-aube';
-        pastille.innerHTML = `<span class="pastille-icone">📅</span><span>${escapeAttr(evt.titre)} (${d})</span>`;
-        pastille.addEventListener('click', () => activerOnglet('agenda'));
-        zone.appendChild(pastille);
+        zone.appendChild(creerTuileCoupOeil('eau', '📅', escapeAttr(evt.titre), d, () => activerOnglet('agenda')));
       }
     }
   }
-  if (titre) titre.hidden = zone.children.length === 0;
+
+  if (alertesRes.ok) {
+    const { alertes } = await alertesRes.json();
+    const actives = alertes.filter((a) => a.statut !== 'resolue');
+    if (actives.length) {
+      zone.appendChild(creerTuileCoupOeil(
+        'rouge', '🚨', `${actives.length} alerte${actives.length > 1 ? 's' : ''}`, 'en cours',
+        () => activerOnglet('alertes'),
+      ));
+    }
+  }
+
+  if (sondagesRes.ok) {
+    const { sondages } = await sondagesRes.json();
+    const ouvert = sondages.find((s) =>
+      (!s.closes_at || new Date(s.closes_at) > new Date()) && s.mes_votes.length === 0);
+    if (ouvert) {
+      const question = escapeAttr(ouvert.question).slice(0, 34);
+      zone.appendChild(creerTuileCoupOeil(
+        'aube', '🌡️', 'Sondage en cours', question + (ouvert.question.length > 34 ? '…' : ''),
+        () => activerOnglet('thermometre'),
+      ));
+    }
+  }
+
+  if (coupsDeMainRes.ok) {
+    const { annonces } = await coupsDeMainRes.json();
+    if (annonces?.length) {
+      zone.appendChild(creerTuileCoupOeil(
+        'prairie', '🤲', `${annonces.length} coup${annonces.length > 1 ? 's' : ''} de main`, 'entraide ouverte',
+        () => activerOnglet('coups-de-main'),
+      ));
+    }
+  }
+
+  if (!zone.children.length) {
+    zone.appendChild(creerTuileCoupOeil('neutre', '🌿', 'Tout est calme', 'aujourd\'hui'));
+  }
 }
