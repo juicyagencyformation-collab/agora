@@ -208,7 +208,12 @@ function backoffice() {
     filtreTri: 'nom',
     filtreInscrits: false, // "🔥 s'est inscrit" — voir declencherBienvenuePremiereInscription côté serveur
     totalInscrits: 0,
-    sousVueProspection: 'liste', // 'liste' | 'carte'
+    sousVueProspection: 'liste', // 'liste' | 'carte' | 'recues'
+    emailsRecus: [],
+    emailsRecusATraiter: 0,
+    filtreEmailsRecusTraite: '0',
+    filtreEmailsRecusCategorie: '',
+    emailRecuEnCours: null,
     importDep: '',
     importPopMax: '',
     importEnCours: false,
@@ -993,6 +998,35 @@ function backoffice() {
       this.initCarte();
       await this.chargerMarqueurs();
       if (carteLeaflet) carteLeaflet.invalidateSize();
+    },
+
+    async afficherEmailsRecus() {
+      this.sousVueProspection = 'recues';
+      await this.chargerEmailsRecus();
+    },
+    async chargerEmailsRecus() {
+      const params = new URLSearchParams();
+      if (this.filtreEmailsRecusTraite) params.set('traite', this.filtreEmailsRecusTraite);
+      if (this.filtreEmailsRecusCategorie) params.set('categorie', this.filtreEmailsRecusCategorie);
+      try {
+        const r = await boFetch('/prospection/emails-recus?' + params);
+        this.emailsRecus = r.emails;
+        this.emailsRecusATraiter = r.a_traiter;
+      } catch { /* liste vide plutôt que de casser l'écran */ }
+    },
+    async marquerEmailRecuTraite(email, traite) {
+      this.emailRecuEnCours = email.id;
+      try {
+        await boFetch('/prospection/emails-recus/' + email.id, { method: 'PATCH', body: JSON.stringify({ traite }) });
+        await this.chargerEmailsRecus();
+      } catch (e) {
+        alert(e.message || 'Mise à jour impossible');
+      } finally {
+        this.emailRecuEnCours = null;
+      }
+    },
+    libelleCategorieEmailRecu(cat) {
+      return { fermeture: '🏛 Fermeture', changement_email: '📧 Changement d\'adresse', autre: '❓ Autre' }[cat] || cat;
     },
 
     initCarte() {

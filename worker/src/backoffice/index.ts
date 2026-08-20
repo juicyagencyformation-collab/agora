@@ -11,7 +11,7 @@ import facturation from './facturation';
 import { chargerFiche } from './modele-fiche';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
-import { traiterEmailRecu } from './reponses-auto';
+import { traiterEmailRecu } from './emails-recus';
 
 const app = new Hono();
 
@@ -25,8 +25,8 @@ app.get('/fiche-contenu', async (c) => {
 // Webhook Resend (bounces / plaintes / ouvertures / clics / réponses reçues) — PUBLIC mais
 // authentifié par SIGNATURE Svix. Enregistre l'email rejeté et signale l'adresse sur le prospect ;
 // alimente aussi le suivi structuré des envois de prospection (envois_prospection, migration 040)
-// pour le funnel envoyé → ouvert → cliqué → rejeté par variante A/B ; et interprète (via IA, voir
-// reponses-auto.ts) les réponses automatiques des mairies (fermeture, changement d'adresse).
+// pour le funnel envoyé → ouvert → cliqué → rejeté par variante A/B ; et capture (sans IA, voir
+// emails-recus.ts) les réponses reçues des mairies dans une boîte de réception triée par mots-clés.
 app.post('/webhook-resend', async (c) => {
   const corpsBrut = await c.req.text();
   const svixId = c.req.header('svix-id');
@@ -107,12 +107,14 @@ app.post('/webhook-resend', async (c) => {
     }
   } else if (evt?.type === 'email.received') {
     // Le webhook ne porte que les métadonnées (email_id, from...), jamais le corps du message —
-    // toute la suite (rappel API Resend + interprétation IA) est déportée en arrière-plan pour
-    // renvoyer 200 tout de suite : sinon Resend, en l'absence de réponse rapide, retente l'envoi
-    // et double le traitement (voir traiterEmailRecu, aucune protection anti-doublon dédiée).
+    // le rappel à l'API Resend pour le récupérer est déporté en arrière-plan pour renvoyer 200
+    // tout de suite (sinon Resend, faute de réponse rapide, retente l'envoi — voir traiterEmailRecu
+    // pour la protection anti-doublon par event_id, qui couvre ce cas).
     const emailId = evt?.data?.email_id;
     const fromMeta = evt?.data?.from;
-    if (emailId && fromMeta) c.executionCtx.waitUntil(traiterEmailRecu(c.env, emailId, fromMeta));
+    const sujet = evt?.data?.subject || null;
+    const eventId = c.req.header('svix-id');
+    if (emailId && fromMeta && eventId) c.executionCtx.waitUntil(traiterEmailRecu(c.env, eventId, emailId, fromMeta, sujet));
   }
   return c.json({ ok: true });
 });

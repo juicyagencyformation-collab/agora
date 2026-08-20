@@ -193,6 +193,41 @@ app.get('/carte', async (c) => {
   return c.json({ prospects });
 });
 
+// — Boîte de réception des réponses reçues (voir emails-recus.ts, alimentée par le webhook
+// Resend Receiving). Triée par mots-clés côté serveur, aucune IA : à traiter à la main. —
+const CATEGORIES_EMAILS_RECUS = ['fermeture', 'changement_email', 'autre'] as const;
+
+app.get('/emails-recus', async (c) => {
+  const where: Record<string, string> = {};
+  const traite = c.req.query('traite');
+  if (traite === '0') where.traite_le = 'is.null';
+  if (traite === '1') where.traite_le = 'not.is.null';
+  const categorie = c.req.query('categorie');
+  if (categorie && (CATEGORIES_EMAILS_RECUS as readonly string[]).includes(categorie)) where.categorie = `eq.${categorie}`;
+
+  const [emails, aTraiter] = await Promise.all([
+    supabaseSelect(c.env, 'emails_recus', {
+      ...where,
+      select: 'id,prospect_id,commune_nom,expediteur,sujet,texte,categorie,traite_le,created_at',
+      order: 'created_at.desc', limit: '200',
+    }),
+    supabaseCount(c.env, 'emails_recus', { traite_le: 'is.null' }),
+  ]);
+  return c.json({ emails, a_traiter: aTraiter });
+});
+
+const patchEmailRecuSchema = z.object({ traite: z.boolean() });
+
+app.patch('/emails-recus/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = patchEmailRecuSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  await supabaseUpdate(c.env, 'emails_recus', {
+    traite_le: body.data.traite ? new Date().toISOString() : null,
+  }, { id: `eq.${id}` });
+  return c.json({ ok: true });
+});
+
 // — Aperçu : compteurs par statut + relances dues aujourd'hui —
 app.get('/apercu', async (c) => {
   // Pagination complète (pas un simple limit élevé) : Supabase plafonne chaque réponse à 1000

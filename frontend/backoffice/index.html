@@ -2385,6 +2385,9 @@
           <div class="bo-outils" style="margin-bottom:14px">
             <button class="bo-btn bo-btn--compact" :class="{ 'bo-btn--sec': sousVueProspection !== 'liste' }" @click="sousVueProspection = 'liste'">Liste</button>
             <button class="bo-btn bo-btn--compact" :class="{ 'bo-btn--sec': sousVueProspection !== 'carte' }" @click="afficherCarte()">Carte</button>
+            <button class="bo-btn bo-btn--compact" :class="{ 'bo-btn--sec': sousVueProspection !== 'recues' }" @click="afficherEmailsRecus()">
+              📥 Réponses reçues<span x-show="emailsRecusATraiter" x-text="' (' + emailsRecusATraiter + ')'"></span>
+            </button>
             <span class="bo-info" x-show="sousVueProspection === 'carte'">Seules les communes déjà enrichies (avec coordonnées) apparaissent — la carte se remplit au fil de la prospection.</span>
           </div>
 
@@ -2470,6 +2473,48 @@
               <span><span class="bo-pastille" style="background:#a78bfa"></span> RDV</span>
               <span><span class="bo-pastille" style="background:#34d399"></span> Gagné</span>
               <span><span class="bo-pastille" style="background:#f87171"></span> Perdu</span>
+            </div>
+          </div>
+
+          <!-- Vue réponses reçues (boîte de réception, Resend Receiving — voir emails-recus.ts.
+               Tri par mots-clés, aucune action automatique : tout se corrige à la main depuis la
+               fiche prospect, ce bloc sert juste à ne rien manquer. -->
+          <div x-show="sousVueProspection === 'recues'">
+            <div class="bo-outils" style="margin-bottom:14px">
+              <select x-model="filtreEmailsRecusTraite" @change="chargerEmailsRecus()" style="width:auto">
+                <option value="0">À traiter</option>
+                <option value="1">Déjà traités</option>
+                <option value="">Tous</option>
+              </select>
+              <select x-model="filtreEmailsRecusCategorie" @change="chargerEmailsRecus()" style="width:auto">
+                <option value="">Toutes catégories</option>
+                <option value="fermeture">🏛 Fermeture</option>
+                <option value="changement_email">📧 Changement d'adresse</option>
+                <option value="autre">❓ Autre</option>
+              </select>
+            </div>
+            <div class="bo-carte" style="padding:0 18px">
+              <template x-for="e in emailsRecus" :key="e.id">
+                <div class="bo-timeline-item">
+                  <span class="bo-timeline__type"><span class="bo-badge" x-text="libelleCategorieEmailRecu(e.categorie)"></span></span>
+                  <div class="bo-timeline__corps">
+                    <div style="font-weight:600; cursor:pointer" x-show="e.prospect_id" @click="ouvrirProspect(e.prospect_id)" x-text="e.commune_nom || e.expediteur"></div>
+                    <div style="font-weight:600" x-show="!e.prospect_id" x-text="(e.commune_nom || 'Prospect non identifié')"></div>
+                    <div class="bo-info" x-text="e.expediteur + (e.sujet ? ' — ' + e.sujet : '')"></div>
+                    <div style="margin:6px 0; white-space:pre-wrap" x-text="e.texte"></div>
+                    <div style="display:flex; align-items:center; gap:8px">
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" :disabled="emailRecuEnCours === e.id"
+                              @click="marquerEmailRecuTraite(e, !e.traite_le)"
+                              x-text="e.traite_le ? 'Marquer à traiter' : '✓ Marquer traité'"></button>
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="e.prospect_id" @click="ouvrirProspect(e.prospect_id)">Ouvrir la fiche</button>
+                      <span class="bo-timeline__meta" style="margin:0" x-text="formatDateHeure(e.created_at)"></span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <template x-if="emailsRecus.length === 0">
+                <div class="bo-vide" style="padding:20px; text-align:center">Aucune réponse reçue pour l'instant.</div>
+              </template>
             </div>
           </div>
         </div>
@@ -2758,7 +2803,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260820-2"></script>
+  <script src="/backoffice/js/app.js?v=20260820-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
