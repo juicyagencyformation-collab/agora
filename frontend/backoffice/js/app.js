@@ -669,12 +669,18 @@ function backoffice() {
       }
     },
 
-    // Aperçu rendu du corps pour les modèles génériques : seulement {{commune}}/{{url}} (pas
-    // de logo/signature sur ces messages courts et personnels).
+    // Aperçu rendu du corps pour les modèles génériques (bienvenue, relance inactivité,
+    // séquence onboarding/upsell) : mêmes 5 variables que rendrePresentation() côté serveur.
+    // {{logo}}/{{signature_photo}} n'ont pas de champ d'upload dédié sur ces modèles (contrairement
+    // à l'email de présentation) : ils retombent toujours sur le même repli générique, quelle que
+    // soit la commune — l'aperçu doit montrer EXACTEMENT ce repli, pas les faire disparaître.
     rendreApercuGenerique(corpsHtml) {
       return (corpsHtml || '')
         .replace(/\{\{commune\}\}/g, 'Commune Test')
-        .replace(/\{\{url\}\}/g, 'https://plateforme-agora.fr/commune-test/');
+        .replace(/\{\{url\}\}/g, 'https://plateforme-agora.fr/commune-test/')
+        .replace(/\{\{lien_fiche\}\}/g, 'https://plateforme-agora.fr/backoffice/fiche?slug=commune-test&nom=Commune+Test')
+        .replace(/\{\{logo\}\}/g, '<div style="font-weight:800;color:#2c5f2d;font-size:22px">Plateforme-Agora</div>')
+        .replace(/\{\{signature_photo\}\}/g, '');
     },
 
     exec(commande, valeur = null) {
