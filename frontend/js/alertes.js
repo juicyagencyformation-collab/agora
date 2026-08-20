@@ -32,11 +32,13 @@ function afficherAlertesSurCarte(alertes) {
 function initToggleCarteAlertes() {
   const btn = document.getElementById('btn-toggle-carte-alertes');
   if (!btn) return;
+  const sousTitre = document.getElementById('soustitre-toggle-carte-alertes');
   btn.addEventListener('click', () => {
     const zone = document.getElementById('carte-alertes');
     const ouverte = zone.hidden;
     zone.hidden = !ouverte;
-    btn.textContent = ouverte ? '✕ Masquer la carte' : '🗺️ Voir la carte';
+    btn.classList.toggle('ouverte', ouverte);
+    if (sousTitre) sousTitre.textContent = ouverte ? 'Cliquez pour la refermer' : 'Voir où ils se trouvent autour de vous';
     if (ouverte) {
       setTimeout(() => {
         if (!carteAlertes) {

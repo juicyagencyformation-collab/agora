@@ -755,6 +755,26 @@ h1, h2, h3, h4, p, span, a, button {
 
 .contenu-article-deplie { padding: 0 14px 14px; border-top: 1px solid var(--eauL); }
 
+/* Bouton "déplier la carte" (Alertes) : carte cliquable plutôt qu'un simple bouton contour,
+   pour donner envie d'ouvrir la carte au lieu de la traiter comme un réglage secondaire. */
+.carte-toggle-carte {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+  border: 1px solid var(--eauL); border-radius: var(--r); cursor: pointer; text-align: left;
+  background: linear-gradient(135deg, var(--eauXL), #fff); transition: transform .12s ease;
+}
+.carte-toggle-carte:active { transform: scale(.98); }
+.carte-toggle-carte-icone {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: var(--eau);
+  color: #fff; display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.carte-toggle-carte-texte { flex: 1; min-width: 0; }
+.carte-toggle-carte-texte strong {
+  display: block; font-family: 'Playfair Display', serif; font-size: 14.5px; color: var(--boue);
+}
+.carte-toggle-carte-texte span { display: block; font-size: 11.5px; color: var(--roseau); margin-top: 1px; }
+.carte-toggle-carte-chevron { flex-shrink: 0; color: var(--eau); font-size: 14px; transition: transform .2s ease; }
+.carte-toggle-carte.ouverte .carte-toggle-carte-chevron { transform: rotate(90deg); }
+
 /* ─── Numéros d'urgence — toujours rouge, indépendamment du thème personnalisé ─── */
 .carte-urgences {
   background: linear-gradient(135deg, #C0392B, #922B21); color: #fff;
