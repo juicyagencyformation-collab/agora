@@ -515,10 +515,15 @@ export const MODELE_ONBOARDING_UPSELL_DEFAUT = {
     <p style="margin:24px 0">
       <a href="{{lien_fiche}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Voir le détail des modules pour {{commune}}</a>
     </p>
-    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
-      Je peux aussi vous faire une démo rapide par téléphone ou en visio, adaptée à ce que vous
-      avez déjà mis en place — dites-moi simplement ce qui vous arrangerait.
-    </p>
+    <div style="background:#f4f8f4;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <p style="font-size:14px;color:#1b2a1c;font-weight:600;margin-bottom:4px">📞 On en discute ?</p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6">
+        Le plus simple&nbsp;: répondez directement à cet email, ou appelez-moi au
+        <a href="tel:+33648061097" style="color:#2c5f2d;font-weight:600">06&nbsp;48&nbsp;06&nbsp;10&nbsp;97</a> —
+        je réponds vite, et je peux vous faire un chiffrage exact adapté à {{commune}}
+        (avec la remise sur un engagement 3&nbsp;ans).
+      </p>
+    </div>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
