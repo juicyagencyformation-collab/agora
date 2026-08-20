@@ -11,6 +11,7 @@ import facturation from './facturation';
 import { chargerFiche } from './modele-fiche';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
+import { traiterEmailRecu } from './reponses-auto';
 
 const app = new Hono();
 
@@ -21,10 +22,11 @@ app.get('/fiche-contenu', async (c) => {
   return c.json(await chargerFiche(c.env));
 });
 
-// Webhook Resend (bounces / plaintes / ouvertures / clics) — PUBLIC mais authentifié par
-// SIGNATURE Svix. Enregistre l'email rejeté et signale l'adresse sur le prospect ; alimente
-// aussi le suivi structuré des envois de prospection (envois_prospection, migration 040) pour
-// le funnel envoyé → ouvert → cliqué → rejeté par variante A/B.
+// Webhook Resend (bounces / plaintes / ouvertures / clics / réponses reçues) — PUBLIC mais
+// authentifié par SIGNATURE Svix. Enregistre l'email rejeté et signale l'adresse sur le prospect ;
+// alimente aussi le suivi structuré des envois de prospection (envois_prospection, migration 040)
+// pour le funnel envoyé → ouvert → cliqué → rejeté par variante A/B ; et interprète (via IA, voir
+// reponses-auto.ts) les réponses automatiques des mairies (fermeture, changement d'adresse).
 app.post('/webhook-resend', async (c) => {
   const corpsBrut = await c.req.text();
   const svixId = c.req.header('svix-id');
@@ -33,10 +35,13 @@ app.post('/webhook-resend', async (c) => {
 
   // Resend impose un webhook (donc un secret distinct) par type d'événement. On accepte
   // plusieurs secrets : la signature est valide si elle correspond à L'UN d'eux.
-  // RESEND_WEBHOOK_SECRET_ENGAGEMENT : webhook dédié à email.opened/email.clicked, à créer dans
-  // Resend (Domaines → tracking activé) et pointer vers cette même URL.
+  // RESEND_WEBHOOK_SECRET_ENGAGEMENT : webhook dédié à email.opened/email.clicked.
+  // RESEND_WEBHOOK_SECRET_RECEIVED : webhook dédié à email.received ("Receiving", nécessite un
+  // enregistrement MX sur le domaine — voir Resend → Domains). Les deux se créent dans Resend et
+  // pointent vers cette même URL.
   const secrets = [
     c.env.RESEND_WEBHOOK_SECRET, c.env.RESEND_WEBHOOK_SECRET_COMPLAINED, c.env.RESEND_WEBHOOK_SECRET_ENGAGEMENT,
+    c.env.RESEND_WEBHOOK_SECRET_RECEIVED,
   ].filter(Boolean);
   let ok = false;
   for (const secret of secrets) {
@@ -100,6 +105,14 @@ app.post('/webhook-resend', async (c) => {
         }
       }
     }
+  } else if (evt?.type === 'email.received') {
+    // Le webhook ne porte que les métadonnées (email_id, from...), jamais le corps du message —
+    // toute la suite (rappel API Resend + interprétation IA) est déportée en arrière-plan pour
+    // renvoyer 200 tout de suite : sinon Resend, en l'absence de réponse rapide, retente l'envoi
+    // et double le traitement (voir traiterEmailRecu, aucune protection anti-doublon dédiée).
+    const emailId = evt?.data?.email_id;
+    const fromMeta = evt?.data?.from;
+    if (emailId && fromMeta) c.executionCtx.waitUntil(traiterEmailRecu(c.env, emailId, fromMeta));
   }
   return c.json({ ok: true });
 });
