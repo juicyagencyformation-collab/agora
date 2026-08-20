@@ -610,11 +610,13 @@ app.patch('/prospects/statut-lot', async (c) => {
   return c.json({ ok: true, modifies });
 });
 
-// — Mise à jour (statut, notes, relance). Un changement de statut est journalisé dans la timeline. —
+// — Mise à jour (statut, notes, relance, contact). Un changement de statut ou d'email est
+// journalisé dans la timeline (traçabilité : d'où vient une correction faite à la main).
 const patchSchema = z.object({
   statut: z.enum(STATUTS).optional(),
   notes: z.string().max(5000).optional().nullable(),
   prochaine_relance_le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  contact_email: z.string().email().optional().nullable(),
 });
 
 app.patch('/prospects/:id', async (c) => {
@@ -623,13 +625,20 @@ app.patch('/prospects/:id', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
 
-  const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'statut', id: `eq.${id}` });
+  const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'statut,contact_email', id: `eq.${id}` });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (body.data.statut !== undefined) patch.statut = body.data.statut;
   if (body.data.notes !== undefined) patch.notes = body.data.notes;
   if (body.data.prochaine_relance_le !== undefined) patch.prochaine_relance_le = body.data.prochaine_relance_le;
+  if (body.data.contact_email !== undefined) {
+    patch.contact_email = body.data.contact_email;
+    // Une correction manuelle mérite un nouvel essai : sans ça, une adresse pourtant réparée à
+    // la main resterait bloquée par le flag posé au précédent rejet Resend (même logique que
+    // l'enrichissement automatique via l'annuaire, voir enrichirDepuisAnnuaire ci-dessus).
+    if (body.data.contact_email && body.data.contact_email !== prospect.contact_email) patch.email_invalide = false;
+  }
 
   await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
 
@@ -637,6 +646,12 @@ app.patch('/prospects/:id', async (c) => {
     await supabaseInsert(c.env, 'prospect_interactions', {
       prospect_id: id, staff_id: c.get('staff_id'),
       type: 'statut', contenu: `Statut : ${prospect.statut} → ${body.data.statut}`,
+    });
+  }
+  if (body.data.contact_email !== undefined && body.data.contact_email !== prospect.contact_email) {
+    await supabaseInsert(c.env, 'prospect_interactions', {
+      prospect_id: id, staff_id: c.get('staff_id'),
+      type: 'contact', contenu: `Email corrigé à la main : ${prospect.contact_email || '(vide)'} → ${body.data.contact_email || '(vide)'}`,
     });
   }
   return c.json({ ok: true });

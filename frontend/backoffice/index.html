@@ -2500,7 +2500,13 @@
                 <template x-if="!prospect.enrichi_le">
                   <div class="bo-info" style="margin-bottom:10px">Contact non récupéré depuis l'annuaire.</div>
                 </template>
-                <div class="bo-contact-ligne"><span>Email</span><span x-text="prospect.contact_email || '—'"></span></div>
+                <div class="bo-contact-ligne">
+                  <span>Email</span>
+                  <input type="email" x-model="prospect.contact_email" placeholder="—"
+                         style="flex:1; padding:2px 6px; font-size:14px"
+                         @blur="corrigerEmailProspect()" />
+                </div>
+                <div class="bo-info" x-show="prospect.email_invalide" style="margin:-4px 0 8px">⚠ Adresse rejetée (bounce) au dernier envoi — corrige-la ci-dessus pour réessayer.</div>
                 <div class="bo-contact-ligne"><span>Téléphone</span><span x-text="prospect.contact_telephone || '—'"></span></div>
                 <div class="bo-contact-ligne"><span>Site web</span><span x-text="prospect.site_web || '—'"></span></div>
                 <div class="bo-contact-ligne"><span>Adresse</span><span x-text="prospect.adresse || '—'"></span></div>
@@ -2735,7 +2741,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260819-20"></script>
+  <script src="/backoffice/js/app.js?v=20260820-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

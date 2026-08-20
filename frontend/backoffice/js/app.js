@@ -1357,14 +1357,21 @@ function backoffice() {
     async majProspect(patch) {
       try {
         await boFetch('/prospection/prospects/' + this.prospect.id, { method: 'PATCH', body: JSON.stringify(patch) });
-        // Un changement de statut ajoute une entrée automatique à l'historique : on recharge.
-        if (patch.statut !== undefined) {
+        // Un changement de statut ou d'email ajoute une entrée automatique à l'historique : on recharge.
+        if (patch.statut !== undefined || patch.contact_email !== undefined) {
           const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+          this.prospect.email_invalide = d.prospect.email_invalide;
           this.interactions = d.interactions;
         }
       } catch (e) {
         alert(e.message || 'Mise à jour impossible');
       }
+    },
+    // Normalise le champ avant envoi : un champ vidé doit être enregistré comme "pas d'email"
+    // (null), pas comme une chaîne vide qui échouerait à la validation email côté serveur.
+    async corrigerEmailProspect() {
+      const valeur = (this.prospect.contact_email || '').trim();
+      await this.majProspect({ contact_email: valeur || null });
     },
 
     async ajouterInteraction() {
@@ -1507,7 +1514,7 @@ function backoffice() {
       return { a_contacter: 'À contacter', contacte: 'Contacté', relance: 'Relancé', rdv: 'RDV', gagne: 'Gagné', perdu: 'Perdu' }[s] || s;
     },
     libelleType(t) {
-      return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut' }[t] || t;
+      return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut', contact: 'Contact corrigé' }[t] || t;
     },
     libelleStatutClient(s) {
       return { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[s] || 'Active';
