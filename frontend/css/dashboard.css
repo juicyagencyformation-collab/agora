@@ -709,6 +709,30 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .extrait-article-compact { font-size: 12.5px; color: var(--roseau); margin: 0 0 3px; line-height: 1.35; }
 .date-article-compact { font-size: 10.5px; color: var(--roseau); font-family: 'DM Mono', monospace; }
+
+/* Carte actu AVEC photo : bannière plein format, dégradé bas, titre en surimpression */
+.entete-article-banniere {
+  position: relative; display: block; width: 100%; height: 175px; padding: 0;
+  border: none; background: none; text-align: left; cursor: pointer; overflow: hidden;
+}
+.banniere-article-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.badge-categorie-banniere {
+  position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,.92); margin: 0;
+}
+.banniere-article-degrade {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.78) 0%, rgba(0,0,0,.4) 42%, rgba(0,0,0,0) 72%);
+}
+.banniere-article-texte { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px 10px; }
+.titre-article-banniere {
+  font-family: 'Playfair Display', serif; font-size: 17px; margin: 0 0 2px;
+  color: #fff; line-height: 1.25; text-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+.date-article-banniere {
+  font-size: 10.5px; color: rgba(255,255,255,.85); font-family: 'DM Mono', monospace;
+  text-shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+
 .contenu-article-deplie { padding: 0 14px 14px; border-top: 1px solid var(--eauL); }
 
 /* ─── Numéros d'urgence — toujours rouge, indépendamment du thème personnalisé ─── */

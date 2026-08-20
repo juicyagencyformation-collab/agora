@@ -80,11 +80,23 @@ function renderArticle(article) {
   const miniature = article.images?.[0]?.url;
   const dateAffichee = new Date(article.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
-  el.innerHTML = `
+  const libelleCategorie = LABELS_CATEGORIE_ARTICLE[article.categorie] ?? article.categorie;
+
+  el.innerHTML = miniature ? `
+    <button type="button" class="entete-article-compact entete-article-banniere">
+      <img src="${miniature}" class="banniere-article-img" loading="lazy" alt="">
+      <span class="badge-categorie-article badge-categorie-banniere">${libelleCategorie}</span>
+      <div class="banniere-article-degrade"></div>
+      <div class="banniere-article-texte">
+        <h3 class="titre-article-banniere">${escapeAttr(article.titre)}</h3>
+        <span class="date-article-banniere">${dateAffichee}${article.deja_lu ? ' · lu ✓' : ''}</span>
+      </div>
+    </button>
+    <div class="contenu-article-deplie" hidden></div>
+  ` : `
     <button type="button" class="entete-article-compact">
-      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : ''}
       <div class="texte-entete-article">
-        <span class="badge-categorie-article">${LABELS_CATEGORIE_ARTICLE[article.categorie] ?? article.categorie}</span>
+        <span class="badge-categorie-article">${libelleCategorie}</span>
         <h3 class="titre-article-compact">${escapeAttr(article.titre)}</h3>
         <p class="extrait-article-compact">${escapeAttr(extrait)}${extraitBrut.length > 110 ? '…' : ''}</p>
         <span class="date-article-compact">${dateAffichee}${article.deja_lu ? ' · lu ✓' : ''}</span>
