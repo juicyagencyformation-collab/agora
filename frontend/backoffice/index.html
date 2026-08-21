@@ -342,6 +342,38 @@
           </div>
 
           <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('bareme_tarifaire')">
+              <span>📐 Barème au nombre d'habitants (landing page — Autonomie / Accompagné / Premium)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.bareme_tarifaire}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.bareme_tarifaire">
+              <div class="bo-info" style="margin-bottom:12px">
+                Utilisé par le calculateur de prix en direct sur la landing page publique
+                (accueil.html). Formule Autonomie : max(plancher, min(hab, seuil) × taux de base +
+                max(0, hab − seuil) × taux dégressif). Accompagné = Autonomie + supplément fixe
+                (modération auto + questionnaires thermomètre, coût qui ne dépend pas de la population).
+                Premium = Accompagné + patrimoine (prix de départ affiché, le reste sur devis).
+              </div>
+              <label style="margin-top:0">Taux de base (€ / habitant, en dessous du seuil)</label>
+              <input type="number" min="0" step="0.1" x-model="baremeTarifaire.taux_base" style="width:120px" />
+              <label>Seuil de dégressivité (habitants)</label>
+              <input type="number" min="0" step="50" x-model="baremeTarifaire.seuil_degressif" style="width:120px" />
+              <label>Taux dégressif (€ / habitant, au-delà du seuil)</label>
+              <input type="number" min="0" step="0.1" x-model="baremeTarifaire.taux_degressif" style="width:120px" />
+              <label>Prix plancher (€ / an, quelle que soit la population)</label>
+              <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_plancher" style="width:120px" />
+              <label>Supplément Accompagné (€ / an, forfait fixe)</label>
+              <input type="number" min="0" step="10" x-model="baremeTarifaire.supplement_accompagne" style="width:120px" />
+              <label>Premium — patrimoine, prix de départ (€, sur devis au-delà)</label>
+              <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_patrimoine_premium" style="width:120px" />
+              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerBareme()" :disabled="baremeEnCours">Enregistrer le barème</button>
+                <span class="bo-info" x-text="baremeMsg"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('entreprise')">
               <span>🧾 Informations légales de l'entreprise (devis &amp; factures)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.entreprise}">▸</span>
@@ -2821,7 +2853,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260820-4"></script>
+  <script src="/backoffice/js/app.js?v=20260821-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

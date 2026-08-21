@@ -10,6 +10,7 @@ import onboarding from './onboarding';
 import facturation from './facturation';
 import { chargerFiche } from './modele-fiche';
 import { chargerAfficheCitoyens } from './modele-affiche';
+import { chargerBareme } from './tarification';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
 import { traiterEmailRecu } from './emails-recus';
@@ -29,6 +30,13 @@ app.get('/fiche-contenu', async (c) => {
 app.get('/affiche-citoyens-contenu', async (c) => {
   const slug = c.req.query('slug') || '';
   return c.json(await chargerAfficheCitoyens(c.env, slug));
+});
+
+// Barème tarifaire au nombre d'habitants (voir tarification.ts) — PUBLIC (pas d'auth) : consommé
+// par la landing page (accueil.html) pour calculer le prix en direct selon la population saisie
+// par le visiteur. Rien de sensible, ce sont les mêmes chiffres affichés sur le site.
+app.get('/tarifs-contenu', async (c) => {
+  return c.json(await chargerBareme(c.env));
 });
 
 // Webhook Resend (bounces / plaintes / ouvertures / clics / réponses reçues) — PUBLIC mais

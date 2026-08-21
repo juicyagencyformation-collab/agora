@@ -162,6 +162,12 @@ function backoffice() {
     grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
     grilleEnCours: false,
     grilleMsg: '',
+    baremeTarifaire: {
+      taux_base: 0, seuil_degressif: 0, taux_degressif: 0,
+      prix_plancher: 0, supplement_accompagne: 0, prix_patrimoine_premium: 0,
+    },
+    baremeEnCours: false,
+    baremeMsg: '',
     ongletsDisponibles: [],
     ongletsGratuitsSelection: [],
     ongletsGratuitsEnCours: false,
@@ -241,6 +247,7 @@ function backoffice() {
         try { await this.chargerModelesGeneriques('onboarding_upsell'); } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
+        try { this.baremeTarifaire = await boFetch('/administration/bareme-tarifaire'); } catch {}
         try {
           const r = await boFetch('/administration/onglets-gratuits');
           this.ongletsDisponibles = r.tous;
@@ -1686,6 +1693,29 @@ function backoffice() {
         this.grilleMsg = e.message || 'Échec';
       } finally {
         this.grilleEnCours = false;
+      }
+    },
+    async enregistrerBareme() {
+      this.baremeEnCours = true;
+      this.baremeMsg = '';
+      try {
+        const b = this.baremeTarifaire;
+        await boFetch('/administration/bareme-tarifaire', {
+          method: 'PUT',
+          body: JSON.stringify({
+            taux_base: Number(b.taux_base) || 0,
+            seuil_degressif: Number(b.seuil_degressif) || 0,
+            taux_degressif: Number(b.taux_degressif) || 0,
+            prix_plancher: Number(b.prix_plancher) || 0,
+            supplement_accompagne: Number(b.supplement_accompagne) || 0,
+            prix_patrimoine_premium: Number(b.prix_patrimoine_premium) || 0,
+          }),
+        });
+        this.baremeMsg = 'Barème enregistré.';
+      } catch (e) {
+        this.baremeMsg = e.message || 'Échec';
+      } finally {
+        this.baremeEnCours = false;
       }
     },
     async chargerStaff() {

@@ -628,6 +628,83 @@
     /* — TARIFS — */
     .pricing { background: white; }
 
+    .pricing-slider-box {
+      max-width: 620px;
+      margin: 0 auto 2.5rem;
+      background: var(--green-light);
+      border-radius: 16px;
+      padding: 1.5rem 1.75rem;
+    }
+
+    .pricing-slider-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 0.9rem;
+    }
+
+    .pricing-slider-valeur {
+      font-family: 'Fraunces', serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--green);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pricing-slider {
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 100px;
+      background: #ffffff;
+      outline: none;
+      cursor: pointer;
+      display: block;
+    }
+
+    .pricing-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--green);
+      border: 3px solid white;
+      box-shadow: 0 1px 4px rgba(27,42,74,0.3);
+      cursor: pointer;
+    }
+
+    .pricing-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--green);
+      border: 3px solid white;
+      box-shadow: 0 1px 4px rgba(27,42,74,0.3);
+      cursor: pointer;
+    }
+
+    .pricing-slider-bornes {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .pricing-amount-prefix {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      opacity: 0.55;
+      margin-bottom: 0.2rem;
+    }
+
     .pricing-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1478,66 +1555,133 @@
   <!-- — TARIFS — -->
   <section class="section pricing" id="tarifs">
     <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+      <div style="text-align:center; margin-bottom:2.5rem;" data-reveal>
         <div class="section-eyebrow">Tarifs</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Simple comme un mandat administratif</h2>
-        <p class="section-subtitle" style="text-align:center; max-width:480px; margin:0.5rem auto 0;">Facturation annuelle, règlement par virement, aucun engagement pour commencer.</p>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Un prix qui s'ajuste à votre commune</h2>
+        <p class="section-subtitle" style="text-align:center; max-width:520px; margin:0.5rem auto 0;">Indiquez le nombre d'habitants : le prix se calcule en direct et sert de base à votre devis personnalisé.</p>
       </div>
+
+      <div class="pricing-slider-box" data-reveal>
+        <div class="pricing-slider-head">
+          <span>Nombre d'habitants de votre commune</span>
+          <span class="pricing-slider-valeur"><span id="nombre-habitants">800</span> hab.</span>
+        </div>
+        <input type="range" id="curseur-habitants" class="pricing-slider" min="50" max="8000" step="10" value="800" aria-label="Nombre d'habitants" />
+        <div class="pricing-slider-bornes">
+          <span>50 hab.</span>
+          <span>Au-delà de 8 000 habitants, nous consulter</span>
+        </div>
+      </div>
+
       <div class="pricing-grid">
         <div class="pricing-card" data-reveal>
-          <div class="pricing-label">Hameau</div>
-          <div class="pricing-title">Moins de 500 habitants</div>
+          <div class="pricing-label">Autonomie</div>
+          <div class="pricing-title">Vous pilotez seul</div>
           <div class="pricing-amount">
-            <span class="amount">590 €</span>
+            <span class="amount"><span id="prix-autonomie">250 €</span></span>
             <span class="period"> / an</span>
           </div>
           <ul class="pricing-features">
-            <li>Tous les 14 modules</li>
-            <li>Onboarding inclus</li>
+            <li>Tous les modules citoyens</li>
+            <li>Modération assurée par la mairie</li>
             <li>Support email</li>
-            <li>390 € la 1re année — offre fondateur</li>
+            <li>Valorisation du patrimoine en option, sur devis</li>
           </ul>
-          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Activer cette commune</a>
+          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
 
         <div class="pricing-card featured" data-reveal>
           <div class="pricing-badge">Le plus demandé</div>
-          <div class="pricing-label">Village</div>
-          <div class="pricing-title">500 à 2 000 habitants</div>
+          <div class="pricing-label">Accompagné</div>
+          <div class="pricing-title">On s'occupe du quotidien</div>
           <div class="pricing-amount">
-            <span class="amount">990 €</span>
+            <span class="amount"><span id="prix-accompagne">450 €</span></span>
             <span class="period"> / an</span>
           </div>
           <ul class="pricing-features">
-            <li>Tous les 14 modules</li>
-            <li>Onboarding prioritaire</li>
-            <li>Support email &amp; téléphone</li>
-            <li>3 mois offerts en engagement 3 ans</li>
+            <li>Tout Autonomie, plus :</li>
+            <li>Modération automatique des photos</li>
+            <li>Questionnaires « thermomètre » publiés chaque semaine</li>
+            <li>Support prioritaire</li>
           </ul>
-          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-white">Activer cette commune</a>
+          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-white">Demander un devis</a>
         </div>
 
         <div class="pricing-card" data-reveal>
-          <div class="pricing-label">Bourg</div>
-          <div class="pricing-title">2 000 à 5 000 habitants</div>
+          <div class="pricing-label">Premium</div>
+          <div class="pricing-title">Patrimoine &amp; découverte</div>
           <div class="pricing-amount">
-            <span class="amount">1 790 €</span>
+            <div class="pricing-amount-prefix">à partir de</div>
+            <span class="amount"><span id="prix-premium">1 199 €</span></span>
             <span class="period"> / an</span>
           </div>
           <ul class="pricing-features">
-            <li>Tous les 14 modules</li>
-            <li>Onboarding sur site possible</li>
-            <li>Support dédié</li>
-            <li>Au-delà 5 000 hab : devis</li>
+            <li>Tout Accompagné, plus :</li>
+            <li>Découverte numérique du patrimoine (chasse au trésor, points d'intérêt)</li>
+            <li>Accueil sur site, 5 jours — hébergement à la charge de la commune selon la distance</li>
+            <li>Patrimoine étendu : prestation sur devis selon l'ampleur</li>
           </ul>
           <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
       </div>
       <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
-        Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps
+        Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps · Prix indicatif, base de votre devis personnalisé
       </p>
     </div>
   </section>
+
+  <script>
+    (function () {
+      var curseur = document.getElementById('curseur-habitants');
+      var champHabitants = document.getElementById('nombre-habitants');
+      var elAutonomie = document.getElementById('prix-autonomie');
+      var elAccompagne = document.getElementById('prix-accompagne');
+      var elPremium = document.getElementById('prix-premium');
+      if (!curseur) return;
+
+      // Repli local si l'appel réseau échoue — mêmes valeurs que la migration
+      // 050_bareme_habitant.sql (voir worker/src/backoffice/tarification.ts, formule identique,
+      // à répercuter ici à la main si elle change côté serveur).
+      var bareme = {
+        taux_base: 1, seuil_degressif: 1000, taux_degressif: 0.5,
+        prix_plancher: 250, supplement_accompagne: 200, prix_patrimoine_premium: 749,
+      };
+
+      function calculerAutonomie(habitants) {
+        var b = Math.max(0, Math.floor(habitants || 0));
+        var brut = Math.min(b, bareme.seuil_degressif) * bareme.taux_base
+          + Math.max(0, b - bareme.seuil_degressif) * bareme.taux_degressif;
+        return Math.max(brut, bareme.prix_plancher);
+      }
+
+      function formaterPrix(n) {
+        return Math.round(n).toLocaleString('fr-FR') + ' €';
+      }
+
+      function actualiser() {
+        var habitants = parseInt(curseur.value, 10) || 0;
+        champHabitants.textContent = habitants.toLocaleString('fr-FR');
+        var autonomie = calculerAutonomie(habitants);
+        var accompagne = autonomie + bareme.supplement_accompagne;
+        var premium = accompagne + bareme.prix_patrimoine_premium;
+        elAutonomie.textContent = formaterPrix(autonomie);
+        elAccompagne.textContent = formaterPrix(accompagne);
+        elPremium.textContent = formaterPrix(premium);
+      }
+
+      curseur.addEventListener('input', actualiser);
+      actualiser();
+
+      fetch('/api/backoffice/tarifs-contenu')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (donnees) {
+          if (!donnees) return;
+          bareme = donnees;
+          actualiser();
+        })
+        .catch(function () {});
+    })();
+  </script>
 
   <!-- — FAQ — -->
   <section class="section faq" id="faq">

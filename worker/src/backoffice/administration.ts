@@ -21,6 +21,7 @@ import {
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
 import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
+import { chargerBareme } from './tarification';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -1048,6 +1049,43 @@ app.put('/grille-tarifaire', async (c) => {
   ));
   await supabaseUpdate(c.env, 'parametres_facturation', { valeur: String(body.data.mois_offerts_3ans) }, { cle: 'eq.mois_offerts_3ans' });
   await journaliser(c.env, c.get('staff_id'), 'grille_tarifaire_modifiee');
+  return c.json({ ok: true });
+});
+
+// GET /bareme-tarifaire — le nouveau barème au nombre d'habitants (Autonomie/Accompagné/Premium),
+// voir tarification.ts et la migration 050_bareme_habitant.sql. Coexiste avec la grille par
+// tranches ci-dessus, qui reste utilisée pour les devis de communes déjà clientes.
+app.get('/bareme-tarifaire', async (c) => {
+  return c.json(await chargerBareme(c.env));
+});
+
+// PUT /bareme-tarifaire — met à jour les 6 paramètres du barème.
+const baremeTarifaireSchema = z.object({
+  taux_base: z.number().min(0),
+  seuil_degressif: z.number().min(0),
+  taux_degressif: z.number().min(0),
+  prix_plancher: z.number().min(0),
+  supplement_accompagne: z.number().min(0),
+  prix_patrimoine_premium: z.number().min(0),
+});
+
+app.put('/bareme-tarifaire', async (c) => {
+  const body = baremeTarifaireSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const parCle: Record<string, number> = {
+    bareme_taux_base: body.data.taux_base,
+    bareme_seuil_degressif: body.data.seuil_degressif,
+    bareme_taux_degressif: body.data.taux_degressif,
+    bareme_prix_plancher: body.data.prix_plancher,
+    bareme_supplement_accompagne: body.data.supplement_accompagne,
+    bareme_prix_patrimoine_premium: body.data.prix_patrimoine_premium,
+  };
+  await Promise.all(Object.entries(parCle).map(async ([cle, valeur]) => {
+    const maj = await supabaseUpdate(c.env, 'parametres_facturation', { valeur: String(valeur) }, { cle: `eq.${cle}` });
+    if (maj.length === 0) await supabaseInsert(c.env, 'parametres_facturation', { cle, valeur: String(valeur) });
+  }));
+  await journaliser(c.env, c.get('staff_id'), 'bareme_tarifaire_modifie');
   return c.json({ ok: true });
 });
 
