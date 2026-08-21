@@ -1587,7 +1587,7 @@
             <li>Support email</li>
             <li>Valorisation du patrimoine en option, sur devis</li>
           </ul>
-          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
+          <a href="mailto:contact@plateforme-agora.fr" id="devis-autonomie" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
 
         <div class="pricing-card featured" data-reveal>
@@ -1604,7 +1604,7 @@
             <li>Questionnaires « thermomètre » publiés chaque semaine</li>
             <li>Support prioritaire</li>
           </ul>
-          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-white">Demander un devis</a>
+          <a href="mailto:contact@plateforme-agora.fr" id="devis-accompagne" class="btn-pricing btn-pricing-white">Demander un devis</a>
         </div>
 
         <div class="pricing-card" data-reveal>
@@ -1621,7 +1621,7 @@
             <li>Accueil sur site, 5 jours — hébergement à la charge de la commune selon la distance</li>
             <li>Patrimoine étendu : prestation sur devis selon l'ampleur</li>
           </ul>
-          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
+          <a href="mailto:contact@plateforme-agora.fr" id="devis-premium" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
       </div>
       <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
@@ -1637,6 +1637,9 @@
       var elAutonomie = document.getElementById('prix-autonomie');
       var elAccompagne = document.getElementById('prix-accompagne');
       var elPremium = document.getElementById('prix-premium');
+      var lienAutonomie = document.getElementById('devis-autonomie');
+      var lienAccompagne = document.getElementById('devis-accompagne');
+      var lienPremium = document.getElementById('devis-premium');
       if (!curseur) return;
 
       // Repli local si l'appel réseau échoue — mêmes valeurs que la migration
@@ -1658,15 +1661,31 @@
         return Math.round(n).toLocaleString('fr-FR') + ' €';
       }
 
+      function lienMailtoDevis(formule, habitants, prixTexte) {
+        var sujet = 'Demande de devis Agora – formule ' + formule + ' – ' + habitants.toLocaleString('fr-FR') + ' habitants';
+        var corps = 'Bonjour,\n\n'
+          + 'Je souhaite un devis pour la formule ' + formule + ' d’Agora pour ma commune de '
+          + habitants.toLocaleString('fr-FR') + ' habitants.\n\n'
+          + 'Prix indicatif calculé en ligne : ' + prixTexte + ' / an.\n\n'
+          + 'Merci de me recontacter.\n\nCordialement,';
+        return 'mailto:contact@plateforme-agora.fr?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
+      }
+
       function actualiser() {
         var habitants = parseInt(curseur.value, 10) || 0;
         champHabitants.textContent = habitants.toLocaleString('fr-FR');
         var autonomie = calculerAutonomie(habitants);
         var accompagne = autonomie + bareme.supplement_accompagne;
         var premium = accompagne + bareme.prix_patrimoine_premium;
-        elAutonomie.textContent = formaterPrix(autonomie);
-        elAccompagne.textContent = formaterPrix(accompagne);
+        var texteAutonomie = formaterPrix(autonomie);
+        var texteAccompagne = formaterPrix(accompagne);
+        var texteJusqu = 'à partir de ' + formaterPrix(premium);
+        elAutonomie.textContent = texteAutonomie;
+        elAccompagne.textContent = texteAccompagne;
         elPremium.textContent = formaterPrix(premium);
+        if (lienAutonomie) lienAutonomie.href = lienMailtoDevis('Autonomie', habitants, texteAutonomie);
+        if (lienAccompagne) lienAccompagne.href = lienMailtoDevis('Accompagné', habitants, texteAccompagne);
+        if (lienPremium) lienPremium.href = lienMailtoDevis('Premium', habitants, texteJusqu);
       }
 
       curseur.addEventListener('input', actualiser);
