@@ -1226,7 +1226,7 @@
         <li><a href="#fonctionnalites">Fonctionnalités</a></li>
         <li><a href="#tarifs">Tarifs</a></li>
         <li><a href="#faq">FAQ</a></li>
-        <li><a href="mailto:contact@plateforme-agora.fr" class="nav-cta">Activer ma commune →</a></li>
+        <li><a href="mailto:contact@plateforme-agora.fr" id="cta-nav-activer" class="nav-cta">Activer ma commune →</a></li>
       </ul>
     </div>
   </nav>
@@ -1246,7 +1246,7 @@
         </p>
         <div data-reveal>
           <div class="hero-actions">
-            <a href="mailto:contact@plateforme-agora.fr" class="btn-primary">Activer gratuitement →</a>
+            <a href="mailto:contact@plateforme-agora.fr" id="cta-hero-activer" class="btn-primary">Activer gratuitement →</a>
             <a href="#fonctionnalites" class="btn-secondary">Voir les fonctionnalités</a>
           </div>
           <div class="hero-proof">
@@ -1794,6 +1794,27 @@
         });
       }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
       cibles.forEach(function (el) { observateur.observe(el); });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      // Boutons "Activer gratuitement" / "Activer ma commune" : demande le nom (ou code postal)
+      // de la commune avant d'ouvrir l'email, plutôt qu'un mailto nu sans contexte.
+      function demanderActivation(e) {
+        e.preventDefault();
+        var commune = window.prompt('Quel est le nom de votre commune ? (ou son code postal)', '');
+        if (commune === null) return; // annulé par le visiteur
+        commune = commune.trim();
+        var sujet = 'Demande d’activation gratuite';
+        var corps = 'Bonjour,\n\nJe souhaite activer gratuitement Agora pour ma commune'
+          + (commune ? ' (' + commune + ')' : '') + '.\n\nMerci de me recontacter.\n\nCordialement,';
+        window.location.href = 'mailto:contact@plateforme-agora.fr?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
+      }
+      ['cta-nav-activer', 'cta-hero-activer'].forEach(function (id) {
+        var lien = document.getElementById(id);
+        if (lien) lien.addEventListener('click', demanderActivation);
+      });
     })();
   </script>
 
