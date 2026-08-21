@@ -91,6 +91,9 @@
 
     @media (prefers-reduced-motion: reduce) {
       [data-reveal] { opacity: 1; transform: none; transition: none; }
+      .hero-badge::before, .demo-live-badge::before, .btn-cta-green, .btn-cta-outline, .hero-brand-block {
+        animation: none;
+      }
     }
 
     /* — NAV — */
@@ -771,6 +774,17 @@
       margin-bottom: 2rem;
     }
 
+    /* Halo qui pulse en continu autour des deux boutons du CTA final — attire l'œil sur l'action
+       la plus importante de la page sans être criard (pas de mouvement du bouton lui-même). */
+    @keyframes pulse-ring-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(46,171,123,0.45); }
+      50% { box-shadow: 0 0 0 12px rgba(46,171,123,0); }
+    }
+    @keyframes pulse-ring-white {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.28); }
+      50% { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+    }
+
     .btn-cta-green {
       background: var(--green);
       color: white;
@@ -785,6 +799,7 @@
       align-items: center;
       gap: 8px;
       transition: background 0.2s, transform 0.15s;
+      animation: pulse-ring-green 2.6s ease-in-out infinite;
     }
 
     .btn-cta-green:hover { background: #26976c; transform: translateY(-1px); }
@@ -803,6 +818,8 @@
       align-items: center;
       gap: 8px;
       transition: border-color 0.2s;
+      animation: pulse-ring-white 2.6s ease-in-out infinite;
+      animation-delay: 0.6s;
     }
 
     .btn-cta-outline:hover { border-color: rgba(255,255,255,0.6); }
@@ -1571,7 +1588,7 @@
       </p>
       <div class="cta-final-actions">
         <a href="mailto:contact@plateforme-agora.fr" class="btn-cta-green">Nous écrire →</a>
-        <a href="tel:+33648061097" class="btn-cta-outline">📞 +33 6 48 06 10 97</a>
+        <a href="tel:+33648061097" class="btn-cta-outline">📞 Nous appeler</a>
       </div>
       <p class="cta-note">Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</p>
     </div>
