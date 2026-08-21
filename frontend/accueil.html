@@ -3,7 +3,11 @@
      (voir frontend/functions/[[path]].js, branche segments.length === 0). Distincte de index.html
      (coquille de l'appli citoyenne, servie sous /<slug>/) : ne jamais fusionner les deux.
      Design 2026-08-21 : nouvelle landing page (palette navy/vert/orange/corail), avec démo live
-     embarquée (commune Bonvivre, voir niveau_national=false, statut_client=active en base). -->
+     embarquée (commune Bonvivre, voir niveau_national=false, statut_client=active en base).
+     2026-08-21 (v2) : chaque section a un conteneur .wrap (max-width 1280px, centré) séparé de son
+     fond pleine largeur — sans lui, le contenu s'étirait bord à bord sur grand écran et paraissait
+     vide/décentré. Ajout d'un système de révélation au scroll (IntersectionObserver, respecte
+     prefers-reduced-motion) sur les blocs principaux, avec un décalage échelonné par grille. -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -44,17 +48,68 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    /* Conteneur centré, réutilisé dans chaque section pleine largeur : le fond/la couleur restent
+       bord à bord, seul le contenu est capé et centré — sinon tout s'étire sur grand écran. */
+    .wrap { max-width: 1280px; margin: 0 auto; width: 100%; }
+
+    /* — RÉVÉLATION AU SCROLL — */
+    [data-reveal] {
+      opacity: 0;
+      transform: translateY(26px);
+      transition: opacity 0.7s cubic-bezier(.16,.8,.28,1), transform 0.7s cubic-bezier(.16,.8,.28,1);
+      will-change: opacity, transform;
+    }
+    [data-reveal].is-visible { opacity: 1; transform: translateY(0); }
+    /* Décalage échelonné : chaque grille l'applique à ses propres enfants via nth-child, pas besoin
+       de le poser à la main sur chaque carte (12 modules, 6 FAQ...). */
+    .pillars-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .pillars-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
+    .pillars-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
+    .pillars-grid > [data-reveal]:nth-child(4) { transition-delay: .24s; }
+    .modules-grid > [data-reveal]:nth-child(n) { transition-delay: calc((var(--i, 0)) * 0.05s); }
+    .values-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .values-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
+    .values-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
+    .values-grid > [data-reveal]:nth-child(4) { transition-delay: .24s; }
+    .faq-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .faq-grid > [data-reveal]:nth-child(2) { transition-delay: .06s; }
+    .faq-grid > [data-reveal]:nth-child(3) { transition-delay: .12s; }
+    .faq-grid > [data-reveal]:nth-child(4) { transition-delay: .18s; }
+    .faq-grid > [data-reveal]:nth-child(5) { transition-delay: .24s; }
+    .faq-grid > [data-reveal]:nth-child(6) { transition-delay: .3s; }
+    .pricing-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .pricing-grid > [data-reveal]:nth-child(2) { transition-delay: .1s; }
+    .pricing-grid > [data-reveal]:nth-child(3) { transition-delay: .2s; }
+    .stats-bar .wrap > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .stats-bar .wrap > [data-reveal]:nth-child(2) { transition-delay: .08s; }
+    .stats-bar .wrap > [data-reveal]:nth-child(3) { transition-delay: .16s; }
+    .stats-bar .wrap > [data-reveal]:nth-child(4) { transition-delay: .24s; }
+    .hero-left > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .hero-left > [data-reveal]:nth-child(2) { transition-delay: .1s; }
+    .hero-left > [data-reveal]:nth-child(3) { transition-delay: .2s; }
+    .hero-left > [data-reveal]:nth-child(4) { transition-delay: .3s; }
+
+    @media (prefers-reduced-motion: reduce) {
+      [data-reveal] { opacity: 1; transform: none; transition: none; }
+    }
+
     /* — NAV — */
     nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 3rem;
       background: var(--white);
       border-bottom: 1px solid var(--border-light);
       position: sticky;
       top: 0;
       z-index: 100;
+      transition: box-shadow 0.25s;
+    }
+
+    nav.is-scrolled { box-shadow: 0 4px 20px rgba(27,42,74,0.06); }
+
+    nav .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 3rem;
     }
 
     .nav-logo {
@@ -118,12 +173,13 @@
     }
 
     /* — HERO — */
-    .hero {
-      min-height: 90vh;
+    .hero { padding: 4rem 3rem; }
+
+    .hero .wrap {
+      min-height: 78vh;
       display: grid;
       grid-template-columns: 1fr 1fr;
       align-items: center;
-      padding: 4rem 3rem;
       gap: 3rem;
     }
 
@@ -309,9 +365,9 @@
     }
 
     /* — STATS BAR — */
-    .stats-bar {
-      background: var(--navy);
-      padding: 2.25rem 3rem;
+    .stats-bar { background: var(--navy); padding: 2.25rem 3rem; }
+
+    .stats-bar .wrap {
       display: flex;
       justify-content: center;
       gap: 5rem;
@@ -447,12 +503,13 @@
       padding: 1.25rem;
       border-radius: 10px;
       border: 1px solid var(--border-light);
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
     }
 
     .module-item:hover {
       border-color: var(--green);
       box-shadow: 0 2px 12px rgba(46,171,123,0.08);
+      transform: translateY(-2px);
     }
 
     .module-dot {
@@ -580,7 +637,10 @@
       padding: 2rem 1.75rem;
       border: 1.5px solid var(--border-light);
       position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
+
+    .pricing-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(27,42,74,0.1); }
 
     .pricing-card.featured {
       border-color: var(--navy);
@@ -698,6 +758,8 @@
       pointer-events: none;
     }
 
+    .cta-final .wrap { max-width: 640px; position: relative; z-index: 1; }
+
     .cta-final .section-title { color: white; max-width: none; margin: 0 auto 1rem; }
     .cta-final .section-subtitle { color: rgba(255,255,255,0.55); max-width: 500px; margin: 0 auto 2.5rem; }
 
@@ -748,9 +810,9 @@
     .cta-note { font-size: 0.78rem; color: rgba(255,255,255,0.3); margin-top: 0.5rem; }
 
     /* — FOOTER — */
-    footer {
-      background: #0f1928;
-      padding: 2rem 3rem;
+    footer { background: #0f1928; padding: 2rem 3rem; }
+
+    footer .wrap {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -789,10 +851,6 @@
     .demo-section {
       background: var(--navy);
       padding: 5rem 3rem;
-      display: flex;
-      align-items: center;
-      gap: 5rem;
-      justify-content: center;
       position: relative;
       overflow: hidden;
     }
@@ -805,7 +863,16 @@
       pointer-events: none;
     }
 
-    .demo-text { max-width: 420px; flex-shrink: 0; position: relative; z-index: 1; }
+    .demo-section .wrap {
+      display: flex;
+      align-items: center;
+      gap: 5rem;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .demo-text { max-width: 420px; flex-shrink: 0; }
 
     .demo-text .section-eyebrow { color: var(--green); }
 
@@ -1014,27 +1081,31 @@
 
     /* — RESPONSIVE — */
     @media (max-width: 900px) {
-      .demo-section { flex-direction: column; align-items: center; padding: 3rem 1.25rem; gap: 2rem; }
+      .demo-section .wrap { flex-direction: column; gap: 2rem; }
+      .demo-section { padding: 3rem 1.25rem; }
       .iphone { width: 260px; height: 531px; }
       .iphone-iframe { width: 390px; height: 762px; transform: scale(0.5949); }
       .demo-text { max-width: none; order: 2; }
       .iphone-wrap { order: 1; }
       .demo-cta { display: none; }
 
-      nav { padding: 1rem 1.5rem; }
+      nav .wrap { padding: 1rem 1.5rem; }
       .nav-links { display: none; }
-      .hero { grid-template-columns: 1fr; min-height: auto; padding: 3rem 1.5rem; }
+      .hero { padding: 3rem 1.5rem; }
+      .hero .wrap { grid-template-columns: 1fr; min-height: auto; }
       .hero-right { display: flex; justify-content: center; margin-top: 1rem; }
       .hero-logo-full { width: 200px; }
       .hero-pills-row { display: none; }
       .hero-title { font-size: 2.5rem; }
-      .stats-bar { gap: 2.5rem; padding: 2rem 1.5rem; }
+      .stats-bar { padding: 2rem 1.5rem; }
+      .stats-bar .wrap { gap: 2.5rem; }
       .section { padding: 3.5rem 1.5rem; }
       .pillars-grid, .pricing-grid, .faq-grid { grid-template-columns: 1fr; }
       .modules-grid { grid-template-columns: repeat(2, 1fr); }
       .values-grid { grid-template-columns: repeat(2, 1fr); }
       .section-title { font-size: 1.9rem; }
-      footer { flex-direction: column; align-items: flex-start; padding: 2rem 1.5rem; }
+      footer { padding: 2rem 1.5rem; }
+      footer .wrap { flex-direction: column; align-items: flex-start; }
       .footer-copy { text-align: left; }
     }
 
@@ -1049,63 +1120,69 @@
 
   <!-- — NAV — -->
   <nav>
-    <a class="nav-logo" href="#">
-      <img src="/icons/icon-192.png?v=20260817-1" alt="Agora" style="width:40px;height:40px;object-fit:contain;" />
-      <div class="nav-wordmark">
-        Agora
-        <span>Plateforme citoyenne</span>
-      </div>
-    </a>
-    <ul class="nav-links">
-      <li><a href="#fonctionnalites">Fonctionnalités</a></li>
-      <li><a href="#tarifs">Tarifs</a></li>
-      <li><a href="#faq">FAQ</a></li>
-      <li><a href="mailto:contact@plateforme-agora.fr" class="nav-cta">Activer ma commune →</a></li>
-    </ul>
+    <div class="wrap">
+      <a class="nav-logo" href="#">
+        <img src="/icons/icon-192.png?v=20260817-1" alt="Agora" style="width:40px;height:40px;object-fit:contain;" />
+        <div class="nav-wordmark">
+          Agora
+          <span>Plateforme citoyenne</span>
+        </div>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#fonctionnalites">Fonctionnalités</a></li>
+        <li><a href="#tarifs">Tarifs</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="mailto:contact@plateforme-agora.fr" class="nav-cta">Activer ma commune →</a></li>
+      </ul>
+    </div>
   </nav>
 
   <!-- — HERO — -->
   <section class="hero">
-    <div class="hero-left">
-      <div class="hero-badge">Déjà actif à Eaucourt-sur-Somme</div>
-      <h1 class="hero-title">
-        La place du<br>
-        <span class="accent-green">village,</span><br>
-        dans chaque poche.
-      </h1>
-      <p class="hero-subtitle">
-        Une application pensée pour les petites communes — où habitants et élus se retrouvent, échangent et agissent ensemble, sans aucune compétence technique requise.
-      </p>
-      <div class="hero-actions">
-        <a href="mailto:contact@plateforme-agora.fr" class="btn-primary">Activer gratuitement →</a>
-        <a href="#fonctionnalites" class="btn-secondary">Voir les fonctionnalités</a>
+    <div class="wrap">
+      <div class="hero-left">
+        <div class="hero-badge" data-reveal>Déjà actif à Eaucourt-sur-Somme</div>
+        <h1 class="hero-title" data-reveal>
+          La place du<br>
+          <span class="accent-green">village,</span><br>
+          dans chaque poche.
+        </h1>
+        <p class="hero-subtitle" data-reveal>
+          Une application pensée pour les petites communes — où habitants et élus se retrouvent, échangent et agissent ensemble, sans aucune compétence technique requise.
+        </p>
+        <div data-reveal>
+          <div class="hero-actions">
+            <a href="mailto:contact@plateforme-agora.fr" class="btn-primary">Activer gratuitement →</a>
+            <a href="#fonctionnalites" class="btn-secondary">Voir les fonctionnalités</a>
+          </div>
+          <div class="hero-proof">
+            <div class="hero-proof-dot"></div>
+            <span>Gratuit pour commencer · 100 % français · Hébergement souverain</span>
+          </div>
+        </div>
       </div>
-      <div class="hero-proof">
-        <div class="hero-proof-dot"></div>
-        <span>Gratuit pour commencer · 100 % français · Hébergement souverain</span>
-      </div>
-    </div>
 
-    <div class="hero-right">
-      <div class="hero-brand-block">
-        <img
-          src="/icons/agora-icone-1024-fond-transparent.png"
-          alt="Plateforme Agora — Échanger, Participer, Agir ensemble"
-          class="hero-logo-full"
-        />
-        <div class="hero-wordmark-full">Agor<em>a</em></div>
-        <div class="hero-pills-row">
-          <div class="hero-pill-inline">
-            <div class="pill-icon" style="background:var(--green-light);">📢</div>
-            Alertes mairie
-          </div>
-          <div class="hero-pill-inline">
-            <div class="pill-icon" style="background:var(--orange-light);">🗺️</div>
-            Chasse au trésor
-          </div>
-          <div class="hero-pill-inline">
-            <div class="pill-icon" style="background:var(--coral-light);">🏘️</div>
-            Mur des voisins
+      <div class="hero-right">
+        <div class="hero-brand-block">
+          <img
+            src="/icons/agora-icone-1024-fond-transparent.png"
+            alt="Plateforme Agora — Échanger, Participer, Agir ensemble"
+            class="hero-logo-full"
+          />
+          <div class="hero-wordmark-full">Agor<em>a</em></div>
+          <div class="hero-pills-row">
+            <div class="hero-pill-inline">
+              <div class="pill-icon" style="background:var(--green-light);">📢</div>
+              Alertes mairie
+            </div>
+            <div class="hero-pill-inline">
+              <div class="pill-icon" style="background:var(--orange-light);">🗺️</div>
+              Chasse au trésor
+            </div>
+            <div class="hero-pill-inline">
+              <div class="pill-icon" style="background:var(--coral-light);">🏘️</div>
+              Mur des voisins
+            </div>
           </div>
         </div>
       </div>
@@ -1114,170 +1191,176 @@
 
   <!-- — STATS BAR — -->
   <div class="stats-bar">
-    <div class="stat-item">
-      <div class="stat-number" style="color:var(--green);">14</div>
-      <div class="stat-label">modules intégrés</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number" style="color:var(--orange);">100 %</div>
-      <div class="stat-label">française &amp; souveraine</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number" style="color:var(--coral);">0</div>
-      <div class="stat-label">compétence technique requise</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number" style="color:white;">Gratuit</div>
-      <div class="stat-label">pour commencer</div>
+    <div class="wrap">
+      <div class="stat-item" data-reveal>
+        <div class="stat-number" style="color:var(--green);">14</div>
+        <div class="stat-label">modules intégrés</div>
+      </div>
+      <div class="stat-item" data-reveal>
+        <div class="stat-number" style="color:var(--orange);">100 %</div>
+        <div class="stat-label">française &amp; souveraine</div>
+      </div>
+      <div class="stat-item" data-reveal>
+        <div class="stat-number" style="color:var(--coral);">0</div>
+        <div class="stat-label">compétence technique requise</div>
+      </div>
+      <div class="stat-item" data-reveal>
+        <div class="stat-number" style="color:white;">Gratuit</div>
+        <div class="stat-label">pour commencer</div>
+      </div>
     </div>
   </div>
 
   <!-- — DEMO LIVE — -->
   <section class="demo-section">
-    <div class="demo-text">
-      <div class="demo-live-badge">Commune de démonstration — live</div>
-      <h2 class="section-title" style="font-family:'Fraunces',serif; font-size:2.2rem; font-weight:800; line-height:1.1; color:white; margin-bottom:1rem;">
-        Testez l'application<br>
-        <em style="color:var(--green); font-style:italic;">maintenant, ici.</em>
-      </h2>
-      <p class="section-subtitle">
-        Ce n'est pas une maquette. C'est la vraie plateforme, sur une commune de démonstration. Naviguez librement — actualités, agenda, mur des voisins, chasse au trésor…
-      </p>
+    <div class="wrap">
+      <div class="demo-text" data-reveal>
+        <div class="demo-live-badge">Commune de démonstration — live</div>
+        <h2 class="section-title" style="font-family:'Fraunces',serif; font-size:2.2rem; font-weight:800; line-height:1.1; color:white; margin-bottom:1rem;">
+          Testez l'application<br>
+          <em style="color:var(--green); font-style:italic;">maintenant, ici.</em>
+        </h2>
+        <p class="section-subtitle">
+          Ce n'est pas une maquette. C'est la vraie plateforme, sur une commune de démonstration. Naviguez librement — actualités, agenda, mur des voisins, chasse au trésor…
+        </p>
 
-      <div class="demo-feature">
-        <div class="demo-feature-dot" style="background:var(--green-light);">📰</div>
-        <div class="demo-feature-text">
-          <strong>Actualités &amp; alertes</strong>
-          <span>Publiées en 30 secondes depuis l'interface mairie</span>
-        </div>
-      </div>
-      <div class="demo-feature">
-        <div class="demo-feature-dot" style="background:var(--orange-light);">📅</div>
-        <div class="demo-feature-text">
-          <strong>Agenda interactif</strong>
-          <span>Inscription en un tap, rappel automatique</span>
-        </div>
-      </div>
-      <div class="demo-feature">
-        <div class="demo-feature-dot" style="background:var(--coral-light);">🗺️</div>
-        <div class="demo-feature-text">
-          <strong>Chasse au trésor</strong>
-          <span>Parcours géolocalisé du patrimoine local</span>
-        </div>
-      </div>
-      <div class="demo-feature">
-        <div class="demo-feature-dot" style="background:var(--indigo-light);">💬</div>
-        <div class="demo-feature-text">
-          <strong>Mur des voisins</strong>
-          <span>Fil de discussion exclusivement local</span>
-        </div>
-      </div>
-
-      <a href="https://plateforme-agora.fr/bonvivre/" target="_blank" class="demo-cta">
-        Ouvrir en plein écran →
-      </a>
-    </div>
-
-    <!-- iPhone mockup -->
-    <div class="iphone-wrap">
-      <div class="iphone">
-        <div class="iphone-inner">
-          <div class="dynamic-island"></div>
-
-          <!-- Status bar -->
-          <div class="status-bar">
-            <span class="status-time">9:41</span>
-            <div class="status-icons">
-              <!-- Signal -->
-              <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
-                <rect x="0" y="7" width="3" height="5" rx="0.8" fill="#0a0a0a"/>
-                <rect x="4.5" y="5" width="3" height="7" rx="0.8" fill="#0a0a0a"/>
-                <rect x="9" y="2.5" width="3" height="9.5" rx="0.8" fill="#0a0a0a"/>
-                <rect x="13.5" y="0" width="3" height="12" rx="0.8" fill="#0a0a0a"/>
-              </svg>
-              <!-- Wifi -->
-              <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                <path d="M8 9.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" fill="#0a0a0a"/>
-                <path d="M3.5 6.5C4.9 5.1 6.4 4.4 8 4.4s3.1.7 4.5 2.1" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-                <path d="M1 4C3.2 1.8 5.5.8 8 .8s4.8 1 7 3.2" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-              </svg>
-              <!-- Batterie -->
-              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
-                <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#0a0a0a" stroke-opacity="0.35"/>
-                <rect x="2" y="2" width="16" height="8" rx="2" fill="#0a0a0a"/>
-                <path d="M23 4v4a2 2 0 0 0 0-4z" fill="#0a0a0a" fill-opacity="0.4"/>
-              </svg>
-            </div>
+        <div class="demo-feature">
+          <div class="demo-feature-dot" style="background:var(--green-light);">📰</div>
+          <div class="demo-feature-text">
+            <strong>Actualités &amp; alertes</strong>
+            <span>Publiées en 30 secondes depuis l'interface mairie</span>
           </div>
-
-          <!-- iframe app -->
-          <iframe
-            class="iphone-iframe"
-            src="https://plateforme-agora.fr/bonvivre/"
-            title="Démonstration Agora — Commune de Bonvivre"
-            loading="lazy"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          ></iframe>
         </div>
-        <div class="iphone-glare"></div>
+        <div class="demo-feature">
+          <div class="demo-feature-dot" style="background:var(--orange-light);">📅</div>
+          <div class="demo-feature-text">
+            <strong>Agenda interactif</strong>
+            <span>Inscription en un tap, rappel automatique</span>
+          </div>
+        </div>
+        <div class="demo-feature">
+          <div class="demo-feature-dot" style="background:var(--coral-light);">🗺️</div>
+          <div class="demo-feature-text">
+            <strong>Chasse au trésor</strong>
+            <span>Parcours géolocalisé du patrimoine local</span>
+          </div>
+        </div>
+        <div class="demo-feature">
+          <div class="demo-feature-dot" style="background:var(--indigo-light);">💬</div>
+          <div class="demo-feature-text">
+            <strong>Mur des voisins</strong>
+            <span>Fil de discussion exclusivement local</span>
+          </div>
+        </div>
+
+        <a href="https://plateforme-agora.fr/bonvivre/" target="_blank" class="demo-cta">
+          Ouvrir en plein écran →
+        </a>
+      </div>
+
+      <!-- iPhone mockup -->
+      <div class="iphone-wrap" data-reveal>
+        <div class="iphone">
+          <div class="iphone-inner">
+            <div class="dynamic-island"></div>
+
+            <!-- Status bar -->
+            <div class="status-bar">
+              <span class="status-time">9:41</span>
+              <div class="status-icons">
+                <!-- Signal -->
+                <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+                  <rect x="0" y="7" width="3" height="5" rx="0.8" fill="#0a0a0a"/>
+                  <rect x="4.5" y="5" width="3" height="7" rx="0.8" fill="#0a0a0a"/>
+                  <rect x="9" y="2.5" width="3" height="9.5" rx="0.8" fill="#0a0a0a"/>
+                  <rect x="13.5" y="0" width="3" height="12" rx="0.8" fill="#0a0a0a"/>
+                </svg>
+                <!-- Wifi -->
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+                  <path d="M8 9.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" fill="#0a0a0a"/>
+                  <path d="M3.5 6.5C4.9 5.1 6.4 4.4 8 4.4s3.1.7 4.5 2.1" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                  <path d="M1 4C3.2 1.8 5.5.8 8 .8s4.8 1 7 3.2" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                </svg>
+                <!-- Batterie -->
+                <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                  <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#0a0a0a" stroke-opacity="0.35"/>
+                  <rect x="2" y="2" width="16" height="8" rx="2" fill="#0a0a0a"/>
+                  <path d="M23 4v4a2 2 0 0 0 0-4z" fill="#0a0a0a" fill-opacity="0.4"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- iframe app -->
+            <iframe
+              class="iphone-iframe"
+              src="https://plateforme-agora.fr/bonvivre/"
+              title="Démonstration Agora — Commune de Bonvivre"
+              loading="lazy"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            ></iframe>
+          </div>
+          <div class="iphone-glare"></div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- — PILIERS — -->
   <section class="section pillars" id="fonctionnalites">
-    <div style="text-align:center; margin-bottom:3rem;">
-      <div class="section-eyebrow">Quatre piliers</div>
-      <h2 class="section-title" style="text-align:center; max-width:none;">Une seule app, quatre raisons de l'adopter</h2>
-      <p class="section-subtitle" style="text-align:center; max-width:540px; margin:0.5rem auto 0;">De la délibération municipale au patrimoine local, tout ce qu'une commune vivante a besoin de partager.</p>
-    </div>
-    <div class="pillars-grid">
-      <div class="pillar-card">
-        <div class="pillar-icon" style="background:var(--green-light);">🤝</div>
-        <div class="pillar-num">01 — Engagement citoyen</div>
-        <div class="pillar-title">Des habitants qui participent, vraiment</div>
-        <p class="pillar-desc">Inscriptions, présence vérifiée par géolocalisation, points citoyens et badges. La participation devient visible et mesurable — sans déclaratif, sans triche possible.</p>
-        <div class="pillar-tags">
-          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Agenda &amp; inscriptions</span>
-          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Points citoyens</span>
-          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Coups de main</span>
-          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Badges &amp; niveaux</span>
-        </div>
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">Quatre piliers</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Une seule app, quatre raisons de l'adopter</h2>
+        <p class="section-subtitle" style="text-align:center; max-width:540px; margin:0.5rem auto 0;">De la délibération municipale au patrimoine local, tout ce qu'une commune vivante a besoin de partager.</p>
       </div>
-
-      <div class="pillar-card">
-        <div class="pillar-icon" style="background:var(--orange-light);">🏛️</div>
-        <div class="pillar-num">02 — Conseil municipal</div>
-        <div class="pillar-title">La mairie, accessible à tous</div>
-        <p class="pillar-desc">Délibérations, comptes-rendus et trombinoscope publiés dans l'appli. Alertes urgentes en un instant, signalements des habitants dans les deux sens.</p>
-        <div class="pillar-tags">
-          <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Délibérations &amp; PV</span>
-          <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Alertes urgentes</span>
-          <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Thermomètre citoyen</span>
+      <div class="pillars-grid">
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--green-light);">🤝</div>
+          <div class="pillar-num">01 — Engagement citoyen</div>
+          <div class="pillar-title">Des habitants qui participent, vraiment</div>
+          <p class="pillar-desc">Inscriptions, présence vérifiée par géolocalisation, points citoyens et badges. La participation devient visible et mesurable — sans déclaratif, sans triche possible.</p>
+          <div class="pillar-tags">
+            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Agenda &amp; inscriptions</span>
+            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Points citoyens</span>
+            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Coups de main</span>
+            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Badges &amp; niveaux</span>
+          </div>
         </div>
-      </div>
 
-      <div class="pillar-card">
-        <div class="pillar-icon" style="background:var(--coral-light);">🏪</div>
-        <div class="pillar-num">03 — Vie locale</div>
-        <div class="pillar-title">Commerces &amp; associations, enfin visibles</div>
-        <p class="pillar-desc">Boulangerie, artisan menuisier, club de pétanque : chacun a sa fiche classée par catégorie. Plus de numéro punaisé sur un panneau depuis trois ans.</p>
-        <div class="pillar-tags">
-          <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Annuaire local</span>
-          <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Mur des voisins</span>
-          <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Fiches complètes</span>
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--orange-light);">🏛️</div>
+          <div class="pillar-num">02 — Conseil municipal</div>
+          <div class="pillar-title">La mairie, accessible à tous</div>
+          <p class="pillar-desc">Délibérations, comptes-rendus et trombinoscope publiés dans l'appli. Alertes urgentes en un instant, signalements des habitants dans les deux sens.</p>
+          <div class="pillar-tags">
+            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Délibérations &amp; PV</span>
+            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Alertes urgentes</span>
+            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Thermomètre citoyen</span>
+          </div>
         </div>
-      </div>
 
-      <div class="pillar-card">
-        <div class="pillar-icon" style="background:var(--indigo-light);">🗺️</div>
-        <div class="pillar-num">04 — Patrimoine &amp; territoire</div>
-        <div class="pillar-title">Le village, raconté autrement</div>
-        <p class="pillar-desc">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens.</p>
-        <div class="pillar-tags">
-          <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Chasse au trésor</span>
-          <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Mémoire du village</span>
-          <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Carte interactive</span>
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--coral-light);">🏪</div>
+          <div class="pillar-num">03 — Vie locale</div>
+          <div class="pillar-title">Commerces &amp; associations, enfin visibles</div>
+          <p class="pillar-desc">Boulangerie, artisan menuisier, club de pétanque : chacun a sa fiche classée par catégorie. Plus de numéro punaisé sur un panneau depuis trois ans.</p>
+          <div class="pillar-tags">
+            <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Annuaire local</span>
+            <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Mur des voisins</span>
+            <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Fiches complètes</span>
+          </div>
+        </div>
+
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--indigo-light);">🗺️</div>
+          <div class="pillar-num">04 — Patrimoine &amp; territoire</div>
+          <div class="pillar-title">Le village, raconté autrement</div>
+          <p class="pillar-desc">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens.</p>
+          <div class="pillar-tags">
+            <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Chasse au trésor</span>
+            <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Mémoire du village</span>
+            <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Carte interactive</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1285,215 +1368,254 @@
 
   <!-- — MODULES — -->
   <section class="section modules">
-    <div style="text-align:center; margin-bottom:3rem;">
-      <div class="section-eyebrow">14 modules</div>
-      <h2 class="section-title" style="text-align:center; max-width:none;">Tout ce qu'une petite mairie gère au quotidien</h2>
-    </div>
-    <div class="modules-grid">
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--green-light);">📰</div>
-        <div class="module-text"><strong>Actualités</strong><span>Publier une fois, être lu partout</span></div>
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">14 modules</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Tout ce qu'une petite mairie gère au quotidien</h2>
       </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--orange-light);">📅</div>
-        <div class="module-text"><strong>Agenda</strong><span>Le calendrier vivant de la commune</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--coral-light);">🚨</div>
-        <div class="module-text"><strong>Alertes &amp; signalements</strong><span>Mairie ↔ habitants, bidirectionnel</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--indigo-light);">🌡️</div>
-        <div class="module-text"><strong>Thermomètre citoyen</strong><span>Sondage rapide avant une décision</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--green-light);">🤝</div>
-        <div class="module-text"><strong>Coups de main</strong><span>Entraide locale organisée</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--orange-light);">⭐</div>
-        <div class="module-text"><strong>Badges &amp; niveaux</strong><span>La régularité devient visible</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--coral-light);">🏛️</div>
-        <div class="module-text"><strong>Conseil municipal</strong><span>PV, délibérations, trombinoscope</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--indigo-light);">📋</div>
-        <div class="module-text"><strong>Bulletin municipal</strong><span>Sans dépendre de la boîte aux lettres</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--green-light);">🗺️</div>
-        <div class="module-text"><strong>Chasse au trésor</strong><span>Parcours géolocalisé du patrimoine</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--orange-light);">🏘️</div>
-        <div class="module-text"><strong>Mur des voisins</strong><span>Fil de discussion locale</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--coral-light);">🗑️</div>
-        <div class="module-text"><strong>Calendrier des déchets</strong><span>Le bon jour, au bon moment</span></div>
-      </div>
-      <div class="module-item">
-        <div class="module-dot" style="background:var(--indigo-light);">📸</div>
-        <div class="module-text"><strong>Mémoire du village</strong><span>Témoignages et photos des anciens</span></div>
+      <div class="modules-grid">
+        <div class="module-item" data-reveal style="--i:0">
+          <div class="module-dot" style="background:var(--green-light);">📰</div>
+          <div class="module-text"><strong>Actualités</strong><span>Publier une fois, être lu partout</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:1">
+          <div class="module-dot" style="background:var(--orange-light);">📅</div>
+          <div class="module-text"><strong>Agenda</strong><span>Le calendrier vivant de la commune</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:2">
+          <div class="module-dot" style="background:var(--coral-light);">🚨</div>
+          <div class="module-text"><strong>Alertes &amp; signalements</strong><span>Mairie ↔ habitants, bidirectionnel</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:3">
+          <div class="module-dot" style="background:var(--indigo-light);">🌡️</div>
+          <div class="module-text"><strong>Thermomètre citoyen</strong><span>Sondage rapide avant une décision</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:4">
+          <div class="module-dot" style="background:var(--green-light);">🤝</div>
+          <div class="module-text"><strong>Coups de main</strong><span>Entraide locale organisée</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:5">
+          <div class="module-dot" style="background:var(--orange-light);">⭐</div>
+          <div class="module-text"><strong>Badges &amp; niveaux</strong><span>La régularité devient visible</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:0">
+          <div class="module-dot" style="background:var(--coral-light);">🏛️</div>
+          <div class="module-text"><strong>Conseil municipal</strong><span>PV, délibérations, trombinoscope</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:1">
+          <div class="module-dot" style="background:var(--indigo-light);">📋</div>
+          <div class="module-text"><strong>Bulletin municipal</strong><span>Sans dépendre de la boîte aux lettres</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:2">
+          <div class="module-dot" style="background:var(--green-light);">🗺️</div>
+          <div class="module-text"><strong>Chasse au trésor</strong><span>Parcours géolocalisé du patrimoine</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:3">
+          <div class="module-dot" style="background:var(--orange-light);">🏘️</div>
+          <div class="module-text"><strong>Mur des voisins</strong><span>Fil de discussion locale</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:4">
+          <div class="module-dot" style="background:var(--coral-light);">🗑️</div>
+          <div class="module-text"><strong>Calendrier des déchets</strong><span>Le bon jour, au bon moment</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:5">
+          <div class="module-dot" style="background:var(--indigo-light);">📸</div>
+          <div class="module-text"><strong>Mémoire du village</strong><span>Témoignages et photos des anciens</span></div>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- — VALEURS — -->
   <section class="section values" style="background:var(--cream);">
-    <div style="text-align:center; margin-bottom:3rem;">
-      <div class="section-eyebrow">L'esprit du projet</div>
-      <h2 class="section-title" style="text-align:center; max-width:none;">Des outils dignes de l'engagement communal</h2>
-    </div>
-    <div class="values-grid">
-      <div class="value-item">
-        <div class="value-icon" style="background:var(--green-light);">🇫🇷</div>
-        <div class="value-title">Souverain</div>
-        <p class="value-desc">Hébergement français, aucune dépendance à un géant américain</p>
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">L'esprit du projet</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Des outils dignes de l'engagement communal</h2>
       </div>
-      <div class="value-item">
-        <div class="value-icon" style="background:var(--orange-light);">🔒</div>
-        <div class="value-title">RGPD natif</div>
-        <p class="value-desc">Droit à l'effacement, export des données, consentement clair</p>
-      </div>
-      <div class="value-item">
-        <div class="value-icon" style="background:var(--coral-light);">👨‍💼</div>
-        <div class="value-title">Piloté par la mairie</div>
-        <p class="value-desc">Zéro compétence technique, géré seul par le secrétariat</p>
-      </div>
-      <div class="value-item">
-        <div class="value-icon" style="background:var(--indigo-light);">📱</div>
-        <div class="value-title">Mobile d'abord</div>
-        <p class="value-desc">Aucune installation lourde, ça marche dans la poche</p>
+      <div class="values-grid">
+        <div class="value-item" data-reveal>
+          <div class="value-icon" style="background:var(--green-light);">🇫🇷</div>
+          <div class="value-title">Souverain</div>
+          <p class="value-desc">Hébergement français, aucune dépendance à un géant américain</p>
+        </div>
+        <div class="value-item" data-reveal>
+          <div class="value-icon" style="background:var(--orange-light);">🔒</div>
+          <div class="value-title">RGPD natif</div>
+          <p class="value-desc">Droit à l'effacement, export des données, consentement clair</p>
+        </div>
+        <div class="value-item" data-reveal>
+          <div class="value-icon" style="background:var(--coral-light);">👨‍💼</div>
+          <div class="value-title">Piloté par la mairie</div>
+          <p class="value-desc">Zéro compétence technique, géré seul par le secrétariat</p>
+        </div>
+        <div class="value-item" data-reveal>
+          <div class="value-icon" style="background:var(--indigo-light);">📱</div>
+          <div class="value-title">Mobile d'abord</div>
+          <p class="value-desc">Aucune installation lourde, ça marche dans la poche</p>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- — TARIFS — -->
   <section class="section pricing" id="tarifs">
-    <div style="text-align:center; margin-bottom:3rem;">
-      <div class="section-eyebrow">Tarifs</div>
-      <h2 class="section-title" style="text-align:center; max-width:none;">Simple comme un mandat administratif</h2>
-      <p class="section-subtitle" style="text-align:center; max-width:480px; margin:0.5rem auto 0;">Facturation annuelle, règlement par virement, aucun engagement pour commencer.</p>
-    </div>
-    <div class="pricing-grid">
-      <div class="pricing-card">
-        <div class="pricing-label">Hameau</div>
-        <div class="pricing-title">Moins de 500 habitants</div>
-        <div class="pricing-amount">
-          <span class="amount">590 €</span>
-          <span class="period"> / an</span>
-        </div>
-        <ul class="pricing-features">
-          <li>Tous les 14 modules</li>
-          <li>Onboarding inclus</li>
-          <li>Support email</li>
-          <li>390 € la 1re année — offre fondateur</li>
-        </ul>
-        <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Activer cette commune</a>
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">Tarifs</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Simple comme un mandat administratif</h2>
+        <p class="section-subtitle" style="text-align:center; max-width:480px; margin:0.5rem auto 0;">Facturation annuelle, règlement par virement, aucun engagement pour commencer.</p>
       </div>
+      <div class="pricing-grid">
+        <div class="pricing-card" data-reveal>
+          <div class="pricing-label">Hameau</div>
+          <div class="pricing-title">Moins de 500 habitants</div>
+          <div class="pricing-amount">
+            <span class="amount">590 €</span>
+            <span class="period"> / an</span>
+          </div>
+          <ul class="pricing-features">
+            <li>Tous les 14 modules</li>
+            <li>Onboarding inclus</li>
+            <li>Support email</li>
+            <li>390 € la 1re année — offre fondateur</li>
+          </ul>
+          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Activer cette commune</a>
+        </div>
 
-      <div class="pricing-card featured">
-        <div class="pricing-badge">Le plus demandé</div>
-        <div class="pricing-label">Village</div>
-        <div class="pricing-title">500 à 2 000 habitants</div>
-        <div class="pricing-amount">
-          <span class="amount">990 €</span>
-          <span class="period"> / an</span>
+        <div class="pricing-card featured" data-reveal>
+          <div class="pricing-badge">Le plus demandé</div>
+          <div class="pricing-label">Village</div>
+          <div class="pricing-title">500 à 2 000 habitants</div>
+          <div class="pricing-amount">
+            <span class="amount">990 €</span>
+            <span class="period"> / an</span>
+          </div>
+          <ul class="pricing-features">
+            <li>Tous les 14 modules</li>
+            <li>Onboarding prioritaire</li>
+            <li>Support email &amp; téléphone</li>
+            <li>3 mois offerts en engagement 3 ans</li>
+          </ul>
+          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-white">Activer cette commune</a>
         </div>
-        <ul class="pricing-features">
-          <li>Tous les 14 modules</li>
-          <li>Onboarding prioritaire</li>
-          <li>Support email &amp; téléphone</li>
-          <li>3 mois offerts en engagement 3 ans</li>
-        </ul>
-        <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-white">Activer cette commune</a>
-      </div>
 
-      <div class="pricing-card">
-        <div class="pricing-label">Bourg</div>
-        <div class="pricing-title">2 000 à 5 000 habitants</div>
-        <div class="pricing-amount">
-          <span class="amount">1 790 €</span>
-          <span class="period"> / an</span>
+        <div class="pricing-card" data-reveal>
+          <div class="pricing-label">Bourg</div>
+          <div class="pricing-title">2 000 à 5 000 habitants</div>
+          <div class="pricing-amount">
+            <span class="amount">1 790 €</span>
+            <span class="period"> / an</span>
+          </div>
+          <ul class="pricing-features">
+            <li>Tous les 14 modules</li>
+            <li>Onboarding sur site possible</li>
+            <li>Support dédié</li>
+            <li>Au-delà 5 000 hab : devis</li>
+          </ul>
+          <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
-        <ul class="pricing-features">
-          <li>Tous les 14 modules</li>
-          <li>Onboarding sur site possible</li>
-          <li>Support dédié</li>
-          <li>Au-delà 5 000 hab : devis</li>
-        </ul>
-        <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
       </div>
+      <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
+        Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps
+      </p>
     </div>
-    <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
-      Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps
-    </p>
   </section>
 
   <!-- — FAQ — -->
   <section class="section faq" id="faq">
-    <div style="text-align:center; margin-bottom:3rem;">
-      <div class="section-eyebrow">FAQ</div>
-      <h2 class="section-title" style="text-align:center; max-width:none;">Ce que les élus nous demandent le plus souvent</h2>
-    </div>
-    <div class="faq-grid">
-      <div class="faq-item">
-        <div class="faq-q">C'est vraiment gratuit ?</div>
-        <p class="faq-a">Oui : Agenda et Alertes sont accessibles gratuitement, sans limite de temps et sans carte bancaire. Le reste des modules s'active quand votre commune est prête à aller plus loin.</p>
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">FAQ</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Ce que les élus nous demandent le plus souvent</h2>
       </div>
-      <div class="faq-item">
-        <div class="faq-q">Faut-il des compétences techniques ?</div>
-        <p class="faq-a">Non. Agora est pensée pour qu'un maire ou un secrétariat de mairie la pilote seul, au quotidien, sans aucune notion technique.</p>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">Combien de temps pour être en ligne ?</div>
-        <p class="faq-a">Généralement le jour même : votre espace est créé et un compte provisoire vous est envoyé par email dès que vous nous contactez.</p>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">Peut-on personnaliser l'application ?</div>
-        <p class="faq-a">Oui, les couleurs et le logo de la commune s'adaptent à son identité visuelle. Chaque commune a son propre espace, totalement indépendant.</p>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">Où sont hébergées nos données ?</div>
-        <p class="faq-a">En France et dans l'Union européenne, chez des hébergeurs européens. Aucune dépendance à un service américain, conforme RGPD.</p>
-      </div>
-      <div class="faq-item">
-        <div class="faq-q">Comment régler la facture ?</div>
-        <p class="faq-a">Par virement bancaire, sur facture annuelle — exactement comme n'importe quel prestataire communal. Mandat administratif accepté.</p>
+      <div class="faq-grid">
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">C'est vraiment gratuit ?</div>
+          <p class="faq-a">Oui : Agenda et Alertes sont accessibles gratuitement, sans limite de temps et sans carte bancaire. Le reste des modules s'active quand votre commune est prête à aller plus loin.</p>
+        </div>
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">Faut-il des compétences techniques ?</div>
+          <p class="faq-a">Non. Agora est pensée pour qu'un maire ou un secrétariat de mairie la pilote seul, au quotidien, sans aucune notion technique.</p>
+        </div>
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">Combien de temps pour être en ligne ?</div>
+          <p class="faq-a">Généralement le jour même : votre espace est créé et un compte provisoire vous est envoyé par email dès que vous nous contactez.</p>
+        </div>
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">Peut-on personnaliser l'application ?</div>
+          <p class="faq-a">Oui, les couleurs et le logo de la commune s'adaptent à son identité visuelle. Chaque commune a son propre espace, totalement indépendant.</p>
+        </div>
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">Où sont hébergées nos données ?</div>
+          <p class="faq-a">En France et dans l'Union européenne, chez des hébergeurs européens. Aucune dépendance à un service américain, conforme RGPD.</p>
+        </div>
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">Comment régler la facture ?</div>
+          <p class="faq-a">Par virement bancaire, sur facture annuelle — exactement comme n'importe quel prestataire communal. Mandat administratif accepté.</p>
+        </div>
       </div>
     </div>
   </section>
 
   <!-- — CTA FINAL — -->
   <section class="cta-final">
-    <div class="section-eyebrow" style="text-align:center; margin-bottom:0.75rem;">Prêt à activer votre commune ?</div>
-    <h2 class="section-title" style="font-size:2.9rem; text-align:center;">
-      Votre espace, en ligne<br>
-      <em style="color:var(--orange); font-style:italic;">le jour même.</em>
-    </h2>
-    <p class="section-subtitle" style="text-align:center;">
-      Un email, et votre compte provisoire est prêt. Gratuit pour commencer, activé sans carte bancaire.
-    </p>
-    <div class="cta-final-actions">
-      <a href="mailto:contact@plateforme-agora.fr" class="btn-cta-green">Nous écrire →</a>
-      <a href="tel:+33648061097" class="btn-cta-outline">📞 +33 6 48 06 10 97</a>
+    <div class="wrap" data-reveal>
+      <div class="section-eyebrow" style="text-align:center; margin-bottom:0.75rem;">Prêt à activer votre commune ?</div>
+      <h2 class="section-title" style="font-size:2.9rem; text-align:center;">
+        Votre espace, en ligne<br>
+        <em style="color:var(--orange); font-style:italic;">le jour même.</em>
+      </h2>
+      <p class="section-subtitle" style="text-align:center;">
+        Un email, et votre compte provisoire est prêt. Gratuit pour commencer, activé sans carte bancaire.
+      </p>
+      <div class="cta-final-actions">
+        <a href="mailto:contact@plateforme-agora.fr" class="btn-cta-green">Nous écrire →</a>
+        <a href="tel:+33648061097" class="btn-cta-outline">📞 +33 6 48 06 10 97</a>
+      </div>
+      <p class="cta-note">Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</p>
     </div>
-    <p class="cta-note">Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</p>
   </section>
 
   <!-- — FOOTER — -->
   <footer>
-    <div class="footer-brand">Plateforme <em>Agora</em></div>
-    <ul class="footer-links">
-      <li><a href="/mentions-legales">Mentions légales</a></li>
-      <li><a href="/confidentialite">Confidentialité</a></li>
-      <li><a href="/conditions-utilisation">CGU</a></li>
-    </ul>
-    <div class="footer-copy">© 2026 Juicy Solutions<br>plateforme-agora.fr</div>
+    <div class="wrap">
+      <div class="footer-brand">Plateforme <em>Agora</em></div>
+      <ul class="footer-links">
+        <li><a href="/mentions-legales">Mentions légales</a></li>
+        <li><a href="/confidentialite">Confidentialité</a></li>
+        <li><a href="/conditions-utilisation">CGU</a></li>
+      </ul>
+      <div class="footer-copy">© 2026 Juicy Solutions<br>plateforme-agora.fr</div>
+    </div>
   </footer>
+
+  <script>
+    (function () {
+      // Ombre légère sous la nav dès qu'on quitte le haut de page.
+      var nav = document.querySelector('nav');
+      window.addEventListener('scroll', function () {
+        nav.classList.toggle('is-scrolled', window.scrollY > 8);
+      }, { passive: true });
+
+      // Révélation au scroll : discrète, jamais bloquante si prefers-reduced-motion.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var cibles = document.querySelectorAll('[data-reveal]');
+      if (!('IntersectionObserver' in window)) {
+        cibles.forEach(function (el) { el.classList.add('is-visible'); });
+        return;
+      }
+      var observateur = new IntersectionObserver(function (entrees) {
+        entrees.forEach(function (entree) {
+          if (entree.isIntersecting) {
+            entree.target.classList.add('is-visible');
+            observateur.unobserve(entree.target);
+          }
+        });
+      }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+      cibles.forEach(function (el) { observateur.observe(el); });
+    })();
+  </script>
 
 </body>
 </html>
