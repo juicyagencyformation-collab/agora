@@ -1,422 +1,1498 @@
 <!DOCTYPE html>
 <!-- frontend/accueil.html — page marketing publique, servie à la racine de plateforme-agora.fr
      (voir frontend/functions/[[path]].js, branche segments.length === 0). Distincte de index.html
-     (coquille de l'appli citoyenne, servie sous /<slug>/) : ne jamais fusionner les deux. -->
+     (coquille de l'appli citoyenne, servie sous /<slug>/) : ne jamais fusionner les deux.
+     Design 2026-08-21 : nouvelle landing page (palette navy/vert/orange/corail), avec démo live
+     embarquée (commune Bonvivre, voir niveau_national=false, statut_client=active en base). -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Plateforme-Agora — la place publique numérique des petites communes</title>
   <meta name="description" content="Informer, alerter et faire participer vos habitants depuis une application mobile simple, souveraine et 100 % française — pilotée par la mairie seule. Gratuit pour commencer." />
+  <title>Plateforme Agora — La place publique numérique des petites communes</title>
   <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260817-1" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,700;0,900;1,300;1,700;1,900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --papier: #fbfaf6;
-      --carte: #ffffff;
-      --navy: #1c3b57;
-      --navy-doux: #2f5779;
-      --encre: #1c2226;
-      --encre-douce: #4d5a63;
-      --encre-faible: #7c8790;
-      --vert: #2c5f2d;
-      --vert-clair: #4a8c4a;
-      --or: #e2952f;
-      --corail: #e0684f;
-      --bord: rgba(28, 59, 87, 0.13);
-      --rayon: 18px;
+      --navy: #1B2A4A;
+      --navy-light: #2d4270;
+      --green: #2EAB7B;
+      --green-light: #e8f7f1;
+      --orange: #F4A529;
+      --orange-light: #fef5e4;
+      --coral: #E8623A;
+      --coral-light: #fdeee9;
+      --indigo-light: #eef2ff;
+      --white: #FFFFFF;
+      --cream: #F8F7F4;
+      --text-muted: #6b7280;
+      --border-light: #e8e6e1;
     }
-    * { box-sizing: border-box; }
+
     html { scroll-behavior: smooth; }
+
     body {
-      margin: 0;
-      background: var(--papier);
-      color: var(--encre);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      font-size: 16px;
-      line-height: 1.6;
+      font-family: 'Inter', sans-serif;
+      color: var(--navy);
+      background: var(--white);
+      overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
-    h1, h2, h3 {
-      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-      font-weight: 600;
-      color: var(--navy);
-      text-wrap: balance;
-      margin: 0;
-    }
-    p { margin: 0; }
-    a { color: inherit; }
-    img { max-width: 100%; display: block; }
 
-    .enveloppe { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
-
-    /* — Nav — */
-    .nav {
-      position: sticky; top: 0; z-index: 20;
-      background: rgba(251, 250, 246, 0.92);
-      backdrop-filter: blur(6px);
-      border-bottom: 1px solid var(--bord);
+    /* — NAV — */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 3rem;
+      background: var(--white);
+      border-bottom: 1px solid var(--border-light);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
-    .nav .enveloppe { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; }
-    .nav__marque { display: flex; align-items: center; gap: 10px; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 18px; font-weight: 700; color: var(--navy); }
-    .nav__marque img { width: 34px; height: 34px; border-radius: 9px; }
-    .nav__liens { display: flex; align-items: center; gap: 26px; font-size: 14.5px; font-weight: 600; }
-    .nav__liens a:hover { color: var(--vert); }
-    .nav__liens a.bouton {
-      background: var(--vert); color: #fff; padding: 10px 18px; border-radius: 999px;
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       text-decoration: none;
     }
-    .nav__liens a.bouton:hover { background: var(--vert-clair); }
-    @media (max-width: 640px) { .nav__liens a:not(.bouton) { display: none; } }
 
-    /* — Hero — */
-    .hero { padding: 72px 0 60px; overflow: hidden; position: relative; }
-    .hero__fond {
-      position: absolute; inset: -20% -10% auto -10%; height: 480px;
-      background: radial-gradient(60% 60% at 30% 20%, rgba(74,140,74,0.14), transparent),
-                  radial-gradient(50% 50% at 85% 10%, rgba(226,149,47,0.13), transparent);
-      z-index: -1;
+    .nav-logo img {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
     }
-    .hero .enveloppe { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 48px; align-items: center; }
-    .hero__eyebrow {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-size: 12.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--vert); background: rgba(74,140,74,0.1); padding: 7px 14px 7px 10px; border-radius: 999px;
-      margin-bottom: 20px;
-    }
-    .hero__eyebrow .point { width: 7px; height: 7px; border-radius: 50%; background: var(--vert); }
-    .hero h1 { font-size: clamp(32px, 4.2vw, 48px); line-height: 1.14; max-width: 15ch; margin-bottom: 20px; }
-    .hero h1 em { color: var(--vert); font-style: normal; }
-    .hero .sous { font-size: 17.5px; color: var(--encre-douce); max-width: 46ch; line-height: 1.65; margin-bottom: 30px; }
-    .hero__ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 30px; }
-    .cta {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-size: 15.5px; font-weight: 700; padding: 15px 26px; border-radius: 999px;
-      text-decoration: none; border: 1.5px solid transparent;
-    }
-    .cta--primaire { background: var(--vert); color: #fff; }
-    .cta--primaire:hover { background: var(--vert-clair); }
-    .cta--secondaire { background: transparent; color: var(--navy); border-color: var(--bord); }
-    .cta--secondaire:hover { border-color: var(--navy); }
-    .hero__preuve { font-size: 13.5px; color: var(--encre-faible); }
-    .hero__preuve strong { color: var(--navy); }
 
-    .hero__badge {
-      background: var(--carte); border: 1px solid var(--bord); border-radius: 26px;
-      padding: 34px 30px; box-shadow: 0 18px 50px -22px rgba(28,59,87,0.35);
-      text-align: center;
+    .nav-wordmark {
+      font-family: 'Fraunces', serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--navy);
+      line-height: 1;
     }
-    .hero__badge img { width: 128px; height: 128px; margin: 0 auto 18px; }
-    .hero__badge .faits { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; text-align: left; }
-    .fait b { display: block; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 21px; color: var(--vert); line-height: 1.1; }
-    .fait span { font-size: 12px; color: var(--encre-faible); }
-    @media (max-width: 860px) { .hero .enveloppe { grid-template-columns: 1fr; } .hero__badge { max-width: 360px; margin: 0 auto; } }
 
-    /* — Section générique — */
-    section { padding: 68px 0; }
-    .section__tete { max-width: 60ch; margin-bottom: 40px; }
-    .eyebrow {
-      font-size: 12.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-      color: var(--accent, var(--vert)); display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    .nav-wordmark span {
+      display: block;
+      font-size: 0.58rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-top: 2px;
     }
-    .eyebrow::before { content: ""; width: 22px; height: 1px; background: currentColor; }
-    .section__tete h2 { font-size: clamp(24px, 2.8vw, 32px); line-height: 1.25; }
 
-    /* — Piliers — */
-    .piliers { display: flex; flex-direction: column; gap: 4px; }
-    .pilier {
-      display: grid; grid-template-columns: 84px 1fr; gap: 6px 28px;
-      padding: 34px 0; border-top: 1px solid var(--bord);
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+      align-items: center;
     }
-    .pilier:last-child { border-bottom: 1px solid var(--bord); }
-    .pilier__chiffre {
-      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-      font-size: 15px; font-weight: 700; color: var(--accent, var(--vert));
-      border: 1.5px solid var(--accent, var(--vert)); border-radius: 50%;
-      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-    }
-    .pilier h3 { font-size: 21px; margin-bottom: 10px; max-width: 30ch; }
-    .pilier p.intro { color: var(--encre-douce); font-size: 15px; line-height: 1.7; max-width: 62ch; margin-bottom: 18px; }
-    .puces { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 22px; }
-    .puce {
-      display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--encre-douce); line-height: 1.5;
-    }
-    .puce::before {
-      content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent, var(--vert));
-      margin-top: 7px; flex-shrink: 0;
-    }
-    .puce b { color: var(--encre); font-weight: 700; }
-    [data-pilier="1"] { --accent: var(--vert); }
-    [data-pilier="2"] { --accent: var(--navy-doux); }
-    [data-pilier="3"] { --accent: var(--or); }
-    [data-pilier="4"] { --accent: var(--corail); }
-    @media (max-width: 620px) { .pilier { grid-template-columns: 1fr; } .pilier__chiffre { margin-bottom: 6px; } }
 
-    /* — Et aussi — */
-    .aussi-bande { background: var(--navy); color: #fff; }
-    .aussi-bande .eyebrow { color: #a9c3d6; }
-    .aussi-bande .eyebrow::before { background: #a9c3d6; }
-    .aussi-bande h2 { color: #fff; }
-    .aussi__grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px 28px; }
-    .aussi__item h3 { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15.5px; font-weight: 700; color: #fff; margin-bottom: 6px; }
-    .aussi__item p { font-size: 14px; color: #c7d5e0; line-height: 1.6; }
+    .nav-links a {
+      text-decoration: none;
+      color: var(--navy);
+      font-size: 0.88rem;
+      font-weight: 500;
+      opacity: 0.65;
+      transition: opacity 0.2s;
+    }
 
-    /* — Fondations — */
-    .socle { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; }
-    .socle__item { background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 22px 22px 24px; }
-    .socle__item b { display: block; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 17px; color: var(--vert); margin-bottom: 6px; }
-    .socle__item span { font-size: 13.5px; color: var(--encre-douce); line-height: 1.55; }
+    .nav-links a:hover { opacity: 1; }
 
-    /* — Tarif — */
-    .tarif { background: var(--carte); border: 1px solid var(--bord); border-radius: 24px; padding: 40px 36px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-    .tarif__col h3 { font-size: 18px; margin-bottom: 10px; }
-    .tarif__col p { font-size: 14.5px; color: var(--encre-douce); line-height: 1.65; }
-    .tarif__col + .tarif__col { border-left: 1px solid var(--bord); padding-left: 30px; }
-    @media (max-width: 640px) { .tarif { grid-template-columns: 1fr; } .tarif__col + .tarif__col { border-left: none; padding-left: 0; border-top: 1px solid var(--bord); padding-top: 24px; } }
+    .nav-cta {
+      background: var(--green) !important;
+      color: white !important;
+      opacity: 1 !important;
+      padding: 0.55rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 600 !important;
+      font-size: 0.84rem !important;
+    }
+
+    /* — HERO — */
+    .hero {
+      min-height: 90vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      padding: 4rem 3rem;
+      gap: 3rem;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green-light);
+      color: var(--green);
+      border-radius: 100px;
+      padding: 0.4rem 1rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse-dot 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.6; }
+    }
+
+    .hero-title {
+      font-family: 'Fraunces', serif;
+      font-weight: 900;
+      font-size: 3.6rem;
+      line-height: 1.04;
+      color: var(--navy);
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .hero-title .accent-green { color: var(--green); font-style: italic; }
+    .hero-title .accent-orange { color: var(--orange); }
+
+    .hero-subtitle {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: var(--text-muted);
+      max-width: 490px;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      background: var(--navy);
+      color: white;
+      border: none;
+      padding: 0.9rem 1.8rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-primary:hover { background: var(--navy-light); transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--navy);
+      border: 1.5px solid var(--border-light);
+      padding: 0.9rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.2s;
+    }
+
+    .btn-secondary:hover { border-color: var(--navy); }
+
+    .hero-proof {
+      margin-top: 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .hero-proof-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+    }
+
+    /* Hero visual */
+    .hero-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .hero-brand-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      animation: float 5s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .hero-logo-full {
+      width: 260px;
+      max-width: 100%;
+      height: auto;
+      filter: drop-shadow(0 20px 40px rgba(27,42,74,0.12));
+    }
+
+    .hero-wordmark-full {
+      font-family: 'Fraunces', serif;
+      font-weight: 900;
+      font-size: 2.4rem;
+      color: var(--navy);
+      letter-spacing: -0.01em;
+    }
+
+    .hero-wordmark-full em { color: var(--green); font-style: italic; }
+
+    /* Pills en ligne sous le logo */
+    .hero-pills-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .hero-pill-inline {
+      background: white;
+      border: 1px solid var(--border-light);
+      border-radius: 100px;
+      padding: 0.45rem 0.9rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--navy);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      white-space: nowrap;
+    }
+
+    .pill-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    /* — STATS BAR — */
+    .stats-bar {
+      background: var(--navy);
+      padding: 2.25rem 3rem;
+      display: flex;
+      justify-content: center;
+      gap: 5rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-item { text-align: center; color: white; }
+
+    .stat-number {
+      font-family: 'Fraunces', serif;
+      font-size: 2.6rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+
+    .stat-label {
+      font-size: 0.76rem;
+      opacity: 0.55;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* — GENERIC SECTION — */
+    .section { padding: 5rem 3rem; }
+
+    .section-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-family: 'Fraunces', serif;
+      font-size: 2.4rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--navy);
+      margin-bottom: 1rem;
+    }
+
+    .section-subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 3rem;
+    }
+
+    /* — PILIERS — */
+    .pillars { background: var(--cream); }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .pillar-card {
+      background: white;
+      border-radius: 18px;
+      padding: 2rem;
+      border: 1px solid var(--border-light);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .pillar-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(27,42,74,0.09);
+    }
+
+    .pillar-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+      font-size: 1.4rem;
+    }
+
+    .pillar-num {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.35;
+      margin-bottom: 0.4rem;
+    }
+
+    .pillar-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.75rem;
+      line-height: 1.2;
+    }
+
+    .pillar-desc {
+      font-size: 0.87rem;
+      line-height: 1.65;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+    }
+
+    .pillar-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 100px;
+      border: 1px solid transparent;
+    }
+
+    /* — MODULES — */
+    .modules { background: white; }
+
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .module-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 1.25rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .module-item:hover {
+      border-color: var(--green);
+      box-shadow: 0 2px 12px rgba(46,171,123,0.08);
+    }
+
+    .module-dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .module-text strong {
+      display: block;
+      font-size: 0.87rem;
+      font-weight: 600;
+      color: var(--navy);
+      margin-bottom: 2px;
+    }
+
+    .module-text span {
+      font-size: 0.77rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* — VALEURS — */
+    .values { background: white; }
+
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+    }
+
+    .value-item { text-align: center; padding: 2rem 1rem; }
+
+    .value-icon {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin: 0 auto 1rem;
+    }
+
+    .value-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 0.5rem;
+    }
+
+    .value-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
 
     /* — FAQ — */
-    .faq { display: flex; flex-direction: column; gap: 10px; max-width: 74ch; }
-    .faq details {
-      background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 4px 22px;
-    }
-    .faq summary {
-      cursor: pointer; padding: 16px 0; font-weight: 700; font-size: 15.5px; color: var(--navy);
-      list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 14px;
-    }
-    .faq summary::-webkit-details-marker { display: none; }
-    .faq summary::after { content: "+"; font-size: 20px; color: var(--vert); font-weight: 400; flex-shrink: 0; }
-    .faq details[open] summary::after { content: "–"; }
-    .faq details p { font-size: 14.5px; color: var(--encre-douce); line-height: 1.65; padding: 0 0 18px; }
+    .faq { background: var(--cream); }
 
-    /* — Clôture — */
-    .cloture { background: var(--navy); color: #fff; text-align: center; padding: 76px 24px; }
-    .cloture h2 { color: #fff; font-size: clamp(26px, 3.2vw, 36px); max-width: 20ch; margin: 0 auto 16px; }
-    .cloture p { color: #c7d5e0; max-width: 48ch; margin: 0 auto 30px; font-size: 16px; line-height: 1.6; }
-    .cloture .hero__ctas { justify-content: center; }
-    .cloture .cta--secondaire { color: #fff; border-color: rgba(255,255,255,0.35); }
-    .cloture .cta--secondaire:hover { border-color: #fff; }
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.25rem;
+    }
 
-    footer { padding: 34px 24px 44px; }
-    footer .enveloppe { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px; font-size: 12.5px; color: var(--encre-faible); }
-    footer a { text-decoration: none; }
-    footer a:hover { color: var(--vert); }
-    footer .liens { display: flex; gap: 18px; flex-wrap: wrap; }
+    .faq-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid var(--border-light);
+    }
+
+    .faq-q {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--navy);
+      margin-bottom: 0.6rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .faq-q::before {
+      content: '?';
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--green-light);
+      color: var(--green);
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .faq-a {
+      font-size: 0.84rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      padding-left: 32px;
+    }
+
+    /* — TARIFS — */
+    .pricing { background: white; }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+
+    .pricing-card {
+      background: white;
+      border-radius: 18px;
+      padding: 2rem 1.75rem;
+      border: 1.5px solid var(--border-light);
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--navy);
+      background: var(--navy);
+      color: white;
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--orange);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.8rem;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    .pricing-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.45;
+      margin-bottom: 0.4rem;
+    }
+
+    .pricing-title {
+      font-family: 'Fraunces', serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+    }
+
+    .pricing-amount { margin-bottom: 1.5rem; }
+
+    .pricing-amount .amount {
+      font-family: 'Fraunces', serif;
+      font-size: 2.6rem;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .pricing-amount .period { font-size: 0.85rem; opacity: 0.55; }
+
+    .pricing-features {
+      list-style: none;
+      margin-bottom: 2rem;
+    }
+
+    .pricing-features li {
+      font-size: 0.84rem;
+      padding: 0.4rem 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      opacity: 0.85;
+      line-height: 1.4;
+    }
+
+    .pricing-features li::before {
+      content: '✓';
+      font-weight: 700;
+      color: var(--green);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .pricing-card.featured .pricing-features li::before { color: var(--orange); }
+
+    .btn-pricing {
+      width: 100%;
+      padding: 0.85rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid;
+      transition: all 0.2s;
+      text-align: center;
+      display: block;
+      text-decoration: none;
+    }
+
+    .btn-pricing-light { border-color: var(--navy); color: var(--navy); background: transparent; }
+    .btn-pricing-light:hover { background: var(--navy); color: white; }
+
+    .btn-pricing-white { border-color: white; color: var(--navy); background: white; }
+    .btn-pricing-white:hover { background: var(--orange); border-color: var(--orange); color: white; }
+
+    /* — CTA FINAL — */
+    .cta-final {
+      background: var(--navy);
+      padding: 6rem 3rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-final::before {
+      content: '';
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(46,171,123,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-final .section-title { color: white; max-width: none; margin: 0 auto 1rem; }
+    .cta-final .section-subtitle { color: rgba(255,255,255,0.55); max-width: 500px; margin: 0 auto 2.5rem; }
+
+    .cta-final-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+
+    .btn-cta-green {
+      background: var(--green);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-cta-green:hover { background: #26976c; transform: translateY(-1px); }
+
+    .btn-cta-outline {
+      background: transparent;
+      color: white;
+      border: 1.5px solid rgba(255,255,255,0.28);
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: border-color 0.2s;
+    }
+
+    .btn-cta-outline:hover { border-color: rgba(255,255,255,0.6); }
+
+    .cta-note { font-size: 0.78rem; color: rgba(255,255,255,0.3); margin-top: 0.5rem; }
+
+    /* — FOOTER — */
+    footer {
+      background: #0f1928;
+      padding: 2rem 3rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .footer-brand {
+      font-family: 'Fraunces', serif;
+      font-weight: 700;
+      font-size: 1rem;
+      color: white;
+    }
+
+    .footer-brand em { color: var(--green); font-style: italic; }
+
+    .footer-links { display: flex; gap: 1.5rem; list-style: none; }
+
+    .footer-links a {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.35);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: rgba(255,255,255,0.75); }
+
+    .footer-copy {
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.22);
+      text-align: right;
+      line-height: 1.5;
+    }
+
+    /* — DEMO LIVE — */
+    .demo-section {
+      background: var(--navy);
+      padding: 5rem 3rem;
+      display: flex;
+      align-items: center;
+      gap: 5rem;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .demo-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 70% 50%, rgba(46,171,123,0.12) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .demo-text { max-width: 420px; flex-shrink: 0; position: relative; z-index: 1; }
+
+    .demo-text .section-eyebrow { color: var(--green); }
+
+    .demo-text .section-title { color: white; font-size: 2.2rem; }
+
+    .demo-text .section-subtitle { color: rgba(255,255,255,0.55); margin-bottom: 2rem; }
+
+    .demo-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(46,171,123,0.15);
+      border: 1px solid rgba(46,171,123,0.3);
+      color: var(--green);
+      border-radius: 100px;
+      padding: 0.45rem 1rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      margin-bottom: 2rem;
+    }
+
+    .demo-live-badge::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse-dot 1.5s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    .demo-feature {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 1rem;
+    }
+
+    .demo-feature-dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      margin-top: 1px;
+    }
+
+    .demo-feature-text strong {
+      display: block;
+      color: white;
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .demo-feature-text span {
+      color: rgba(255,255,255,0.45);
+      font-size: 0.8rem;
+    }
+
+    .demo-cta {
+      margin-top: 2rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--green);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(46,171,123,0.3);
+      padding-bottom: 2px;
+      transition: border-color 0.2s;
+    }
+
+    .demo-cta:hover { border-color: var(--green); }
+
+    /* iPhone mockup */
+    .iphone-wrap {
+      overflow: visible;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    .iphone {
+      width: 280px;
+      height: 572px;
+      background: #0a0a0a;
+      border-radius: 48px;
+      padding: 14px;
+      position: relative;
+      box-shadow:
+        0 0 0 1px #2a2a2a,
+        0 0 0 3px #1a1a1a,
+        0 40px 80px rgba(0,0,0,0.6),
+        0 20px 40px rgba(0,0,0,0.4),
+        inset 0 0 0 1px #3a3a3a;
+    }
+
+    /* Boutons côté */
+    .iphone::before {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 100px;
+      width: 3px;
+      height: 32px;
+      background: #2a2a2a;
+      border-radius: 2px 0 0 2px;
+      box-shadow: 0 42px 0 #2a2a2a, 0 84px 0 #2a2a2a;
+    }
+
+    .iphone::after {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 140px;
+      width: 3px;
+      height: 60px;
+      background: #2a2a2a;
+      border-radius: 0 2px 2px 0;
+    }
+
+    .iphone-inner {
+      width: 100%;
+      height: 100%;
+      background: #f2f2f7;
+      border-radius: 36px;
+      overflow: hidden;
+      position: relative;
+      isolation: isolate;
+    }
+
+    /* Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 32px;
+      background: #0a0a0a;
+      border-radius: 20px;
+      z-index: 10;
+    }
+
+    /* Barre de statut */
+    .status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50px;
+      background: white;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 0 18px 6px;
+      z-index: 9;
+      font-size: 11px;
+      font-weight: 600;
+      color: #0a0a0a;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .status-time { font-size: 14px; font-weight: 700; }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-icons svg { display: block; }
+
+    .iphone-iframe {
+      position: absolute;
+      top: 50px;
+      left: 0;
+      border: none;
+      border-radius: 0 0 36px 36px;
+      /* 390px = viewport iPhone réel — scale 0.6462 pour tenir dans 252px
+         Hauteur : zone dispo = 494px — 494 / 0.6462 = 765px pour tout remplir */
+      width: 390px;
+      height: 765px;
+      transform-origin: top left;
+      transform: scale(0.6462);
+    }
+
+    /* Reflet écran */
+    .iphone-glare {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      width: 50px;
+      height: 120px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
+      border-radius: 36px 0 0 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* — RESPONSIVE — */
+    @media (max-width: 900px) {
+      .demo-section { flex-direction: column; align-items: center; padding: 3rem 1.25rem; gap: 2rem; }
+      .iphone { width: 260px; height: 531px; }
+      .iphone-iframe { width: 390px; height: 762px; transform: scale(0.5949); }
+      .demo-text { max-width: none; order: 2; }
+      .iphone-wrap { order: 1; }
+      .demo-cta { display: none; }
+
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: auto; padding: 3rem 1.5rem; }
+      .hero-right { display: flex; justify-content: center; margin-top: 1rem; }
+      .hero-logo-full { width: 200px; }
+      .hero-pills-row { display: none; }
+      .hero-title { font-size: 2.5rem; }
+      .stats-bar { gap: 2.5rem; padding: 2rem 1.5rem; }
+      .section { padding: 3.5rem 1.5rem; }
+      .pillars-grid, .pricing-grid, .faq-grid { grid-template-columns: 1fr; }
+      .modules-grid { grid-template-columns: repeat(2, 1fr); }
+      .values-grid { grid-template-columns: repeat(2, 1fr); }
+      .section-title { font-size: 1.9rem; }
+      footer { flex-direction: column; align-items: flex-start; padding: 2rem 1.5rem; }
+      .footer-copy { text-align: left; }
+    }
+
+    /* Très petits écrans < 380px */
+    @media (max-width: 380px) {
+      .iphone { width: 230px; height: 470px; }
+      .iphone-iframe { width: 390px; height: 727px; transform: scale(0.5231); }
+    }
   </style>
 </head>
 <body>
 
-  <nav class="nav">
-    <div class="enveloppe">
-      <div class="nav__marque"><img src="/icons/icon-192.png?v=20260817-1" alt="" />Plateforme-Agora</div>
-      <div class="nav__liens">
-        <a href="#fonctionnalites">Fonctionnalités</a>
-        <a href="#tarifs">Tarifs</a>
-        <a href="#faq">FAQ</a>
-        <a class="bouton" href="mailto:contact@plateforme-agora.fr?subject=Activer%20Plateforme-Agora%20pour%20ma%20commune">Activer ma commune</a>
+  <!-- — NAV — -->
+  <nav>
+    <a class="nav-logo" href="#">
+      <img src="/icons/icon-192.png?v=20260817-1" alt="Agora" style="width:40px;height:40px;object-fit:contain;" />
+      <div class="nav-wordmark">
+        Agora
+        <span>Plateforme citoyenne</span>
       </div>
-    </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#fonctionnalites">Fonctionnalités</a></li>
+      <li><a href="#tarifs">Tarifs</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="mailto:contact@plateforme-agora.fr" class="nav-cta">Activer ma commune →</a></li>
+    </ul>
   </nav>
 
-  <header class="hero">
-    <div class="hero__fond"></div>
-    <div class="enveloppe">
-      <div>
-        <div class="hero__eyebrow"><span class="point"></span>La place publique numérique de votre commune</div>
-        <h1>La place du village, <em>réinventée</em> dans la poche de chaque habitant</h1>
-        <p class="sous">
-          Plateforme-Agora n'est pas une simple appli d'annonces municipales. C'est un espace
-          vivant où l'on s'informe, on s'entraide, on découvre son patrimoine, et où le conseil
-          municipal redevient joignable — pensé pour les petites communes, piloté par la mairie
-          seule, sans aucune compétence technique.
-        </p>
-        <div class="hero__ctas">
-          <a class="cta cta--primaire" href="mailto:contact@plateforme-agora.fr?subject=Activer%20Plateforme-Agora%20pour%20ma%20commune">Activer gratuitement ma commune</a>
-          <a class="cta cta--secondaire" href="#fonctionnalites">Découvrir les fonctionnalités</a>
-        </div>
-        <div class="hero__preuve">Déjà en place à <strong>Eaucourt-sur-Somme</strong> (Somme) — gérée par la mairie seule.</div>
+  <!-- — HERO — -->
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-badge">Déjà actif à Eaucourt-sur-Somme</div>
+      <h1 class="hero-title">
+        La place du<br>
+        <span class="accent-green">village,</span><br>
+        dans chaque poche.
+      </h1>
+      <p class="hero-subtitle">
+        Une application pensée pour les petites communes — où habitants et élus se retrouvent, échangent et agissent ensemble, sans aucune compétence technique requise.
+      </p>
+      <div class="hero-actions">
+        <a href="mailto:contact@plateforme-agora.fr" class="btn-primary">Activer gratuitement →</a>
+        <a href="#fonctionnalites" class="btn-secondary">Voir les fonctionnalités</a>
       </div>
-      <div class="hero__badge">
-        <img src="/icons/icon-192.png?v=20260817-1" alt="Plateforme-Agora" />
-        <p style="font-size:14px; color:var(--encre-douce); line-height:1.6">Une application, pensée comme une vraie place de village.</p>
-        <div class="faits">
-          <div class="fait"><b>14</b><span>modules</span></div>
-          <div class="fait"><b>100&nbsp;%</b><span>française &amp; souveraine</span></div>
-          <div class="fait"><b>0</b><span>compétence technique requise</span></div>
-          <div class="fait"><b>Gratuit</b><span>pour commencer</span></div>
-        </div>
+      <div class="hero-proof">
+        <div class="hero-proof-dot"></div>
+        <span>Gratuit pour commencer · 100 % français · Hébergement souverain</span>
       </div>
     </div>
-  </header>
 
-  <section id="fonctionnalites">
-    <div class="enveloppe">
-      <div class="section__tete">
-        <div class="eyebrow">Ce que ça change, concrètement</div>
-        <h2>Quatre piliers, une seule application</h2>
-      </div>
-
-      <div class="piliers">
-        <div class="pilier" data-pilier="1">
-          <div class="pilier__chiffre">I</div>
-          <div>
-            <h3>L'engagement citoyen qui compte, et qui se compte</h3>
-            <p class="intro">Réunions, ateliers, chantiers participatifs, nettoyages, plantations, maraudes : chaque action organisée dans l'agenda peut être créditée en points, vérifiés par géolocalisation sur place — pas de déclaratif, pas de triche possible.</p>
-            <div class="puces">
-              <div class="puce"><span><b>Agenda &amp; inscriptions</b> — le calendrier vivant de la commune, en un geste.</span></div>
-              <div class="puce"><span><b>Points citoyens</b> — un score de participation suivi dans le temps.</span></div>
-              <div class="puce"><span><b>Présence vérifiée</b> — géolocalisation sur le lieu de l'action.</span></div>
-              <div class="puce"><span><b>Coups de main</b> — bricolage, jardinage, garde d'enfants, transport...</span></div>
-              <div class="puce"><span><b>Badges &amp; niveaux</b> — la régularité devient visible.</span></div>
-            </div>
+    <div class="hero-right">
+      <div class="hero-brand-block">
+        <img
+          src="/icons/agora-icone-1024-fond-transparent.png"
+          alt="Plateforme Agora — Échanger, Participer, Agir ensemble"
+          class="hero-logo-full"
+        />
+        <div class="hero-wordmark-full">Agor<em>a</em></div>
+        <div class="hero-pills-row">
+          <div class="hero-pill-inline">
+            <div class="pill-icon" style="background:var(--green-light);">📢</div>
+            Alertes mairie
           </div>
-        </div>
-
-        <div class="pilier" data-pilier="2">
-          <div class="pilier__chiffre">II</div>
-          <div>
-            <h3>Le conseil municipal, à portée de main</h3>
-            <p class="intro">Délibérations, comptes-rendus et trombinoscope publiés directement dans l'appli. Et le lien fonctionne dans les deux sens : un habitant signale, la mairie diffuse une alerte urgente en un instant.</p>
-            <div class="puces">
-              <div class="puce"><span><b>Conseil municipal</b> — délibérations, comptes-rendus, trombinoscope.</span></div>
-              <div class="puce"><span><b>Alertes &amp; signalements</b> — dans les deux sens, mairie ↔ habitants.</span></div>
-              <div class="puce"><span><b>Thermomètre citoyen</b> — un sondage rapide avant une décision.</span></div>
-              <div class="puce"><span><b>Mur des voisins</b> — un fil de discussion locale.</span></div>
-            </div>
+          <div class="hero-pill-inline">
+            <div class="pill-icon" style="background:var(--orange-light);">🗺️</div>
+            Chasse au trésor
           </div>
-        </div>
-
-        <div class="pilier" data-pilier="3">
-          <div class="pilier__chiffre">III</div>
-          <div>
-            <h3>Commerces, artisans, associations : enfin visibles</h3>
-            <p class="intro">Boulangerie, artisan menuisier, club de pétanque, association de parents d'élèves : chacun a sa fiche, classée par catégorie — plus de numéro punaisé sur un panneau depuis trois ans.</p>
-            <div class="puces">
-              <div class="puce"><span><b>Annuaire local</b> — commerces, artisans, associations, services publics.</span></div>
-              <div class="puce"><span><b>Fiches complètes</b> — contact, description, documents utiles.</span></div>
-              <div class="puce"><span><b>Recherche par catégorie</b> — un service trouvé en quelques secondes.</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="pilier" data-pilier="4">
-          <div class="pilier__chiffre">IV</div>
-          <div>
-            <h3>Le patrimoine et le territoire, racontés autrement</h3>
-            <p class="intro">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens — un devoir de mémoire vivant.</p>
-            <div class="puces">
-              <div class="puce"><span><b>Chasse au trésor</b> — un parcours géolocalisé à travers le patrimoine local.</span></div>
-              <div class="puce"><span><b>Mémoire du village</b> — témoignages et photos des anciens.</span></div>
-              <div class="puce"><span><b>Photo du jour &amp; Trouve la photo</b> — un rendez-vous quotidien.</span></div>
-            </div>
+          <div class="hero-pill-inline">
+            <div class="pill-icon" style="background:var(--coral-light);">🏘️</div>
+            Mur des voisins
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="aussi-bande">
-    <div class="enveloppe">
-      <div class="section__tete">
-        <div class="eyebrow">Et aussi, dans la même application</div>
-        <h2>Tout ce qu'une petite mairie gère au quotidien</h2>
-      </div>
-      <div class="aussi__grille">
-        <div class="aussi__item"><h3>Actualités &amp; bulletin municipal</h3><p>Publier une fois, être lu partout — sans dépendre de la boîte aux lettres.</p></div>
-        <div class="aussi__item"><h3>Veille législative</h3><p>Suivi automatique des textes adoptés à l'Assemblée nationale et au Parlement européen.</p></div>
-        <div class="aussi__item"><h3>Calendrier des déchets</h3><p>Ordures ménagères, tri sélectif, verre, encombrants, déchets verts : le bon jour, au bon moment.</p></div>
-      </div>
+  <!-- — STATS BAR — -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-number" style="color:var(--green);">14</div>
+      <div class="stat-label">modules intégrés</div>
     </div>
-  </section>
-
-  <section>
-    <div class="enveloppe">
-      <div class="section__tete">
-        <div class="eyebrow">L'esprit du projet</div>
-        <h2>Des outils à la hauteur de l'engagement des petites communes</h2>
-      </div>
-      <div class="socle">
-        <div class="socle__item"><b>Souverain</b><span>Hébergement français, aucune dépendance à un géant américain.</span></div>
-        <div class="socle__item"><b>RGPD par construction</b><span>Droit à l'effacement, export des données, consentement clair.</span></div>
-        <div class="socle__item"><b>Piloté par la mairie</b><span>Aucune compétence technique requise, géré seule.</span></div>
-        <div class="socle__item"><b>Mobile d'abord</b><span>Aucune installation lourde, ça marche dans la poche.</span></div>
-      </div>
+    <div class="stat-item">
+      <div class="stat-number" style="color:var(--orange);">100 %</div>
+      <div class="stat-label">française &amp; souveraine</div>
     </div>
-  </section>
+    <div class="stat-item">
+      <div class="stat-number" style="color:var(--coral);">0</div>
+      <div class="stat-label">compétence technique requise</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number" style="color:white;">Gratuit</div>
+      <div class="stat-label">pour commencer</div>
+    </div>
+  </div>
 
-  <section id="tarifs">
-    <div class="enveloppe">
-      <div class="section__tete">
-        <div class="eyebrow">Tarifs</div>
-        <h2>Gratuit pour commencer, simple pour la suite</h2>
-      </div>
-      <div class="tarif">
-        <div class="tarif__col">
-          <h3>Palier gratuit</h3>
-          <p>Agenda et Alertes, sans limite de temps, sans carte bancaire. De quoi juger sur pièces avant d'aller plus loin — activé le jour même, avec un compte prêt à l'emploi pour la mairie.</p>
-        </div>
-        <div class="tarif__col">
-          <h3>Version complète</h3>
-          <p>Tous les modules, avec un tarif qui dépend simplement de la taille de la commune — sans surprise. Facturation annuelle, ou engagement 3 ans avec mois offerts. Réglé par mandat administratif, comme d'habitude.</p>
+  <!-- — DEMO LIVE — -->
+  <section class="demo-section">
+    <div class="demo-text">
+      <div class="demo-live-badge">Commune de démonstration — live</div>
+      <h2 class="section-title" style="font-family:'Fraunces',serif; font-size:2.2rem; font-weight:800; line-height:1.1; color:white; margin-bottom:1rem;">
+        Testez l'application<br>
+        <em style="color:var(--green); font-style:italic;">maintenant, ici.</em>
+      </h2>
+      <p class="section-subtitle">
+        Ce n'est pas une maquette. C'est la vraie plateforme, sur une commune de démonstration. Naviguez librement — actualités, agenda, mur des voisins, chasse au trésor…
+      </p>
+
+      <div class="demo-feature">
+        <div class="demo-feature-dot" style="background:var(--green-light);">📰</div>
+        <div class="demo-feature-text">
+          <strong>Actualités &amp; alertes</strong>
+          <span>Publiées en 30 secondes depuis l'interface mairie</span>
         </div>
       </div>
+      <div class="demo-feature">
+        <div class="demo-feature-dot" style="background:var(--orange-light);">📅</div>
+        <div class="demo-feature-text">
+          <strong>Agenda interactif</strong>
+          <span>Inscription en un tap, rappel automatique</span>
+        </div>
+      </div>
+      <div class="demo-feature">
+        <div class="demo-feature-dot" style="background:var(--coral-light);">🗺️</div>
+        <div class="demo-feature-text">
+          <strong>Chasse au trésor</strong>
+          <span>Parcours géolocalisé du patrimoine local</span>
+        </div>
+      </div>
+      <div class="demo-feature">
+        <div class="demo-feature-dot" style="background:var(--indigo-light);">💬</div>
+        <div class="demo-feature-text">
+          <strong>Mur des voisins</strong>
+          <span>Fil de discussion exclusivement local</span>
+        </div>
+      </div>
+
+      <a href="https://plateforme-agora.fr/bonvivre/" target="_blank" class="demo-cta">
+        Ouvrir en plein écran →
+      </a>
+    </div>
+
+    <!-- iPhone mockup -->
+    <div class="iphone-wrap">
+      <div class="iphone">
+        <div class="iphone-inner">
+          <div class="dynamic-island"></div>
+
+          <!-- Status bar -->
+          <div class="status-bar">
+            <span class="status-time">9:41</span>
+            <div class="status-icons">
+              <!-- Signal -->
+              <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+                <rect x="0" y="7" width="3" height="5" rx="0.8" fill="#0a0a0a"/>
+                <rect x="4.5" y="5" width="3" height="7" rx="0.8" fill="#0a0a0a"/>
+                <rect x="9" y="2.5" width="3" height="9.5" rx="0.8" fill="#0a0a0a"/>
+                <rect x="13.5" y="0" width="3" height="12" rx="0.8" fill="#0a0a0a"/>
+              </svg>
+              <!-- Wifi -->
+              <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
+                <path d="M8 9.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" fill="#0a0a0a"/>
+                <path d="M3.5 6.5C4.9 5.1 6.4 4.4 8 4.4s3.1.7 4.5 2.1" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                <path d="M1 4C3.2 1.8 5.5.8 8 .8s4.8 1 7 3.2" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              </svg>
+              <!-- Batterie -->
+              <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
+                <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#0a0a0a" stroke-opacity="0.35"/>
+                <rect x="2" y="2" width="16" height="8" rx="2" fill="#0a0a0a"/>
+                <path d="M23 4v4a2 2 0 0 0 0-4z" fill="#0a0a0a" fill-opacity="0.4"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- iframe app -->
+          <iframe
+            class="iphone-iframe"
+            src="https://plateforme-agora.fr/bonvivre/"
+            title="Démonstration Agora — Commune de Bonvivre"
+            loading="lazy"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          ></iframe>
+        </div>
+        <div class="iphone-glare"></div>
+      </div>
     </div>
   </section>
 
-  <section id="faq">
-    <div class="enveloppe">
-      <div class="section__tete">
-        <div class="eyebrow">Questions fréquentes</div>
-        <h2>Ce que les élus nous demandent le plus souvent</h2>
+  <!-- — PILIERS — -->
+  <section class="section pillars" id="fonctionnalites">
+    <div style="text-align:center; margin-bottom:3rem;">
+      <div class="section-eyebrow">Quatre piliers</div>
+      <h2 class="section-title" style="text-align:center; max-width:none;">Une seule app, quatre raisons de l'adopter</h2>
+      <p class="section-subtitle" style="text-align:center; max-width:540px; margin:0.5rem auto 0;">De la délibération municipale au patrimoine local, tout ce qu'une commune vivante a besoin de partager.</p>
+    </div>
+    <div class="pillars-grid">
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background:var(--green-light);">🤝</div>
+        <div class="pillar-num">01 — Engagement citoyen</div>
+        <div class="pillar-title">Des habitants qui participent, vraiment</div>
+        <p class="pillar-desc">Inscriptions, présence vérifiée par géolocalisation, points citoyens et badges. La participation devient visible et mesurable — sans déclaratif, sans triche possible.</p>
+        <div class="pillar-tags">
+          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Agenda &amp; inscriptions</span>
+          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Points citoyens</span>
+          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Coups de main</span>
+          <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Badges &amp; niveaux</span>
+        </div>
       </div>
-      <div class="faq">
-        <details open>
-          <summary>C'est vraiment gratuit ?</summary>
-          <p>Oui : Agenda et Alertes sont accessibles gratuitement, sans limite de temps et sans carte bancaire. Le reste des modules s'active quand votre commune est prête à aller plus loin.</p>
-        </details>
-        <details>
-          <summary>Faut-il des compétences techniques pour la gérer ?</summary>
-          <p>Non. Plateforme-Agora est pensée pour qu'un maire ou un secrétariat de mairie la pilote seul, au quotidien, sans aucune notion technique.</p>
-        </details>
-        <details>
-          <summary>Combien de temps pour être en ligne ?</summary>
-          <p>Généralement le jour même : votre espace est créé et un compte provisoire vous est envoyé par email dès que vous nous contactez.</p>
-        </details>
-        <details>
-          <summary>Peut-on personnaliser l'application (couleurs, logo) ?</summary>
-          <p>Oui, les couleurs et le logo de la commune s'adaptent à son identité visuelle.</p>
-        </details>
-        <details>
-          <summary>Où sont hébergées nos données ?</summary>
-          <p>En France/Union européenne, chez des hébergeurs européens. Aucune dépendance à un service américain, conforme RGPD (droit à l'effacement, export des données).</p>
-        </details>
-        <details>
-          <summary>Combien coûte la version complète ?</summary>
-          <p>Le tarif dépend de la taille de la commune. Écrivez-nous ou appelez directement — on en discute sans engagement.</p>
-        </details>
+
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background:var(--orange-light);">🏛️</div>
+        <div class="pillar-num">02 — Conseil municipal</div>
+        <div class="pillar-title">La mairie, accessible à tous</div>
+        <p class="pillar-desc">Délibérations, comptes-rendus et trombinoscope publiés dans l'appli. Alertes urgentes en un instant, signalements des habitants dans les deux sens.</p>
+        <div class="pillar-tags">
+          <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Délibérations &amp; PV</span>
+          <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Alertes urgentes</span>
+          <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Thermomètre citoyen</span>
+        </div>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background:var(--coral-light);">🏪</div>
+        <div class="pillar-num">03 — Vie locale</div>
+        <div class="pillar-title">Commerces &amp; associations, enfin visibles</div>
+        <p class="pillar-desc">Boulangerie, artisan menuisier, club de pétanque : chacun a sa fiche classée par catégorie. Plus de numéro punaisé sur un panneau depuis trois ans.</p>
+        <div class="pillar-tags">
+          <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Annuaire local</span>
+          <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Mur des voisins</span>
+          <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Fiches complètes</span>
+        </div>
+      </div>
+
+      <div class="pillar-card">
+        <div class="pillar-icon" style="background:var(--indigo-light);">🗺️</div>
+        <div class="pillar-num">04 — Patrimoine &amp; territoire</div>
+        <div class="pillar-title">Le village, raconté autrement</div>
+        <p class="pillar-desc">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens.</p>
+        <div class="pillar-tags">
+          <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Chasse au trésor</span>
+          <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Mémoire du village</span>
+          <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Carte interactive</span>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="cloture">
-    <div class="enveloppe">
-      <h2>Envie que votre commune ait la sienne&nbsp;?</h2>
-      <p>Répondez simplement à cet appel ou à un email — votre espace est en ligne, gratuitement pour commencer, généralement dans la journée.</p>
-      <div class="hero__ctas">
-        <a class="cta cta--primaire" href="mailto:contact@plateforme-agora.fr?subject=Activer%20Plateforme-Agora%20pour%20ma%20commune">Nous écrire</a>
-        <a class="cta cta--secondaire" href="tel:+33648061097">Nous appeler</a>
+  <!-- — MODULES — -->
+  <section class="section modules">
+    <div style="text-align:center; margin-bottom:3rem;">
+      <div class="section-eyebrow">14 modules</div>
+      <h2 class="section-title" style="text-align:center; max-width:none;">Tout ce qu'une petite mairie gère au quotidien</h2>
+    </div>
+    <div class="modules-grid">
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--green-light);">📰</div>
+        <div class="module-text"><strong>Actualités</strong><span>Publier une fois, être lu partout</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--orange-light);">📅</div>
+        <div class="module-text"><strong>Agenda</strong><span>Le calendrier vivant de la commune</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--coral-light);">🚨</div>
+        <div class="module-text"><strong>Alertes &amp; signalements</strong><span>Mairie ↔ habitants, bidirectionnel</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--indigo-light);">🌡️</div>
+        <div class="module-text"><strong>Thermomètre citoyen</strong><span>Sondage rapide avant une décision</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--green-light);">🤝</div>
+        <div class="module-text"><strong>Coups de main</strong><span>Entraide locale organisée</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--orange-light);">⭐</div>
+        <div class="module-text"><strong>Badges &amp; niveaux</strong><span>La régularité devient visible</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--coral-light);">🏛️</div>
+        <div class="module-text"><strong>Conseil municipal</strong><span>PV, délibérations, trombinoscope</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--indigo-light);">📋</div>
+        <div class="module-text"><strong>Bulletin municipal</strong><span>Sans dépendre de la boîte aux lettres</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--green-light);">🗺️</div>
+        <div class="module-text"><strong>Chasse au trésor</strong><span>Parcours géolocalisé du patrimoine</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--orange-light);">🏘️</div>
+        <div class="module-text"><strong>Mur des voisins</strong><span>Fil de discussion locale</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--coral-light);">🗑️</div>
+        <div class="module-text"><strong>Calendrier des déchets</strong><span>Le bon jour, au bon moment</span></div>
+      </div>
+      <div class="module-item">
+        <div class="module-dot" style="background:var(--indigo-light);">📸</div>
+        <div class="module-text"><strong>Mémoire du village</strong><span>Témoignages et photos des anciens</span></div>
       </div>
     </div>
   </section>
 
+  <!-- — VALEURS — -->
+  <section class="section values" style="background:var(--cream);">
+    <div style="text-align:center; margin-bottom:3rem;">
+      <div class="section-eyebrow">L'esprit du projet</div>
+      <h2 class="section-title" style="text-align:center; max-width:none;">Des outils dignes de l'engagement communal</h2>
+    </div>
+    <div class="values-grid">
+      <div class="value-item">
+        <div class="value-icon" style="background:var(--green-light);">🇫🇷</div>
+        <div class="value-title">Souverain</div>
+        <p class="value-desc">Hébergement français, aucune dépendance à un géant américain</p>
+      </div>
+      <div class="value-item">
+        <div class="value-icon" style="background:var(--orange-light);">🔒</div>
+        <div class="value-title">RGPD natif</div>
+        <p class="value-desc">Droit à l'effacement, export des données, consentement clair</p>
+      </div>
+      <div class="value-item">
+        <div class="value-icon" style="background:var(--coral-light);">👨‍💼</div>
+        <div class="value-title">Piloté par la mairie</div>
+        <p class="value-desc">Zéro compétence technique, géré seul par le secrétariat</p>
+      </div>
+      <div class="value-item">
+        <div class="value-icon" style="background:var(--indigo-light);">📱</div>
+        <div class="value-title">Mobile d'abord</div>
+        <p class="value-desc">Aucune installation lourde, ça marche dans la poche</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- — TARIFS — -->
+  <section class="section pricing" id="tarifs">
+    <div style="text-align:center; margin-bottom:3rem;">
+      <div class="section-eyebrow">Tarifs</div>
+      <h2 class="section-title" style="text-align:center; max-width:none;">Simple comme un mandat administratif</h2>
+      <p class="section-subtitle" style="text-align:center; max-width:480px; margin:0.5rem auto 0;">Facturation annuelle, règlement par virement, aucun engagement pour commencer.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-label">Hameau</div>
+        <div class="pricing-title">Moins de 500 habitants</div>
+        <div class="pricing-amount">
+          <span class="amount">590 €</span>
+          <span class="period"> / an</span>
+        </div>
+        <ul class="pricing-features">
+          <li>Tous les 14 modules</li>
+          <li>Onboarding inclus</li>
+          <li>Support email</li>
+          <li>390 € la 1re année — offre fondateur</li>
+        </ul>
+        <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Activer cette commune</a>
+      </div>
+
+      <div class="pricing-card featured">
+        <div class="pricing-badge">Le plus demandé</div>
+        <div class="pricing-label">Village</div>
+        <div class="pricing-title">500 à 2 000 habitants</div>
+        <div class="pricing-amount">
+          <span class="amount">990 €</span>
+          <span class="period"> / an</span>
+        </div>
+        <ul class="pricing-features">
+          <li>Tous les 14 modules</li>
+          <li>Onboarding prioritaire</li>
+          <li>Support email &amp; téléphone</li>
+          <li>3 mois offerts en engagement 3 ans</li>
+        </ul>
+        <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-white">Activer cette commune</a>
+      </div>
+
+      <div class="pricing-card">
+        <div class="pricing-label">Bourg</div>
+        <div class="pricing-title">2 000 à 5 000 habitants</div>
+        <div class="pricing-amount">
+          <span class="amount">1 790 €</span>
+          <span class="period"> / an</span>
+        </div>
+        <ul class="pricing-features">
+          <li>Tous les 14 modules</li>
+          <li>Onboarding sur site possible</li>
+          <li>Support dédié</li>
+          <li>Au-delà 5 000 hab : devis</li>
+        </ul>
+        <a href="mailto:contact@plateforme-agora.fr" class="btn-pricing btn-pricing-light">Demander un devis</a>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
+      Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps
+    </p>
+  </section>
+
+  <!-- — FAQ — -->
+  <section class="section faq" id="faq">
+    <div style="text-align:center; margin-bottom:3rem;">
+      <div class="section-eyebrow">FAQ</div>
+      <h2 class="section-title" style="text-align:center; max-width:none;">Ce que les élus nous demandent le plus souvent</h2>
+    </div>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <div class="faq-q">C'est vraiment gratuit ?</div>
+        <p class="faq-a">Oui : Agenda et Alertes sont accessibles gratuitement, sans limite de temps et sans carte bancaire. Le reste des modules s'active quand votre commune est prête à aller plus loin.</p>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Faut-il des compétences techniques ?</div>
+        <p class="faq-a">Non. Agora est pensée pour qu'un maire ou un secrétariat de mairie la pilote seul, au quotidien, sans aucune notion technique.</p>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Combien de temps pour être en ligne ?</div>
+        <p class="faq-a">Généralement le jour même : votre espace est créé et un compte provisoire vous est envoyé par email dès que vous nous contactez.</p>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Peut-on personnaliser l'application ?</div>
+        <p class="faq-a">Oui, les couleurs et le logo de la commune s'adaptent à son identité visuelle. Chaque commune a son propre espace, totalement indépendant.</p>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Où sont hébergées nos données ?</div>
+        <p class="faq-a">En France et dans l'Union européenne, chez des hébergeurs européens. Aucune dépendance à un service américain, conforme RGPD.</p>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Comment régler la facture ?</div>
+        <p class="faq-a">Par virement bancaire, sur facture annuelle — exactement comme n'importe quel prestataire communal. Mandat administratif accepté.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- — CTA FINAL — -->
+  <section class="cta-final">
+    <div class="section-eyebrow" style="text-align:center; margin-bottom:0.75rem;">Prêt à activer votre commune ?</div>
+    <h2 class="section-title" style="font-size:2.9rem; text-align:center;">
+      Votre espace, en ligne<br>
+      <em style="color:var(--orange); font-style:italic;">le jour même.</em>
+    </h2>
+    <p class="section-subtitle" style="text-align:center;">
+      Un email, et votre compte provisoire est prêt. Gratuit pour commencer, activé sans carte bancaire.
+    </p>
+    <div class="cta-final-actions">
+      <a href="mailto:contact@plateforme-agora.fr" class="btn-cta-green">Nous écrire →</a>
+      <a href="tel:+33648061097" class="btn-cta-outline">📞 +33 6 48 06 10 97</a>
+    </div>
+    <p class="cta-note">Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</p>
+  </section>
+
+  <!-- — FOOTER — -->
   <footer>
-    <div class="enveloppe">
-      <span>Juicy Solutions — Léandre Sallé, élu à Eaucourt-sur-Somme · plateforme-agora.fr</span>
-      <div class="liens">
-        <a href="/mentions-legales">Mentions légales</a>
-        <a href="/confidentialite">Confidentialité</a>
-        <a href="/conditions-utilisation">CGU</a>
-      </div>
-    </div>
+    <div class="footer-brand">Plateforme <em>Agora</em></div>
+    <ul class="footer-links">
+      <li><a href="/mentions-legales">Mentions légales</a></li>
+      <li><a href="/confidentialite">Confidentialité</a></li>
+      <li><a href="/conditions-utilisation">CGU</a></li>
+    </ul>
+    <div class="footer-copy">© 2026 Juicy Solutions<br>plateforme-agora.fr</div>
   </footer>
 
 </body>
