@@ -705,6 +705,13 @@
       margin-bottom: 0.2rem;
     }
 
+    .pricing-breakdown {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin: 0 0 1.5rem;
+      line-height: 1.4;
+    }
+
     .pricing-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1610,14 +1617,17 @@
         <div class="pricing-card" data-reveal>
           <div class="pricing-label">Premium</div>
           <div class="pricing-title">Patrimoine &amp; découverte</div>
-          <div class="pricing-amount">
+          <div class="pricing-amount" style="margin-bottom: 0.6rem;">
             <div class="pricing-amount-prefix">à partir de</div>
             <span class="amount"><span id="prix-premium">1 199 €</span></span>
             <span class="period"> / an</span>
           </div>
+          <div class="pricing-breakdown">
+            <span id="prix-accompagne-detail">450 €</span> (Accompagné) + 749 € (chasse au trésor de valorisation du patrimoine local)
+          </div>
           <ul class="pricing-features">
             <li>Tout Accompagné, plus :</li>
-            <li>Découverte numérique du patrimoine (chasse au trésor, points d'intérêt)</li>
+            <li>Chasse au trésor numérique de valorisation du patrimoine local</li>
             <li>Accueil sur site, 5 jours — hébergement à la charge de la commune selon la distance</li>
             <li>Patrimoine étendu : prestation sur devis selon l'ampleur</li>
           </ul>
@@ -1637,6 +1647,7 @@
       var elAutonomie = document.getElementById('prix-autonomie');
       var elAccompagne = document.getElementById('prix-accompagne');
       var elPremium = document.getElementById('prix-premium');
+      var elAccompagneDetail = document.getElementById('prix-accompagne-detail');
       var lienAutonomie = document.getElementById('devis-autonomie');
       var lienAccompagne = document.getElementById('devis-accompagne');
       var lienPremium = document.getElementById('devis-premium');
@@ -1679,10 +1690,12 @@
         var premium = accompagne + bareme.prix_patrimoine_premium;
         var texteAutonomie = formaterPrix(autonomie);
         var texteAccompagne = formaterPrix(accompagne);
-        var texteJusqu = 'à partir de ' + formaterPrix(premium);
+        var texteJusqu = 'à partir de ' + formaterPrix(premium)
+          + ' (Accompagné ' + texteAccompagne + ' + 749 € chasse au trésor patrimoine)';
         elAutonomie.textContent = texteAutonomie;
         elAccompagne.textContent = texteAccompagne;
         elPremium.textContent = formaterPrix(premium);
+        if (elAccompagneDetail) elAccompagneDetail.textContent = texteAccompagne;
         if (lienAutonomie) lienAutonomie.href = lienMailtoDevis('Autonomie', habitants, texteAutonomie);
         if (lienAccompagne) lienAccompagne.href = lienMailtoDevis('Accompagné', habitants, texteAccompagne);
         if (lienPremium) lienPremium.href = lienMailtoDevis('Premium', habitants, texteJusqu);
