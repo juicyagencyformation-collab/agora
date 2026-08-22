@@ -1635,13 +1635,14 @@
         <div class="pricing-card" data-reveal>
           <div class="pricing-label">Premium</div>
           <div class="pricing-title">Patrimoine &amp; découverte</div>
-          <div class="pricing-amount" style="margin-bottom: 0.6rem;">
+          <div class="pricing-amount" style="margin-bottom: 0.3rem;">
             <div class="pricing-amount-prefix">à partir de</div>
-            <span class="amount"><span id="prix-premium">1 199 €</span></span>
-            <span class="period"> / an</span>
+            <span class="amount"><span id="prix-premium">1 749 €</span></span>
+            <span class="period"> la 1<sup>re</sup> année</span>
           </div>
           <div class="pricing-breakdown">
-            <span id="prix-accompagne-detail">450 €</span> (Accompagné) + 749 € (chasse au trésor de valorisation du patrimoine local)
+            <span id="prix-accompagne-detail">1 000 €</span> (Accompagné) + 749 € (chasse au trésor, à régler une seule fois) — puis
+            <strong><span id="prix-premium-recurrent">1 000 €</span> / an</strong> à partir de la 2<sup>e</sup> année.
           </div>
           <ul class="pricing-features">
             <li>Tout Accompagné, plus :</li>
@@ -1667,6 +1668,7 @@
       var elAutonomie = document.getElementById('prix-autonomie');
       var elAccompagne = document.getElementById('prix-accompagne');
       var elPremium = document.getElementById('prix-premium');
+      var elPremiumRecurrent = document.getElementById('prix-premium-recurrent');
       var elAccompagneDetail = document.getElementById('prix-accompagne-detail');
       var lienAutonomie = document.getElementById('devis-autonomie');
       var lienAccompagne = document.getElementById('devis-accompagne');
@@ -1702,23 +1704,36 @@
         return 'mailto:contact@plateforme-agora.fr?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
       }
 
+      // La chasse au trésor (749 €) est une création facturée une seule fois, pas un forfait
+      // annuel : à partir de la 2e année, seul le prix Accompagné reste dû.
+      function lienMailtoDevisPremium(habitants, texteAnnee1, texteAnneesSuivantes) {
+        var sujet = 'Demande de devis Agora – formule Premium – ' + habitants.toLocaleString('fr-FR') + ' habitants';
+        var corps = 'Bonjour,\n\n'
+          + 'Je souhaite un devis pour la formule Premium d’Agora pour ma commune de '
+          + habitants.toLocaleString('fr-FR') + ' habitants.\n\n'
+          + 'Prix indicatif calculé en ligne : ' + texteAnnee1 + ' la 1re année (dont 749 € pour la '
+          + 'chasse au trésor, réglés une seule fois), puis ' + texteAnneesSuivantes + ' / an à partir '
+          + 'de la 2e année.\n\n'
+          + 'Merci de me recontacter.\n\nCordialement,';
+        return 'mailto:contact@plateforme-agora.fr?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps);
+      }
+
       function actualiser() {
         var habitants = parseInt(curseur.value, 10) || 0;
         champHabitants.textContent = habitants.toLocaleString('fr-FR');
         var autonomie = calculerAutonomie(habitants);
         var accompagne = autonomie + bareme.supplement_accompagne;
-        var premium = accompagne + bareme.prix_patrimoine_premium;
+        var premiereAnnee = accompagne + bareme.prix_patrimoine_premium;
         var texteAutonomie = formaterPrix(autonomie);
         var texteAccompagne = formaterPrix(accompagne);
-        var texteJusqu = 'à partir de ' + formaterPrix(premium)
-          + ' (Accompagné ' + texteAccompagne + ' + 749 € chasse au trésor patrimoine)';
         elAutonomie.textContent = texteAutonomie;
         elAccompagne.textContent = texteAccompagne;
-        elPremium.textContent = formaterPrix(premium);
+        elPremium.textContent = formaterPrix(premiereAnnee);
+        if (elPremiumRecurrent) elPremiumRecurrent.textContent = texteAccompagne;
         if (elAccompagneDetail) elAccompagneDetail.textContent = texteAccompagne;
         if (lienAutonomie) lienAutonomie.href = lienMailtoDevis('Autonomie', habitants, texteAutonomie);
         if (lienAccompagne) lienAccompagne.href = lienMailtoDevis('Accompagné', habitants, texteAccompagne);
-        if (lienPremium) lienPremium.href = lienMailtoDevis('Premium', habitants, texteJusqu);
+        if (lienPremium) lienPremium.href = lienMailtoDevisPremium(habitants, formaterPrix(premiereAnnee), texteAccompagne);
       }
 
       curseur.addEventListener('input', actualiser);

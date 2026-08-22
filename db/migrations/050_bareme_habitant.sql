@@ -12,8 +12,10 @@
 --   Accompagné = Autonomie + supplement_accompagne (forfait fixe, pas par habitant : la
 --                modération auto et les questionnaires hebdomadaires sont automatisés, leur coût
 --                ne varie pas avec la taille de la commune)
---   Premium    = Accompagné + patrimoine (sur devis, prix_patrimoine_premium = point de départ
---                affiché, conditionné à l'hébergement/déplacement par la commune)
+--   Premium    = Accompagné + patrimoine la 1re année seulement (création de la chasse au trésor,
+--                prix_patrimoine_premium = point de départ affiché, sur devis au-delà, conditionné
+--                à l'hébergement/déplacement par la commune) ; à partir de la 2e année, Premium
+--                revient au prix Accompagné (le patrimoine n'est pas refacturé chaque année)
 --
 -- L'ancienne grille par tranches (grille_tarifaire, migration 034) reste en place et continue de
 -- servir aux devis de communes déjà clientes (trancheSuggeree côté fiche commune) : ce nouveau

@@ -352,7 +352,9 @@
                 (accueil.html). Formule Autonomie : max(plancher, min(hab, seuil) × taux de base +
                 max(0, hab − seuil) × taux dégressif). Accompagné = Autonomie + supplément fixe
                 (modération auto + questionnaires thermomètre, coût qui ne dépend pas de la population).
-                Premium = Accompagné + patrimoine (prix de départ affiché, le reste sur devis).
+                Premium = Accompagné + patrimoine la 1re année seulement (création de la chasse au
+                trésor, prix de départ affiché, le reste sur devis) ; à partir de la 2e année,
+                Premium revient au prix Accompagné.
               </div>
               <label style="margin-top:0">Taux de base (€ / habitant, en dessous du seuil)</label>
               <input type="number" min="0" step="0.1" x-model="baremeTarifaire.taux_base" style="width:120px" />
@@ -364,7 +366,7 @@
               <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_plancher" style="width:120px" />
               <label>Supplément Accompagné (€ / an, forfait fixe)</label>
               <input type="number" min="0" step="10" x-model="baremeTarifaire.supplement_accompagne" style="width:120px" />
-              <label>Premium — patrimoine, prix de départ (€, sur devis au-delà)</label>
+              <label>Premium — patrimoine, prix de départ (€, 1re année uniquement, sur devis au-delà)</label>
               <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_patrimoine_premium" style="width:120px" />
               <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerBareme()" :disabled="baremeEnCours">Enregistrer le barème</button>

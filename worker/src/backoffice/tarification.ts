@@ -16,6 +16,10 @@ export type BaremeTarifaire = {
   taux_degressif: number;
   prix_plancher: number;
   supplement_accompagne: number;
+  // Premium = Accompagné + prix_patrimoine_premium, mais ce montant n'est dû qu'une fois (la
+  // création de la chasse au trésor) : à partir de la 2e année, seul Accompagné reste facturé.
+  // Pas de calculerPrixPremium() ici — le calcul (1re année vs. années suivantes) reste
+  // spécifique à l'affichage, géré directement dans accueil.html.
   prix_patrimoine_premium: number;
 };
 
