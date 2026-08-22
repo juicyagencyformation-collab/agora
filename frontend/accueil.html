@@ -712,6 +712,24 @@
       line-height: 1.4;
     }
 
+    .pricing-conditions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .pricing-conditions p {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .pricing-conditions .tag { flex-shrink: 0; }
+
     .pricing-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1628,9 +1646,11 @@
           <ul class="pricing-features">
             <li>Tout Accompagné, plus :</li>
             <li>Chasse au trésor numérique de valorisation du patrimoine local</li>
-            <li>Accueil sur site, 5 jours — hébergement à la charge de la commune selon la distance</li>
-            <li>Patrimoine étendu : prestation sur devis selon l'ampleur</li>
           </ul>
+          <div class="pricing-conditions">
+            <p><span class="tag" style="background:var(--orange-light); color:#9a6b12; border-color:var(--orange-light);">Condition</span> Accueil sur site, 5 jours — hébergement à la charge de la commune selon la distance.</p>
+            <p><span class="tag" style="background:var(--coral-light); color:#b5431f; border-color:var(--coral-light);">Option</span> Patrimoine étendu : prestation sur devis selon l'ampleur.</p>
+          </div>
           <a href="mailto:contact@plateforme-agora.fr" id="devis-premium" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
       </div>
