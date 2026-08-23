@@ -92,6 +92,7 @@ function renderDetailChasse(chasse) {
     <div id="zone-classement" hidden></div>
     ${estGestionnaireChasse ? `
       <div class="actions-admin" style="margin-top:12px;">
+        <button class="btn-modifier-chasse">✏️ Modifier</button>
         ${estBalade ? '' : '<button class="btn-voir-qr">Voir les QR codes</button>'}
         <button class="btn-supprimer-chasse">Supprimer la chasse</button>
       </div>
@@ -108,6 +109,7 @@ function renderDetailChasse(chasse) {
     if (!zoneClassement.hidden) await afficherClassement(chasse.id);
   });
   zone.querySelector('.btn-voir-qr')?.addEventListener('click', () => afficherQrEtapes(chasse.id, zone));
+  zone.querySelector('.btn-modifier-chasse')?.addEventListener('click', () => ouvrirModaleEditionChasse(chasse));
   zone.querySelector('.btn-supprimer-chasse')?.addEventListener('click', async () => {
     if (!confirm('Supprimer cette chasse et toutes ses étapes ?')) return;
     await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, { method: 'DELETE' });
@@ -380,21 +382,27 @@ function ouvrirModaleCreationChasse() {
   });
 }
 
-function ajouterLigneEtape(corps) {
+// etapeExistante (optionnel) : pré-remplit la ligne pour la modale d'édition plutôt que de
+// création — voir ouvrirModaleEditionChasse. Dans ce cas la ligne garde l'id réel de l'étape
+// (dataset.dbId) et perd le bouton "Retirer" : l'édition corrige une étape, elle ne restructure
+// pas la chasse (ajout/retrait/réordre nécessitent toujours de la recréer).
+function ajouterLigneEtape(corps, etapeExistante = null) {
   compteurEtapes++;
   const n = compteurEtapes;
   const conteneur = corps.querySelector('#liste-etapes-chasse-modale');
   const ligne = document.createElement('div');
   ligne.className = 'ligne-etape-chasse';
   ligne.dataset.etapeId = n;
+  if (etapeExistante) ligne.dataset.dbId = etapeExistante.id;
+  if (etapeExistante?.photo_r2_key) ligne.dataset.photoActuelle = etapeExistante.photo_r2_key;
   ligne.style.cssText = 'border:1.5px solid var(--eauL);border-radius:10px;padding:10px;margin-bottom:10px;';
   ligne.innerHTML = `
-    <strong>Étape ${n}</strong>
-    <input type="text" class="etape-titre" placeholder="Titre de l'étape" maxlength="150">
-    <textarea class="etape-indice" placeholder="Indice pour trouver le lieu" maxlength="500"></textarea>
+    <strong>Étape ${etapeExistante ? etapeExistante.ordre + 1 : n}</strong>
+    <input type="text" class="etape-titre" placeholder="Titre de l'étape" maxlength="150" value="${etapeExistante ? escapeAttr(etapeExistante.titre) : ''}">
+    <textarea class="etape-indice" placeholder="Indice pour trouver le lieu" maxlength="500">${etapeExistante ? escapeAttr(etapeExistante.indice) : ''}</textarea>
     <div style="display:flex;gap:6px;">
-      <input type="number" step="any" class="etape-lat" placeholder="Latitude">
-      <input type="number" step="any" class="etape-lng" placeholder="Longitude">
+      <input type="number" step="any" class="etape-lat" placeholder="Latitude" value="${etapeExistante ? etapeExistante.lat : ''}">
+      <input type="number" step="any" class="etape-lng" placeholder="Longitude" value="${etapeExistante ? etapeExistante.lng : ''}">
       <button type="button" class="btn-position-etape">📍 Ma position</button>
     </div>
     <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Au scan sur place, déclencher :</label>
@@ -405,7 +413,7 @@ function ajouterLigneEtape(corps) {
       <option value="enigme">Une énigme (réponse à saisir)</option>
     </select>
     <div class="etape-champs-contenu"></div>
-    <button type="button" class="btn-supprimer-etape">Retirer cette étape</button>
+    ${etapeExistante ? '' : '<button type="button" class="btn-supprimer-etape">Retirer cette étape</button>'}
   `;
   ligne.querySelector('.btn-position-etape').addEventListener('click', () => {
     if (!navigator.geolocation) return;
@@ -417,23 +425,31 @@ function ajouterLigneEtape(corps) {
 
   const zoneContenu = ligne.querySelector('.etape-champs-contenu');
   const selectType = ligne.querySelector('.etape-type');
-  selectType.addEventListener('change', () => {
-    const t = selectType.value;
+  const remplirChamps = (t) => {
     if (t === 'texte') {
-      zoneContenu.innerHTML = `<textarea class="etape-contenu" placeholder="Texte affiché au joueur à son arrivée" maxlength="2000"></textarea>`;
+      zoneContenu.innerHTML = `<textarea class="etape-contenu" placeholder="Texte affiché au joueur à son arrivée" maxlength="2000">${etapeExistante?.contenu ? escapeAttr(etapeExistante.contenu) : ''}</textarea>`;
     } else if (t === 'photo') {
-      zoneContenu.innerHTML = `<input type="file" class="etape-photo" accept="image/*">`;
+      zoneContenu.innerHTML = `
+        ${etapeExistante?.photo_r2_key ? `<p style="font-size:12px;color:var(--roseau);">Photo actuelle en place — choisis un fichier pour la remplacer, laisse vide pour la garder.</p>` : ''}
+        <input type="file" class="etape-photo" accept="image/*">`;
     } else if (t === 'enigme') {
       zoneContenu.innerHTML = `
-        <textarea class="etape-contenu" placeholder="Question de l'énigme" maxlength="2000"></textarea>
-        <input type="text" class="etape-reponse" placeholder="Réponse attendue" maxlength="200">`;
+        <textarea class="etape-contenu" placeholder="Question de l'énigme" maxlength="2000">${etapeExistante?.contenu ? escapeAttr(etapeExistante.contenu) : ''}</textarea>
+        <input type="text" class="etape-reponse" placeholder="Réponse attendue" maxlength="200" value="${etapeExistante?.enigme_reponse ? escapeAttr(etapeExistante.enigme_reponse) : ''}">`;
     } else {
       zoneContenu.innerHTML = '';
     }
-  });
+  };
+  selectType.addEventListener('change', () => remplirChamps(selectType.value));
 
-  ligne.querySelector('.btn-supprimer-etape').addEventListener('click', () => ligne.remove());
+  if (etapeExistante) {
+    selectType.value = etapeExistante.type_contenu;
+    remplirChamps(etapeExistante.type_contenu);
+  }
+
+  ligne.querySelector('.btn-supprimer-etape')?.addEventListener('click', () => ligne.remove());
   conteneur.appendChild(ligne);
+  return ligne;
 }
 
 async function soumettreChasse(corps, overlay) {
@@ -492,4 +508,99 @@ async function soumettreChasse(corps, overlay) {
     const data = await res.json();
     afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de création', 'erreur');
   }
+}
+
+// ── Modification d'une chasse existante (admin/superadmin) : corrige titre, description et le
+// contenu des étapes déjà créées sans régénérer leurs qr_token — les QR imprimés restent valides.
+// Ajouter, retirer ou réordonner des étapes reste hors périmètre : il faut recréer la chasse. ──
+
+async function ouvrirModaleEditionChasse(chasse) {
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}/etapes`);
+  if (!res.ok) { afficherToastMessage('Impossible de charger les étapes à modifier.', 'erreur'); return; }
+  const { etapes } = await res.json();
+  const estBalade = chasse.mode === 'balade';
+
+  const html = `
+    <form id="form-modale-edition-chasse">
+      <input type="text" id="titre-chasse-modale" placeholder="Titre de la chasse" maxlength="150" required value="${escapeAttr(chasse.titre)}">
+      <textarea id="description-chasse-modale" placeholder="Description">${chasse.description ? escapeAttr(chasse.description) : ''}</textarea>
+      ${estBalade ? `
+        <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Rayon de validation autour de chaque point (mètres)</label>
+        <input type="number" id="rayon-chasse-modale" value="${chasse.rayon_metres || 50}" min="20" max="500">
+      ` : ''}
+      <p style="font-size:12px;color:var(--roseau);margin:10px 0 4px;">Corrige les étapes ci-dessous. Ajouter, retirer ou réordonner une étape n'est pas possible ici — il faut recréer la chasse pour ça.</p>
+      <div id="liste-etapes-chasse-modale"></div>
+      <button type="submit" style="margin-top:12px;">Enregistrer les modifications</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('Modifier la chasse', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+  compteurEtapes = 0;
+  etapes.forEach((e) => ajouterLigneEtape(corps, e));
+
+  corps.querySelector('#form-modale-edition-chasse').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await soumettreEditionChasse(corps, overlay, chasse.id, estBalade);
+  });
+}
+
+async function soumettreEditionChasse(corps, overlay, chasseId, estBalade) {
+  const titre = corps.querySelector('#titre-chasse-modale').value.trim();
+  const description = corps.querySelector('#description-chasse-modale').value.trim();
+  if (!titre) return;
+
+  const patchChasse = { titre, description };
+  if (estBalade) patchChasse.rayon_metres = parseInt(corps.querySelector('#rayon-chasse-modale').value, 10) || 50;
+
+  const resChasse = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patchChasse),
+  });
+  if (!resChasse.ok) {
+    afficherToastMessage('Échec de l’enregistrement du titre/description.', 'erreur');
+    return;
+  }
+
+  let echecs = 0;
+  for (const ligne of corps.querySelectorAll('.ligne-etape-chasse')) {
+    const etapeId = ligne.dataset.dbId;
+    const titreEtape = ligne.querySelector('.etape-titre').value.trim();
+    const indice = ligne.querySelector('.etape-indice').value.trim();
+    const lat = parseFloat(ligne.querySelector('.etape-lat').value);
+    const lng = parseFloat(ligne.querySelector('.etape-lng').value);
+    if (!titreEtape || !indice || isNaN(lat) || isNaN(lng)) { echecs++; continue; }
+
+    const type_contenu = ligne.querySelector('.etape-type').value;
+    const etape = { titre: titreEtape, indice, lat, lng, type_contenu };
+    if (type_contenu === 'texte') {
+      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+    } else if (type_contenu === 'enigme') {
+      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+      etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
+    } else if (type_contenu === 'photo') {
+      const fichier = ligne.querySelector('.etape-photo')?.files[0];
+      if (fichier) {
+        try {
+          const compresse = await compresserImage(fichier);
+          const resUp = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/upload-photo`, {
+            method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+          });
+          if (resUp.ok) { const { key } = await resUp.json(); etape.photo_r2_key = key; }
+        } catch { console.warn('Upload photo étape échoué.'); }
+      } else if (ligne.dataset.photoActuelle) {
+        etape.photo_r2_key = ligne.dataset.photoActuelle;
+      }
+    }
+
+    const resEtape = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/etapes/${etapeId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(etape),
+    });
+    if (!resEtape.ok) echecs++;
+  }
+
+  fermerModaleFormulaire(overlay);
+  chargerChasses(); // l'écran de détail reste ouvert (idChasseDetailOuverte inchangé), juste rafraîchi
+  afficherToastMessage(
+    echecs ? `Chasse modifiée, mais ${echecs} étape(s) n'ont pas pu être enregistrées.` : 'Chasse modifiée.',
+    echecs ? 'erreur' : 'succes',
+  );
 }

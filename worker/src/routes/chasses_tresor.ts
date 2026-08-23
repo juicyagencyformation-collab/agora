@@ -3,7 +3,7 @@ import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseInsert, supabaseDelete, supabaseSelect } from '../db';
+import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
 import { genererQrSvg } from '../lib/qrcode';
 import { distanceMetres } from '../lib/geo';
@@ -141,7 +141,7 @@ app.get('/:id/etapes', async (c) => {
   }
   const commune_id = c.get('commune_id');
   const etapes = await supabaseSelect(c.env, 'etapes_chasse', {
-    select: 'id,ordre,titre,indice',
+    select: 'id,ordre,titre,indice,lat,lng,type_contenu,contenu,photo_r2_key,enigme_reponse',
     commune_id: `eq.${commune_id}`, chasse_id: `eq.${c.req.param('id')}`,
     order: 'ordre.asc',
   });
@@ -162,6 +162,46 @@ app.get('/:id/etapes/:etapeId/qr-page', async (c) => {
 
   const svg = genererQrSvg(etape.qr_token);
   return c.html(`<div>${svg}<p style="font-family:monospace">${etape.qr_token}</p></div>`);
+});
+
+// PATCH /:id/etapes/:etapeId — corrige une étape existante (titre, indice, position, contenu...)
+// sans toucher son id ni régénérer son qr_token : les QR codes déjà imprimés et posés dans la
+// commune restent valides. Portée volontairement limitée à la correction : ajouter, retirer ou
+// réordonner des étapes nécessite toujours de recréer la chasse.
+app.patch('/:id/etapes/:etapeId', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+  const chasse_id = c.req.param('id');
+  const etape_id = c.req.param('etapeId');
+
+  const body = etapeSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+
+  const [etapeActuelle] = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'photo_r2_key', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`, id: `eq.${etape_id}`,
+  });
+  if (!etapeActuelle) return c.json({ erreur: 'Étape introuvable' }, 404);
+
+  // La photo est remplacée par une autre (ou retirée) : celle qui était en place devient
+  // orpheline en R2 si on ne l'efface pas explicitement (même piège que la suppression de chasse).
+  if (etapeActuelle.photo_r2_key && etapeActuelle.photo_r2_key !== data.photo_r2_key) {
+    await deleteObject(c.env, etapeActuelle.photo_r2_key);
+  }
+
+  await supabaseUpdate(c.env, 'etapes_chasse', {
+    titre: data.titre, indice: data.indice, lat: data.lat, lng: data.lng,
+    type_contenu: data.type_contenu,
+    contenu: data.contenu?.trim() || null,
+    photo_url: data.photo_r2_key ? `${c.env.R2_PUBLIC_BASE}/${data.photo_r2_key}` : null,
+    photo_r2_key: data.photo_r2_key || null,
+    enigme_reponse: data.type_contenu === 'enigme' ? (data.enigme_reponse?.trim() || null) : null,
+  }, { id: `eq.${etape_id}`, commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}` });
+
+  return c.json({ ok: true });
 });
 
 // POST /upload-photo — image d'une étape (type 'photo'), gestionnaire uniquement.
@@ -359,6 +399,34 @@ app.get('/:id/classement', async (c) => {
     .sort((a, b) => b.total_etapes - a.total_etapes || a.derniere_validation.localeCompare(b.derniere_validation));
 
   return c.json({ classement });
+});
+
+// PATCH /:id — corrige le titre, la description ou le rayon de validation d'une chasse déjà
+// créée. Le mode (chasse/balade) n'est pas modifiable : il détermine comment TOUTES les étapes
+// sont validées (scan QR vs. proximité GPS), le changer à mi-course casserait les étapes déjà
+// en place — recréer la chasse reste la seule option pour ce cas précis.
+const editionChasseSchema = z.object({
+  titre: z.string().min(1).max(150),
+  description: z.string().max(1000).optional(),
+  rayon_metres: z.number().int().min(20).max(500).optional(),
+});
+
+app.patch('/:id', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+  const body = editionChasseSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const patch: Record<string, unknown> = { titre: body.data.titre, description: body.data.description?.trim() || null };
+  if (body.data.rayon_metres !== undefined) patch.rayon_metres = body.data.rayon_metres;
+
+  await supabaseUpdate(c.env, 'chasses_tresor', patch, {
+    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true });
 });
 
 app.delete('/:id', async (c) => {
