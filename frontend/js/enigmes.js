@@ -7,6 +7,8 @@ async function chargerEnigmes() {
   if (!res.ok) return;
   const { enigmes } = await res.json();
   enigmesCache = enigmes;
+  const compte = document.getElementById('compte-enigmes');
+  if (compte) compte.textContent = enigmes.length;
 
   if (idEnigmeDetailOuverte) {
     const enigme = enigmes.find((e) => e.id === idEnigmeDetailOuverte);

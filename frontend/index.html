@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Agora</title>
-  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260820-6" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260823-1" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260820-6">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260820-6">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260820-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260820-6">
+  <link rel="stylesheet" href="/css/base.css?v=20260823-1">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260823-1">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260823-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260823-1">
 </head>
 <body>
 
@@ -194,13 +194,27 @@
         <h3>Chasse au trésor</h3>
         <p>Explorez votre commune à travers des chasses officielles et des énigmes photo entre voisins.</p>
       </div>
-      <div class="sous-onglets-chasse">
-        <button type="button" class="sous-onglet-btn active" data-sousonglet="chasses">🗺️ Chasses officielles</button>
-        <button type="button" class="sous-onglet-btn" data-sousonglet="enigmes">🧭 Trouve la photo</button>
-      </div>
-      <button type="button" id="btn-classement-exploration" style="width:100%;margin:10px 0;background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">🏆 Classement Exploration</button>
+      <button type="button" id="btn-classement-exploration" class="btn-classement-exploration">🏆 Classement Exploration</button>
       <div id="zone-classement-exploration" hidden></div>
 
+      <nav class="chasse-jump-nav" aria-label="Aller à">
+        <a href="#section-chasses-officielles" class="chasse-jump-chip">
+          <span class="chasse-jump-icone">🗺️</span>
+          <span>Chasses officielles</span>
+          <span class="chasse-jump-compte" id="compte-chasses">–</span>
+        </a>
+        <a href="#section-trouve-la-photo" class="chasse-jump-chip">
+          <span class="chasse-jump-icone">🧭</span>
+          <span>Trouve la photo</span>
+          <span class="chasse-jump-compte" id="compte-enigmes">–</span>
+        </a>
+      </nav>
+
+      <h4 class="sous-titre-chasse" id="section-chasses-officielles">
+        <span class="sous-titre-chasse-icone">🗺️</span>
+        <span>Chasses officielles</span>
+        <span class="sous-titre-chasse-trait"></span>
+      </h4>
       <div id="sous-contenu-chasses">
         <div id="vue-liste-chasses">
           <div class="form-admin-only">
@@ -211,7 +225,12 @@
         <div id="vue-detail-chasse" hidden></div>
       </div>
 
-      <div id="sous-contenu-enigmes" hidden>
+      <h4 class="sous-titre-chasse" id="section-trouve-la-photo">
+        <span class="sous-titre-chasse-icone">🧭</span>
+        <span>Trouve la photo</span>
+        <span class="sous-titre-chasse-trait"></span>
+      </h4>
+      <div id="sous-contenu-enigmes">
         <div id="vue-liste-enigmes">
           <p style="font-size:12.5px;color:var(--roseau);">Prends une photo à un endroit précis du village. Les autres doivent deviner où, en s'y rendant physiquement !</p>
           <button type="button" id="btn-ouvrir-creation-enigme" class="bouton-ouvrir-modale">+ Publier une énigme</button>
@@ -607,31 +626,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260820-6"></script>
-  <script src="/js/config.js?v=20260820-6"></script>
-  <script src="/js/utils.js?v=20260820-6"></script>
-  <script src="/js/api.js?v=20260820-6"></script>
-  <script src="/js/editeur-riche.js?v=20260820-6"></script>
-  <script src="/js/dashboard.js?v=20260820-6"></script>
-  <script src="/js/articles.js?v=20260820-6"></script>
-  <script src="/js/alertes.js?v=20260820-6"></script>
-  <script src="/js/thermometre.js?v=20260820-6"></script>
-  <script src="/js/mur.js?v=20260820-6"></script>
-  <script src="/js/agenda.js?v=20260820-6"></script>
-  <script src="/js/coups-de-main.js?v=20260820-6"></script>
-  <script src="/js/coups-de-main-form.js?v=20260820-6"></script>
-  <script src="/js/chasse-tresor.js?v=20260820-6"></script>
-  <script src="/js/conseil.js?v=20260820-6"></script>
-  <script src="/js/annuaire.js?v=20260820-6"></script>
-  <script src="/js/bulletin.js?v=20260820-6"></script>
-  <script src="/js/photo-du-jour.js?v=20260820-6"></script>
-  <script src="/js/memoire.js?v=20260820-6"></script>
-  <script src="/js/enigmes.js?v=20260820-6"></script>
-  <script src="/js/profil.js?v=20260820-6"></script>
-  <script src="/js/notifications.js?v=20260820-6"></script>
-  <script src="/js/lois.js?v=20260820-6"></script>
-  <script src="/js/moderation.js?v=20260820-6"></script>
-  <script src="/js/participation-citoyenne.js?v=20260820-6"></script>
-  <script src="/js/navigation.js?v=20260820-6"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260823-1"></script>
+  <script src="/js/config.js?v=20260823-1"></script>
+  <script src="/js/utils.js?v=20260823-1"></script>
+  <script src="/js/api.js?v=20260823-1"></script>
+  <script src="/js/editeur-riche.js?v=20260823-1"></script>
+  <script src="/js/dashboard.js?v=20260823-1"></script>
+  <script src="/js/articles.js?v=20260823-1"></script>
+  <script src="/js/alertes.js?v=20260823-1"></script>
+  <script src="/js/thermometre.js?v=20260823-1"></script>
+  <script src="/js/mur.js?v=20260823-1"></script>
+  <script src="/js/agenda.js?v=20260823-1"></script>
+  <script src="/js/coups-de-main.js?v=20260823-1"></script>
+  <script src="/js/coups-de-main-form.js?v=20260823-1"></script>
+  <script src="/js/chasse-tresor.js?v=20260823-1"></script>
+  <script src="/js/conseil.js?v=20260823-1"></script>
+  <script src="/js/annuaire.js?v=20260823-1"></script>
+  <script src="/js/bulletin.js?v=20260823-1"></script>
+  <script src="/js/photo-du-jour.js?v=20260823-1"></script>
+  <script src="/js/memoire.js?v=20260823-1"></script>
+  <script src="/js/enigmes.js?v=20260823-1"></script>
+  <script src="/js/profil.js?v=20260823-1"></script>
+  <script src="/js/notifications.js?v=20260823-1"></script>
+  <script src="/js/lois.js?v=20260823-1"></script>
+  <script src="/js/moderation.js?v=20260823-1"></script>
+  <script src="/js/participation-citoyenne.js?v=20260823-1"></script>
+  <script src="/js/navigation.js?v=20260823-1"></script>
 </body>
 </html>

@@ -84,18 +84,22 @@ async function gererLienDirectNotification(params) {
     await chargerCoupsDeMain();
     setTimeout(() => ouvrirAnnonceParId(id), 250);
   } else if (type === 'chasse' || type === 'enigme') {
+    // Les deux sections (chasses officielles + énigmes photo) sont affichées ensemble sur le
+    // même écran : on ouvre le détail visé puis on défile jusqu'à sa section, plutôt que de
+    // basculer un sous-onglet qui n'existe plus.
     const estEnigme = type === 'enigme';
-    document.getElementById('sous-contenu-chasses').hidden = estEnigme;
-    document.getElementById('sous-contenu-enigmes').hidden = !estEnigme;
-    document.querySelectorAll('.sous-onglet-btn').forEach((b) => {
-      b.classList.toggle('active', (b.dataset.sousonglet === 'enigmes') === estEnigme);
-    });
     if (estEnigme) {
       await chargerEnigmes();
-      setTimeout(() => ouvrirDetailEnigme(id), 250);
+      setTimeout(() => {
+        ouvrirDetailEnigme(id);
+        document.getElementById('section-trouve-la-photo')?.scrollIntoView({ block: 'start' });
+      }, 250);
     } else {
       await chargerChasses();
-      setTimeout(() => ouvrirDetailChasse(id), 250);
+      setTimeout(() => {
+        ouvrirDetailChasse(id);
+        document.getElementById('section-chasses-officielles')?.scrollIntoView({ block: 'start' });
+      }, 250);
     }
   }
 }

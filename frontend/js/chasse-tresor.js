@@ -9,6 +9,8 @@ async function chargerChasses() {
   if (!res.ok) return;
   const { chasses } = await res.json();
   chassesCache = chasses;
+  const compte = document.getElementById('compte-chasses');
+  if (compte) compte.textContent = chasses.length;
 
   if (idChasseDetailOuverte) {
     const chasse = chasses.find((c) => c.id === idChasseDetailOuverte);
@@ -290,23 +292,10 @@ async function afficherClassement(chasseId) {
   zone.innerHTML = classement.map((c, i) => `<p>${i + 1}. ${escapeAttr(c.prenom)} — ${c.total_etapes} étapes</p>`).join('');
 }
 
-// ── Sous-onglets Chasses officielles / Trouve la photo ──
+// ── Chasse au trésor : bouton classement (chasses officielles + énigmes photo affichées
+// ensemble sur le même écran, plus de bascule entre sous-onglets) ──
 
 function initSousOngletsChasse() {
-  document.querySelectorAll('.sous-onglet-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.sous-onglet-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      const estEnigmes = btn.dataset.sousonglet === 'enigmes';
-      document.getElementById('sous-contenu-chasses').hidden = estEnigmes;
-      document.getElementById('sous-contenu-enigmes').hidden = !estEnigmes;
-      // On revient toujours à la vue liste en changeant de sous-onglet, pour rester lisible.
-      idChasseDetailOuverte = null;
-      idEnigmeDetailOuverte = null;
-      if (estEnigmes) chargerEnigmes();
-    });
-  });
-
   document.getElementById('btn-classement-exploration')?.addEventListener('click', async () => {
     const zone = document.getElementById('zone-classement-exploration');
     zone.hidden = !zone.hidden;
