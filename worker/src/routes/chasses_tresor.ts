@@ -454,6 +454,22 @@ app.delete('/:id', async (c) => {
   const commune_id = c.get('commune_id');
   const chasse_id = c.req.param('id');
 
+  // Anti-farming (règle non négociable du projet, voir CLAUDE.md — "jamais d'XP en boucle,
+  // supprimer/recréer") : une chasse déjà jouée par au moins un citoyen ne peut plus être
+  // supprimée définitivement. La recréer à l'identique générerait de nouvelles etape_id, et le
+  // garde-fou XP (« cet etape_id est-il déjà validé par cet utilisateur ? ») ne s'appliquerait
+  // alors plus — chaque participant regagnerait le XP déjà gagné. Seul l'archivage (PATCH /:id,
+  // actif=false) reste possible pour une chasse jouée : les etape_id ne changent pas, impossible
+  // d'y regagner du XP même en la réactivant. Une chasse jamais jouée reste librement supprimable.
+  const [uneProgression] = await supabaseSelect(c.env, 'progressions_chasse', {
+    select: 'user_id', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`, limit: '1',
+  });
+  if (uneProgression) {
+    return c.json({
+      erreur: 'Cette chasse a déjà des participations : archive-la plutôt que de la supprimer, pour éviter de permettre de regagner du XP en la recréant à l’identique.',
+    }, 400);
+  }
+
   // Les étapes de type "photo" ont chacune leur propre fichier R2 : la suppression en base
   // (cascade sur etapes_chasse) ne libère rien côté stockage, il faut l'effacer explicitement.
   const etapes = await supabaseSelect(c.env, 'etapes_chasse', {

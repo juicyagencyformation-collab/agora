@@ -170,7 +170,12 @@ function renderDetailChasse(chasse) {
   });
   zone.querySelector('.btn-supprimer-chasse')?.addEventListener('click', async () => {
     if (!confirm('Supprimer cette chasse et toutes ses étapes ?')) return;
-    await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, { method: 'DELETE' });
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      afficherToastMessage(data.erreur || 'Échec de la suppression.', 'erreur');
+      return;
+    }
     idChasseDetailOuverte = null;
     chargerChasses();
   });
