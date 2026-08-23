@@ -378,6 +378,31 @@ function initSousOngletsChasse() {
     zone.hidden = !zone.hidden;
     if (!zone.hidden) await chargerClassementExploration();
   });
+  initScrollSpyChasse();
+}
+
+// Indicateur "section active" sur la nav de raccourcis : les deux sections (chasses officielles
+// + énigme photo) sont désormais affichées ensemble sur un même écran défilant plutôt que
+// derrière des onglets, donc rien ne montre plus laquelle des deux est sous les yeux une fois
+// qu'on a scrollé — une bande d'activation au centre du viewport tranche entre les deux en-têtes.
+function initScrollSpyChasse() {
+  const chips = {
+    'section-chasses-officielles': document.querySelector('.chasse-jump-chip[href="#section-chasses-officielles"]'),
+    'section-trouve-la-photo': document.querySelector('.chasse-jump-chip[href="#section-trouve-la-photo"]'),
+  };
+  const cibles = Object.keys(chips).map((id) => document.getElementById(id)).filter(Boolean);
+  if (!cibles.length || !('IntersectionObserver' in window)) return;
+
+  const observateur = new IntersectionObserver((entrees) => {
+    entrees.forEach((entree) => {
+      if (entree.isIntersecting) {
+        Object.values(chips).forEach((chip) => chip?.classList.remove('active'));
+        chips[entree.target.id]?.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+
+  cibles.forEach((el) => observateur.observe(el));
 }
 
 // Classement unifié : combine étapes de chasse validées + énigmes trouvées (score additionné).
