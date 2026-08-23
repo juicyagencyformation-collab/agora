@@ -89,7 +89,7 @@ function renderDetailChasse(chasse) {
     ${termine ? '<p class="trouve-enigme">Chasse terminée 🎉</p>' : ''}
     ${estBalade ? controlesBalade : controlesChasse}
     <button type="button" class="btn-classement-chasse" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);margin-top:10px;">🏆 Classement de cette chasse</button>
-    <div id="zone-classement"></div>
+    <div id="zone-classement" hidden></div>
     ${estGestionnaireChasse ? `
       <div class="actions-admin" style="margin-top:12px;">
         ${estBalade ? '' : '<button class="btn-voir-qr">Voir les QR codes</button>'}
@@ -102,7 +102,11 @@ function renderDetailChasse(chasse) {
   zone.querySelector('.btn-retour-detail').addEventListener('click', () => fermerDetailChasse());
   zone.querySelector('.btn-scanner')?.addEventListener('click', () => ouvrirScanner());
   zone.querySelector('.btn-arrive')?.addEventListener('click', () => validerEtapePosition(chasse.etape_suivante.id));
-  zone.querySelector('.btn-classement-chasse').addEventListener('click', () => afficherClassement(chasse.id));
+  zone.querySelector('.btn-classement-chasse').addEventListener('click', async () => {
+    const zoneClassement = document.getElementById('zone-classement');
+    zoneClassement.hidden = !zoneClassement.hidden;
+    if (!zoneClassement.hidden) await afficherClassement(chasse.id);
+  });
   zone.querySelector('.btn-voir-qr')?.addEventListener('click', () => afficherQrEtapes(chasse.id, zone));
   zone.querySelector('.btn-supprimer-chasse')?.addEventListener('click', async () => {
     if (!confirm('Supprimer cette chasse et toutes ses étapes ?')) return;
@@ -286,9 +290,17 @@ function afficherContenuRevele(contenu) {
 }
 
 async function afficherClassement(chasseId) {
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/classement`);
-  const { classement } = await res.json();
   const zone = document.getElementById('zone-classement');
+  zone.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/classement`);
+  if (!res.ok) { zone.innerHTML = `<p class="dechets-vide">Classement indisponible pour le moment.</p>`; return; }
+  const { classement } = await res.json();
+
+  if (!classement.length) {
+    zone.innerHTML = `<p class="dechets-vide">Personne n'a encore validé d'étape sur cette chasse.</p>`;
+    return;
+  }
+
   zone.innerHTML = classement.map((c, i) => `<p>${i + 1}. ${escapeAttr(c.prenom)} — ${c.total_etapes} étapes</p>`).join('');
 }
 

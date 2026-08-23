@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseDelete, supabaseSelect } from '../db';
-import { uploaderFichier } from '../storage';
+import { uploaderFichier, deleteObject } from '../storage';
 import { genererQrSvg } from '../lib/qrcode';
 import { distanceMetres } from '../lib/geo';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur, gererStreakExploration } from '../lib/gamification';
@@ -367,8 +367,20 @@ app.delete('/:id', async (c) => {
     return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   }
   const commune_id = c.get('commune_id');
+  const chasse_id = c.req.param('id');
+
+  // Les étapes de type "photo" ont chacune leur propre fichier R2 : la suppression en base
+  // (cascade sur etapes_chasse) ne libère rien côté stockage, il faut l'effacer explicitement.
+  const etapes = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'photo_r2_key', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`,
+    photo_r2_key: 'not.is.null',
+  });
+  for (const e of etapes) {
+    await deleteObject(c.env, e.photo_r2_key);
+  }
+
   await supabaseDelete(c.env, 'chasses_tresor', {
-    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+    id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
   });
   return c.json({ ok: true });
 });
