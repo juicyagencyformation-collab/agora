@@ -173,7 +173,7 @@ const DEFINITIONS_BADGES = [
   { cle: 'legende_galerie', verifie: async (_e: any, _c: string, _u: string, user: any) => (user.validations_donnees ?? 0) >= 1000 },
   // Récompense les signalements qui se révèlent fondés (photo effectivement supprimée par un gestionnaire).
   { cle: 'protecteur_village', verifie: async (_e: any, _c: string, _u: string, user: any) => (user.signalements_confirmes ?? 0) >= 3 },
-  // Progression sur "Trouve la photo" — compteur permanent d'énigmes résolues.
+  // Progression sur "Énigme photo" — compteur permanent d'énigmes résolues.
   { cle: 'explorateur_debutant', verifie: async (_e: any, _c: string, _u: string, user: any) => (user.enigmes_trouvees ?? 0) >= 3 },
   { cle: 'explorateur_confirme', verifie: async (_e: any, _c: string, _u: string, user: any) => (user.enigmes_trouvees ?? 0) >= 10 },
   { cle: 'grand_explorateur', verifie: async (_e: any, _c: string, _u: string, user: any) => (user.enigmes_trouvees ?? 0) >= 25 },

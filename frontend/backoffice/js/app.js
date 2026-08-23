@@ -18,7 +18,7 @@ const LABELS_ONGLET = {
   actualites: 'Actualités', alertes: 'Alertes', thermometre: 'Thermomètre',
   mur: 'Mur des voisins', agenda: 'Agenda', coups_de_main: 'Coup de main',
   chasse_tresor: 'Chasse au trésor', conseil: 'Conseil',
-  annuaire: 'Annuaire', bulletin: 'Bulletin municipal', photo_du_jour: 'Photo du jour', enigmes: 'Trouve la photo',
+  annuaire: 'Annuaire', bulletin: 'Bulletin municipal', photo_du_jour: 'Photo du jour', enigmes: 'Énigme photo',
   lois: 'Lois', memoire: 'Mémoire du village',
 };
 

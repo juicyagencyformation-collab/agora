@@ -97,7 +97,7 @@ app.route('/:slug/profil', profil);
 // Notifications push — pas de gating par onglet, l'utilisateur doit toujours pouvoir gérer ses abonnements
 app.route('/:slug/push', push);
 
-// Trouve la photo (énigmes géolocalisées)
+// Énigme photo (énigmes géolocalisées)
 app.use('/:slug/enigmes/*', jwtMiddleware, requireOngletActif('enigmes'));
 app.route('/:slug/enigmes', enigmes);
 

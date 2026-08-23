@@ -335,7 +335,7 @@ async function initReglagesNotificationsProfil() {
       <input type="checkbox" id="pref-notif-chasses" style="width:auto;margin:0;" ${preferences.notif_chasses ? 'checked' : ''}> 🗺️ Nouvelles chasses au trésor
     </label>
     <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
-      <input type="checkbox" id="pref-notif-enigmes" style="width:auto;margin:0;" ${preferences.notif_enigmes ? 'checked' : ''}> 🧭 Nouvelles énigmes "Trouve la photo"
+      <input type="checkbox" id="pref-notif-enigmes" style="width:auto;margin:0;" ${preferences.notif_enigmes ? 'checked' : ''}> 🧭 Nouvelles énigmes photo
     </label>
     <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
       <input type="checkbox" id="pref-notif-mur" style="width:auto;margin:0;" ${preferences.notif_mur ? 'checked' : ''}> 💬 Mur des voisins

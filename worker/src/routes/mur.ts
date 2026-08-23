@@ -140,7 +140,7 @@ app.delete('/:id', async (c) => {
 });
 
 // Un seul signalement suffit à masquer le message, le temps qu'un gestionnaire tranche —
-// même principe que Photo du jour et Trouve la photo.
+// même principe que Photo du jour et Énigme photo.
 app.post('/:id/signaler', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');

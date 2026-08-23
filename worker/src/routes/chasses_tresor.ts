@@ -307,7 +307,7 @@ app.post('/valider-position', async (c) => {
 });
 
 // GET /classement-exploration — score combiné (étapes de chasse validées + énigmes trouvées),
-// affiché depuis l'onglet fusionné Chasse au trésor / Trouve la photo.
+// affiché depuis l'onglet fusionné Chasse au trésor / Énigme photo.
 app.get('/classement-exploration', async (c) => {
   const commune_id = c.get('commune_id');
   const users = await supabaseSelect(c.env, 'users', {

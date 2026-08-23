@@ -146,7 +146,7 @@ function ouvrirModaleCreationEnigme() {
       <button type="submit">Publier mon énigme</button>
     </form>
   `;
-  const overlay = ouvrirModaleFormulaire('Trouve la photo', html);
+  const overlay = ouvrirModaleFormulaire('Énigme photo', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
 
   corps.querySelector('#form-modale-enigme').addEventListener('submit', async (e) => {

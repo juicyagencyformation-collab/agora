@@ -32,7 +32,7 @@ export async function purgerPhotosDuJour(env: any) {
   }
 }
 
-// Purge quotidienne de "Trouve la photo" — durée bien plus généreuse que Photo du jour
+// Purge quotidienne de "Énigme photo" — durée bien plus généreuse que Photo du jour
 // (48h / 1 semaine / 1 mois / 6 mois / 1 an), puisqu'il faut le temps de se déplacer physiquement
 // pour résoudre une énigme, contrairement à un flux social quotidien.
 export async function purgerEnigmes(env: any) {
