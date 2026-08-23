@@ -378,7 +378,20 @@ function initSousOngletsChasse() {
     zone.hidden = !zone.hidden;
     if (!zone.hidden) await chargerClassementExploration();
   });
+  initJumpNavChasse();
   initScrollSpyChasse();
+}
+
+// Puces de raccourci "Chasses officielles" / "Énigme photo" : des <button> + scrollIntoView(),
+// pas des <a href="#..."> — un <a> vers une ancre a déjà provoqué une navigation complète au
+// lieu d'un simple défilement sur PWA installée (l'app repartait sur l'onglet Accueil). Même
+// pattern que le deep-link de notification vers ces mêmes sections, voir notifications.js.
+function initJumpNavChasse() {
+  document.querySelectorAll('.chasse-jump-chip[data-cible]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById(btn.dataset.cible)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
 }
 
 // Indicateur "section active" sur la nav de raccourcis : les deux sections (chasses officielles
@@ -387,8 +400,8 @@ function initSousOngletsChasse() {
 // qu'on a scrollé — une bande d'activation au centre du viewport tranche entre les deux en-têtes.
 function initScrollSpyChasse() {
   const chips = {
-    'section-chasses-officielles': document.querySelector('.chasse-jump-chip[href="#section-chasses-officielles"]'),
-    'section-trouve-la-photo': document.querySelector('.chasse-jump-chip[href="#section-trouve-la-photo"]'),
+    'section-chasses-officielles': document.querySelector('.chasse-jump-chip[data-cible="section-chasses-officielles"]'),
+    'section-trouve-la-photo': document.querySelector('.chasse-jump-chip[data-cible="section-trouve-la-photo"]'),
   };
   const cibles = Object.keys(chips).map((id) => document.getElementById(id)).filter(Boolean);
   if (!cibles.length || !('IntersectionObserver' in window)) return;

@@ -711,7 +711,7 @@ h1, h2, h3, h4, p, span, a, button {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 9px 10px; border-radius: 100px; border: 1.5px solid var(--eauL);
   background: #fff; color: var(--eau); font-family: 'DM Sans', sans-serif;
-  font-size: 12px; font-weight: 600; text-decoration: none;
+  font-size: 12px; font-weight: 600; cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .chasse-jump-chip:hover { border-color: var(--eau); box-shadow: 0 2px 10px rgba(44,95,110,0.14); }
