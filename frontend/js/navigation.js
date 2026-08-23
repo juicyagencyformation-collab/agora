@@ -178,6 +178,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initSousOngletsAgenda();
   initFormulaireMur();
   initFormulaireChasse();
+  initToggleArchivesChasses();
   initFormulaireCoupDeMain();
   initFormulaireDechets();
   initFormulaireSondage();

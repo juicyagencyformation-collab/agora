@@ -46,6 +46,20 @@ const creationChasseSchema = z.object({
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
+  const role = c.get('role');
+
+  // Vue "archives" (gestionnaire uniquement) : liste légère des chasses retirées (actif=false),
+  // sans calcul de progression — sert uniquement à en retrouver une pour la réactiver, voir
+  // PATCH /:id. Une chasse archivée n'est jamais jouable ni visible des citoyens.
+  if (c.req.query('archivees') === 'true' && estGestionnaire(role)) {
+    const chassesArchivees = await supabaseSelect(c.env, 'chasses_tresor', {
+      select: 'id,titre,description,actif,mode,rayon_metres,created_at',
+      commune_id: `eq.${commune_id}`,
+      actif: 'eq.false',
+      order: 'created_at.desc',
+    });
+    return c.json({ chasses: chassesArchivees });
+  }
 
   const chasses = await supabaseSelect(c.env, 'chasses_tresor', {
     select: 'id,titre,description,actif,mode,rayon_metres,created_at',
@@ -402,13 +416,15 @@ app.get('/:id/classement', async (c) => {
 });
 
 // PATCH /:id — corrige le titre, la description ou le rayon de validation d'une chasse déjà
-// créée. Le mode (chasse/balade) n'est pas modifiable : il détermine comment TOUTES les étapes
-// sont validées (scan QR vs. proximité GPS), le changer à mi-course casserait les étapes déjà
-// en place — recréer la chasse reste la seule option pour ce cas précis.
+// créée, et sert aussi à l'archiver/la réactiver (actif). Le mode (chasse/balade) n'est pas
+// modifiable : il détermine comment TOUTES les étapes sont validées (scan QR vs. proximité
+// GPS), le changer à mi-course casserait les étapes déjà en place — recréer la chasse reste la
+// seule option pour ce cas précis.
 const editionChasseSchema = z.object({
   titre: z.string().min(1).max(150),
   description: z.string().max(1000).optional(),
   rayon_metres: z.number().int().min(20).max(500).optional(),
+  actif: z.boolean().optional(),
 });
 
 app.patch('/:id', async (c) => {
@@ -422,6 +438,7 @@ app.patch('/:id', async (c) => {
 
   const patch: Record<string, unknown> = { titre: body.data.titre, description: body.data.description?.trim() || null };
   if (body.data.rayon_metres !== undefined) patch.rayon_metres = body.data.rayon_metres;
+  if (body.data.actif !== undefined) patch.actif = body.data.actif;
 
   await supabaseUpdate(c.env, 'chasses_tresor', patch, {
     id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,

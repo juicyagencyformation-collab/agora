@@ -3,16 +3,20 @@ let compteurEtapes = 0;
 let chassesCache = [];
 let idChasseDetailOuverte = null;
 let carteBalade = null;
+let modeArchivesChasses = false;
 
 async function chargerChasses() {
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor`);
+  const url = modeArchivesChasses
+    ? `/${window.COMMUNE_SLUG}/chasses-tresor?archivees=true`
+    : `/${window.COMMUNE_SLUG}/chasses-tresor`;
+  const res = await appelApi(url);
   if (!res.ok) return;
   const { chasses } = await res.json();
   chassesCache = chasses;
   const compte = document.getElementById('compte-chasses');
-  if (compte) compte.textContent = chasses.length;
+  if (compte && !modeArchivesChasses) compte.textContent = chasses.length;
 
-  if (idChasseDetailOuverte) {
+  if (!modeArchivesChasses && idChasseDetailOuverte) {
     const chasse = chasses.find((c) => c.id === idChasseDetailOuverte);
     if (chasse) { renderDetailChasse(chasse); return; }
     idChasseDetailOuverte = null; // supprimée entre-temps
@@ -26,9 +30,13 @@ function renderListeChasses(chasses) {
   const conteneur = document.getElementById('liste-chasses');
   conteneur.innerHTML = '';
   if (!chasses.length) {
-    conteneur.innerHTML = `<p class="dechets-vide">Aucune chasse pour l'instant.</p>`;
+    conteneur.innerHTML = modeArchivesChasses
+      ? `<p class="dechets-vide">Aucune chasse archivée.</p>`
+      : `<p class="dechets-vide">Aucune chasse pour l'instant.</p>`;
   }
-  chasses.forEach((ch) => conteneur.appendChild(renderCarteChasseCompacte(ch)));
+  chasses.forEach((ch) => conteneur.appendChild(
+    modeArchivesChasses ? renderCarteChasseArchivee(ch) : renderCarteChasseCompacte(ch),
+  ));
 }
 
 function renderCarteChasseCompacte(chasse) {
@@ -42,6 +50,43 @@ function renderCarteChasseCompacte(chasse) {
   `;
   el.addEventListener('click', () => ouvrirDetailChasse(chasse.id));
   return el;
+}
+
+// Vue "archives" (gestionnaire uniquement) : une chasse retirée (actif=false) garde son
+// historique de progression et son classement en base, mais n'apparaît plus dans la liste
+// jouable — ici on ne peut que la réactiver, pas la rejouer depuis cette carte.
+function renderCarteChasseArchivee(chasse) {
+  const el = document.createElement('div');
+  el.className = 'carte-chasse-compacte';
+  el.innerHTML = `
+    <h3>${escapeAttr(chasse.titre)}</h3>
+    <button type="button" class="btn-reactiver-chasse" style="margin-top:6px;">♻️ Réactiver</button>
+  `;
+  el.querySelector('.btn-reactiver-chasse').addEventListener('click', async () => {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titre: chasse.titre, description: chasse.description ?? undefined, actif: true }),
+    });
+    if (res.ok) {
+      afficherToastMessage('Chasse réactivée.', 'succes');
+      chargerChasses();
+    } else {
+      afficherToastMessage('Échec de la réactivation.', 'erreur');
+    }
+  });
+  return el;
+}
+
+function initToggleArchivesChasses() {
+  const btn = document.getElementById('btn-toggle-archives-chasses');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    modeArchivesChasses = !modeArchivesChasses;
+    btn.textContent = modeArchivesChasses ? '← Retour aux chasses actives' : '🗄️ Voir les chasses archivées';
+    idChasseDetailOuverte = null;
+    chargerChasses();
+  });
 }
 
 // ── Écran de détail dédié — reste stable pendant tout le flux scan/validation,
@@ -94,6 +139,7 @@ function renderDetailChasse(chasse) {
       <div class="actions-admin" style="margin-top:12px;">
         <button class="btn-modifier-chasse">✏️ Modifier</button>
         ${estBalade ? '' : '<button class="btn-voir-qr">Voir les QR codes</button>'}
+        <button class="btn-archiver-chasse">📥 Archiver</button>
         <button class="btn-supprimer-chasse">Supprimer la chasse</button>
       </div>
       <div class="liste-qr-etapes"></div>
@@ -110,6 +156,18 @@ function renderDetailChasse(chasse) {
   });
   zone.querySelector('.btn-voir-qr')?.addEventListener('click', () => afficherQrEtapes(chasse.id, zone));
   zone.querySelector('.btn-modifier-chasse')?.addEventListener('click', () => ouvrirModaleEditionChasse(chasse));
+  zone.querySelector('.btn-archiver-chasse')?.addEventListener('click', async () => {
+    if (!confirm('Retirer cette chasse de la liste ? Son historique et son classement restent conservés, tu pourras la réactiver depuis "Voir les chasses archivées".')) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titre: chasse.titre, description: chasse.description ?? undefined, actif: false }),
+    });
+    if (!res.ok) { afficherToastMessage('Échec de l’archivage.', 'erreur'); return; }
+    idChasseDetailOuverte = null;
+    chargerChasses();
+    afficherToastMessage('Chasse archivée.', 'succes');
+  });
   zone.querySelector('.btn-supprimer-chasse')?.addEventListener('click', async () => {
     if (!confirm('Supprimer cette chasse et toutes ses étapes ?')) return;
     await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, { method: 'DELETE' });
