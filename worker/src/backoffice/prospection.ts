@@ -76,19 +76,39 @@ function formaterNomMaire(nom: string, prenom: string): string {
 }
 
 app.post('/synchroniser-maires', async (c) => {
-  const existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee' });
+  let existants: any[];
+  try {
+    existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee' });
+  } catch (err: any) {
+    console.error('synchroniser-maires — lecture prospects échouée :', err);
+    return c.json({ erreur: `Lecture des prospects impossible : ${err?.message || err}` }, 500);
+  }
   if (!existants.length) return c.json({ ok: true, mis_a_jour: 0, total_prospects: 0 });
   const codesConnus = new Set(existants.map((p: any) => p.code_insee));
 
-  const res = await fetch(URL_RNE_MAIRES);
+  let res: Response;
+  try {
+    res = await fetch(URL_RNE_MAIRES);
+  } catch (err: any) {
+    console.error('synchroniser-maires — téléchargement RNE échoué :', err);
+    return c.json({ erreur: `Téléchargement du fichier RNE impossible : ${err?.message || err}` }, 502);
+  }
   if (!res.ok) return c.json({ erreur: `Source RNE indisponible (${res.status})` }, 502);
-  const [entete, ...corps] = depuisCsv(await res.text());
+
+  let entete: string[], corps: string[][];
+  try {
+    [entete, ...corps] = depuisCsv(await res.text());
+  } catch (err: any) {
+    console.error('synchroniser-maires — lecture/parsing du CSV RNE échoué :', err);
+    return c.json({ erreur: `Lecture du fichier RNE impossible : ${err?.message || err}` }, 502);
+  }
 
   const iCode = entete.indexOf('Code de la commune');
   const iNom = entete.indexOf('Nom de l\'élu');
   const iPrenom = entete.indexOf('Prénom de l\'élu');
   const iSexe = entete.indexOf('Code sexe');
   if (iCode < 0 || iNom < 0 || iPrenom < 0) {
+    console.error('synchroniser-maires — colonnes introuvables, en-tête reçu :', entete);
     return c.json({ erreur: 'Format du fichier RNE inattendu (colonnes introuvables).' }, 502);
   }
 
@@ -109,7 +129,14 @@ app.post('/synchroniser-maires', async (c) => {
     });
   }
 
-  if (maj.length) await supabaseUpsert(c.env, 'prospects', maj, 'code_insee');
+  if (maj.length) {
+    try {
+      await supabaseUpsert(c.env, 'prospects', maj, 'code_insee');
+    } catch (err: any) {
+      console.error('synchroniser-maires — écriture en base échouée :', err);
+      return c.json({ erreur: `Écriture en base impossible : ${err?.message || err}` }, 500);
+    }
+  }
   return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length });
 });
 
