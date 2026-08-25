@@ -224,6 +224,8 @@ function backoffice() {
     importPopMax: '',
     importEnCours: false,
     importMsg: '',
+    syncMairesEnCours: false,
+    syncMairesMsg: '',
     prospect: null,
     interactions: [],
     enrichEnCours: false,
@@ -677,17 +679,23 @@ function backoffice() {
     },
 
     // Aperçu rendu du corps pour les modèles génériques (bienvenue, relance inactivité,
-    // séquence onboarding/upsell) : mêmes 5 variables que rendrePresentation() côté serveur.
+    // séquence onboarding/upsell) : mêmes variables que rendrePresentation() côté serveur.
     // {{logo}}/{{signature_photo}} n'ont pas de champ d'upload dédié sur ces modèles (contrairement
     // à l'email de présentation) : ils retombent toujours sur le même repli générique, quelle que
     // soit la commune — l'aperçu doit montrer EXACTEMENT ce repli, pas les faire disparaître.
+    // {{nom_maire}}/{{civilite_maire}}/{{salutation_maire}} : voir prospection.ts et
+    // synchroniserMairesProspection() — non disponibles pour les modèles génériques (uniquement
+    // pour la prospection), affichés ici avec un exemple pour que l'aperçu reste lisible.
     rendreApercuGenerique(corpsHtml) {
       return (corpsHtml || '')
         .replace(/\{\{commune\}\}/g, 'Commune Test')
         .replace(/\{\{url\}\}/g, 'https://plateforme-agora.fr/commune-test/')
         .replace(/\{\{lien_fiche\}\}/g, 'https://plateforme-agora.fr/backoffice/fiche?slug=commune-test&nom=Commune+Test')
         .replace(/\{\{logo\}\}/g, '<div style="font-weight:800;color:#2c5f2d;font-size:22px">Plateforme-Agora</div>')
-        .replace(/\{\{signature_photo\}\}/g, '');
+        .replace(/\{\{signature_photo\}\}/g, '')
+        .replace(/\{\{nom_maire\}\}/g, 'Line Evalet Taponat')
+        .replace(/\{\{civilite_maire\}\}/g, 'Madame')
+        .replace(/\{\{salutation_maire\}\}/g, 'Madame Line Evalet Taponat');
     },
 
     exec(commande, valeur = null) {
@@ -1270,6 +1278,23 @@ function backoffice() {
         this.importMsg = e.message || 'Import impossible';
       } finally {
         this.importEnCours = false;
+      }
+    },
+
+    // Remplit nom_maire/maire_civilite sur les prospects déjà importés, depuis le Répertoire
+    // National des Élus (un seul gros fichier national, voir prospection.ts) — à relancer de
+    // temps en temps (élections, changement de maire), pas à chaque import.
+    async synchroniserMaires() {
+      this.syncMairesEnCours = true;
+      this.syncMairesMsg = 'Téléchargement et indexation du Répertoire National des Élus…';
+      try {
+        const r = await boFetch('/prospection/synchroniser-maires', { method: 'POST' });
+        this.syncMairesMsg = `${r.mis_a_jour} maire(s) identifié(s) sur ${r.total_prospects} prospect(s).`;
+        await this.chargerProspects();
+      } catch (e) {
+        this.syncMairesMsg = e.message || 'Synchronisation impossible';
+      } finally {
+        this.syncMairesEnCours = false;
       }
     },
 

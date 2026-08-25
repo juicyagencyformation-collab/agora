@@ -6,12 +6,12 @@
 // Toutes les routes sont derrière backofficeMiddleware (périmètre staff transverse).
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseCount } from '../db';
+import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseUpsert, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 import { hasherMotDePasse } from '../lib/password';
-import { versCsv } from '../lib/csv';
+import { versCsv, depuisCsv } from '../lib/csv';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -60,6 +60,59 @@ app.post('/importer', async (c) => {
   return c.json({ ok: true, importes: nouveaux.length, deja_presents: retenues.length - nouveaux.length });
 });
 
+// — Synchronisation du nom des maires depuis le Répertoire National des Élus (RNE, ministère de
+//   l'Intérieur, data.gouv.fr) —
+// URL vérifiée le 2026-08-24 : fichier "Maires" du RNE, mis à jour tous les ~14 jours par le
+// ministère. Contrairement à enrichirDepuisAnnuaire ci-dessus (une vraie API interrogeable par
+// commune), ce fichier est un export CSV national unique (~35 000 lignes, ~4 Mo) : on le
+// télécharge et on l'indexe une fois par appel plutôt que de faire un aller-retour par prospect.
+const URL_RNE_MAIRES = 'https://www.data.gouv.fr/api/1/datasets/r/2876a346-d50c-4911-934e-19ee07b0e503';
+
+// "EVALET TAPONAT" + "Line" → "Line Evalet Taponat" — le nom de famille arrive en capitales dans
+// le RNE, on le remet en casse normale pour un rendu correct dans l'email et le backoffice.
+function formaterNomMaire(nom: string, prenom: string): string {
+  const nomForme = nom.trim().toLowerCase().replace(/(^|[\s-])\p{L}/gu, (l) => l.toUpperCase());
+  return `${prenom.trim()} ${nomForme}`.trim();
+}
+
+app.post('/synchroniser-maires', async (c) => {
+  const existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee' });
+  if (!existants.length) return c.json({ ok: true, mis_a_jour: 0, total_prospects: 0 });
+  const codesConnus = new Set(existants.map((p: any) => p.code_insee));
+
+  const res = await fetch(URL_RNE_MAIRES);
+  if (!res.ok) return c.json({ erreur: `Source RNE indisponible (${res.status})` }, 502);
+  const [entete, ...corps] = depuisCsv(await res.text());
+
+  const iCode = entete.indexOf('Code de la commune');
+  const iNom = entete.indexOf('Nom de l\'élu');
+  const iPrenom = entete.indexOf('Prénom de l\'élu');
+  const iSexe = entete.indexOf('Code sexe');
+  if (iCode < 0 || iNom < 0 || iPrenom < 0) {
+    return c.json({ erreur: 'Format du fichier RNE inattendu (colonnes introuvables).' }, 502);
+  }
+
+  // On ne touche qu'aux prospects déjà importés (jamais d'insertion de nouveaux prospects ici :
+  // ce n'est pas le rôle de cette route, voir /importer plus haut) : le on_conflict de l'upsert
+  // ne fait donc que mettre à jour, jamais créer de ligne.
+  const maj: { code_insee: string; nom_maire: string; maire_civilite: string | null }[] = [];
+  for (const ligne of corps) {
+    const codeInsee = ligne[iCode];
+    if (!codeInsee || !codesConnus.has(codeInsee)) continue;
+    const nom = ligne[iNom], prenom = ligne[iPrenom];
+    if (!nom || !prenom) continue;
+    const sexe = iSexe >= 0 ? ligne[iSexe] : '';
+    maj.push({
+      code_insee: codeInsee,
+      nom_maire: formaterNomMaire(nom, prenom),
+      maire_civilite: sexe === 'F' ? 'Madame' : sexe === 'M' ? 'Monsieur' : null,
+    });
+  }
+
+  if (maj.length) await supabaseUpsert(c.env, 'prospects', maj, 'code_insee');
+  return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length });
+});
+
 // — Liste (filtres sobres : statut, département, recherche) —
 const TRIS: Record<string, string> = {
   nom: 'nom.asc',
@@ -104,7 +157,7 @@ app.get('/prospects', async (c) => {
   const [prospects, total] = await Promise.all([
     supabaseSelect(c.env, 'prospects', {
       ...where,
-      select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le,commune_id',
+      select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le,commune_id,nom_maire',
       order: (tri && TRIS[tri]) || TRIS.nom,
       limit: String(TAILLE_PAGE_PROSPECTS),
       offset: String(offset),
@@ -266,7 +319,7 @@ app.get('/apercu', async (c) => {
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at',
+    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,maire_civilite',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -549,6 +602,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   const nouvelleActivation = !prospect.commune_id;
   const activation = await activerCommuneGratuite(env, { ...prospect, contact_email: email });
   const ctx = contextePresentation(env.FRONTEND_URL, prospect.nom, activation.slug);
+  if (prospect.nom_maire) { ctx.nomMaire = prospect.nom_maire; ctx.civiliteMaire = prospect.maire_civilite || undefined; }
   const { variante, resendEmailId } = await envoyerPresentation(env, email, ctx, {
     maireEmail: activation.maireEmail, motDePasse: activation.motDePasse,
   });
@@ -581,7 +635,8 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
 app.post('/prospects/:id/prospecter', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id', id: `eq.${id}`,
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
@@ -619,7 +674,7 @@ app.post('/prospecter-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 communes par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
     id: `in.(${body.data.ids.join(',')})`,
   });
 

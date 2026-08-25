@@ -78,6 +78,25 @@ export async function supabaseUpdate(env: any, table: string, donnees: object, f
   return res.json();
 }
 
+// Upsert en masse : insère les lignes absentes et MET À JOUR seulement les colonnes fournies pour
+// celles dont onConflict (une contrainte UNIQUE) correspond déjà — un aller-retour au lieu d'une
+// boucle de supabaseUpdate par ligne. Utilisé pour synchroniser un référentiel externe volumineux
+// (ex: nom des maires depuis le Répertoire National des Élus, voir prospection.ts).
+export async function supabaseUpsert(env: any, table: string, donnees: object[], onConflict: string): Promise<any[]> {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(donnees),
+  });
+  if (!res.ok) throw new Error(`Supabase upsert ${table}: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 export async function supabaseDelete(env: any, table: string, filtres: Record<string, string>): Promise<void> {
   const params = new URLSearchParams(filtres);
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${params}`, {

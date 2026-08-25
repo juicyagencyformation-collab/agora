@@ -512,7 +512,11 @@
               <div class="bo-info" style="margin-bottom:12px">
                 Email envoyé aux prospects et aux communes. Variables disponibles :
                 <code>{{logo}}</code>, <code>{{commune}}</code>, <code>{{url}}</code> (app ou démo),
-                <code>{{lien_fiche}}</code>, <code>{{signature_photo}}</code>.
+                <code>{{lien_fiche}}</code>, <code>{{signature_photo}}</code>,
+                <code>{{nom_maire}}</code>, <code>{{civilite_maire}}</code>, <code>{{salutation_maire}}</code>
+                (uniquement pour les prospects, depuis le Répertoire National des Élus — "Synchroniser les
+                noms des maires" dans l'onglet Prospection ; vides si non identifié, préférer
+                <code>{{salutation_maire}}</code> qui dégrade proprement en "Madame, Monsieur").
                 Plusieurs variantes possibles (A/B testing) : une seule est active à la fois, c'est elle qui part dans tous les envois.
               </div>
 
@@ -643,6 +647,7 @@
                         <button type="button" @mousedown.prevent="insererVariable('{{commune}}')" title="Nom de la commune">+ commune</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{url}}')" title="Lien vers l'app / la démo">+ lien app</button>
                         <button type="button" @mousedown.prevent="insererVariable('{{lien_fiche}}')" title="Lien vers la fiche">+ lien fiche</button>
+                        <button type="button" @mousedown.prevent="insererVariable('{{salutation_maire}}')" title="Ex: Madame Line Evalet Taponat — dégrade en 'Madame, Monsieur' si non identifié">+ salutation maire</button>
                         <span class="sep"></span>
                       </span>
                     </template>
@@ -2410,6 +2415,11 @@
             <span class="bo-info" x-text="importMsg"></span>
           </form>
 
+          <div class="bo-outils" style="margin-bottom:16px">
+            <button type="button" class="bo-btn bo-btn--sec bo-btn--compact" @click="synchroniserMaires()" :disabled="syncMairesEnCours" x-text="syncMairesEnCours ? 'Synchronisation…' : '👤 Synchroniser les noms des maires'"></button>
+            <span class="bo-info" x-text="syncMairesMsg"></span>
+          </div>
+
           <!-- Filtres -->
           <div class="bo-outils">
             <select x-model="filtreStatut" @change="appliquerFiltres()">
@@ -2479,6 +2489,7 @@
                     <td class="bo-nom-commune">
                       <span x-text="p.nom"></span>
                       <span x-show="p.inscrit" title="Un citoyen s'est inscrit lui-même — signal fort, priorité pour un vrai contact" style="margin-left:4px">🔥</span>
+                      <template x-if="p.nom_maire"><div class="bo-info" style="font-size:11.5px;margin-top:2px" x-text="'👤 ' + p.nom_maire"></div></template>
                     </td>
                     <td x-text="p.departement"></td>
                     <td x-text="p.population ? p.population.toLocaleString('fr-FR') : '—'"></td>
@@ -2597,6 +2608,7 @@
                 <template x-if="!prospect.enrichi_le">
                   <div class="bo-info" style="margin-bottom:10px">Contact non récupéré depuis l'annuaire.</div>
                 </template>
+                <div class="bo-contact-ligne"><span>Maire</span><span x-text="prospect.nom_maire ? (prospect.maire_civilite || '') + ' ' + prospect.nom_maire : '—'"></span></div>
                 <div class="bo-contact-ligne">
                   <span>Email</span>
                   <input type="email" x-model="prospect.contact_email" placeholder="—"
@@ -2855,7 +2867,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260823-2"></script>
+  <script src="/backoffice/js/app.js?v=20260824-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

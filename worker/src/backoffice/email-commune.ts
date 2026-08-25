@@ -204,17 +204,27 @@ export interface ContextePresentation {
   lienFiche: string;       // lien vers la fiche de présentation
   signaturePhoto?: string; // balise <img> de la photo de signature, ou '' (injecté à l'envoi)
   logo?: string;           // balise <img> du logo d'en-tête, ou repli texte (injecté à l'envoi)
+  nomMaire?: string;       // "Prénom Nom", depuis le Répertoire National des Élus (voir prospection.ts) — absent si pas de correspondance
+  civiliteMaire?: string;  // 'Madame' ou 'Monsieur', déduit du sexe RNE — absent si nomMaire absent
 }
 
 // Substitue les variables du modèle. {{commune}} est échappé (contenu utilisateur) ; les autres
-// (url, lien_fiche, signature_photo, logo) sont construits côté serveur, insérés tels quels.
+// (url, lien_fiche, signature_photo, logo, nom_maire, civilite_maire, salutation_maire) sont
+// construites côté serveur, insérées telles quelles. salutation_maire dégrade proprement quand
+// le maire n'a pas pu être identifié (ex: "Madame, Monsieur" plutôt qu'un trou dans la phrase).
 export function rendrePresentation(modele: string, ctx: ContextePresentation): string {
+  const salutationMaire = ctx.civiliteMaire && ctx.nomMaire
+    ? `${ctx.civiliteMaire} ${ctx.nomMaire}`
+    : 'Madame, Monsieur';
   return modele
     .replace(/\{\{commune\}\}/g, echapper(ctx.commune))
     .replace(/\{\{url\}\}/g, ctx.url)
     .replace(/\{\{lien_fiche\}\}/g, ctx.lienFiche)
     .replace(/\{\{signature_photo\}\}/g, ctx.signaturePhoto || '')
-    .replace(/\{\{logo\}\}/g, ctx.logo || baliseLogo(null));
+    .replace(/\{\{logo\}\}/g, ctx.logo || baliseLogo(null))
+    .replace(/\{\{nom_maire\}\}/g, ctx.nomMaire ? echapper(ctx.nomMaire) : '')
+    .replace(/\{\{civilite_maire\}\}/g, ctx.civiliteMaire ? echapper(ctx.civiliteMaire) : '')
+    .replace(/\{\{salutation_maire\}\}/g, echapper(salutationMaire));
 }
 
 type ModelePresentation = {
