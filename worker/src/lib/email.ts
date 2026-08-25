@@ -9,7 +9,9 @@
 // dans le HTML via src="cid:<content_id>".
 // Renvoie l'id Resend de l'email envoyé (null en cas d'échec) — sert à corréler précisément les
 // webhooks d'ouverture/clic à cet envoi précis (voir envois_prospection, migration 040).
-export async function envoyerEmail(env: any, to: string, subject: string, html: string, attachments?: any[]): Promise<string | null> {
+export async function envoyerEmail(
+  env: any, to: string, subject: string, html: string, attachments?: any[], replyTo?: string,
+): Promise<string | null> {
   if (!env.RESEND_API_KEY) {
     console.error('RESEND_API_KEY manquant — email non envoyé.');
     return null;
@@ -24,6 +26,7 @@ export async function envoyerEmail(env: any, to: string, subject: string, html: 
       body: JSON.stringify({
         from: env.EMAIL_FROM || 'Agora <onboarding@resend.dev>',
         to, subject, html,
+        ...(replyTo ? { reply_to: replyTo } : {}),
         ...(attachments && attachments.length ? { attachments } : {}),
       }),
     });

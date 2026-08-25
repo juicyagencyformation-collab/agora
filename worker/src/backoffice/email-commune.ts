@@ -612,7 +612,14 @@ export async function envoyerPresentation(
   let corps = rendrePresentation(modele.corps_html, ctxComplet);
   if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse) + blocPsModules();
   corps = injecterPreviewText(corps, modele.preview_text);
-  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps);
+  // reply_to distinct de EMAIL_FROM : une réponse à un email de prospection part vers un
+  // sous-domaine dédié à la réception (voir CLAUDE.md/Resend) plutôt que vers la boîte mail
+  // habituelle de contact@plateforme-agora.fr — c'est ce qui permet au webhook Resend de la
+  // capter et de l'afficher dans Réponses reçues (worker/src/backoffice/emails-recus.ts).
+  const resendEmailId = await envoyerEmail(
+    env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps,
+    undefined, env.EMAIL_REPLY_TO_PROSPECTION,
+  );
   return { variante: modele.nom || null, resendEmailId };
 }
 
