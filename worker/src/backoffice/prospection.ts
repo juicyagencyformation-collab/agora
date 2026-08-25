@@ -11,7 +11,7 @@ import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 import { hasherMotDePasse } from '../lib/password';
-import { versCsv, depuisCsv } from '../lib/csv';
+import { versCsv } from '../lib/csv';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -76,6 +76,9 @@ function formaterNomMaire(nom: string, prenom: string): string {
 }
 
 app.post('/synchroniser-maires', async (c) => {
+  const t0 = Date.now();
+  const chrono = () => `${Date.now() - t0}ms`;
+
   let existants: any[];
   try {
     // nom + departement (NOT NULL sans defaut) récupérés en même temps que code_insee : voir le
@@ -84,26 +87,32 @@ app.post('/synchroniser-maires', async (c) => {
     existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee,nom,departement' });
   } catch (err: any) {
     console.error('synchroniser-maires — lecture prospects échouée :', err);
-    return c.json({ erreur: `Lecture des prospects impossible : ${err?.message || err}` }, 500);
+    return c.json({ erreur: `Lecture des prospects impossible (${chrono()}) : ${err?.message || err}` }, 500);
   }
   if (!existants.length) return c.json({ ok: true, mis_a_jour: 0, total_prospects: 0 });
   const prospectParCodeInsee = new Map(existants.map((p: any) => [p.code_insee, p]));
 
-  let res: Response;
+  let texte: string;
   try {
-    res = await fetch(URL_RNE_MAIRES);
+    const res = await fetch(URL_RNE_MAIRES);
+    if (!res.ok) return c.json({ erreur: `Source RNE indisponible (${res.status}, ${chrono()})` }, 502);
+    texte = await res.text();
   } catch (err: any) {
     console.error('synchroniser-maires — téléchargement RNE échoué :', err);
-    return c.json({ erreur: `Téléchargement du fichier RNE impossible : ${err?.message || err}` }, 502);
+    return c.json({ erreur: `Téléchargement du fichier RNE impossible (${chrono()}) : ${err?.message || err}` }, 502);
   }
-  if (!res.ok) return c.json({ erreur: `Source RNE indisponible (${res.status})` }, 502);
 
-  let entete: string[], corps: string[][];
+  // Fichier RNE spécifiquement : pas de champ entre guillemets (vérifié sur un extrait réel), donc
+  // un simple split natif suffit et est bien plus rapide qu'un parseur caractère par caractère sur
+  // ~35 000 lignes/4 Mo — important le temps CPU d'une invocation Worker est limité. depuisCsv
+  // (lib/csv.ts) reste le parseur à utiliser pour un fichier dont on n'est pas sûr du contenu.
+  let entete: string[], lignesTexte: string[];
   try {
-    [entete, ...corps] = depuisCsv(await res.text());
+    lignesTexte = texte.split(/\r?\n/);
+    entete = (lignesTexte[0] || '').split(';');
   } catch (err: any) {
-    console.error('synchroniser-maires — lecture/parsing du CSV RNE échoué :', err);
-    return c.json({ erreur: `Lecture du fichier RNE impossible : ${err?.message || err}` }, 502);
+    console.error('synchroniser-maires — parsing du CSV RNE échoué :', err);
+    return c.json({ erreur: `Lecture du fichier RNE impossible (${chrono()}) : ${err?.message || err}` }, 502);
   }
 
   const iCode = entete.indexOf('Code de la commune');
@@ -112,7 +121,7 @@ app.post('/synchroniser-maires', async (c) => {
   const iSexe = entete.indexOf('Code sexe');
   if (iCode < 0 || iNom < 0 || iPrenom < 0) {
     console.error('synchroniser-maires — colonnes introuvables, en-tête reçu :', entete);
-    return c.json({ erreur: 'Format du fichier RNE inattendu (colonnes introuvables).' }, 502);
+    return c.json({ erreur: `Format du fichier RNE inattendu, colonnes introuvables (${chrono()}).` }, 502);
   }
 
   // On ne touche qu'aux prospects déjà importés (jamais d'insertion de nouveaux prospects ici :
@@ -121,7 +130,9 @@ app.post('/synchroniser-maires', async (c) => {
   // inchangés dans le payload : voir le commentaire de supabaseUpsert (db.ts) pour pourquoi c'est
   // nécessaire malgré le fait qu'on ne veuille modifier QUE nom_maire/maire_civilite.
   const maj: { code_insee: string; nom: string; departement: string; nom_maire: string; maire_civilite: string | null }[] = [];
-  for (const ligne of corps) {
+  for (let i = 1; i < lignesTexte.length; i++) {
+    if (!lignesTexte[i]) continue;
+    const ligne = lignesTexte[i].split(';');
     const codeInsee = ligne[iCode];
     const prospect = codeInsee ? prospectParCodeInsee.get(codeInsee) : undefined;
     if (!prospect) continue;
@@ -142,7 +153,7 @@ app.post('/synchroniser-maires', async (c) => {
       await supabaseUpsert(c.env, 'prospects', maj, 'code_insee');
     } catch (err: any) {
       console.error('synchroniser-maires — écriture en base échouée :', err);
-      return c.json({ erreur: `Écriture en base impossible : ${err?.message || err}` }, 500);
+      return c.json({ erreur: `Écriture en base impossible (${chrono()}, ${maj.length} ligne(s)) : ${err?.message || err}` }, 500);
     }
   }
   return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length });
