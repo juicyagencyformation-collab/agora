@@ -4,6 +4,7 @@ import { deleteObject } from './storage';
 import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
 import { envoyerEmailEcheance } from './backoffice/email-commune';
 import { corrigerEmailsInvalides } from './backoffice/prospection';
+import { gererVariantesProspectionAutomatiquement } from './backoffice/prospection-ab';
 import { verifierRelanceInactivite } from './backoffice/onboarding';
 import { verifierSequenceOnboarding } from './backoffice/onboarding-drip';
 
@@ -193,6 +194,13 @@ export async function relancerEcheancesFacturation(env: any) {
 // jour. Ne renvoie rien tout seul — corrige juste la donnée pour le prochain envoi manuel.
 export async function corrigerEmailsProspectsInvalides(env: any) {
   await corrigerEmailsInvalides(env);
+}
+
+// Vérification quotidienne des variantes A/B de l'email de présentation : bascule d'urgence si
+// la variante active bounce trop, ou promotion d'un gagnant clairement établi (voir
+// backoffice/prospection-ab.ts pour les seuils et le détail de la décision).
+export async function verifierVariantesProspection(env: any) {
+  await gererVariantesProspectionAutomatiquement(env);
 }
 
 // Relance douce si une commune a eu une 1re inscription citoyenne puis plus aucune activité

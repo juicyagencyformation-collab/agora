@@ -525,15 +525,24 @@ app.post('/prospects/corriger-emails-invalides', async (c) => {
   return c.json({ ok: true, ...r });
 });
 
-// GET /stats-variantes — entonnoir envoyé → ouvert → cliqué → rejeté, par variante A/B, plus le
-// signal le plus fiable de tous : le maire s'est-il RÉELLEMENT connecté au moins une fois à la
-// commune activée (users.derniere_connexion_streak). Approximatif si un même prospect a reçu
-// plusieurs envois sous des variantes différentes (la connexion est alors comptée pour chacune) —
-// acceptable pour un funnel indicatif, pas un système de stats exhaustif.
-app.get('/stats-variantes', async (c) => {
+export type StatVariante = {
+  nom: string;
+  envoyes: number; ouverts: number; cliques: number; rejetes: number; connectes: number;
+  envoyes_matures: number; ouverts_matures: number;
+  premier_envoi_le: string | null; dernier_envoi_le: string | null;
+  taux_ouverture_mature: number | null;
+};
+
+// Entonnoir envoyé → ouvert → cliqué → rejeté, par variante A/B, plus le signal le plus fiable
+// de tous : le maire s'est-il RÉELLEMENT connecté au moins une fois à la commune activée
+// (users.derniere_connexion_streak). Approximatif si un même prospect a reçu plusieurs envois
+// sous des variantes différentes (la connexion est alors comptée pour chacune) — acceptable pour
+// un funnel indicatif, pas un système de stats exhaustif. Exportée : réutilisée par
+// gererVariantesProspectionAutomatiquement (prospection-ab.ts) pour décider d'une bascule.
+export async function calculerStatsVariantes(env: any): Promise<StatVariante[]> {
   // Pagination complète : sur une grosse série d'envois, un simple limit élevé ne suffit pas
   // (Supabase plafonne à 1000 lignes par réponse, voir supabaseSelectTout dans db.ts).
-  const envois = await supabaseSelectTout(c.env, 'envois_prospection', {
+  const envois = await supabaseSelectTout(env, 'envois_prospection', {
     select: 'prospect_id,variante,envoye_le,ouvert_le,clique_le,rejete_le', est_test: 'eq.false',
   });
 
@@ -549,23 +558,19 @@ app.get('/stats-variantes', async (c) => {
   // 2026-08-18 — ne suffisait déjà plus). Un simple filtre commune_id/role, comme
   // GET /administration/communes, tient à n'importe quelle échelle : le nombre de requêtes ne
   // dépend que du nombre total de lignes (pagination par 1000), pas du nombre d'id à chercher.
-  const prospectsActives = await supabaseSelectTout(c.env, 'prospects', {
+  const prospectsActives = await supabaseSelectTout(env, 'prospects', {
     select: 'id,commune_id', commune_id: 'not.is.null',
   });
   const prospectCommune = new Map<string, string>();
   for (const p of prospectsActives) prospectCommune.set(p.id, p.commune_id);
 
-  const maires = await supabaseSelectTout(c.env, 'users', {
+  const maires = await supabaseSelectTout(env, 'users', {
     select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
   });
   const communesConnectees = new Set<string>();
   for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
 
-  type Stat = {
-    envoyes: number; ouverts: number; cliques: number; rejetes: number; connectes: number;
-    envoyes_matures: number; ouverts_matures: number;
-    premier_envoi_le: string | null; dernier_envoi_le: string | null;
-  };
+  type Stat = Omit<StatVariante, 'nom' | 'taux_ouverture_mature'>;
   const parVariante: Record<string, Stat> = {};
   for (const e of envois) {
     const cle = e.variante || '(sans nom)';
@@ -590,12 +595,16 @@ app.get('/stats-variantes', async (c) => {
     }
   }
 
-  const variantes = Object.entries(parVariante)
+  return Object.entries(parVariante)
     .map(([nom, v]) => ({
       nom, ...v,
       taux_ouverture_mature: v.envoyes_matures ? Math.round((v.ouverts_matures / v.envoyes_matures) * 1000) / 10 : null,
     }))
     .sort((a, b) => b.envoyes - a.envoyes);
+}
+
+app.get('/stats-variantes', async (c) => {
+  const variantes = await calculerStatsVariantes(c.env);
   return c.json({ variantes });
 });
 
