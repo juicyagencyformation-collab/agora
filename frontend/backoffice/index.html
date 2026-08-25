@@ -2438,6 +2438,10 @@
               <input type="checkbox" x-model="filtreInscrits" @change="appliquerFiltres()">
               🔥 S'est inscrit <span x-show="totalInscrits" x-text="'(' + totalInscrits + ')'"></span>
             </label>
+            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; font-weight:600" title="Le maire s'est réellement connecté à son compte au moins une fois — signal le plus fiable">
+              <input type="checkbox" x-model="filtreMaireConnecte" @change="appliquerFiltres()">
+              🔑 Le maire s'est connecté <span x-show="totalMairesConnectes" x-text="'(' + totalMairesConnectes + ')'"></span>
+            </label>
           </div>
 
           <!-- Bascule Liste / Carte -->
@@ -2489,6 +2493,7 @@
                     <td class="bo-nom-commune">
                       <span x-text="p.nom"></span>
                       <span x-show="p.inscrit" title="Un citoyen s'est inscrit lui-même — signal fort, priorité pour un vrai contact" style="margin-left:4px">🔥</span>
+                      <span x-show="p.maire_connecte" title="Le maire s'est réellement connecté à son compte — signal le plus fiable" style="margin-left:4px">🔑</span>
                       <template x-if="p.nom_maire"><div class="bo-info" style="font-size:11.5px;margin-top:2px" x-text="'👤 ' + p.nom_maire"></div></template>
                     </td>
                     <td x-text="p.departement"></td>
@@ -2608,7 +2613,14 @@
                 <template x-if="!prospect.enrichi_le">
                   <div class="bo-info" style="margin-bottom:10px">Contact non récupéré depuis l'annuaire.</div>
                 </template>
-                <div class="bo-contact-ligne"><span>Maire</span><span x-text="prospect.nom_maire ? (prospect.maire_civilite || '') + ' ' + prospect.nom_maire : '—'"></span></div>
+                <div class="bo-contact-ligne">
+                  <span>Maire</span>
+                  <span x-text="prospect.nom_maire ? (prospect.maire_civilite || '') + ' ' + prospect.nom_maire : '—'"></span>
+                </div>
+                <div class="bo-contact-ligne" x-show="prospect.commune_id">
+                  <span>Connexion</span>
+                  <span :style="prospect.maire_connecte ? 'color:var(--bo-vert)' : ''" x-text="prospect.maire_connecte ? '🔑 Le maire s\'est connecté au moins une fois' : 'Jamais connecté'"></span>
+                </div>
                 <div class="bo-contact-ligne">
                   <span>Email</span>
                   <input type="email" x-model="prospect.contact_email" placeholder="—"
@@ -2867,7 +2879,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260824-1"></script>
+  <script src="/backoffice/js/app.js?v=20260825-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

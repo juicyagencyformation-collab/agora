@@ -169,6 +169,16 @@ const TRIS: Record<string, string> = {
 
 const TAILLE_PAGE_PROSPECTS = 100;
 
+// Communes dont le maire s'est réellement connecté au moins une fois (users.role='maire',
+// derniere_connexion_streak posé) — le signal le plus fiable de tous, voir /stats-variantes.
+// Résilient (table users toujours présente, mais on protège quand même comme pour communesInscrites).
+async function chargerCommunesConnectees(env: any): Promise<Set<string>> {
+  const maires = await supabaseSelectTout(env, 'users', {
+    select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
+  }).catch(() => []);
+  return new Set(maires.filter((m: any) => m.derniere_connexion_streak).map((m: any) => m.commune_id));
+}
+
 app.get('/prospects', async (c) => {
   // Filtres communs à la liste ET au comptage total (pagination).
   const where: Record<string, string> = {};
@@ -190,10 +200,21 @@ app.get('/prospects', async (c) => {
   }).catch(() => []);
   const idsCommunesInscrites = new Set(communesInscrites.map((cm: any) => cm.id));
 
-  if (c.req.query('inscrits') === '1') {
-    where.commune_id = idsCommunesInscrites.size
-      ? `in.(${[...idsCommunesInscrites].join(',')})`
-      : 'eq.00000000-0000-0000-0000-000000000000'; // aucune commune inscrite : liste volontairement vide
+  // Signal "🔑 le maire s'est connecté" : le plus fiable de tous, plus fort qu'une simple
+  // ouverture d'email. ?maire_connecte=1 filtre la liste dessus.
+  const idsCommunesConnectees = await chargerCommunesConnectees(c.env);
+
+  let idsFiltreCommune: Set<string> | null = null;
+  if (c.req.query('inscrits') === '1') idsFiltreCommune = idsCommunesInscrites;
+  if (c.req.query('maire_connecte') === '1') {
+    idsFiltreCommune = idsFiltreCommune
+      ? new Set([...idsFiltreCommune].filter((id) => idsCommunesConnectees.has(id)))
+      : idsCommunesConnectees;
+  }
+  if (idsFiltreCommune) {
+    where.commune_id = idsFiltreCommune.size
+      ? `in.(${[...idsFiltreCommune].join(',')})`
+      : 'eq.00000000-0000-0000-0000-000000000000'; // aucune commune correspondante : liste volontairement vide
   }
 
   const tri = c.req.query('tri');
@@ -212,12 +233,15 @@ app.get('/prospects', async (c) => {
   ]);
 
   const prospectsAvecSignal = prospects.map((p: any) => ({
-    ...p, inscrit: !!(p.commune_id && idsCommunesInscrites.has(p.commune_id)),
+    ...p,
+    inscrit: !!(p.commune_id && idsCommunesInscrites.has(p.commune_id)),
+    maire_connecte: !!(p.commune_id && idsCommunesConnectees.has(p.commune_id)),
   }));
 
   return c.json({
     prospects: prospectsAvecSignal, page, taille: TAILLE_PAGE_PROSPECTS, total,
     total_inscrits: idsCommunesInscrites.size,
+    total_maires_connectes: idsCommunesConnectees.size,
   });
 });
 
@@ -238,18 +262,25 @@ app.get('/prospects-export.csv', async (c) => {
     if (statut && STATUTS.includes(statut as any)) where.statut = `eq.${statut}`;
     if (departement) where.departement = `eq.${departement.toUpperCase()}`;
     if (recherche) where.nom = `ilike.*${recherche}*`;
+    if (c.req.query('maire_connecte') === '1') {
+      const idsCommunesConnectees = await chargerCommunesConnectees(c.env);
+      where.commune_id = idsCommunesConnectees.size
+        ? `in.(${[...idsCommunesConnectees].join(',')})`
+        : 'eq.00000000-0000-0000-0000-000000000000';
+    }
   }
 
   // Export = tout ce qui correspond, donc pagination complète (même piège que /apercu : un
   // simple limit élevé ne suffit pas, Supabase plafonne à 1000 lignes par réponse).
   const prospects = await supabaseSelectTout(c.env, 'prospects', {
     ...where,
-    select: 'nom,departement,population,statut,contact_email,contact_telephone,site_web,prochaine_relance_le,created_at',
+    select: 'nom,departement,population,statut,nom_maire,contact_email,contact_telephone,site_web,prochaine_relance_le,created_at',
     order: 'nom.asc',
   });
   const csv = versCsv(prospects, [
     { cle: 'nom', titre: 'Commune' }, { cle: 'departement', titre: 'Département' },
     { cle: 'population', titre: 'Population' }, { cle: 'statut', titre: 'Statut' },
+    { cle: 'nom_maire', titre: 'Maire' },
     { cle: 'contact_email', titre: 'Email' }, { cle: 'contact_telephone', titre: 'Téléphone' },
     { cle: 'site_web', titre: 'Site web' }, { cle: 'prochaine_relance_le', titre: 'Prochaine relance' },
     { cle: 'created_at', titre: 'Ajouté le' },
@@ -374,15 +405,22 @@ app.get('/prospects/:id', async (c) => {
   // lui, impossible de personnaliser un lien vers la fiche de présentation ou son QR pour CE
   // prospect précis — jusqu'ici seul l'écran de conversion manuelle l'avait sous la main.
   let commune_slug: string | null = null;
+  let maire_connecte = false;
   if (prospect.commune_id) {
     const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
     commune_slug = commune?.slug || null;
+    // Signal le plus fiable de tous (voir /stats-variantes) : le maire s'est-il RÉELLEMENT
+    // connecté au moins une fois à la commune activée pour ce prospect.
+    const [maire] = await supabaseSelect(c.env, 'users', {
+      select: 'derniere_connexion_streak', commune_id: `eq.${prospect.commune_id}`, role: 'eq.maire',
+    });
+    maire_connecte = !!maire?.derniere_connexion_streak;
   }
 
   const interactions = await supabaseSelect(c.env, 'prospect_interactions', {
     select: 'type,contenu,created_at', prospect_id: `eq.${id}`, order: 'created_at.desc',
   });
-  return c.json({ prospect: { ...prospect, commune_slug }, interactions });
+  return c.json({ prospect: { ...prospect, commune_slug, maire_connecte }, interactions });
 });
 
 // — Enrichissement contact via l'annuaire (une seule commune à la fois : léger) —

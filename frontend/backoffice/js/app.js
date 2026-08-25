@@ -214,6 +214,8 @@ function backoffice() {
     filtreTri: 'nom',
     filtreInscrits: false, // "🔥 s'est inscrit" — voir declencherBienvenuePremiereInscription côté serveur
     totalInscrits: 0,
+    filtreMaireConnecte: false, // "🔑 le maire s'est connecté" — signal le plus fiable, voir /stats-variantes
+    totalMairesConnectes: 0,
     sousVueProspection: 'liste', // 'liste' | 'carte' | 'recues'
     emailsRecus: [],
     emailsRecusATraiter: 0,
@@ -1001,6 +1003,7 @@ function backoffice() {
       if (this.filtreStatut) params.set('statut', this.filtreStatut);
       if (this.filtreDep) params.set('departement', this.filtreDep);
       if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
+      if (this.filtreMaireConnecte) params.set('maire_connecte', '1');
       return '/api/backoffice/prospection/prospects-export.csv' + (params.toString() ? '?' + params : '');
     },
     nbPagesProspects() {
@@ -1091,6 +1094,7 @@ function backoffice() {
       if (this.filtreRecherche) params.set('recherche', this.filtreRecherche);
       if (this.filtreTri && this.filtreTri !== 'nom') params.set('tri', this.filtreTri);
       if (this.filtreInscrits) params.set('inscrits', '1');
+      if (this.filtreMaireConnecte) params.set('maire_connecte', '1');
       params.set('page', this.pageProspects);
       try {
         const [apercu, liste] = await Promise.all([
@@ -1102,6 +1106,7 @@ function backoffice() {
         this.totalProspects = liste.total ?? liste.prospects.length;
         this.tailleProspects = liste.taille ?? 100;
         this.totalInscrits = liste.total_inscrits ?? 0;
+        this.totalMairesConnectes = liste.total_maires_connectes ?? 0;
         this.selectionProspects = {};
         this.lotMsg = '';
       } catch (e) {
