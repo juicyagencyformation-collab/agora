@@ -78,6 +78,31 @@ export async function supabaseUpdate(env: any, table: string, donnees: object, f
   return res.json();
 }
 
+// Upsert en masse (un seul aller-retour, quel que soit le nombre de lignes) : insère les lignes
+// absentes et MET À JOUR celles dont onConflict (une contrainte UNIQUE) correspond déjà.
+// ⚠️ Piège vécu le 2026-08-25 : PostgREST construit ceci en INSERT ... ON CONFLICT DO UPDATE —
+// Postgres valide les contraintes NOT NULL de la table AU MOMENT DE CONSTRUIRE CHAQUE LIGNE DE LA
+// CLAUSE VALUES, avant même de savoir si elle ira en INSERT ou en UPDATE. Toute colonne NOT NULL
+// sans DEFAULT doit donc figurer dans `donnees` avec une valeur non nulle pour CHAQUE ligne — même
+// une valeur inchangée récupérée au préalable — sous peine d'échec systématique (23502) sur TOUTES
+// les lignes, y compris celles qui auraient dû simplement se mettre à jour. Alternative écartée :
+// boucler supabaseUpdate() par ligne — ne viole jamais de contrainte, mais explose le nombre de
+// sous-requêtes par invocation Worker dès que le lot dépasse la centaine de lignes.
+export async function supabaseUpsert(env: any, table: string, donnees: object[], onConflict: string): Promise<any[]> {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?on_conflict=${onConflict}`, {
+    method: 'POST',
+    headers: {
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=representation',
+    },
+    body: JSON.stringify(donnees),
+  });
+  if (!res.ok) throw new Error(`Supabase upsert ${table}: ${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 export async function supabaseDelete(env: any, table: string, filtres: Record<string, string>): Promise<void> {
   const params = new URLSearchParams(filtres);
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${params}`, {

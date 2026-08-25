@@ -6,7 +6,7 @@
 // Toutes les routes sont derrière backofficeMiddleware (périmètre staff transverse).
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseCount } from '../db';
+import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseUpsert, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
@@ -78,13 +78,16 @@ function formaterNomMaire(nom: string, prenom: string): string {
 app.post('/synchroniser-maires', async (c) => {
   let existants: any[];
   try {
-    existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee' });
+    // nom + departement (NOT NULL sans defaut) récupérés en même temps que code_insee : voir le
+    // commentaire de supabaseUpsert dans db.ts, ils doivent accompagner CHAQUE ligne du payload
+    // même quand seule nom_maire/maire_civilite change réellement.
+    existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee,nom,departement' });
   } catch (err: any) {
     console.error('synchroniser-maires — lecture prospects échouée :', err);
     return c.json({ erreur: `Lecture des prospects impossible : ${err?.message || err}` }, 500);
   }
   if (!existants.length) return c.json({ ok: true, mis_a_jour: 0, total_prospects: 0 });
-  const idParCodeInsee = new Map(existants.map((p: any) => [p.code_insee, p.id]));
+  const prospectParCodeInsee = new Map(existants.map((p: any) => [p.code_insee, p]));
 
   let res: Response;
   try {
@@ -113,39 +116,34 @@ app.post('/synchroniser-maires', async (c) => {
   }
 
   // On ne touche qu'aux prospects déjà importés (jamais d'insertion de nouveaux prospects ici :
-  // ce n'est pas le rôle de cette route, voir /importer plus haut). D'abord tenté avec un upsert
-  // en masse (on_conflict=code_insee) : Postgres valide les contraintes NOT NULL des colonnes
-  // absentes du payload (nom, departement) au moment de construire la clause INSERT sous-jacente,
-  // MÊME quand la ligne va en réalité passer par la branche UPDATE — l'upsert entier échouait donc
-  // systématiquement (23502), jamais un souci de correspondance. Une boucle d'UPDATE classiques
-  // évite complètement ce piège : une UPDATE ne valide jamais les colonnes qu'elle ne touche pas.
-  const maj: { id: string; nom_maire: string; maire_civilite: string | null }[] = [];
+  // ce n'est pas le rôle de cette route, voir /importer plus haut) — le on_conflict de l'upsert
+  // ne fait donc en pratique que mettre à jour, jamais créer de ligne. nom/departement repartent
+  // inchangés dans le payload : voir le commentaire de supabaseUpsert (db.ts) pour pourquoi c'est
+  // nécessaire malgré le fait qu'on ne veuille modifier QUE nom_maire/maire_civilite.
+  const maj: { code_insee: string; nom: string; departement: string; nom_maire: string; maire_civilite: string | null }[] = [];
   for (const ligne of corps) {
     const codeInsee = ligne[iCode];
-    const id = codeInsee ? idParCodeInsee.get(codeInsee) : undefined;
-    if (!id) continue;
+    const prospect = codeInsee ? prospectParCodeInsee.get(codeInsee) : undefined;
+    if (!prospect) continue;
     const nom = ligne[iNom], prenom = ligne[iPrenom];
     if (!nom || !prenom) continue;
     const sexe = iSexe >= 0 ? ligne[iSexe] : '';
     maj.push({
-      id,
+      code_insee: codeInsee,
+      nom: prospect.nom,
+      departement: prospect.departement,
       nom_maire: formaterNomMaire(nom, prenom),
       maire_civilite: sexe === 'F' ? 'Madame' : sexe === 'M' ? 'Monsieur' : null,
     });
   }
 
-  const TAILLE_LOT = 25;
-  try {
-    for (let i = 0; i < maj.length; i += TAILLE_LOT) {
-      await Promise.all(maj.slice(i, i + TAILLE_LOT).map((m) =>
-        supabaseUpdate(c.env, 'prospects', { nom_maire: m.nom_maire, maire_civilite: m.maire_civilite }, {
-          id: `eq.${m.id}`,
-        }),
-      ));
+  if (maj.length) {
+    try {
+      await supabaseUpsert(c.env, 'prospects', maj, 'code_insee');
+    } catch (err: any) {
+      console.error('synchroniser-maires — écriture en base échouée :', err);
+      return c.json({ erreur: `Écriture en base impossible : ${err?.message || err}` }, 500);
     }
-  } catch (err: any) {
-    console.error('synchroniser-maires — écriture en base échouée :', err);
-    return c.json({ erreur: `Écriture en base impossible : ${err?.message || err}` }, 500);
   }
   return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length });
 });
