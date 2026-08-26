@@ -1369,19 +1369,18 @@ function backoffice() {
       }
     },
 
-    // Email libre : pas de modèle A/B, un mot personnalisé — reprend éventuellement le lien de
-    // la fiche + QR (visible uniquement une fois la commune activée, comme le bouton "🖨 Fiche + QR").
+    // Email libre : pas de modèle A/B, un mot personnalisé — la carte de visite (bouton app +
+    // fiche à imprimer) est composée côté serveur, qui connaît le slug le plus à jour.
     async envoyerEmailLibre() {
       if (!this.emailLibre.objet.trim() || !this.emailLibre.message.trim()) return;
       this.emailLibre.enCours = true;
       this.emailLibre.msg = '';
       try {
-        let message = this.emailLibre.message.trim();
-        if (this.emailLibre.inclureFiche && this.prospect.commune_slug) {
-          message += '\n\n' + location.origin + this.lienFiche(this.prospect.commune_slug, this.prospect.nom);
-        }
         await boFetch('/prospection/prospects/' + this.prospect.id + '/envoyer-email-libre', {
-          method: 'POST', body: JSON.stringify({ objet: this.emailLibre.objet.trim(), message }),
+          method: 'POST', body: JSON.stringify({
+            objet: this.emailLibre.objet.trim(), message: this.emailLibre.message.trim(),
+            inclure_carte: this.emailLibre.inclureFiche && !!this.prospect.commune_slug,
+          }),
         });
         this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
         const d = await boFetch('/prospection/prospects/' + this.prospect.id);

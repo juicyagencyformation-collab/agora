@@ -876,16 +876,48 @@ function echapper(s: string): string {
   return s.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
 }
 
+// "Carte de visite" de la commune — mêmes couleurs que la fiche imprimable (fiche.html : navy
+// #1c3b57, vert #2c5f2d, or #b9791a, corail #c85a3f). Pas d'image ni de QR embarqué : le
+// générateur QR maison du Worker est plafonné à 42 caractères (voir CLAUDE.md, piège déjà vécu)
+// et ne peut pas encoder une URL complète comme plateforme-agora.fr/<slug>/ — le seul QR qui
+// fonctionne vraiment est celui de la fiche.html, généré côté navigateur avec une vraie
+// librairie. Le bouton "Fiche à imprimer" pointe donc vers cette page plutôt que de tenter un
+// QR cassé dans l'email.
+function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: string): string {
+  const nom = echapper(nomCommune);
+  const urlApp = `${frontendUrl}/${encodeURIComponent(slug)}/`;
+  const urlFiche = `${frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(slug)}&nom=${encodeURIComponent(nomCommune)}`;
+  return `
+  <div style="margin:28px auto 0;max-width:520px;border-radius:16px;overflow:hidden;border:1.5px solid #1c3b57;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+    <div style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%);padding:20px 24px">
+      <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-.3px">Ag<span style="color:#8fd39a">o</span>ra</div>
+      <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:#c7d5e0;margin-top:3px">La plateforme citoyenne de ${nom}</div>
+    </div>
+    <div style="background:#ffffff;padding:22px 24px">
+      <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 18px">
+        Actus, agenda, alertes, entraide entre voisins… tout ${nom} au même endroit, gratuitement.
+      </p>
+      <a href="${urlApp}" style="display:inline-block;background:#2c5f2d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px">Ouvrir l'app →</a>
+      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed #e3e7ea">
+        <a href="${urlFiche}" style="color:#b9791a;font-weight:700;font-size:13px;text-decoration:none">🖨 Fiche à imprimer avec QR code — à distribuer aux administrés</a>
+      </div>
+    </div>
+    <div style="height:6px;background:linear-gradient(90deg,#1c3b57 25%,#2c5f2d 25%,#2c5f2d 50%,#b9791a 50%,#b9791a 75%,#c85a3f 75%)"></div>
+  </div>`;
+}
+
 // Simple mise en forme : texte libre échappé, sauts de ligne convertis, dans le même habillage
 // minimal que les autres emails de prospection (voir email-commune.ts). Pas d'éditeur riche côté
 // client : ce mail est volontairement du texte brut, pour un mot personnel plutôt qu'un modèle.
-function construireEmailLibre(message: string): string {
+// carteVisiteHtml (optionnel) : voir construireCarteVisite ci-dessus.
+function construireEmailLibre(message: string, carteVisiteHtml?: string): string {
   const corps = echapper(message).replace(/\n/g, '<br>');
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
     <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
     <div style="font-size:15px;color:#3a4a3b;line-height:1.6">${corps}</div>
+    ${carteVisiteHtml || ''}
   </div>`;
 }
 
@@ -894,6 +926,7 @@ function construireEmailLibre(message: string): string {
 const emailLibreSchema = z.object({
   objet: z.string().min(1).max(200),
   message: z.string().min(1).max(5000),
+  inclure_carte: z.boolean().optional(),
 });
 
 app.post('/prospects/:id/envoyer-email-libre', async (c) => {
@@ -902,13 +935,19 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,contact_email', id: `eq.${id}`,
+    select: 'id,nom,commune_id,contact_email', id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
   if (!prospect.contact_email) return c.json({ erreur: 'Aucun email de contact pour ce prospect.' }, 422);
 
+  let carteVisiteHtml: string | undefined;
+  if (body.data.inclure_carte && prospect.commune_id) {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
+    if (commune?.slug) carteVisiteHtml = construireCarteVisite(prospect.nom, commune.slug, c.env.FRONTEND_URL);
+  }
+
   const resendEmailId = await envoyerEmail(
-    c.env, prospect.contact_email, body.data.objet, construireEmailLibre(body.data.message),
+    c.env, prospect.contact_email, body.data.objet, construireEmailLibre(body.data.message, carteVisiteHtml),
     undefined, c.env.EMAIL_REPLY_TO_PROSPECTION,
   );
   if (!resendEmailId) return c.json({ erreur: 'Échec de l\'envoi (Resend indisponible).' }, 502);
