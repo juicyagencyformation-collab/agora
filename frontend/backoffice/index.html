@@ -1956,7 +1956,10 @@
             <div>
               <div class="bo-section-titre">Historique de prospection</div>
               <div class="bo-carte" style="padding:14px 18px">
-                <div class="bo-info" style="margin-bottom:8px" x-text="'Devenue cliente depuis le prospect « ' + historiqueProspection.prospect?.nom + ' » (statut : ' + historiqueProspection.prospect?.statut + ').'"></div>
+                <div class="bo-info" style="margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px">
+                  <span x-text="'Devenue cliente depuis le prospect « ' + historiqueProspection.prospect?.nom + ' » (statut : ' + historiqueProspection.prospect?.statut + ').'"></span>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" style="white-space:nowrap" @click="ouvrirProspect(historiqueProspection.prospect.id)">Ouvrir la fiche prospect</button>
+                </div>
                 <template x-for="(it, i) in (historiqueProspection?.interactions || [])" :key="i">
                   <div class="bo-timeline-item">
                     <span class="bo-timeline__type"><span class="bo-badge" x-text="libelleType(it.type)"></span></span>
@@ -2642,7 +2645,13 @@
                   <template x-for="s in statuts" :key="s"><option :value="s" x-text="libelleStatut(s)"></option></template>
                 </select>
                 <label>Prochaine relance</label>
-                <input type="date" x-model="prospect.prochaine_relance_le" @change="majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" />
+                <div style="display:flex; align-items:center; gap:8px">
+                  <input type="date" x-model="prospect.prochaine_relance_le" @change="majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" style="flex:1" />
+                  <button class="bo-btn bo-btn--compact" style="white-space:nowrap" @click="prospecter()" :disabled="prospEnCours"
+                          :title="'Envoie la même présentation, remet la relance à +7 jours'"
+                          x-text="prospEnCours ? '…' : '🔁 Relancer'"></button>
+                </div>
+                <div class="bo-note--basse" style="font-size:12.5px; margin:-4px 0 8px" x-show="relanceEnRetard(prospect)">Relance en retard.</div>
 
                 <template x-if="!fermeture.ouvert">
                   <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="fermeture.ouvert = true">🏛 Mairie fermée</button>
@@ -2699,8 +2708,9 @@
               <div>
                 <div class="bo-statut bo-statut--gagne" style="margin-bottom:12px">Commune cliente</div>
                 <div class="bo-info" style="margin-bottom:12px">Cette commune est active sur la plateforme.</div>
-                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/' + conversion.slug + '/'" target="_blank" x-show="conversion.slug">Ouvrir l'app</a>
-                <a class="bo-btn bo-btn--compact" :href="lienFiche(conversion.slug, prospect.nom)" target="_blank" x-show="conversion.slug" style="margin-left:8px">Fiche de présentation</a>
+                <button class="bo-btn bo-btn--compact" @click="ouvrirFiche(prospect.commune_id)">Ouvrir la fiche commune (facturation, RGPD…)</button>
+                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/' + conversion.slug + '/'" target="_blank" x-show="conversion.slug" style="margin-left:8px">Ouvrir l'app</a>
+                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="lienFiche(conversion.slug, prospect.nom)" target="_blank" x-show="conversion.slug" style="margin-left:8px">Fiche de présentation</a>
               </div>
             </template>
 
