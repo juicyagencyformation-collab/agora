@@ -883,26 +883,44 @@ function echapper(s: string): string {
 // fonctionne vraiment est celui de la fiche.html, généré côté navigateur avec une vraie
 // librairie. Le bouton "Fiche à imprimer" pointe donc vers cette page plutôt que de tenter un
 // QR cassé dans l'email.
+// Deux pièges email HTML corrigés le 2026-08-26 (Outlook desktop notamment) : chaque
+// linear-gradient() a un repli en couleur unie déclaré juste avant (l'ancien manquait sur le
+// liseret du bas, invisible sans repli) ; l'URL de l'app est aussi affichée en texte brut sous
+// le bouton, pour rester lisible même imprimée ou transférée sans liens cliquables.
 function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: string): string {
   const nom = echapper(nomCommune);
   const urlApp = `${frontendUrl}/${encodeURIComponent(slug)}/`;
+  const urlAppTexte = echapper(urlApp.replace(/^https?:\/\//, ''));
   const urlFiche = `${frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(slug)}&nom=${encodeURIComponent(nomCommune)}`;
+  const urlLogo = `${frontendUrl}/icons/agora-icone-1024-fond-transparent.png`;
   return `
   <div style="margin:28px auto 0;max-width:520px;border-radius:16px;overflow:hidden;border:1.5px solid #1c3b57;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-    <div style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%);padding:20px 24px">
-      <div style="font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-.3px">Ag<span style="color:#8fd39a">o</span>ra</div>
-      <div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:#c7d5e0;margin-top:3px">La plateforme citoyenne de ${nom}</div>
-    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%)">
+      <tr>
+        <td style="padding:18px 24px" valign="middle">
+          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+            <td valign="middle" style="padding-right:14px">
+              <img src="${urlLogo}" width="44" height="44" alt="Agora" style="display:block;width:44px;height:44px;border-radius:50%;background:#ffffff;padding:5px" />
+            </td>
+            <td valign="middle">
+              <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-.3px">Ag<span style="color:#8fd39a">o</span>ra</div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#c7d5e0;margin-top:2px">La plateforme citoyenne de ${nom}</div>
+            </td>
+          </tr></table>
+        </td>
+      </tr>
+    </table>
     <div style="background:#ffffff;padding:22px 24px">
       <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 18px">
         Actus, agenda, alertes, entraide entre voisins… tout ${nom} au même endroit, gratuitement.
       </p>
       <a href="${urlApp}" style="display:inline-block;background:#2c5f2d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px">Ouvrir l'app →</a>
-      <div style="margin-top:18px;padding-top:16px;border-top:1px dashed #e3e7ea">
+      <div style="margin-top:8px;font-size:11.5px;color:#8a9199">${urlAppTexte}</div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #e3e7ea">
         <a href="${urlFiche}" style="color:#b9791a;font-weight:700;font-size:13px;text-decoration:none">🖨 Fiche à imprimer avec QR code — à distribuer aux administrés</a>
       </div>
     </div>
-    <div style="height:6px;background:linear-gradient(90deg,#1c3b57 25%,#2c5f2d 25%,#2c5f2d 50%,#b9791a 50%,#b9791a 75%,#c85a3f 75%)"></div>
+    <div style="height:6px;background:#1c3b57;background:linear-gradient(90deg,#1c3b57 25%,#2c5f2d 25%,#2c5f2d 50%,#b9791a 50%,#b9791a 75%,#c85a3f 75%)"></div>
   </div>`;
 }
 
