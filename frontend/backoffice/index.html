@@ -2680,8 +2680,8 @@
                 <label>Prochaine relance</label>
                 <div style="display:flex; align-items:center; gap:8px">
                   <input type="date" x-model="prospect.prochaine_relance_le" @change="majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" style="flex:1" />
-                  <button class="bo-btn bo-btn--compact" style="white-space:nowrap" @click="prospecter()" :disabled="prospEnCours"
-                          :title="'Envoie la même présentation, remet la relance à +7 jours'"
+                  <button class="bo-btn bo-btn--compact" style="white-space:nowrap" @click="relancer()" :disabled="prospEnCours"
+                          :title="prospect.commune_id ? 'Envoie l\'email de relance (compte déjà activé), remet la relance à +7 jours' : 'Envoie la présentation, remet la relance à +7 jours'"
                           x-text="prospEnCours ? '…' : '🔁 Relancer'"></button>
                 </div>
                 <div class="bo-note--basse" style="font-size:12.5px; margin:-4px 0 8px" x-show="relanceEnRetard(prospect)">Relance en retard.</div>
@@ -2922,7 +2922,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260826-3"></script>
+  <script src="/backoffice/js/app.js?v=20260826-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

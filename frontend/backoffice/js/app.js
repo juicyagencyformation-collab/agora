@@ -1374,6 +1374,31 @@ function backoffice() {
       }
     },
 
+    // Bouton « 🔁 Relancer » : bascule côté serveur entre l'email de présentation (compte pas
+    // encore créé) et l'email de relance J+3 de la séquence d'onboarding (compte déjà activé) —
+    // voir POST /prospects/:id/relancer dans prospection.ts. Un compte déjà activé ne doit plus
+    // recevoir un nouveau mot de passe à chaque relance, d'où les deux confirmations distinctes.
+    async relancer() {
+      const activee = !!this.prospect.commune_id;
+      const message = activee
+        ? 'Envoyer l\'email de relance à la mairie (compte déjà activé) ? Remet la prochaine relance à +7 jours.'
+        : 'Envoyer la présentation à la mairie ? Si cette commune n\'a pas encore d\'espace, il sera créé à l\'instant en version gratuite, avec un compte maire (identifiants envoyés dans l\'email).';
+      if (!confirm(message)) return;
+      this.prospEnCours = true;
+      this.prospMsg = '';
+      try {
+        const r = await boFetch('/prospection/prospects/' + this.prospect.id + '/relancer', { method: 'POST' });
+        this.prospMsg = (r.type === 'relance_j3' ? 'Relance envoyée à ' : 'Présentation envoyée à ') + r.email;
+        const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+        this.prospect = d.prospect;
+        this.interactions = d.interactions;
+      } catch (e) {
+        this.prospMsg = e.message || 'Envoi impossible';
+      } finally {
+        this.prospEnCours = false;
+      }
+    },
+
     // Email libre : pas de modèle A/B, un mot personnalisé — la carte de visite (bouton app +
     // fiche à imprimer) est composée côté serveur, qui connaît le slug le plus à jour.
     async envoyerEmailLibre() {

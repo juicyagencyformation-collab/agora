@@ -8,8 +8,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseUpsert, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
-import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire } from './email-commune';
+import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire, envoyerModeleGenerique, MODELE_ONBOARDING_RELANCE_J3_DEFAUT } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
+import { destinataireCommune } from './onboarding-drip';
 import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
 import { envoyerEmail } from '../lib/email';
@@ -746,6 +747,53 @@ app.post('/prospects/:id/prospecter', async (c) => {
   if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email valide pour cette commune (adresse manquante, ou signalée en échec et non corrigée par l\'annuaire).' }, 422);
   if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400);
   return c.json({ ok: true, email: r.email });
+});
+
+// Une commune déjà activée (compte créé — voir prospect.commune_id) n'a plus besoin d'un email
+// de « présentation » qui régénère un mot de passe potentiellement déjà utilisé par le maire :
+// on envoie plutôt le même email de relance J+3 que la séquence d'onboarding automatique (voir
+// onboarding-drip.ts), manuellement et sans ses contraintes de date/anti-doublon (décision de
+// Léandre du 2026-08-26) — destinataireCommune() choisit le meilleur destinataire déjà connu.
+async function relancerCommuneActivee(env: any, staffId: string, prospect: any): Promise<{ email: string | null }> {
+  const [commune] = await supabaseSelect(env, 'communes', { select: 'nom,slug', id: `eq.${prospect.commune_id}` });
+  if (!commune) return { email: null };
+
+  const destinataire = await destinataireCommune(env, prospect.commune_id, true);
+  if (!destinataire) return { email: null };
+
+  const ctx = contextePresentation(env.FRONTEND_URL, commune.nom, commune.slug);
+  await envoyerModeleGenerique(env, 'onboarding_relance_j3', MODELE_ONBOARDING_RELANCE_J3_DEFAUT, destinataire, ctx);
+
+  const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  await supabaseUpdate(env, 'prospects', { updated_at: new Date().toISOString(), prochaine_relance_le: relance }, { id: `eq.${prospect.id}` });
+  await supabaseInsert(env, 'prospect_interactions', {
+    prospect_id: prospect.id, staff_id: staffId,
+    type: 'email', contenu: `Email de relance (J+3, onboarding) envoyé à ${destinataire}`,
+  });
+  return { email: destinataire };
+}
+
+// POST /prospects/:id/relancer — bouton « 🔁 Relancer » de la fiche pilotage : bascule
+// automatiquement entre les deux emails selon que la commune a déjà un compte ou non, pour que
+// ce soit toujours le bon email en un seul clic (voir relancerCommuneActivee ci-dessus).
+app.post('/prospects/:id/relancer', async (c) => {
+  const id = c.req.param('id');
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+
+  if (prospect.commune_id) {
+    const r = await relancerCommuneActivee(c.env, c.get('staff_id'), prospect);
+    if (!r.email) return c.json({ erreur: 'Aucun destinataire trouvé pour cette commune (aucun compte gestionnaire).' }, 422);
+    return c.json({ ok: true, email: r.email, type: 'relance_j3' });
+  }
+
+  const r = await prospecterUn(c.env, c.get('staff_id'), prospect);
+  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email valide pour cette commune (adresse manquante, ou signalée en échec et non corrigée par l\'annuaire).' }, 422);
+  if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400);
+  return c.json({ ok: true, email: r.email, type: 'presentation' });
 });
 
 // Traite un lot de prospects en séquence, SANS jamais laisser l'échec d'un seul (données
