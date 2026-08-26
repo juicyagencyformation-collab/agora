@@ -907,11 +907,14 @@ async function codeCourtCommune(env: any, communeId: string): Promise<string | n
 // possible malgré la limite de 42 caractères du générateur). Le bouton "Fiche à imprimer" reste
 // le lien vers fiche.html (le vrai document à distribuer, format A4) ; le QR ici est un raccourci
 // pratique directement scannable depuis la carte elle-même.
-// Trois pièges email HTML corrigés le 2026-08-26 (Outlook desktop notamment) : chaque
-// linear-gradient() a un repli en couleur unie déclaré juste avant (l'ancien manquait sur le
-// liseret du bas, invisible sans repli) ; l'URL de l'app est aussi affichée en texte brut sous
-// le bouton, pour rester lisible même imprimée ou transférée sans liens cliquables ; le bandeau
-// et le QR sont bâtis en <table> (jamais flex/grid), Outlook n'ayant pas de vrai moteur CSS.
+// Refonte du 2026-08-26 (retour de Léandre) : la carte est copiée-collée par la mairie pour être
+// imprimée et distribuée aux administrés — un bandeau plein en dégradé navy coûte cher en encre et
+// "bande" sur une imprimante de mairie standard. Fond blanc dominant, navy réduit à un filet fin
+// (bordure du bandeau, contour du badge logo) : plus de dégradé du tout, donc plus de fondu à régler.
+// Le QR passe devant (colonne de gauche, agrandi) puisque c'est le geste principal attendu du
+// destinataire papier ; la légende explicite "avec l'appareil photo" pour un public non-technophile.
+// Pièges email HTML (Outlook desktop notamment) : bandeau et QR bâtis en <table>, jamais flex/grid ;
+// l'URL de l'app reste aussi en texte brut sous le bouton, lisible même imprimée sans lien cliquable.
 function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: string, codeCourt: string | null): string {
   const nom = echapper(nomCommune);
   const urlApp = `${frontendUrl}/${encodeURIComponent(slug)}/`;
@@ -920,47 +923,49 @@ function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: st
   const urlLogo = `${frontendUrl}/icons/agora-icone-1024-fond-transparent.png`;
 
   const blocQr = codeCourt ? `
-        <td valign="top" width="132" style="text-align:center;padding-left:18px">
-          <div style="display:inline-block;background:#ffffff;border:1.5px solid #1c3b57;border-radius:12px;padding:8px;line-height:0">
-            <img src="${frontendUrl}/q/${codeCourt}/qr.svg" width="112" height="112" alt="QR code vers l'app" style="display:block;width:112px;height:112px" />
+        <td valign="top" width="146" style="text-align:center;padding-right:20px">
+          <div style="display:inline-block;background:#ffffff;border:2px solid #1c3b57;border-radius:12px;padding:9px;line-height:0">
+            <img src="${frontendUrl}/q/${codeCourt}/qr.svg" width="128" height="128" alt="QR code vers l'app" style="display:block;width:128px;height:128px" />
           </div>
-          <div style="font-size:10px;color:#8a9199;margin-top:7px;line-height:1.3">Scannez pour ouvrir l'app</div>
+          <div style="font-size:10px;color:#6b7680;margin-top:7px;line-height:1.3">📱 Scannez avec l'appareil photo</div>
         </td>` : '';
 
   return `
-  <div style="margin:28px auto 0;max-width:520px;border-radius:16px;overflow:hidden;border:1.5px solid #1c3b57;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <div style="margin:28px auto 0;max-width:520px;border-radius:14px;overflow:hidden;border:1.5px solid #1c3b57;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%);padding:24px 24px 16px" valign="middle">
+        <td style="padding:20px 24px 14px" valign="middle">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td valign="middle" style="padding-right:14px">
-              <img src="${urlLogo}" width="48" height="48" alt="Agora" style="display:block;width:48px;height:48px;border-radius:50%;background:#ffffff;padding:5px" />
+            <td valign="middle" style="padding-right:12px">
+              <div style="width:40px;height:40px;border-radius:50%;background:#1c3b57;text-align:center;line-height:40px">
+                <img src="${urlLogo}" width="26" height="26" alt="Agora" style="display:inline-block;vertical-align:middle;width:26px;height:26px" />
+              </div>
             </td>
             <td valign="middle">
-              <div style="font-size:21px;font-weight:800;color:#ffffff;letter-spacing:-.3px">Ag<span style="color:#8fd39a">o</span>ra</div>
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#c7d5e0;margin-top:2px">La plateforme citoyenne de ${nom}</div>
+              <div style="font-size:20px;font-weight:800;color:#1c3b57;letter-spacing:-.3px">Ag<span style="color:#2c5f2d">o</span>ra</div>
+              <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#6b7680;margin-top:1px">La plateforme citoyenne de ${nom}</div>
             </td>
           </tr></table>
         </td>
       </tr>
-      <!-- Fondu du bandeau vers le blanc du corps, plutôt qu'une coupure nette. -->
-      <tr><td style="height:26px;background:#1c3b57;background:linear-gradient(180deg,#1c3b57 0%,#ffffff 100%);font-size:0;line-height:0">&nbsp;</td></tr>
+      <tr><td style="height:2px;background:#1c3b57;font-size:0;line-height:0">&nbsp;</td></tr>
     </table>
-    <div style="background:#ffffff;padding:6px 24px 22px">
+    <div style="padding:20px 24px 22px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td valign="top">
-          <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 18px">
+        ${blocQr}
+        <td valign="middle">
+          <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 14px">
             Actus, agenda, alertes, entraide entre voisins… tout ${nom} au même endroit, gratuitement.
           </p>
           <a href="${urlApp}" style="display:inline-block;background:#2c5f2d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px">Ouvrir l'app →</a>
           <div style="margin-top:8px;font-size:11.5px;color:#8a9199">${urlAppTexte}</div>
-        </td>${blocQr}
+        </td>
       </tr></table>
       <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #e3e7ea">
         <a href="${urlFiche}" style="color:#b9791a;font-weight:700;font-size:13px;text-decoration:none">🖨 Fiche à imprimer avec QR code — à distribuer aux administrés</a>
       </div>
     </div>
-    <div style="height:6px;background:#1c3b57;background:linear-gradient(90deg,#1c3b57 25%,#2c5f2d 25%,#2c5f2d 50%,#b9791a 50%,#b9791a 75%,#c85a3f 75%)"></div>
+    <div style="height:5px;background:#1c3b57;background:linear-gradient(90deg,#1c3b57 25%,#2c5f2d 25%,#2c5f2d 50%,#b9791a 50%,#b9791a 75%,#c85a3f 75%)"></div>
   </div>`;
 }
 
