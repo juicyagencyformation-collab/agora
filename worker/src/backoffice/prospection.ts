@@ -907,10 +907,11 @@ async function codeCourtCommune(env: any, communeId: string): Promise<string | n
 // possible malgré la limite de 42 caractères du générateur). Le bouton "Fiche à imprimer" reste
 // le lien vers fiche.html (le vrai document à distribuer, format A4) ; le QR ici est un raccourci
 // pratique directement scannable depuis la carte elle-même.
-// Deux pièges email HTML corrigés le 2026-08-26 (Outlook desktop notamment) : chaque
+// Trois pièges email HTML corrigés le 2026-08-26 (Outlook desktop notamment) : chaque
 // linear-gradient() a un repli en couleur unie déclaré juste avant (l'ancien manquait sur le
 // liseret du bas, invisible sans repli) ; l'URL de l'app est aussi affichée en texte brut sous
-// le bouton, pour rester lisible même imprimée ou transférée sans liens cliquables.
+// le bouton, pour rester lisible même imprimée ou transférée sans liens cliquables ; le bandeau
+// et le QR sont bâtis en <table> (jamais flex/grid), Outlook n'ayant pas de vrai moteur CSS.
 function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: string, codeCourt: string | null): string {
   const nom = echapper(nomCommune);
   const urlApp = `${frontendUrl}/${encodeURIComponent(slug)}/`;
@@ -919,31 +920,33 @@ function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: st
   const urlLogo = `${frontendUrl}/icons/agora-icone-1024-fond-transparent.png`;
 
   const blocQr = codeCourt ? `
-        <td valign="top" width="100" style="text-align:center;padding-left:16px">
-          <div style="display:inline-block;background:#ffffff;border:1.5px solid #1c3b57;border-radius:10px;padding:6px;line-height:0">
-            <img src="${frontendUrl}/q/${codeCourt}/qr.svg" width="88" height="88" alt="QR code vers l'app" style="display:block;width:88px;height:88px" />
+        <td valign="top" width="132" style="text-align:center;padding-left:18px">
+          <div style="display:inline-block;background:#ffffff;border:1.5px solid #1c3b57;border-radius:12px;padding:8px;line-height:0">
+            <img src="${frontendUrl}/q/${codeCourt}/qr.svg" width="112" height="112" alt="QR code vers l'app" style="display:block;width:112px;height:112px" />
           </div>
-          <div style="font-size:9.5px;color:#8a9199;margin-top:6px;line-height:1.3">Scannez pour ouvrir l'app</div>
+          <div style="font-size:10px;color:#8a9199;margin-top:7px;line-height:1.3">Scannez pour ouvrir l'app</div>
         </td>` : '';
 
   return `
   <div style="margin:28px auto 0;max-width:520px;border-radius:16px;overflow:hidden;border:1.5px solid #1c3b57;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%)">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
-        <td style="padding:18px 24px" valign="middle">
+        <td style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%);padding:24px 24px 16px" valign="middle">
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             <td valign="middle" style="padding-right:14px">
-              <img src="${urlLogo}" width="44" height="44" alt="Agora" style="display:block;width:44px;height:44px;border-radius:50%;background:#ffffff;padding:5px" />
+              <img src="${urlLogo}" width="48" height="48" alt="Agora" style="display:block;width:48px;height:48px;border-radius:50%;background:#ffffff;padding:5px" />
             </td>
             <td valign="middle">
-              <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-.3px">Ag<span style="color:#8fd39a">o</span>ra</div>
+              <div style="font-size:21px;font-weight:800;color:#ffffff;letter-spacing:-.3px">Ag<span style="color:#8fd39a">o</span>ra</div>
               <div style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#c7d5e0;margin-top:2px">La plateforme citoyenne de ${nom}</div>
             </td>
           </tr></table>
         </td>
       </tr>
+      <!-- Fondu du bandeau vers le blanc du corps, plutôt qu'une coupure nette. -->
+      <tr><td style="height:26px;background:#1c3b57;background:linear-gradient(180deg,#1c3b57 0%,#ffffff 100%);font-size:0;line-height:0">&nbsp;</td></tr>
     </table>
-    <div style="background:#ffffff;padding:22px 24px">
+    <div style="background:#ffffff;padding:6px 24px 22px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
         <td valign="top">
           <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 18px">
