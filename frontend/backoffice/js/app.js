@@ -236,6 +236,8 @@ function backoffice() {
     nouvInteraction: { type: 'note', contenu: '' },
     fermeture: { ouvert: false, dateRetour: '', enCours: false },
     emailLibre: { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' },
+    carteVisiteHtml: null,
+    carteVisiteMsg: '',
     conversion: { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' },
 
     async init() {
@@ -1329,6 +1331,8 @@ function backoffice() {
       this.prospMsg = '';
       this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
       this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
+      this.carteVisiteHtml = null;
+      this.carteVisiteMsg = '';
       try {
         const d = await boFetch('/prospection/prospects/' + id);
         this.prospect = d.prospect;
@@ -1339,6 +1343,7 @@ function backoffice() {
             const c = await boFetch('/administration/communes/' + this.prospect.commune_id);
             this.conversion.slug = c.commune.slug;
           } catch {}
+          try { this.carteVisiteHtml = (await boFetch('/prospection/prospects/' + id + '/carte-visite')).html; } catch {}
         }
         // Auto-enrichissement du contact en arrière-plan (sans clic ni blocage de l'affichage).
         if (!this.prospect.enrichi_le && this.prospect.code_insee) {
@@ -1390,6 +1395,23 @@ function backoffice() {
       } catch (e) {
         this.emailLibre.msg = e.message || 'Envoi impossible';
         this.emailLibre.enCours = false;
+      }
+    },
+
+    // Copie la carte de visite en HTML riche (pas juste du texte) : collée dans Gmail/Outlook,
+    // elle garde ses couleurs et sa mise en forme, comme si on avait copié un morceau de page web.
+    async copierCarteVisite() {
+      this.carteVisiteMsg = '';
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': new Blob([this.carteVisiteHtml], { type: 'text/html' }),
+            'text/plain': new Blob([this.carteVisiteHtml], { type: 'text/plain' }),
+          }),
+        ]);
+        this.carteVisiteMsg = 'Copiée — colle-la dans ton email.';
+      } catch {
+        this.carteVisiteMsg = 'Copie impossible depuis ce navigateur — sélectionne l\'aperçu ci-dessus à la main (Ctrl/Cmd+C).';
       }
     },
 

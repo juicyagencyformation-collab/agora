@@ -960,4 +960,21 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
   return c.json({ ok: true });
 });
 
+// GET /prospects/:id/carte-visite — aperçu de la carte de visite (voir construireCarteVisite
+// ci-dessus), pour affichage direct dans la fiche : Léandre peut la voir puis la copier-coller
+// à la main dans un email tapé ailleurs (sa propre messagerie), sans passer par « Email libre ».
+// null tant que la commune n'est pas activée (pas de slug à pointer).
+app.get('/prospects/:id/carte-visite', async (c) => {
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'nom,commune_id', id: `eq.${c.req.param('id')}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+  if (!prospect.commune_id) return c.json({ html: null });
+
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
+  if (!commune?.slug) return c.json({ html: null });
+
+  return c.json({ html: construireCarteVisite(prospect.nom, commune.slug, c.env.FRONTEND_URL) });
+});
+
 export default app;
