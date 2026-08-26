@@ -612,6 +612,7 @@ export async function envoyerPresentation(
   env: any, contactEmail: string, ctx: ContextePresentation,
   identifiants?: { maireEmail: string; motDePasse: string },
   varianteId?: string,
+  carteVisiteHtml?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
   const modele = varianteId ? await chargerVarianteParId(env, varianteId) : await chargerModelePresentation(env);
   const ctxComplet = {
@@ -621,6 +622,7 @@ export async function envoyerPresentation(
   };
   let corps = rendrePresentation(modele.corps_html, ctxComplet);
   if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse) + blocPsModules();
+  if (carteVisiteHtml) corps += carteVisiteHtml;
   corps = injecterPreviewText(corps, modele.preview_text);
   // reply_to distinct de EMAIL_FROM : une réponse à un email de prospection part vers un
   // sous-domaine dédié à la réception (voir CLAUDE.md/Resend) plutôt que vers la boîte mail

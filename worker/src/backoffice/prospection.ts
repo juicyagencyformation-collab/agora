@@ -636,7 +636,7 @@ async function genererSlugUnique(env: any, nom: string): Promise<string> {
 // une fois « gagné », ce flux n'est plus jamais appelé (voir prospecterUn, qui court-circuite
 // avant). Décision business du 2026-08-17 : zéro friction, chaque prospect reçoit son propre
 // espace fonctionnel dès le premier envoi de présentation, gratuitement.
-async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; maireEmail: string; motDePasse: string }> {
+async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireEmail: string; motDePasse: string }> {
   let communeId: string = prospect.commune_id || '';
 
   if (!communeId) {
@@ -671,7 +671,7 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
     });
   }
 
-  return { slug: communeActuelle.slug, maireEmail, motDePasse };
+  return { slug: communeActuelle.slug, communeId, maireEmail, motDePasse };
 }
 
 // — Prospecter en un clic : enrichit si besoin, active une commune gratuite pour le prospect
@@ -697,9 +697,17 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   const activation = await activerCommuneGratuite(env, { ...prospect, contact_email: email });
   const ctx = contextePresentation(env.FRONTEND_URL, prospect.nom, activation.slug);
   if (prospect.nom_maire) { ctx.nomMaire = prospect.nom_maire; ctx.civiliteMaire = prospect.maire_civilite || undefined; }
+
+  // Carte de visite jointe systématiquement (voir construireCarteVisite) : la commune vient
+  // d'être activée juste au-dessus, donc communeId est toujours disponible ici — un seul clic
+  // suffit à la mairie pour recevoir à la fois ses accès ET de quoi imprimer/distribuer, sans
+  // devoir repasser par « Email libre » à part.
+  const codeCourt = await codeCourtCommune(env, activation.communeId);
+  const carteVisiteHtml = construireCarteVisite(prospect.nom, activation.slug, env.FRONTEND_URL, codeCourt);
+
   const { variante, resendEmailId } = await envoyerPresentation(env, email, ctx, {
     maireEmail: activation.maireEmail, motDePasse: activation.motDePasse,
-  });
+  }, undefined, carteVisiteHtml);
 
   // Ligne dédiée au suivi structuré (ouverture/clic/rejet via webhook Resend, voir index.ts et
   // migration 040) — resend_email_id permet une corrélation précise, contrairement à un simple
