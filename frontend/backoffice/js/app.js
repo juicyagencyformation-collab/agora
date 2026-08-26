@@ -235,6 +235,7 @@ function backoffice() {
     prospMsg: '',
     nouvInteraction: { type: 'note', contenu: '' },
     fermeture: { ouvert: false, dateRetour: '', enCours: false },
+    emailLibre: { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' },
     conversion: { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' },
 
     async init() {
@@ -1327,6 +1328,7 @@ function backoffice() {
       this.vue = 'prospect';
       this.prospMsg = '';
       this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
+      this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
       try {
         const d = await boFetch('/prospection/prospects/' + id);
         this.prospect = d.prospect;
@@ -1364,6 +1366,31 @@ function backoffice() {
         this.prospMsg = e.message || 'Envoi impossible';
       } finally {
         this.prospEnCours = false;
+      }
+    },
+
+    // Email libre : pas de modèle A/B, un mot personnalisé — reprend éventuellement le lien de
+    // la fiche + QR (visible uniquement une fois la commune activée, comme le bouton "🖨 Fiche + QR").
+    async envoyerEmailLibre() {
+      if (!this.emailLibre.objet.trim() || !this.emailLibre.message.trim()) return;
+      this.emailLibre.enCours = true;
+      this.emailLibre.msg = '';
+      try {
+        let message = this.emailLibre.message.trim();
+        if (this.emailLibre.inclureFiche && this.prospect.commune_slug) {
+          message += '\n\n' + location.origin + this.lienFiche(this.prospect.commune_slug, this.prospect.nom);
+        }
+        await boFetch('/prospection/prospects/' + this.prospect.id + '/envoyer-email-libre', {
+          method: 'POST', body: JSON.stringify({ objet: this.emailLibre.objet.trim(), message }),
+        });
+        this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
+        const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+        this.prospect = d.prospect;
+        this.interactions = d.interactions;
+        this.prospMsg = 'Email libre envoyé.';
+      } catch (e) {
+        this.emailLibre.msg = e.message || 'Envoi impossible';
+        this.emailLibre.enCours = false;
       }
     },
 

@@ -2601,10 +2601,29 @@
             <div style="text-align:right">
               <button class="bo-btn bo-btn--compact" @click="prospecter()" :disabled="prospEnCours"
                       x-text="prospEnCours ? 'Envoi…' : '✉ Envoyer la présentation'"></button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="emailLibre.ouvert = !emailLibre.ouvert" style="margin-left:8px">✍️ Email libre</button>
               <a class="bo-btn bo-btn--sec bo-btn--compact" x-show="prospect.commune_slug"
                  :href="lienFiche(prospect.commune_slug, prospect.nom)" target="_blank" style="margin-left:8px">🖨 Fiche + QR</a>
               <div class="bo-info" style="margin-top:6px" x-text="prospMsg"></div>
               <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug">Fiche personnalisée disponible après l'envoi de la présentation (commune activée à ce moment-là).</div>
+            </div>
+          </div>
+
+          <!-- Email libre : pas de modèle A/B, un mot personnalisé (avec le lien fiche + QR en option) -->
+          <div class="bo-carte" style="padding:14px 18px; margin-bottom:18px" x-show="emailLibre.ouvert">
+            <label style="margin-top:0">Objet</label>
+            <input type="text" x-model="emailLibre.objet" placeholder="Objet de l'email" maxlength="200" />
+            <label>Message</label>
+            <textarea x-model="emailLibre.message" placeholder="Votre message…" rows="6"></textarea>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin-top:8px" x-show="prospect.commune_slug">
+              <input type="checkbox" x-model="emailLibre.inclureFiche" style="width:auto" />
+              Inclure le lien de la fiche + QR à la fin du message
+            </label>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:10px">
+              <button class="bo-btn bo-btn--compact" @click="envoyerEmailLibre()" :disabled="emailLibre.enCours || !emailLibre.objet.trim() || !emailLibre.message.trim()"
+                      x-text="emailLibre.enCours ? 'Envoi…' : 'Envoyer'"></button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="emailLibre.ouvert = false" :disabled="emailLibre.enCours">Annuler</button>
+              <span class="bo-info" x-text="emailLibre.msg"></span>
             </div>
           </div>
 
@@ -2889,7 +2908,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260825-1"></script>
+  <script src="/backoffice/js/app.js?v=20260826-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

@@ -12,6 +12,7 @@ import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire 
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
+import { envoyerEmail } from '../lib/email';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -869,6 +870,55 @@ app.post('/prospects/:id/interactions', async (c) => {
   });
   await supabaseUpdate(c.env, 'prospects', { updated_at: new Date().toISOString() }, { id: `eq.${id}` });
   return c.json({ ok: true, interaction });
+});
+
+function echapper(s: string): string {
+  return s.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
+}
+
+// Simple mise en forme : texte libre échappé, sauts de ligne convertis, dans le même habillage
+// minimal que les autres emails de prospection (voir email-commune.ts). Pas d'éditeur riche côté
+// client : ce mail est volontairement du texte brut, pour un mot personnel plutôt qu'un modèle.
+function construireEmailLibre(message: string): string {
+  const corps = echapper(message).replace(/\n/g, '<br>');
+  return `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
+    <div style="font-size:15px;color:#3a4a3b;line-height:1.6">${corps}</div>
+  </div>`;
+}
+
+// — Email libre (pas de modèle A/B, un mot personnalisé) — reply_to identique aux envois de
+// présentation : une réponse remonte dans Réponses reçues comme n'importe quel autre échange.
+const emailLibreSchema = z.object({
+  objet: z.string().min(1).max(200),
+  message: z.string().min(1).max(5000),
+});
+
+app.post('/prospects/:id/envoyer-email-libre', async (c) => {
+  const id = c.req.param('id');
+  const body = emailLibreSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,contact_email', id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+  if (!prospect.contact_email) return c.json({ erreur: 'Aucun email de contact pour ce prospect.' }, 422);
+
+  const resendEmailId = await envoyerEmail(
+    c.env, prospect.contact_email, body.data.objet, construireEmailLibre(body.data.message),
+    undefined, c.env.EMAIL_REPLY_TO_PROSPECTION,
+  );
+  if (!resendEmailId) return c.json({ erreur: 'Échec de l\'envoi (Resend indisponible).' }, 502);
+
+  await supabaseInsert(c.env, 'prospect_interactions', {
+    prospect_id: id, staff_id: c.get('staff_id'),
+    type: 'email', contenu: `Email libre envoyé à ${prospect.contact_email} — objet : ${body.data.objet}`,
+  });
+  await supabaseUpdate(c.env, 'prospects', { updated_at: new Date().toISOString() }, { id: `eq.${id}` });
+  return c.json({ ok: true });
 });
 
 export default app;
