@@ -150,6 +150,12 @@ function backoffice() {
     modeEditeurFiche: 'visuel', // 'visuel' | 'code'
     modeleFicheEnCours: false,
     modeleFicheMsg: '',
+    contenuTexte: {
+      popup_verrouille_titre: '', popup_verrouille_corps: '',
+      checklist_titre: '', checklist_item_article: '', checklist_item_dechets: '', checklist_item_collegue: '',
+    },
+    contenuTexteEnCours: false,
+    contenuTexteMsg: '',
     testEmailDest: '',
     testEmailEnCours: false,
     testEmailMsg: '',
@@ -253,6 +259,7 @@ function backoffice() {
         try { await this.chargerModelesGeneriques('onboarding_encouragement_j7'); } catch {}
         try { await this.chargerModelesGeneriques('onboarding_upsell'); } catch {}
         try { this.modeleFiche.contenu_html = (await boFetch('/fiche-contenu')).contenu_html; } catch {}
+        try { this.contenuTexte = await boFetch('/contenu-texte'); } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
         try { this.baremeTarifaire = await boFetch('/administration/bareme-tarifaire'); } catch {}
         try {
@@ -435,6 +442,21 @@ function backoffice() {
         this.modeleFicheMsg = e.message || 'Échec';
       } finally {
         this.modeleFicheEnCours = false;
+      }
+    },
+
+    // Popup « module verrouillé » + checklist de démarrage (voir contenu-texte.ts) — un seul
+    // bouton enregistre les deux, même endroit d'édition que les autres modèles.
+    async enregistrerContenuTexte() {
+      this.contenuTexteEnCours = true;
+      this.contenuTexteMsg = '';
+      try {
+        await boFetch('/administration/contenu-texte', { method: 'PUT', body: JSON.stringify(this.contenuTexte) });
+        this.contenuTexteMsg = 'Textes enregistrés.';
+      } catch (e) {
+        this.contenuTexteMsg = e.message || 'Échec';
+      } finally {
+        this.contenuTexteEnCours = false;
       }
     },
 

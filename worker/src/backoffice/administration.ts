@@ -22,6 +22,7 @@ import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
 import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
 import { chargerBareme } from './tarification';
+import { CLES_CONTENU_TEXTE, chargerContenuTexte, enregistrerContenuTexte } from './contenu-texte';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -747,6 +748,28 @@ app.put('/modele-fiche', async (c) => {
   const [existant] = await supabaseSelect(c.env, 'modeles_email', { select: 'cle', cle: 'eq.fiche' });
   if (existant) await supabaseUpdate(c.env, 'modeles_email', donnees, { cle: 'eq.fiche' });
   else await supabaseInsert(c.env, 'modeles_email', { cle: 'fiche', nom: 'Défaut', ...donnees });
+  return c.json({ ok: true });
+});
+
+// GET/PUT /contenu-texte — popup « module verrouillé » + checklist de démarrage (voir
+// contenu-texte.ts). Le schéma n'accepte QUE les cles connues (CLES_CONTENU_TEXTE) : ce ne sont
+// pas des clés arbitraires, on ne veut pas pouvoir écrire ailleurs dans modeles_email par erreur.
+app.get('/contenu-texte', async (c) => {
+  return c.json(await chargerContenuTexte(c.env));
+});
+
+const contenuTexteSchema = z.object(
+  Object.fromEntries(CLES_CONTENU_TEXTE.map((cle) => [cle, z.string().min(1).max(4000).optional()])),
+);
+
+app.put('/contenu-texte', async (c) => {
+  const body = contenuTexteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  for (const cle of CLES_CONTENU_TEXTE) {
+    const valeur = (body.data as Record<string, string | undefined>)[cle];
+    if (valeur !== undefined) await enregistrerContenuTexte(c.env, cle, valeur);
+  }
   return c.json({ ok: true });
 });
 

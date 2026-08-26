@@ -1723,6 +1723,44 @@
               </div>
             </div>
           </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('contenu_texte')">
+              <span>📝 Textes de l'app (popup module verrouillé, checklist de démarrage)</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.contenu_texte}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.contenu_texte">
+              <div class="bo-info" style="margin-bottom:12px">
+                Textes affichés dans l'app citoyenne, identiques pour toutes les communes.
+                Aucun déploiement nécessaire — l'enregistrement est immédiat.
+              </div>
+
+              <div class="bo-section-titre" style="margin-top:0">Popup « module verrouillé »</div>
+              <div class="bo-info" style="margin:-4px 0 8px">Affiché quand un citoyen clique sur un onglet non inclus dans le forfait de sa commune.</div>
+              <label style="margin-top:0">Titre</label>
+              <input type="text" x-model="contenuTexte.popup_verrouille_titre" maxlength="200" />
+              <label>Corps (HTML autorisé)</label>
+              <div class="bo-info" style="margin:-4px 0 6px">La variable <code>{{module}}</code> est remplacée par le nom du module cliqué (ex. « Actualités »).</div>
+              <textarea x-model="contenuTexte.popup_verrouille_corps" rows="5" style="font-family:monospace; font-size:12.5px"></textarea>
+
+              <div class="bo-section-titre">Checklist de démarrage (page Accueil)</div>
+              <div class="bo-info" style="margin:-4px 0 8px">Affichée aux gestionnaires (admin/élu/maire) d'une commune tant que les 3 étapes ne sont pas toutes faites.</div>
+              <label style="margin-top:0">Titre</label>
+              <input type="text" x-model="contenuTexte.checklist_titre" maxlength="200" />
+              <label>Étape 1 — publier un article</label>
+              <input type="text" x-model="contenuTexte.checklist_item_article" maxlength="200" />
+              <label>Étape 2 — calendrier des déchets</label>
+              <input type="text" x-model="contenuTexte.checklist_item_dechets" maxlength="200" />
+              <label>Étape 3 — ajouter un collègue</label>
+              <input type="text" x-model="contenuTexte.checklist_item_collegue" maxlength="200" />
+
+              <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerContenuTexte()" :disabled="contenuTexteEnCours"
+                        x-text="contenuTexteEnCours ? 'Enregistrement…' : 'Enregistrer les textes'"></button>
+                <span class="bo-info" x-text="contenuTexteMsg"></span>
+              </div>
+            </div>
+          </div>
         </div>
       </template>
 
@@ -2922,7 +2960,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260826-4"></script>
+  <script src="/backoffice/js/app.js?v=20260826-5"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

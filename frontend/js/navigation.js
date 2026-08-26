@@ -141,17 +141,24 @@ function activerOnglet(cle) {
 }
 
 // Modale affichée au clic sur un module verrouillé — réutilise ouvrirModaleFormulaire (utils.js)
-// plutôt que de dupliquer la mécanique d'overlay. Log aussi l'événement d'activation côté
-// serveur (best-effort, ne bloque jamais l'affichage de la modale si l'appel échoue).
-function ouvrirModaleModuleVerrouille(cleHtml) {
+// plutôt que de dupliquer la mécanique d'overlay. Titre + corps viennent de contenu-texte.ts
+// (éditables depuis le backoffice) ; repli sur ces mêmes textes si le fetch échoue. Log aussi
+// l'événement d'activation côté serveur (best-effort, ne bloque jamais l'affichage de la modale).
+const REPLI_POPUP_VERROUILLE_TITRE = 'Ce module fait partie de l\'offre complète';
+const REPLI_POPUP_VERROUILLE_CORPS = `
+  <p>Le module <strong>{{module}}</strong> s'active avec les formules Essentiel, Pro ou Premium.</p>
+  <p>Vous voulez voir ce que ça donnerait concrètement pour votre commune&nbsp;? Répondez à
+  l'email de bienvenue ou appelez Léandre au <a href="tel:0648061097">06 48 06 10 97</a> —
+  pas de formulaire à remplir, juste une conversation.</p>
+`;
+
+async function ouvrirModaleModuleVerrouille(cleHtml) {
   const cleApi = CORRESPONDANCE_ONGLETS_INVERSE[cleHtml];
   const libelle = (typeof LABELS_ONGLET !== 'undefined' && LABELS_ONGLET[cleApi]) || 'Ce module';
-  ouvrirModaleFormulaire('Ce module fait partie de l\'offre complète', `
-    <p>Le module <strong>${libelle}</strong> s'active avec les formules Essentiel, Pro ou Premium.</p>
-    <p>Vous voulez voir ce que ça donnerait concrètement pour votre commune&nbsp;? Répondez à
-    l'email de bienvenue ou appelez Léandre au <a href="tel:0648061097">06 48 06 10 97</a> —
-    pas de formulaire à remplir, juste une conversation.</p>
-  `);
+  const textes = await chargerContenuTexteCitoyen();
+  const titre = textes.popup_verrouille_titre || REPLI_POPUP_VERROUILLE_TITRE;
+  const corps = (textes.popup_verrouille_corps || REPLI_POPUP_VERROUILLE_CORPS).replace(/\{\{module\}\}/g, libelle);
+  ouvrirModaleFormulaire(titre, corps);
   if (cleApi) {
     appelApi(`/${window.COMMUNE_SLUG}/moderation/onglets/${cleApi}/verrouille-clique`, { method: 'POST' }).catch(() => {});
   }

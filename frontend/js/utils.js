@@ -439,6 +439,23 @@ async function demarrerScannerJsQr(zoneElementId, onCodeDetecte) {
 let pileModalesHistorique = [];
 let fermetureModaleProgrammatique = false;
 
+// Petits textes citoyen éditables depuis le backoffice sans déploiement (popup module verrouillé
+// dans navigation.js, checklist de démarrage dans dashboard.js — voir worker/src/backoffice/
+// contenu-texte.ts). Requête lancée une seule fois (mémoïsée) dès le chargement du script, en
+// fetch() simple plutôt qu'appelApi() : endpoint public sans cookie/refresh, et api.js n'est pas
+// encore chargé à ce stade (voir l'ordre des <script> dans index.html). Échec réseau => objet
+// vide, chaque appelant garde son propre texte de repli.
+let promesseContenuTexteCitoyen = null;
+function chargerContenuTexteCitoyen() {
+  if (!promesseContenuTexteCitoyen) {
+    promesseContenuTexteCitoyen = fetch(`${window.API_BASE}/backoffice/contenu-texte`)
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({}));
+  }
+  return promesseContenuTexteCitoyen;
+}
+chargerContenuTexteCitoyen();
+
 function ouvrirModaleFormulaire(titre, contenuHtml) {
   const overlay = document.createElement('div');
   overlay.className = 'overlay-modale-formulaire';

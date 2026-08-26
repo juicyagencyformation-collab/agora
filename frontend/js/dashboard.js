@@ -107,10 +107,11 @@ async function chargerChecklistOnboarding() {
   const cleMasquee = `agora_checklist_masquee_${window.COMMUNE_SLUG}`;
   if (localStorage.getItem(cleMasquee)) { zone.hidden = true; return; }
 
-  const [resActus, resDechets, resUtilisateurs] = await Promise.all([
+  const [resActus, resDechets, resUtilisateurs, textes] = await Promise.all([
     appelApi(`/${window.COMMUNE_SLUG}/actus?section=actualites`),
     appelApi(`/${window.COMMUNE_SLUG}/dechets`),
     appelApi(`/${window.COMMUNE_SLUG}/moderation/utilisateurs`),
+    chargerContenuTexteCitoyen(),
   ]);
   const aArticle = resActus.ok && ((await resActus.json()).articles?.length > 0);
   const aDechets = resDechets.ok && ((await resDechets.json()).collectes?.length > 0);
@@ -126,15 +127,17 @@ async function chargerChecklistOnboarding() {
     <li class="${fait ? 'etape-checklist-faite' : ''}" ${!fait ? `data-onglet-cible="${cibleOnglet}"` : ''}>
       <span>${fait ? '✅' : '⬜'}</span> ${texte}
     </li>`;
+  // Textes éditables depuis le backoffice (voir contenu-texte.ts) — replis identiques au texte
+  // d'origine si le fetch a échoué.
   zone.hidden = false;
   zone.innerHTML = `
     <div class="carte-checklist-onboarding">
       <button type="button" class="btn-fermer-checklist" title="Masquer">✕</button>
-      <strong>👋 Bien démarrer avec Agora</strong>
+      <strong>${textes.checklist_titre || '👋 Bien démarrer avec Plateforme-Agora'}</strong>
       <ul class="liste-checklist-onboarding">
-        ${etape(aArticle, 'Publier un premier article', 'actualites')}
-        ${etape(aDechets, 'Renseigner le calendrier des déchets', 'moderation')}
-        ${etape(aCollegue, 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'moderation')}
+        ${etape(aArticle, textes.checklist_item_article || 'Publier un premier article', 'actualites')}
+        ${etape(aDechets, textes.checklist_item_dechets || 'Renseigner le calendrier des déchets', 'moderation')}
+        ${etape(aCollegue, textes.checklist_item_collegue || 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'moderation')}
       </ul>
     </div>
   `;
