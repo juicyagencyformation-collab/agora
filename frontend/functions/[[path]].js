@@ -68,6 +68,16 @@ export async function onRequest(context) {
     return relayerVersWorker(context.request, segments);
   }
 
+  // Liens courts pour QR code (voir worker/src/routes/liens_courts.ts) : contrairement à /api/...
+  // ci-dessus, le chemin /q/<code> est relayé TEL QUEL (le Worker monte ces routes directement
+  // sur /q, pas sur /api/q) — pas de segment à retirer avant de transmettre.
+  if (premier === 'q') {
+    const cible = new URL(url.pathname + url.search, WORKER_ORIGIN);
+    const entetes = new Headers(context.request.headers);
+    entetes.delete('host');
+    return fetch(cible, { method: context.request.method, headers: entetes, redirect: 'manual' });
+  }
+
   // Backoffice interne (frontend/backoffice/*) : outil séparé de l'app citoyenne, avec son
   // propre routage. Les fichiers (js/css/vendor, tout ce qui contient un point) sont servis
   // tels quels ; les chemins "propres" sont mappés vers leur .html (/backoffice -> index,

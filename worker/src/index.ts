@@ -29,6 +29,7 @@ import memoire from './routes/memoire';
 import decouverte from './routes/decouverte';
 import lois from './routes/lois';
 import backoffice from './backoffice';
+import liensCourts from './routes/liens_courts';
 import { synchroniserToutesLesLois } from './lib/sync-lois';
 
 const app = new Hono();
@@ -52,6 +53,10 @@ app.route('/decouverte', decouverte);
 // Backoffice interne Juicy Solutions — transverse, hors résolution de tenant (mêmes raisons
 // que /decouverte). Sa propre garde d'accès (scope 'backoffice') est appliquée dans ses routes.
 app.route('/backoffice', backoffice);
+
+// Liens courts pour QR code (voir liens_courts.ts) — "q" n'est pas un slug de commune, mêmes
+// raisons que /decouverte et /backoffice ci-dessus.
+app.route('/q', liensCourts);
 
 // Résolution tenant : chaque route commence par /:slug/...
 app.use('/:slug/*', tenantMiddleware);

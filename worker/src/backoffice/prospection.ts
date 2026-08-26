@@ -876,23 +876,56 @@ function echapper(s: string): string {
   return s.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
 }
 
+// Code court unique par commune, pour un lien /q/<code> assez court à encoder dans le générateur
+// QR maison (plafonné à 42 caractères, voir CLAUDE.md — plateforme-agora.fr/q/<code> ne fait que
+// 36 caractères avec un code à 6, largement sous la limite, contrairement à l'URL complète de
+// l'app). Généré paresseusement au premier besoin (voir migration 052) : rien à backfiller.
+const ALPHABET_CODE_COURT = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O/1/I, ambigus à relire
+function genererCodeCourtAleatoire(): string {
+  let code = '';
+  for (let i = 0; i < 6; i++) code += ALPHABET_CODE_COURT[Math.floor(Math.random() * ALPHABET_CODE_COURT.length)];
+  return code;
+}
+
+async function codeCourtCommune(env: any, communeId: string): Promise<string | null> {
+  const [commune] = await supabaseSelect(env, 'communes', { select: 'code_court', id: `eq.${communeId}` });
+  if (commune?.code_court) return commune.code_court;
+
+  for (let tentative = 0; tentative < 5; tentative++) {
+    const code = genererCodeCourtAleatoire();
+    const existants = await supabaseSelect(env, 'communes', { select: 'id', code_court: `eq.${code}` });
+    if (existants.length) continue; // collision rarissime (33^6 possibilités) : on retente
+    await supabaseUpdate(env, 'communes', { code_court: code }, { id: `eq.${communeId}` });
+    return code;
+  }
+  return null; // échec improbable après 5 tentatives : la carte s'affiche simplement sans QR
+}
+
 // "Carte de visite" de la commune — mêmes couleurs que la fiche imprimable (fiche.html : navy
-// #1c3b57, vert #2c5f2d, or #b9791a, corail #c85a3f). Pas d'image ni de QR embarqué : le
-// générateur QR maison du Worker est plafonné à 42 caractères (voir CLAUDE.md, piège déjà vécu)
-// et ne peut pas encoder une URL complète comme plateforme-agora.fr/<slug>/ — le seul QR qui
-// fonctionne vraiment est celui de la fiche.html, généré côté navigateur avec une vraie
-// librairie. Le bouton "Fiche à imprimer" pointe donc vers cette page plutôt que de tenter un
-// QR cassé dans l'email.
+// #1c3b57, vert #2c5f2d, or #b9791a, corail #c85a3f), avec un vrai QR scannable (voir
+// codeCourtCommune ci-dessus et worker/src/routes/liens_courts.ts pour le lien court qui rend ça
+// possible malgré la limite de 42 caractères du générateur). Le bouton "Fiche à imprimer" reste
+// le lien vers fiche.html (le vrai document à distribuer, format A4) ; le QR ici est un raccourci
+// pratique directement scannable depuis la carte elle-même.
 // Deux pièges email HTML corrigés le 2026-08-26 (Outlook desktop notamment) : chaque
 // linear-gradient() a un repli en couleur unie déclaré juste avant (l'ancien manquait sur le
 // liseret du bas, invisible sans repli) ; l'URL de l'app est aussi affichée en texte brut sous
 // le bouton, pour rester lisible même imprimée ou transférée sans liens cliquables.
-function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: string): string {
+function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: string, codeCourt: string | null): string {
   const nom = echapper(nomCommune);
   const urlApp = `${frontendUrl}/${encodeURIComponent(slug)}/`;
   const urlAppTexte = echapper(urlApp.replace(/^https?:\/\//, ''));
   const urlFiche = `${frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(slug)}&nom=${encodeURIComponent(nomCommune)}`;
   const urlLogo = `${frontendUrl}/icons/agora-icone-1024-fond-transparent.png`;
+
+  const blocQr = codeCourt ? `
+        <td valign="top" width="100" style="text-align:center;padding-left:16px">
+          <div style="display:inline-block;background:#ffffff;border:1.5px solid #1c3b57;border-radius:10px;padding:6px;line-height:0">
+            <img src="${frontendUrl}/q/${codeCourt}/qr.svg" width="88" height="88" alt="QR code vers l'app" style="display:block;width:88px;height:88px" />
+          </div>
+          <div style="font-size:9.5px;color:#8a9199;margin-top:6px;line-height:1.3">Scannez pour ouvrir l'app</div>
+        </td>` : '';
+
   return `
   <div style="margin:28px auto 0;max-width:520px;border-radius:16px;overflow:hidden;border:1.5px solid #1c3b57;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1c3b57;background:linear-gradient(135deg,#1c3b57 0%,#2f5779 100%)">
@@ -911,11 +944,15 @@ function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: st
       </tr>
     </table>
     <div style="background:#ffffff;padding:22px 24px">
-      <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 18px">
-        Actus, agenda, alertes, entraide entre voisins… tout ${nom} au même endroit, gratuitement.
-      </p>
-      <a href="${urlApp}" style="display:inline-block;background:#2c5f2d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px">Ouvrir l'app →</a>
-      <div style="margin-top:8px;font-size:11.5px;color:#8a9199">${urlAppTexte}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td valign="top">
+          <p style="font-size:14.5px;color:#1c2226;line-height:1.6;margin:0 0 18px">
+            Actus, agenda, alertes, entraide entre voisins… tout ${nom} au même endroit, gratuitement.
+          </p>
+          <a href="${urlApp}" style="display:inline-block;background:#2c5f2d;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 22px;border-radius:999px">Ouvrir l'app →</a>
+          <div style="margin-top:8px;font-size:11.5px;color:#8a9199">${urlAppTexte}</div>
+        </td>${blocQr}
+      </tr></table>
       <div style="margin-top:16px;padding-top:16px;border-top:1px dashed #e3e7ea">
         <a href="${urlFiche}" style="color:#b9791a;font-weight:700;font-size:13px;text-decoration:none">🖨 Fiche à imprimer avec QR code — à distribuer aux administrés</a>
       </div>
@@ -961,7 +998,10 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
   let carteVisiteHtml: string | undefined;
   if (body.data.inclure_carte && prospect.commune_id) {
     const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
-    if (commune?.slug) carteVisiteHtml = construireCarteVisite(prospect.nom, commune.slug, c.env.FRONTEND_URL);
+    if (commune?.slug) {
+      const codeCourt = await codeCourtCommune(c.env, prospect.commune_id);
+      carteVisiteHtml = construireCarteVisite(prospect.nom, commune.slug, c.env.FRONTEND_URL, codeCourt);
+    }
   }
 
   const resendEmailId = await envoyerEmail(
@@ -992,7 +1032,8 @@ app.get('/prospects/:id/carte-visite', async (c) => {
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
   if (!commune?.slug) return c.json({ html: null });
 
-  return c.json({ html: construireCarteVisite(prospect.nom, commune.slug, c.env.FRONTEND_URL) });
+  const codeCourt = await codeCourtCommune(c.env, prospect.commune_id);
+  return c.json({ html: construireCarteVisite(prospect.nom, commune.slug, c.env.FRONTEND_URL, codeCourt) });
 });
 
 export default app;
