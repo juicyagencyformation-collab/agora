@@ -2599,68 +2599,72 @@
                 <option value="autre">❓ Autre</option>
               </select>
             </div>
-            <div class="bo-carte" style="padding:0 18px">
-              <template x-for="e in emailsRecus" :key="e.id">
-                <div class="bo-timeline-item">
-                  <span class="bo-timeline__type"><span class="bo-badge" x-text="libelleCategorieEmailRecu(e.categorie)"></span></span>
-                  <div class="bo-timeline__corps">
-                    <div style="font-weight:600; cursor:pointer" x-show="e.prospect_id" @click="ouvrirProspect(e.prospect_id)" x-text="e.commune_nom || e.expediteur"></div>
-                    <div style="font-weight:600" x-show="!e.prospect_id" x-text="(e.commune_nom || 'Prospect non identifié')"></div>
-                    <div class="bo-info" x-text="e.expediteur + (e.sujet ? ' — ' + e.sujet : '')"></div>
-                    <div style="margin:6px 0; white-space:pre-wrap" x-text="e.texte"></div>
+            <template x-for="e in emailsRecus" :key="e.id">
+              <div class="bo-tiroir">
+                <button type="button" class="bo-tiroir__entete" @click="e.detailOuvert = !e.detailOuvert">
+                  <span style="display:flex; align-items:center; gap:10px; min-width:0; flex:1">
+                    <span class="bo-pastille" :style="'background:' + (e.traite_le ? '#34d399' : '#f59e0b')" :title="e.traite_le ? 'Traité' : 'À traiter'"></span>
+                    <span class="bo-badge" style="flex-shrink:0" x-text="libelleCategorieEmailRecu(e.categorie)"></span>
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap" x-text="e.commune_nom || e.expediteur"></span>
+                    <span class="bo-tiroir__compte" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap" x-show="e.sujet" x-text="e.sujet"></span>
+                  </span>
+                  <span class="bo-timeline__meta" style="margin:0; font-weight:400; flex-shrink:0" x-text="formatDateHeure(e.created_at)"></span>
+                  <span class="bo-tiroir__chevron" :class="{ouvert: e.detailOuvert}">▸</span>
+                </button>
+                <div class="bo-tiroir__corps" x-show="e.detailOuvert">
+                  <div class="bo-info" x-text="e.expediteur"></div>
+                  <div style="margin:6px 0; white-space:pre-wrap" x-text="e.texte"></div>
 
-                    <!-- Actions rapides par catégorie : agir sans naviguer vers la fiche. Cachées
-                         une fois traité (plus la peine, l'action a déjà été faite ou n'a plus lieu
-                         d'être) et si aucun prospect n'a pu être identifié (rien sur quoi agir). -->
-                    <div x-show="e.categorie === 'changement_email' && e.prospect_id && !e.traite_le"
-                         style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
-                      <label style="margin:0; font-size:12px">Nouvelle adresse email du prospect</label>
-                      <div style="display:flex; gap:8px; align-items:center; margin-top:4px">
-                        <input type="email" x-model="e.nouvelEmail" placeholder="nouvelle-adresse@commune.fr" style="flex:1; margin:0" />
-                        <button class="bo-btn bo-btn--compact" :disabled="e.actionEnCours || !e.nouvelEmail || !e.nouvelEmail.trim()"
-                                @click="corrigerEmailDepuisRecu(e)"
-                                x-text="e.actionEnCours ? '…' : 'Enregistrer'"></button>
-                      </div>
-                      <span class="bo-info" x-text="e.actionMsg"></span>
+                  <!-- Actions rapides par catégorie : agir sans naviguer vers la fiche. Cachées
+                       une fois traité (plus la peine, l'action a déjà été faite ou n'a plus lieu
+                       d'être) et si aucun prospect n'a pu être identifié (rien sur quoi agir). -->
+                  <div x-show="e.categorie === 'changement_email' && e.prospect_id && !e.traite_le"
+                       style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                    <label style="margin:0; font-size:12px">Nouvelle adresse email du prospect</label>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:4px">
+                      <input type="email" x-model="e.nouvelEmail" placeholder="nouvelle-adresse@commune.fr" style="flex:1; margin:0" />
+                      <button class="bo-btn bo-btn--compact" :disabled="e.actionEnCours || !e.nouvelEmail || !e.nouvelEmail.trim()"
+                              @click="corrigerEmailDepuisRecu(e)"
+                              x-text="e.actionEnCours ? '…' : 'Enregistrer'"></button>
                     </div>
-                    <div x-show="e.categorie === 'fermeture' && e.prospect_id && !e.traite_le"
-                         style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
-                      <label style="margin:0; font-size:12px">Date de retour indiquée (facultatif)</label>
-                      <div style="display:flex; gap:8px; align-items:center; margin-top:4px">
-                        <input type="date" x-model="e.dateRetour" style="margin:0" />
-                        <button class="bo-btn bo-btn--compact" :disabled="e.actionEnCours"
-                                @click="reprogrammerRelanceDepuisRecu(e)"
-                                x-text="e.actionEnCours ? '…' : 'Reprogrammer la relance'"></button>
-                      </div>
-                      <div class="bo-info" x-show="!e.dateRetour" style="margin-top:2px">Sans date, la relance est reprogrammée dans 14 jours.</div>
-                      <span class="bo-info" x-text="e.actionMsg"></span>
+                    <span class="bo-info" x-text="e.actionMsg"></span>
+                  </div>
+                  <div x-show="e.categorie === 'fermeture' && e.prospect_id && !e.traite_le"
+                       style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                    <label style="margin:0; font-size:12px">Date de retour indiquée (facultatif)</label>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:4px">
+                      <input type="date" x-model="e.dateRetour" style="margin:0" />
+                      <button class="bo-btn bo-btn--compact" :disabled="e.actionEnCours"
+                              @click="reprogrammerRelanceDepuisRecu(e)"
+                              x-text="e.actionEnCours ? '…' : 'Reprogrammer la relance'"></button>
                     </div>
+                    <div class="bo-info" x-show="!e.dateRetour" style="margin-top:2px">Sans date, la relance est reprogrammée dans 14 jours.</div>
+                    <span class="bo-info" x-text="e.actionMsg"></span>
+                  </div>
 
-                    <div style="display:flex; align-items:center; gap:8px">
-                      <button class="bo-btn bo-btn--compact" @click="toggleReponseEmailRecu(e)"
-                              x-text="e.reponseOuverte ? 'Annuler' : '✉️ Répondre'"></button>
-                      <button class="bo-btn bo-btn--sec bo-btn--compact" :disabled="emailRecuEnCours === e.id"
-                              @click="marquerEmailRecuTraite(e, !e.traite_le)"
-                              x-text="e.traite_le ? 'Marquer à traiter' : '✓ Marquer traité'"></button>
-                      <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="e.prospect_id" @click="ouvrirProspect(e.prospect_id)">Ouvrir la fiche</button>
-                      <span class="bo-timeline__meta" style="margin:0" x-text="formatDateHeure(e.created_at)"></span>
-                    </div>
-                    <div x-show="e.reponseOuverte" style="margin-top:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
-                      <textarea x-model="e.reponseTexte" rows="4" placeholder="Votre réponse…" style="margin:0"></textarea>
-                      <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
-                        <button class="bo-btn bo-btn--compact" :disabled="e.reponseEnCours || !e.reponseTexte || !e.reponseTexte.trim()"
-                                @click="envoyerReponseEmailRecu(e)"
-                                x-text="e.reponseEnCours ? 'Envoi…' : 'Envoyer'"></button>
-                        <span class="bo-info" x-text="e.reponseMsg"></span>
-                      </div>
+                  <div style="display:flex; align-items:center; gap:8px">
+                    <button class="bo-btn bo-btn--compact" @click="toggleReponseEmailRecu(e)"
+                            x-text="e.reponseOuverte ? 'Annuler' : '✉️ Répondre'"></button>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" :disabled="emailRecuEnCours === e.id"
+                            @click="marquerEmailRecuTraite(e, !e.traite_le)"
+                            x-text="e.traite_le ? 'Marquer à traiter' : '✓ Marquer traité'"></button>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="e.prospect_id" @click="ouvrirProspect(e.prospect_id)">Ouvrir la fiche</button>
+                  </div>
+                  <div x-show="e.reponseOuverte" style="margin-top:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                    <textarea x-model="e.reponseTexte" rows="4" placeholder="Votre réponse…" style="margin:0"></textarea>
+                    <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
+                      <button class="bo-btn bo-btn--compact" :disabled="e.reponseEnCours || !e.reponseTexte || !e.reponseTexte.trim()"
+                              @click="envoyerReponseEmailRecu(e)"
+                              x-text="e.reponseEnCours ? 'Envoi…' : 'Envoyer'"></button>
+                      <span class="bo-info" x-text="e.reponseMsg"></span>
                     </div>
                   </div>
                 </div>
-              </template>
-              <template x-if="emailsRecus.length === 0">
-                <div class="bo-vide" style="padding:20px; text-align:center">Aucune réponse reçue pour l'instant.</div>
-              </template>
-            </div>
+              </div>
+            </template>
+            <template x-if="emailsRecus.length === 0">
+              <div class="bo-vide" style="padding:20px; text-align:center">Aucune réponse reçue pour l'instant.</div>
+            </template>
           </div>
         </div>
       </template>
