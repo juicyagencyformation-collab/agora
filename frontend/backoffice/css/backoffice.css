@@ -114,6 +114,16 @@ input:focus { outline: none; border-color: var(--bo-accent); }
 .bo-nav__lien:hover { background: var(--bo-surface-2); color: var(--bo-text); text-decoration: none; }
 .bo-nav__lien.actif { background: var(--bo-surface-2); color: var(--bo-text); }
 .bo-nav__lien[data-inactif] { opacity: .4; cursor: not-allowed; }
+.bo-nav__favoris { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--bo-border); }
+.bo-nav__favoris-titre { padding: 0 12px 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bo-text-faible); }
+.bo-nav__favori {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border-radius: 8px; color: var(--bo-text-faible);
+  font-size: 13px; cursor: pointer; overflow: hidden;
+}
+.bo-nav__favori:hover { background: var(--bo-surface-2); color: var(--bo-text); }
+.bo-nav__favori-etoiles { color: #f0b400; flex-shrink: 0; letter-spacing: -1px; }
+.bo-nav__favori-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bo-nav__pied { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--bo-border); font-size: 13px; color: var(--bo-text-faible); }
 
 .bo-main { flex: 1; padding: 28px 32px; overflow-x: auto; }

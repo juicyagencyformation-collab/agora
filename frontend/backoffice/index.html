@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260819-5" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260827-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -22,6 +22,15 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
+      <div class="bo-nav__favoris" x-show="favoris.length > 0">
+        <div class="bo-nav__favoris-titre">⭐ Favoris</div>
+        <template x-for="f in favoris" :key="f.id">
+          <div class="bo-nav__favori" @click="ouvrirProspect(f.id)" :title="f.nom">
+            <span class="bo-nav__favori-etoiles" x-text="'★'.repeat(f.etoiles) + '☆'.repeat(5 - f.etoiles)"></span>
+            <span class="bo-nav__favori-nom" x-text="f.nom"></span>
+          </div>
+        </template>
+      </div>
       <div class="bo-nav__pied">
         <div x-text="staff.nom"></div>
         <div style="margin-top:8px"><a @click.prevent="deconnexion()" href="#">Se déconnecter</a></div>
@@ -2690,6 +2699,12 @@
             <div>
               <div class="bo-titre" x-text="prospect.nom"></div>
               <div class="bo-sous" x-text="'INSEE ' + prospect.code_insee + ' · Dépt ' + prospect.departement + (prospect.population ? ' · ' + prospect.population.toLocaleString('fr-FR') + ' hab.' : '')"></div>
+              <div style="margin-top:6px" title="Favori">
+                <template x-for="n in [1,2,3,4,5]" :key="n">
+                  <span style="cursor:pointer; font-size:18px; color:#f0b400" @click="definirEtoiles(n)"
+                        x-text="n <= (prospect.etoiles || 0) ? '★' : '☆'"></span>
+                </template>
+              </div>
             </div>
             <div style="text-align:right">
               <button class="bo-btn bo-btn--compact" @click="prospecter()" :disabled="prospEnCours"
@@ -3015,7 +3030,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-4"></script>
+  <script src="/backoffice/js/app.js?v=20260827-5"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

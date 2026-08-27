@@ -223,6 +223,7 @@ function backoffice() {
     filtreMaireConnecte: false, // "🔑 le maire s'est connecté" — signal le plus fiable, voir /stats-variantes
     totalMairesConnectes: 0,
     sousVueProspection: 'liste', // 'liste' | 'carte' | 'recues'
+    favoris: [], // prospects étoilés, panneau de gauche — voir GET /prospection/favoris
     emailsRecus: [],
     emailsRecusATraiter: 0,
     filtreEmailsRecusTraite: '0',
@@ -268,6 +269,7 @@ function backoffice() {
           this.ongletsGratuitsSelection = r.onglets;
         } catch {}
         try { this.statsVariantes = (await boFetch('/prospection/stats-variantes')).variantes; } catch {}
+        try { this.favoris = (await boFetch('/prospection/favoris')).prospects; } catch {}
         try { this.parametresEntreprise = (await boFetch('/administration/parametres-entreprise')).parametres; } catch {}
       } catch {
         redirigerVersConnexion();
@@ -1626,6 +1628,14 @@ function backoffice() {
     async corrigerEmailProspect() {
       const valeur = (this.prospect.contact_email || '').trim();
       await this.majProspect({ contact_email: valeur || null });
+    },
+    // Étoiles/favoris (panneau de gauche, voir GET /prospection/favoris) — recliquer l'étoile déjà
+    // sélectionnée retire le favori (retombe à 0), pattern standard d'un contrôle à étoiles.
+    async definirEtoiles(n) {
+      const valeur = this.prospect.etoiles === n ? 0 : n;
+      this.prospect.etoiles = valeur;
+      await this.majProspect({ etoiles: valeur });
+      try { this.favoris = (await boFetch('/prospection/favoris')).prospects; } catch {}
     },
 
     async ajouterInteraction() {

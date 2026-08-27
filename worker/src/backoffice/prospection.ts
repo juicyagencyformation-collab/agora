@@ -439,7 +439,7 @@ app.get('/apercu', async (c) => {
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,maire_civilite',
+    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,maire_civilite,etoiles',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -907,6 +907,7 @@ const patchSchema = z.object({
   notes: z.string().max(5000).optional().nullable(),
   prochaine_relance_le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   contact_email: z.string().email().optional().nullable(),
+  etoiles: z.number().int().min(0).max(5).optional(),
 });
 
 app.patch('/prospects/:id', async (c) => {
@@ -922,6 +923,7 @@ app.patch('/prospects/:id', async (c) => {
   if (body.data.statut !== undefined) patch.statut = body.data.statut;
   if (body.data.notes !== undefined) patch.notes = body.data.notes;
   if (body.data.prochaine_relance_le !== undefined) patch.prochaine_relance_le = body.data.prochaine_relance_le;
+  if (body.data.etoiles !== undefined) patch.etoiles = body.data.etoiles;
   if (body.data.contact_email !== undefined) {
     patch.contact_email = body.data.contact_email;
     // Une correction manuelle mérite un nouvel essai : sans ça, une adresse pourtant réparée à
@@ -945,6 +947,16 @@ app.patch('/prospects/:id', async (c) => {
     });
   }
   return c.json({ ok: true });
+});
+
+// GET /favoris — prospects marqués d'une étoile (voir PATCH ci-dessus, champ etoiles), classés du
+// plus étoilé au moins étoilé, pour le panneau "⭐ Favoris" du menu de gauche du backoffice
+// (accès direct aux prospects prioritaires sans repasser par la liste/recherche complète).
+app.get('/favoris', async (c) => {
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,etoiles', etoiles: 'gt.0', order: 'etoiles.desc,nom.asc', limit: '50',
+  });
+  return c.json({ prospects });
 });
 
 // — Ajout d'une interaction (relance manuelle : note, appel, email...) —
