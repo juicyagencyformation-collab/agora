@@ -231,6 +231,8 @@ function backoffice() {
     ajProspectsRelance: [],
     ajDateAujourdhui: '',
     ajEmailsRecus: [],
+    relanceLotEnCours: false,
+    relanceLotMsg: '',
     emailsRecus: [],
     emailsRecusATraiter: 0,
     filtreEmailsRecusTraite: '0',
@@ -968,6 +970,30 @@ function backoffice() {
     totalAujourdhui() {
       return this.ajProspectsRelance.length + this.ajEmailsRecus.length + this.echeances.length
         + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length;
+    },
+    // « Tout traiter » : même bascule intelligente que le bouton Relancer d'une fiche
+    // (présentation ou relance J+3 selon l'état), appliquée à toute la liste d'un coup — voir
+    // POST /prospects/relancer-lot. Plafonné à 40 par envoi (mêmes limites que l'envoi groupé
+    // existant) : au-delà, on invite juste à recliquer plutôt que de tout tenter en une fois.
+    async relancerTousLesProspects() {
+      const nb = Math.min(this.ajProspectsRelance.length, 40);
+      if (!confirm(`Envoyer la relance à ${nb} prospect(s) ? Chacun reçoit automatiquement le bon email (présentation ou relance).`)) return;
+      this.relanceLotEnCours = true;
+      this.relanceLotMsg = '';
+      try {
+        const ids = this.ajProspectsRelance.slice(0, 40).map((p) => p.id);
+        const r = await boFetch('/prospection/prospects/relancer-lot', { method: 'POST', body: JSON.stringify({ ids }) });
+        let msg = `${r.envoyes} envoyé(s)`;
+        if (r.sans_email) msg += `, ${r.sans_email} sans email`;
+        if (r.erreurs) msg += `, ${r.erreurs} en erreur`;
+        if (this.ajProspectsRelance.length > 40) msg += ' — reclique pour la suite';
+        this.relanceLotMsg = msg;
+        await this.chargerAujourdhui();
+      } catch (e) {
+        this.relanceLotMsg = e.message || 'Envoi impossible';
+      } finally {
+        this.relanceLotEnCours = false;
+      }
     },
 
     allerReglages() {

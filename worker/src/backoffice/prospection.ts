@@ -890,6 +890,47 @@ app.post('/prospecter-lot', async (c) => {
   return c.json({ ok: true, ...r });
 });
 
+// Même bascule intelligente que POST /prospects/:id/relancer (présentation si jamais activé,
+// relance J+3 sinon), appliquée à toute une sélection — voir relancerCommuneActivee plus haut.
+// Isolé prospect par prospect comme traiterLot, mêmes raisons.
+async function traiterLotRelance(env: any, staffId: string, prospects: any[]): Promise<{ envoyes: number; sans_email: number; ignores: number; erreurs: number }> {
+  let envoyes = 0, sans_email = 0, ignores = 0, erreurs = 0;
+  for (const prospect of prospects) {
+    try {
+      if (prospect.commune_id) {
+        const r = await relancerCommuneActivee(env, staffId, prospect);
+        if (r.email) envoyes += 1; else sans_email += 1;
+        continue;
+      }
+      const r = await prospecterUn(env, staffId, prospect);
+      if (r.resultat === 'envoye') envoyes += 1;
+      else if (r.resultat === 'sans_email') sans_email += 1;
+      else ignores += 1;
+    } catch (err) {
+      console.error(`traiterLotRelance a échoué pour le prospect ${prospect.id} (${prospect.nom}) :`, err);
+      erreurs += 1;
+    }
+  }
+  return { envoyes, sans_email, ignores, erreurs };
+}
+
+// POST /prospects/relancer-lot — bouton « Tout traiter » du tableau de bord Aujourd'hui (section
+// « Prospects à relancer »). Même plafond que /prospecter-lot (40, limites Resend/sous-requêtes/
+// délivrabilité) : au-delà, le frontend n'envoie que les 40 premiers ids et invite à recliquer
+// pour la suite plutôt que de tout tenter d'un coup.
+app.post('/prospects/relancer-lot', async (c) => {
+  const body = lotSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 prospects par envoi).' }, 400);
+
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    id: `in.(${body.data.ids.join(',')})`,
+  });
+
+  const r = await traiterLotRelance(c.env, c.get('staff_id'), prospects);
+  return c.json({ ok: true, ...r });
+});
+
 // PATCH /prospects/statut-lot — change le statut de plusieurs prospects d'un coup (ex. archiver
 // en masse les perdus). Doit rester déclarée AVANT PATCH /prospects/:id ci-dessous, sinon Hono
 // matche "statut-lot" comme un :id (même piège que candidats-rattrapage, voir plus haut).
