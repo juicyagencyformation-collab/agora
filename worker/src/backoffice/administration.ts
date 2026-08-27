@@ -793,6 +793,26 @@ app.get('/verifier-liens-templates', async (c) => {
   return c.json({ total_modeles: lignes.length, suspects });
 });
 
+// POST /reparer-liens-templates — corrige automatiquement les liens repérés par le diagnostic
+// ci-dessus. La corruption est purement mécanique (voir insererLien(), commit du 2026-08-27) donc
+// réversible sans ambiguïté : "https://plateforme-agora.fr/backoffice/%7B%7Bxxx%7D%7D" redevient
+// "{{xxx}}". Idempotent — un modèle déjà propre n'est pas modifié. POST (pas GET) car ça écrit :
+// à déclencher depuis la console du navigateur, connecté au backoffice :
+//   fetch('/api/backoffice/administration/reparer-liens-templates', { method: 'POST', credentials: 'include' }).then(r => r.json()).then(console.log)
+app.post('/reparer-liens-templates', async (c) => {
+  const lignes = await supabaseSelectTout(c.env, 'modeles_email', { select: 'id,cle,nom,corps_html' });
+  const repares: { id: string; cle: string; nom: string; corrections: number }[] = [];
+  for (const l of lignes) {
+    const corps = String(l.corps_html || '');
+    const trouves = corps.match(/https:\/\/plateforme-agora\.fr\/backoffice\/%7B%7B[a-zA-Z_]+%7D%7D/g);
+    if (!trouves) continue;
+    const corrige = corps.replace(/https:\/\/plateforme-agora\.fr\/backoffice\/%7B%7B([a-zA-Z_]+)%7D%7D/g, (_m: string, v: string) => `{{${v}}}`);
+    await supabaseUpdate(c.env, 'modeles_email', { corps_html: corrige, updated_at: new Date().toISOString() }, { id: `eq.${l.id}` });
+    repares.push({ id: l.id, cle: l.cle, nom: l.nom, corrections: trouves.length });
+  }
+  return c.json({ repares });
+});
+
 // GET /emails-rejetes — bounces/plaintes captés via le webhook Resend (les plus récents).
 app.get('/emails-rejetes', async (c) => {
   const emails = await supabaseSelect(c.env, 'emails_rejetes', {
