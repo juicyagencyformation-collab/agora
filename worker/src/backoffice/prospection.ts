@@ -327,7 +327,7 @@ app.get('/carte', async (c) => {
 
 // — Boîte de réception des réponses reçues (voir emails-recus.ts, alimentée par le webhook
 // Resend Receiving). Triée par mots-clés côté serveur, aucune IA : à traiter à la main. —
-const CATEGORIES_EMAILS_RECUS = ['fermeture', 'changement_email', 'autre'] as const;
+const CATEGORIES_EMAILS_RECUS = ['verification_antispam', 'fermeture', 'changement_email', 'autre'] as const;
 
 app.get('/emails-recus', async (c) => {
   const where: Record<string, string> = {};

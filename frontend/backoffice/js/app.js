@@ -1085,7 +1085,17 @@ function backoffice() {
       }
     },
     libelleCategorieEmailRecu(cat) {
-      return { fermeture: '🏛 Fermeture', changement_email: '📧 Changement d\'adresse', autre: '❓ Autre' }[cat] || cat;
+      return {
+        verification_antispam: '🔒 Vérification anti-spam', fermeture: '🏛 Fermeture',
+        changement_email: '📧 Changement d\'adresse', autre: '❓ Autre',
+      }[cat] || cat;
+    },
+    // Extrait le lien de déblocage d'un accusé Mailinblack (voir classifierParMotsCles côté
+    // Worker) : le premier lien du texte qui ressemble à une invitation/vérification, sinon le
+    // tout premier lien trouvé (repli si le texte ne suit pas exactement le même gabarit).
+    lienDeblocageAntispam(texte) {
+      const liens = (texte || '').match(/https?:\/\/[^\s\]"'<>]+/g) || [];
+      return liens.find((u) => /invitation|verif|confirm|challenge/i.test(u)) || liens[0] || null;
     },
     // Répondre sans quitter le backoffice (voir POST /emails-recus/:id/repondre) : la réponse
     // est threadée côté client mail du destinataire (In-Reply-To/References sur l'email d'origine).

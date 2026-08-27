@@ -8,7 +8,7 @@
 // relance à la main (voir la fiche prospect : champ email éditable, bouton « Mairie fermée »).
 import { supabaseSelect, supabaseInsert } from '../db';
 
-export type CategorieEmailRecu = 'fermeture' | 'changement_email' | 'autre';
+export type CategorieEmailRecu = 'verification_antispam' | 'fermeture' | 'changement_email' | 'autre';
 
 // "Nom Prénom <email@domaine.fr>" ou simplement "email@domaine.fr" → extrait juste l'adresse.
 export function extraireAdresse(brut: string | null | undefined): string | null {
@@ -44,8 +44,19 @@ async function recupererCorpsEmail(env: any, emailId: string): Promise<string | 
 // Tri par mots-clés, volontairement simple : sert juste à trier l'affichage dans le backoffice,
 // jamais à décider d'une action automatique — une mauvaise classification n'a donc aucune
 // conséquence sur les données (contrairement à une extraction IA qui agirait à la place de
-// Léandre). "changement_email" est vérifié en premier : un message peut mentionner une fermeture
-// ET donner une nouvelle adresse, le changement d'adresse est l'info la plus actionnable des deux.
+// Léandre). "verification_antispam" est vérifié EN PREMIER, avant tout le reste : ces messages ne
+// sont pas des réponses de mairie mais des accusés de blocage d'un filtre anti-spam d'entreprise
+// (Mailinblack notamment, très répandu dans les mairies) — la vraie présentation n'a même pas
+// encore été délivrée tant que Léandre n'a pas cliqué le lien de déblocage qu'ils contiennent.
+// Signature très reconnaissable (domaine expéditeur dédié + texte fixe), donc aucun risque de
+// confusion avec une vraie réponse mentionnant fermeture/changement d'adresse. "changement_email"
+// est vérifié ensuite en priorité sur "fermeture" : un message peut mentionner une fermeture ET
+// donner une nouvelle adresse, le changement d'adresse est l'info la plus actionnable des deux.
+const MOTS_VERIFICATION_ANTISPAM = [
+  /mailinblack/i,
+  /(confirmer qu['’]il est bien humain|d[ée]livrer votre email|un clic pour d[ée]livrer)/i,
+  /(challenge.response|verify (that )?you['’]re human|no-robot)/i,
+];
 const MOTS_CHANGEMENT_EMAIL = [
   /adresse .*(a chang|n'est plus|n'a plus|obsolète|invalide)/i,
   /(nouvelle adresse|merci d'utiliser|veuillez utiliser|désormais à|contactez plutôt|à l'adresse suivante)/i,
@@ -58,6 +69,7 @@ const MOTS_FERMETURE = [
 ];
 
 export function classifierParMotsCles(texte: string): CategorieEmailRecu {
+  if (MOTS_VERIFICATION_ANTISPAM.some((r) => r.test(texte))) return 'verification_antispam';
   if (MOTS_CHANGEMENT_EMAIL.some((r) => r.test(texte))) return 'changement_email';
   if (MOTS_FERMETURE.some((r) => r.test(texte))) return 'fermeture';
   return 'autre';

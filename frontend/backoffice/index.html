@@ -2594,6 +2594,7 @@
               </select>
               <select x-model="filtreEmailsRecusCategorie" @change="chargerEmailsRecus()" style="width:auto">
                 <option value="">Toutes catégories</option>
+                <option value="verification_antispam">🔒 Vérification anti-spam</option>
                 <option value="fermeture">🏛 Fermeture</option>
                 <option value="changement_email">📧 Changement d'adresse</option>
                 <option value="autre">❓ Autre</option>
@@ -2614,6 +2615,17 @@
                 <div class="bo-tiroir__corps" x-show="e.detailOuvert">
                   <div class="bo-info" x-text="e.expediteur"></div>
                   <div style="margin:6px 0; white-space:pre-wrap" x-text="e.texte"></div>
+
+                  <!-- Accusé de blocage anti-spam (Mailinblack et similaires, voir
+                       classifierParMotsCles) : la vraie présentation n'a pas encore été délivrée
+                       tant que ce lien n'est pas ouvert — c'est l'action la plus urgente possible
+                       sur ce type de message, mise en avant plutôt que noyée dans le texte. -->
+                  <div x-show="e.categorie === 'verification_antispam' && !e.traite_le"
+                       style="margin-bottom:10px; padding:10px 12px; background:#fff7e6; border:1px solid #f0c674; border-radius:8px">
+                    <div style="font-size:13px; margin-bottom:6px">⚠️ Votre email de présentation est bloqué par un filtre anti-spam tant que ce lien n'est pas ouvert.</div>
+                    <a class="bo-btn bo-btn--compact" :href="lienDeblocageAntispam(e.texte)" target="_blank" rel="noopener"
+                       x-show="lienDeblocageAntispam(e.texte)" style="text-decoration:none; display:inline-block">🔓 Débloquer l'email</a>
+                  </div>
 
                   <!-- Actions rapides par catégorie : agir sans naviguer vers la fiche. Cachées
                        une fois traité (plus la peine, l'action a déjà été faite ou n'a plus lieu
@@ -3003,7 +3015,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-3"></script>
+  <script src="/backoffice/js/app.js?v=20260827-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

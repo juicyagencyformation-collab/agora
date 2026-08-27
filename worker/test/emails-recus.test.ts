@@ -98,6 +98,18 @@ describe('extraireAdresse', () => {
 });
 
 describe('classifierParMotsCles', () => {
+  it('détecte un accusé de blocage anti-spam (Mailinblack) avant toute autre catégorie', () => {
+    expect(classifierParMotsCles(
+      'Je suis protégé par Protect de Mailinblack. Je demande à tout nouvel expéditeur de '
+      + 'confirmer qu\'il est bien humain. Cliquez ici ! https://app.mailinblack.com/invitation?id=1',
+    )).toBe('verification_antispam');
+    // Priorité même si le texte contient aussi des mots de fermeture/changement d'adresse
+    // (arrive dans la vraie vie : signature de mairie fermée en pièce jointe du challenge).
+    expect(classifierParMotsCles(
+      'Mailinblack — un clic pour délivrer votre email. La mairie est actuellement fermée.',
+    )).toBe('verification_antispam');
+  });
+
   it('détecte une fermeture (vacances, congés, absence, fermeture exceptionnelle)', () => {
     expect(classifierParMotsCles('La mairie est fermée jusqu\'au 10 septembre.')).toBe('fermeture');
     expect(classifierParMotsCles('Je suis actuellement en congés, de retour le 5 septembre.')).toBe('fermeture');
