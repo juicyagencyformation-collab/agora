@@ -763,10 +763,20 @@ function backoffice() {
       // Le prompt fait perdre la sélection dans l'éditeur : on la sauvegarde puis on la restaure.
       const sel = window.getSelection();
       const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-      const url = prompt('Adresse du lien (https://…) :');
+      const url = prompt('Adresse du lien (https://… ou une variable comme {{url}}) :');
       if (!url) return;
       if (range) { sel.removeAllRanges(); sel.addRange(range); }
-      document.execCommand('createLink', false, url);
+      // PAS execCommand('createLink', ...) : le navigateur fait passer la valeur par son propre
+      // parseur d'URL avant de l'enregistrer. Une variable comme {{url}} y est alors résolue
+      // comme un chemin relatif à LA PAGE DU BACKOFFICE elle-même et les accolades sont
+      // pourcent-encodées — bug vécu le 2026-08-27 : {{url}} tapé ici a été sauvegardé comme
+      // "https://plateforme-agora.fr/backoffice/%7B%7Burl%7D%7D" dans un email déjà envoyé,
+      // jamais substitué puisque la sous-chaîne "{{url}}" n'existait plus telle quelle.
+      // insertHTML insère la chaîne telle quelle, sans passer par ce parseur.
+      const echapper = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const texteSelectionne = range ? range.toString() : '';
+      const lien = `<a href="${echapper(url)}">${echapper(texteSelectionne || url)}</a>`;
+      document.execCommand('insertHTML', false, lien);
     },
     insererBoutonCta() {
       const bouton = '<a href="{{url}}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;display:inline-block">Découvrir l\'application</a>&nbsp;';
