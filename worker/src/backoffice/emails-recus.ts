@@ -29,10 +29,14 @@ async function recupererCorpsEmail(env: any, emailId: string): Promise<string | 
     const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`GET /emails/receiving/${emailId} (Resend) → ${res.status} : ${await res.text().catch(() => '')}`);
+      return null;
+    }
     const donnees = await res.json() as any;
     return (donnees.text as string) || depuisHtml(donnees.html) || '';
-  } catch {
+  } catch (err) {
+    console.error(`GET /emails/receiving/${emailId} (Resend) a levé une exception :`, err);
     return null;
   }
 }
@@ -67,15 +71,23 @@ export async function traiterEmailRecu(
   env: any, eventId: string, emailId: string, fromMeta: string, sujet: string | null,
 ): Promise<void> {
   const emailExpediteur = extraireAdresse(fromMeta);
-  if (!emailExpediteur) return;
+  if (!emailExpediteur) {
+    console.error(`traiterEmailRecu : adresse expéditrice illisible dans "from" (${fromMeta}), email ${emailId} ignoré`);
+    return;
+  }
 
   const existant = await supabaseSelect(env, 'emails_recus', { select: 'id', event_id: `eq.${eventId}` });
-  if (existant.length) return;
+  if (existant.length) return; // déjà enregistré (webhook rejoué par Resend) : pas une erreur
 
   const [prospect] = await supabaseSelect(env, 'prospects', { select: 'id,nom', contact_email: `eq.${emailExpediteur}` });
 
   const texte = await recupererCorpsEmail(env, emailId);
-  if (texte === null) return; // échec de récupération : on retentera au prochain envoi
+  if (texte === null) {
+    // Échec de récupération du corps auprès de l'API Resend — cause fréquente : RESEND_API_KEY
+    // absente/invalide, ou une clé restreinte au seul envoi (sans le scope de lecture "receiving").
+    console.error(`traiterEmailRecu : échec de récupération du corps pour l'email ${emailId} auprès de l'API Resend (voir RESEND_API_KEY)`);
+    return;
+  }
 
   await supabaseInsert(env, 'emails_recus', {
     event_id: eventId,

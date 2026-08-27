@@ -73,7 +73,15 @@ app.post('/webhook-resend', async (c) => {
   for (const secret of secrets) {
     if (await verifierSignatureSvix(secret, svixId, svixTs, svixSig, corpsBrut)) { ok = true; break; }
   }
-  if (!ok) return c.json({ erreur: 'Signature invalide' }, 401);
+  if (!ok) {
+    // Diagnostic minimal, sans jamais logger un secret : combien de secrets sont configurés
+    // (0 = un RESEND_WEBHOOK_SECRET_* n'a jamais été posé via `wrangler secret put`) et le type
+    // d'événement reçu, pour distinguer "webhook jamais créé côté Resend" de "secret erroné".
+    let typeEvt = '(illisible)';
+    try { typeEvt = JSON.parse(corpsBrut)?.type || '(sans type)'; } catch { /* corps non-JSON */ }
+    console.error(`Webhook Resend rejeté (signature invalide) — ${secrets.length} secret(s) configuré(s), type d'événement : ${typeEvt}`);
+    return c.json({ erreur: 'Signature invalide' }, 401);
+  }
 
   let evt: any;
   try { evt = JSON.parse(corpsBrut); } catch { return c.json({ erreur: 'Corps invalide' }, 400); }
@@ -140,7 +148,14 @@ app.post('/webhook-resend', async (c) => {
     const fromMeta = evt?.data?.from;
     const sujet = evt?.data?.subject || null;
     const eventId = c.req.header('svix-id');
-    if (emailId && fromMeta && eventId) c.executionCtx.waitUntil(traiterEmailRecu(c.env, eventId, emailId, fromMeta, sujet));
+    if (emailId && fromMeta && eventId) {
+      c.executionCtx.waitUntil(
+        traiterEmailRecu(c.env, eventId, emailId, fromMeta, sujet)
+          .catch((err) => console.error(`traiterEmailRecu a échoué pour l'email ${emailId} :`, err)),
+      );
+    } else {
+      console.error(`Webhook email.received reçu mais incomplet (email_id=${!!emailId}, from=${!!fromMeta}, svix-id=${!!eventId})`);
+    }
   }
   return c.json({ ok: true });
 });
