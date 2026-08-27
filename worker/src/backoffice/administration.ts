@@ -773,6 +773,26 @@ app.put('/contenu-texte', async (c) => {
   return c.json({ ok: true });
 });
 
+// GET /verifier-liens-templates — diagnostic ponctuel (2026-08-27) suite au bug de insererLien()
+// (voir frontend/backoffice/js/app.js) qui corrompait un lien tapé comme "{{url}}" : le navigateur
+// le résolvait comme un chemin relatif à la page backoffice ET pourcent-encodait les accolades,
+// donnant un href du type ".../backoffice/%7B%7Burl%7D%7D" — jamais substitué à l'envoi puisque la
+// sous-chaîne "{{url}}" n'existe plus telle quelle. Un "%7B" dans un href est TOUJOURS le signe de
+// ce bug (jamais légitime dans un lien correctement formé) : passe en revue tous les modeles_email
+// existants pour repérer ceux qui restent à corriger à la main dans l'éditeur.
+app.get('/verifier-liens-templates', async (c) => {
+  const lignes = await supabaseSelectTout(c.env, 'modeles_email', {
+    select: 'id,cle,nom,actif,corps_html',
+  });
+  const suspects = lignes
+    .map((l: any) => ({
+      id: l.id, cle: l.cle, nom: l.nom, actif: l.actif,
+      hrefs_suspects: [...String(l.corps_html || '').matchAll(/href="([^"]*%7B[^"]*)"/gi)].map((m) => m[1]),
+    }))
+    .filter((l: any) => l.hrefs_suspects.length > 0);
+  return c.json({ total_modeles: lignes.length, suspects });
+});
+
 // GET /emails-rejetes — bounces/plaintes captés via le webhook Resend (les plus récents).
 app.get('/emails-rejetes', async (c) => {
   const emails = await supabaseSelect(c.env, 'emails_rejetes', {
