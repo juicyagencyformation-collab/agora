@@ -1456,6 +1456,13 @@ function backoffice() {
             .then((r) => { if (this.prospect && this.prospect.id === id) this.prospect = { ...this.prospect, ...r.prospect }; })
             .catch(() => {});
         }
+      } catch (e) {
+        // Sans ce catch, un échec ici (session expirée, réseau...) laissait vue = 'prospect' avec
+        // prospect toujours à null/périmé — le template de la fiche restait affiché malgré son
+        // garde x-if (le temps que boFetch redirige vers la connexion) et plantait sur
+        // prospect.xxx. On revient proprement à la liste plutôt que de laisser cet état incohérent.
+        this.vue = 'prospection';
+        alert(e.message || 'Impossible d\'ouvrir cette fiche');
       } finally {
         this.chargement = false;
       }

@@ -2702,7 +2702,7 @@
               <div style="margin-top:6px" title="Favori">
                 <template x-for="n in [1,2,3,4,5]" :key="n">
                   <span style="cursor:pointer; font-size:18px; color:#f0b400" @click="definirEtoiles(n)"
-                        x-text="n <= (prospect.etoiles || 0) ? '★' : '☆'"></span>
+                        x-text="n <= (prospect?.etoiles || 0) ? '★' : '☆'"></span>
                 </template>
               </div>
             </div>
@@ -2851,7 +2851,7 @@
                 <div class="bo-info" style="margin-bottom:12px">Cette commune est active sur la plateforme.</div>
                 <button class="bo-btn bo-btn--compact" @click="ouvrirFiche(prospect.commune_id)">Ouvrir la fiche commune (facturation, RGPD…)</button>
                 <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/' + conversion.slug + '/'" target="_blank" x-show="conversion.slug" style="margin-left:8px">Ouvrir l'app</a>
-                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="lienFiche(conversion.slug, prospect.nom)" target="_blank" x-show="conversion.slug" style="margin-left:8px">Fiche de présentation</a>
+                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="lienFiche(conversion.slug, prospect?.nom)" target="_blank" x-show="conversion.slug" style="margin-left:8px">Fiche de présentation</a>
               </div>
             </template>
 
@@ -3030,7 +3030,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-5"></script>
+  <script src="/backoffice/js/app.js?v=20260827-6"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
