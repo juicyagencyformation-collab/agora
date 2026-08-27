@@ -2609,11 +2609,22 @@
                     <div class="bo-info" x-text="e.expediteur + (e.sujet ? ' — ' + e.sujet : '')"></div>
                     <div style="margin:6px 0; white-space:pre-wrap" x-text="e.texte"></div>
                     <div style="display:flex; align-items:center; gap:8px">
+                      <button class="bo-btn bo-btn--compact" @click="toggleReponseEmailRecu(e)"
+                              x-text="e.reponseOuverte ? 'Annuler' : '✉️ Répondre'"></button>
                       <button class="bo-btn bo-btn--sec bo-btn--compact" :disabled="emailRecuEnCours === e.id"
                               @click="marquerEmailRecuTraite(e, !e.traite_le)"
                               x-text="e.traite_le ? 'Marquer à traiter' : '✓ Marquer traité'"></button>
                       <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="e.prospect_id" @click="ouvrirProspect(e.prospect_id)">Ouvrir la fiche</button>
                       <span class="bo-timeline__meta" style="margin:0" x-text="formatDateHeure(e.created_at)"></span>
+                    </div>
+                    <div x-show="e.reponseOuverte" style="margin-top:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                      <textarea x-model="e.reponseTexte" rows="4" placeholder="Votre réponse…" style="margin:0"></textarea>
+                      <div style="display:flex; align-items:center; gap:10px; margin-top:8px">
+                        <button class="bo-btn bo-btn--compact" :disabled="e.reponseEnCours || !e.reponseTexte || !e.reponseTexte.trim()"
+                                @click="envoyerReponseEmailRecu(e)"
+                                x-text="e.reponseEnCours ? 'Envoi…' : 'Envoyer'"></button>
+                        <span class="bo-info" x-text="e.reponseMsg"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2960,7 +2971,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-1"></script>
+  <script src="/backoffice/js/app.js?v=20260827-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

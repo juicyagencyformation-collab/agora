@@ -11,6 +11,7 @@
 // webhooks d'ouverture/clic à cet envoi précis (voir envois_prospection, migration 040).
 export async function envoyerEmail(
   env: any, to: string, subject: string, html: string, attachments?: any[], replyTo?: string,
+  headersPersonnalises?: Record<string, string>,
 ): Promise<string | null> {
   if (!env.RESEND_API_KEY) {
     console.error('RESEND_API_KEY manquant — email non envoyé.');
@@ -28,6 +29,10 @@ export async function envoyerEmail(
         to, subject, html,
         ...(replyTo ? { reply_to: replyTo } : {}),
         ...(attachments && attachments.length ? { attachments } : {}),
+        // In-Reply-To/References (voir POST /prospection/emails-recus/:id/repondre) : threade la
+        // réponse dans la conversation existante côté client mail du destinataire, au lieu
+        // qu'elle arrive comme un email tout neuf sans rapport apparent.
+        ...(headersPersonnalises && Object.keys(headersPersonnalises).length ? { headers: headersPersonnalises } : {}),
       }),
     });
     if (!res.ok) {

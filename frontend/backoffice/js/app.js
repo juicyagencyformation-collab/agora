@@ -1087,6 +1087,26 @@ function backoffice() {
     libelleCategorieEmailRecu(cat) {
       return { fermeture: '🏛 Fermeture', changement_email: '📧 Changement d\'adresse', autre: '❓ Autre' }[cat] || cat;
     },
+    // Répondre sans quitter le backoffice (voir POST /emails-recus/:id/repondre) : la réponse
+    // est threadée côté client mail du destinataire (In-Reply-To/References sur l'email d'origine).
+    toggleReponseEmailRecu(e) {
+      e.reponseOuverte = !e.reponseOuverte;
+      if (e.reponseOuverte && e.reponseTexte === undefined) e.reponseTexte = '';
+    },
+    async envoyerReponseEmailRecu(e) {
+      if (!e.reponseTexte || !e.reponseTexte.trim()) return;
+      e.reponseEnCours = true;
+      e.reponseMsg = '';
+      try {
+        await boFetch('/prospection/emails-recus/' + e.id + '/repondre', {
+          method: 'POST', body: JSON.stringify({ message: e.reponseTexte.trim() }),
+        });
+        await this.chargerEmailsRecus();
+      } catch (err) {
+        e.reponseMsg = err.message || 'Envoi impossible';
+        e.reponseEnCours = false;
+      }
+    },
 
     initCarte() {
       const el = document.getElementById('carte-prospection');

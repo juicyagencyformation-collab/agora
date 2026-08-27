@@ -69,6 +69,7 @@ export function classifierParMotsCles(texte: string): CategorieEmailRecu {
 // la ligne (contrainte UNIQUE, voir migration 049).
 export async function traiterEmailRecu(
   env: any, eventId: string, emailId: string, fromMeta: string, sujet: string | null,
+  messageId: string | null = null,
 ): Promise<void> {
   const emailExpediteur = extraireAdresse(fromMeta);
   if (!emailExpediteur) {
@@ -97,5 +98,6 @@ export async function traiterEmailRecu(
     sujet: sujet || null,
     texte: texte.slice(0, 5000),
     categorie: classifierParMotsCles(texte),
+    message_id_original: messageId || null,
   });
 }

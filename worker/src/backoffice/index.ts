@@ -147,10 +147,11 @@ app.post('/webhook-resend', async (c) => {
     const emailId = evt?.data?.email_id;
     const fromMeta = evt?.data?.from;
     const sujet = evt?.data?.subject || null;
+    const messageId = evt?.data?.message_id || null;
     const eventId = c.req.header('svix-id');
     if (emailId && fromMeta && eventId) {
       c.executionCtx.waitUntil(
-        traiterEmailRecu(c.env, eventId, emailId, fromMeta, sujet)
+        traiterEmailRecu(c.env, eventId, emailId, fromMeta, sujet, messageId)
           .catch((err) => console.error(`traiterEmailRecu a échoué pour l'email ${emailId} :`, err)),
       );
     } else {

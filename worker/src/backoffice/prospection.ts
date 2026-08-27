@@ -360,6 +360,47 @@ app.patch('/emails-recus/:id', async (c) => {
   return c.json({ ok: true });
 });
 
+// POST /emails-recus/:id/repondre — répondre à une réponse reçue SANS quitter le backoffice.
+// Threadée (En-têtes In-Reply-To/References sur le message_id d'origine) : côté client mail du
+// destinataire, ça s'affiche comme une réponse normale dans la même conversation, pas comme un
+// email tout neuf. Le reply_to reste l'adresse de réception dédiée, pour que la conversation
+// continue d'alimenter cette même boîte si la mairie répond encore. Marque automatiquement
+// traite_le : répondre EST l'action de traitement, pas la peine de cocher en plus à la main.
+const repondreEmailRecuSchema = z.object({ message: z.string().min(1).max(5000) });
+
+app.post('/emails-recus/:id/repondre', async (c) => {
+  const id = c.req.param('id');
+  const body = repondreEmailRecuSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [email] = await supabaseSelect(c.env, 'emails_recus', {
+    select: 'id,expediteur,sujet,message_id_original,prospect_id', id: `eq.${id}`,
+  });
+  if (!email) return c.json({ erreur: 'Message introuvable' }, 404);
+
+  const objet = email.sujet ? `Re: ${email.sujet}` : 'Re: votre message';
+  const corps = construireEmailLibre(body.data.message);
+  const enTetes = email.message_id_original
+    ? { 'In-Reply-To': email.message_id_original, References: email.message_id_original }
+    : undefined;
+
+  const resendEmailId = await envoyerEmail(
+    c.env, email.expediteur, objet, corps, undefined, c.env.EMAIL_REPLY_TO_PROSPECTION, enTetes,
+  );
+  if (!resendEmailId) return c.json({ erreur: 'Échec de l\'envoi (voir logs Worker)' }, 502);
+
+  await supabaseUpdate(c.env, 'emails_recus', { traite_le: new Date().toISOString() }, { id: `eq.${id}` });
+
+  if (email.prospect_id) {
+    await supabaseInsert(c.env, 'prospect_interactions', {
+      prospect_id: email.prospect_id, staff_id: c.get('staff_id'),
+      type: 'email', contenu: `Réponse envoyée à ${email.expediteur} depuis la boîte de réception`,
+    });
+  }
+
+  return c.json({ ok: true });
+});
+
 // — Aperçu : compteurs par statut + relances dues aujourd'hui —
 app.get('/apercu', async (c) => {
   // Pagination complète (pas un simple limit élevé) : Supabase plafonne chaque réponse à 1000
