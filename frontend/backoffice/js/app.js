@@ -224,6 +224,13 @@ function backoffice() {
     totalMairesConnectes: 0,
     sousVueProspection: 'liste', // 'liste' | 'carte' | 'recues'
     favoris: [], // prospects étoilés, panneau de gauche — voir GET /prospection/favoris
+    // Tableau de bord "Aujourd'hui" — n'a besoin que de ces deux-là en propre : échéances,
+    // onboarding bloqué et emails rejetés réutilisent tels quels echeances/facturesEnAttente/
+    // onboardingSansContact/emailsRejetes, déjà chargés à chaque boot par chargerCommunes()
+    // (dernier appel de init()) — pas la peine de les refetcher en double pour cette vue.
+    ajProspectsRelance: [],
+    ajDateAujourdhui: '',
+    ajEmailsRecus: [],
     emailsRecus: [],
     emailsRecusATraiter: 0,
     filtreEmailsRecusTraite: '0',
@@ -271,6 +278,7 @@ function backoffice() {
         try { this.statsVariantes = (await boFetch('/prospection/stats-variantes')).variantes; } catch {}
         try { this.favoris = (await boFetch('/prospection/favoris')).prospects; } catch {}
         try { this.parametresEntreprise = (await boFetch('/administration/parametres-entreprise')).parametres; } catch {}
+        this.chargerAujourdhui(); // pas de await : le badge se met à jour dès que ça arrive, ne bloque pas le reste de init()
       } catch {
         redirigerVersConnexion();
         return;
@@ -935,6 +943,31 @@ function backoffice() {
     allerCommunes() {
       this.vue = 'communes';
       this.fiche = null;
+    },
+
+    // — Tableau de bord "Aujourd'hui" — regroupe prospects à relancer + réponses reçues (propres
+    // à cette vue) avec échéances/onboarding bloqué/emails rejetés (déjà chargés par
+    // chargerCommunes(), voir le commentaire sur ajProspectsRelance). Rappelée aussi bien depuis
+    // init() (pour que le badge du menu soit à jour partout, pas seulement une fois la vue
+    // visitée) que depuis allerAujourdhui() (pour un état frais à chaque visite). —
+    async chargerAujourdhui() {
+      try {
+        const [relance, recus] = await Promise.all([
+          boFetch('/prospection/prospects-a-relancer'),
+          boFetch('/prospection/emails-recus?traite=0'),
+        ]);
+        this.ajProspectsRelance = relance.prospects;
+        this.ajDateAujourdhui = relance.aujourdhui;
+        this.ajEmailsRecus = recus.emails;
+      } catch {}
+    },
+    async allerAujourdhui() {
+      this.vue = 'aujourdhui';
+      await this.chargerAujourdhui();
+    },
+    totalAujourdhui() {
+      return this.ajProspectsRelance.length + this.ajEmailsRecus.length + this.echeances.length
+        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length;
     },
 
     allerReglages() {

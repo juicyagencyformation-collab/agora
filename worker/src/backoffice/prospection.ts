@@ -435,6 +435,23 @@ app.get('/apercu', async (c) => {
   });
 });
 
+// GET /prospects-a-relancer — liste (pas juste le compte de /apercu ci-dessus) des prospects dus
+// aujourd'hui ou en retard, pour le tableau de bord "Aujourd'hui" (voir administration.ts pour
+// les autres briques : échéances, onboarding bloqué, emails rejetés). Un filtre `lte` sur une
+// colonne nullable exclut naturellement les NULL (NULL <= X est indéterminé en SQL), donc pas
+// besoin d'un `not.is.null` séparé sur prochaine_relance_le.
+app.get('/prospects-a-relancer', async (c) => {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,departement,statut,prochaine_relance_le',
+    prochaine_relance_le: `lte.${aujourdhui}`,
+    statut: 'in.(a_contacter,contacte,relance,rdv)',
+    order: 'prochaine_relance_le.asc',
+    limit: '200',
+  });
+  return c.json({ prospects, aujourdhui });
+});
+
 // — Fiche + timeline —
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');

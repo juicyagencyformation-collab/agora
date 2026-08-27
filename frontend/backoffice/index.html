@@ -16,6 +16,7 @@
     <!-- Navigation -->
     <nav class="bo-nav">
       <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260818-1" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'aujourdhui' }" @click="allerAujourdhui()">🎯 Aujourd'hui<span class="bo-tiroir__compte" x-show="totalAujourdhui()" x-text="' ' + totalAujourdhui()"></span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || vue === 'fiche' }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
@@ -61,6 +62,129 @@
     <main class="bo-main">
       <template x-if="chargement">
         <div class="bo-chargement">Chargement…</div>
+      </template>
+
+      <!-- Vue : "Aujourd'hui" — tableau de bord qui regroupe tout ce qui est actionnable/en retard,
+           jusqu'ici éparpillé sur 3 écrans (Communes clientes, Prospection, Réponses reçues).
+           Sections toujours dépliées (pas de tiroir) : le but est un coup d'œil du matin, pas une
+           page de référence à explorer. -->
+      <template x-if="!chargement && vue === 'aujourdhui'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">🎯 Aujourd'hui</div>
+              <div class="bo-sous">Tout ce qui attend une action ou est en retard, regroupé au même endroit.</div>
+            </div>
+          </div>
+
+          <div class="bo-carte" style="margin-bottom:20px">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>📞 Prospects à relancer<span class="bo-tiroir__compte" x-show="ajProspectsRelance.length" x-text="' — ' + ajProspectsRelance.length"></span></strong></div>
+            <template x-if="ajProspectsRelance.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Rien à relancer aujourd'hui.</div>
+            </template>
+            <table x-show="ajProspectsRelance.length > 0">
+              <thead><tr><th>Commune</th><th>Statut</th><th>Relance</th></tr></thead>
+              <tbody>
+                <template x-for="p in ajProspectsRelance" :key="p.id">
+                  <tr @click="ouvrirProspect(p.id)">
+                    <td class="bo-nom-commune" x-text="p.nom"></td>
+                    <td x-text="libelleStatut(p.statut)"></td>
+                    <td>
+                      <span :class="p.prochaine_relance_le < ajDateAujourdhui ? 'bo-note--basse' : 'bo-note--moyenne'"
+                            x-text="p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)"></span>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bo-carte" style="margin-bottom:20px">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>📥 Réponses reçues à traiter<span class="bo-tiroir__compte" x-show="ajEmailsRecus.length" x-text="' — ' + ajEmailsRecus.length"></span></strong></div>
+            <template x-if="ajEmailsRecus.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Rien à traiter.</div>
+            </template>
+            <table x-show="ajEmailsRecus.length > 0">
+              <thead><tr><th>Commune</th><th>Catégorie</th><th>Reçu le</th></tr></thead>
+              <tbody>
+                <template x-for="e in ajEmailsRecus" :key="e.id">
+                  <tr @click="allerProspection(); afficherEmailsRecus()">
+                    <td class="bo-nom-commune" x-text="e.commune_nom || e.expediteur"></td>
+                    <td x-text="libelleCategorieEmailRecu(e.categorie)"></td>
+                    <td x-text="formatDateHeure(e.created_at)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bo-carte" style="margin-bottom:20px">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>💰 Facturation à traiter<span class="bo-tiroir__compte" x-show="echeances.length + facturesEnAttente.length" x-text="' — ' + (echeances.length + facturesEnAttente.length)"></span></strong></div>
+            <template x-if="echeances.length === 0 && facturesEnAttente.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Aucune échéance ni facture en attente.</div>
+            </template>
+            <table x-show="echeances.length > 0">
+              <thead><tr><th>Commune</th><th>Renouvellement</th><th>Jours restants</th></tr></thead>
+              <tbody>
+                <template x-for="e in echeances" :key="e.id">
+                  <tr @click="ouvrirFiche(e.id)">
+                    <td class="bo-nom-commune" x-text="e.nom"></td>
+                    <td x-text="formatDate(e.prochaine_echeance)"></td>
+                    <td><span :class="classeEcheance(e.prochaine_echeance)" x-text="joursAvantEcheance(e.prochaine_echeance) + ' j'"></span></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <table x-show="facturesEnAttente.length > 0">
+              <thead><tr><th>N°</th><th>Destinataire</th><th>Montant TTC</th><th>Échéance</th></tr></thead>
+              <tbody>
+                <template x-for="f in facturesEnAttente" :key="f.id">
+                  <tr @click="f.commune_id ? ouvrirFiche(f.commune_id) : null">
+                    <td x-text="f.numero"></td>
+                    <td x-text="f.nom_destinataire"></td>
+                    <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td><span :class="classeEcheance(f.date_echeance)" x-text="formatDate(f.date_echeance)"></span></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bo-carte" style="margin-bottom:20px">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>⚠ Onboarding bloqué (aucun contact joignable)<span class="bo-tiroir__compte" x-show="onboardingSansContact.length" x-text="' — ' + onboardingSansContact.length"></span></strong></div>
+            <template x-if="onboardingSansContact.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Aucune — tout le monde est joignable.</div>
+            </template>
+            <table x-show="onboardingSansContact.length > 0">
+              <thead><tr><th>Commune</th></tr></thead>
+              <tbody>
+                <template x-for="c in onboardingSansContact" :key="c.id">
+                  <tr @click="ouvrirFiche(c.id)"><td class="bo-nom-commune" x-text="c.nom"></td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bo-carte">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>✉ Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="' — ' + emailsRejetes.length"></span></strong></div>
+            <template x-if="emailsRejetes.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Aucun email rejeté capté.</div>
+            </template>
+            <table x-show="emailsRejetes.length > 0">
+              <thead><tr><th>Adresse</th><th>Commune</th><th>Raison</th><th>Date</th></tr></thead>
+              <tbody>
+                <template x-for="(e, i) in emailsRejetes" :key="i">
+                  <tr style="cursor:default">
+                    <td x-text="e.email"></td>
+                    <td><span :class="{ 'bo-vide': !e.commune_nom }" x-text="e.commune_nom || '—'"></span></td>
+                    <td><span :class="{ 'bo-vide': !e.raison }" x-text="e.raison || '—'"></span></td>
+                    <td x-text="formatDate(e.created_at)"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </template>
 
       <!-- Vue : liste des communes -->
@@ -3030,7 +3154,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-6"></script>
+  <script src="/backoffice/js/app.js?v=20260827-7"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
