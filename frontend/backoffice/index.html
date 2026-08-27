@@ -2608,6 +2608,34 @@
                     <div style="font-weight:600" x-show="!e.prospect_id" x-text="(e.commune_nom || 'Prospect non identifié')"></div>
                     <div class="bo-info" x-text="e.expediteur + (e.sujet ? ' — ' + e.sujet : '')"></div>
                     <div style="margin:6px 0; white-space:pre-wrap" x-text="e.texte"></div>
+
+                    <!-- Actions rapides par catégorie : agir sans naviguer vers la fiche. Cachées
+                         une fois traité (plus la peine, l'action a déjà été faite ou n'a plus lieu
+                         d'être) et si aucun prospect n'a pu être identifié (rien sur quoi agir). -->
+                    <div x-show="e.categorie === 'changement_email' && e.prospect_id && !e.traite_le"
+                         style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                      <label style="margin:0; font-size:12px">Nouvelle adresse email du prospect</label>
+                      <div style="display:flex; gap:8px; align-items:center; margin-top:4px">
+                        <input type="email" x-model="e.nouvelEmail" placeholder="nouvelle-adresse@commune.fr" style="flex:1; margin:0" />
+                        <button class="bo-btn bo-btn--compact" :disabled="e.actionEnCours || !e.nouvelEmail || !e.nouvelEmail.trim()"
+                                @click="corrigerEmailDepuisRecu(e)"
+                                x-text="e.actionEnCours ? '…' : 'Enregistrer'"></button>
+                      </div>
+                      <span class="bo-info" x-text="e.actionMsg"></span>
+                    </div>
+                    <div x-show="e.categorie === 'fermeture' && e.prospect_id && !e.traite_le"
+                         style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                      <label style="margin:0; font-size:12px">Date de retour indiquée (facultatif)</label>
+                      <div style="display:flex; gap:8px; align-items:center; margin-top:4px">
+                        <input type="date" x-model="e.dateRetour" style="margin:0" />
+                        <button class="bo-btn bo-btn--compact" :disabled="e.actionEnCours"
+                                @click="reprogrammerRelanceDepuisRecu(e)"
+                                x-text="e.actionEnCours ? '…' : 'Reprogrammer la relance'"></button>
+                      </div>
+                      <div class="bo-info" x-show="!e.dateRetour" style="margin-top:2px">Sans date, la relance est reprogrammée dans 14 jours.</div>
+                      <span class="bo-info" x-text="e.actionMsg"></span>
+                    </div>
+
                     <div style="display:flex; align-items:center; gap:8px">
                       <button class="bo-btn bo-btn--compact" @click="toggleReponseEmailRecu(e)"
                               x-text="e.reponseOuverte ? 'Annuler' : '✉️ Répondre'"></button>
@@ -2971,7 +2999,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-2"></script>
+  <script src="/backoffice/js/app.js?v=20260827-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

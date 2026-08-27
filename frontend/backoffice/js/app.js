@@ -1107,6 +1107,47 @@ function backoffice() {
         e.reponseEnCours = false;
       }
     },
+    // Actions rapides par catégorie (voir bloc HTML correspondant) : réutilisent les routes déjà
+    // existantes de la fiche prospect (PATCH /prospects/:id, POST .../interactions), juste
+    // paramétrées par e.prospect_id au lieu de this.prospect.id puisqu'on n'est pas sur la fiche.
+    async corrigerEmailDepuisRecu(e) {
+      const valeur = (e.nouvelEmail || '').trim();
+      if (!valeur) return;
+      e.actionEnCours = true;
+      e.actionMsg = '';
+      try {
+        await boFetch('/prospection/prospects/' + e.prospect_id, {
+          method: 'PATCH', body: JSON.stringify({ contact_email: valeur }),
+        });
+        await boFetch('/prospection/emails-recus/' + e.id, { method: 'PATCH', body: JSON.stringify({ traite: true }) });
+        await this.chargerEmailsRecus();
+      } catch (err) {
+        e.actionMsg = err.message || 'Échec';
+        e.actionEnCours = false;
+      }
+    },
+    async reprogrammerRelanceDepuisRecu(e) {
+      e.actionEnCours = true;
+      e.actionMsg = '';
+      try {
+        const dateRetour = e.dateRetour;
+        const dateRelance = dateRetour || new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+        const contenu = (dateRetour
+          ? `Mairie fermée — retour prévu le ${this.formatDate(dateRetour)}`
+          : 'Mairie fermée (date de retour non précisée) — relance reprogrammée dans 14 jours') + ' (depuis Réponses reçues)';
+        await boFetch('/prospection/prospects/' + e.prospect_id + '/interactions', {
+          method: 'POST', body: JSON.stringify({ type: 'ferme', contenu }),
+        });
+        await boFetch('/prospection/prospects/' + e.prospect_id, {
+          method: 'PATCH', body: JSON.stringify({ prochaine_relance_le: dateRelance }),
+        });
+        await boFetch('/prospection/emails-recus/' + e.id, { method: 'PATCH', body: JSON.stringify({ traite: true }) });
+        await this.chargerEmailsRecus();
+      } catch (err) {
+        e.actionMsg = err.message || 'Échec';
+        e.actionEnCours = false;
+      }
+    },
 
     initCarte() {
       const el = document.getElementById('carte-prospection');
