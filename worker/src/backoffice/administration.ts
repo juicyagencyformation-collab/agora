@@ -813,6 +813,37 @@ app.post('/reparer-liens-templates', async (c) => {
   return c.json({ repares });
 });
 
+// POST /reparer-images-r2 — bascule les URLs déjà enregistrées (logo_image_url,
+// signature_image_url, et toute image embarquée dans corps_html) de l'ancienne URL R2 brute vers
+// R2_PUBLIC_BASE (voir wrangler.toml, changé le 2026-08-27 suite à l'avertissement Gmail/Resend
+// sur un domaine .r2.dev anonyme dans les emails de prospection). Même objet R2 des deux côtés
+// (vérifié par curl avant ce commit) : aucun fichier à re-uploader, une simple substitution de
+// préfixe suffit. Idempotent — ne modifie que les lignes qui référencent encore l'ancienne URL.
+const ANCIENNE_BASE_R2 = 'https://pub-5c0f5a71b091421086656f471ed44251.r2.dev';
+
+app.post('/reparer-images-r2', async (c) => {
+  const nouvelleBase = c.env.R2_PUBLIC_BASE;
+  const lignes = await supabaseSelectTout(c.env, 'modeles_email', {
+    select: 'id,cle,nom,corps_html,logo_image_url,signature_image_url',
+  });
+  const repares: { id: string; cle: string; nom: string; champs: string[] }[] = [];
+  for (const l of lignes as any[]) {
+    const patch: Record<string, string> = {};
+    const champs: string[] = [];
+    for (const champ of ['corps_html', 'logo_image_url', 'signature_image_url']) {
+      const valeur = l[champ];
+      if (typeof valeur === 'string' && valeur.includes(ANCIENNE_BASE_R2)) {
+        patch[champ] = valeur.split(ANCIENNE_BASE_R2).join(nouvelleBase);
+        champs.push(champ);
+      }
+    }
+    if (!champs.length) continue;
+    await supabaseUpdate(c.env, 'modeles_email', { ...patch, updated_at: new Date().toISOString() }, { id: `eq.${l.id}` });
+    repares.push({ id: l.id, cle: l.cle, nom: l.nom, champs });
+  }
+  return c.json({ repares });
+});
+
 // GET /emails-rejetes — bounces/plaintes captés via le webhook Resend (les plus récents).
 app.get('/emails-rejetes', async (c) => {
   const emails = await supabaseSelect(c.env, 'emails_rejetes', {
