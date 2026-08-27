@@ -7,6 +7,7 @@ import { corrigerEmailsInvalides } from './backoffice/prospection';
 import { gererVariantesProspectionAutomatiquement } from './backoffice/prospection-ab';
 import { verifierRelanceInactivite } from './backoffice/onboarding';
 import { verifierSequenceOnboarding } from './backoffice/onboarding-drip';
+import { synchroniserEmailsRecus } from './backoffice/emails-recus';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -214,5 +215,12 @@ export async function verifierRelancesInactiviteProspection(env: any) {
 // (jamais l'email 5 sur un critère de date seul).
 export async function verifierSequenceOnboardingCommunes(env: any) {
   await verifierSequenceOnboarding(env);
+}
+
+// Comble les trous de "Réponses reçues" en repartant de la liste faisant autorité de Resend —
+// voir synchroniserEmailsRecus (backoffice/emails-recus.ts) : le webhook seul ne suffit pas
+// (constaté le 2026-08-27, réponses d'absence des mairies jamais capturées).
+export async function synchroniserEmailsRecusProspection(env: any) {
+  await synchroniserEmailsRecus(env);
 }
 

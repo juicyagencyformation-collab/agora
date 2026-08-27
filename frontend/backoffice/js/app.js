@@ -235,6 +235,8 @@ function backoffice() {
     relanceLotMsg: '',
     emailsRecus: [],
     emailsRecusATraiter: 0,
+    syncEmailsRecusEnCours: false,
+    syncEmailsRecusMsg: '',
     filtreEmailsRecusTraite: '0',
     filtreEmailsRecusCategorie: '',
     emailRecuEnCours: null,
@@ -1133,6 +1135,22 @@ function backoffice() {
         this.emailsRecus = r.emails;
         this.emailsRecusATraiter = r.a_traiter;
       } catch { /* liste vide plutôt que de casser l'écran */ }
+    },
+    // Comble les trous en repartant de la liste complète de Resend (voir
+    // POST /prospection/emails-recus/synchroniser) : tourne déjà chaque nuit automatiquement,
+    // ce bouton sert juste à ne pas attendre jusqu'au lendemain.
+    async synchroniserEmailsRecus() {
+      this.syncEmailsRecusEnCours = true;
+      this.syncEmailsRecusMsg = '';
+      try {
+        const r = await boFetch('/prospection/emails-recus/synchroniser', { method: 'POST' });
+        this.syncEmailsRecusMsg = `${r.verifies} vérifié(s) côté Resend, ${r.ajoutes} ajouté(s)`;
+        await this.chargerEmailsRecus();
+      } catch (e) {
+        this.syncEmailsRecusMsg = e.message || 'Synchronisation impossible';
+      } finally {
+        this.syncEmailsRecusEnCours = false;
+      }
     },
     async marquerEmailRecuTraite(email, traite) {
       this.emailRecuEnCours = email.id;

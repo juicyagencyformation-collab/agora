@@ -6,7 +6,7 @@
 // message pour l'afficher au bon endroit dans le backoffice — aucune action automatique n'est
 // jamais prise sur le prospect, c'est toujours Léandre qui corrige l'email ou reprogramme la
 // relance à la main (voir la fiche prospect : champ email éditable, bouton « Mairie fermée »).
-import { supabaseSelect, supabaseInsert } from '../db';
+import { supabaseSelect, supabaseSelectTout, supabaseInsert } from '../db';
 
 export type CategorieEmailRecu = 'verification_antispam' | 'fermeture' | 'changement_email' | 'autre';
 
@@ -112,4 +112,59 @@ export async function traiterEmailRecu(
     categorie: classifierParMotsCles(texte),
     message_id_original: messageId || null,
   });
+}
+
+// Synchronise emails_recus avec la liste faisant AUTORITÉ de Resend (GET /emails/receiving), qui
+// garde une copie de tout ce qui est reçu même quand le webhook ne se déclenche jamais — constaté
+// le 2026-08-27 : les réponses automatiques d'absence ("congés") de certaines mairies n'arrivaient
+// jamais dans le backoffice, très probablement filtrées par Resend en amont du webhook (motif
+// documenté ailleurs dans l'industrie de l'email entrant : suppression des réponses auto-générées
+// pour éviter les boucles). Comble donc les trous en repartant de cette liste plutôt que de ne
+// compter QUE sur le temps réel — exécuté chaque nuit (cron, voir cron.ts) ET à la demande depuis
+// le backoffice (bouton "Synchroniser avec Resend").
+// Limite connue : les lignes enregistrées AVANT l'ajout de message_id_original (migration 053) ne
+// peuvent pas être reconnues comme déjà vues par ce mécanisme (elles ont ce champ à NULL) — un
+// doublon reste possible pour cette poignée de lignes historiques si Resend les a encore dans sa
+// fenêtre de résultats. Sans conséquence grave (juste une ligne à marquer traitée deux fois) : pas
+// de correctif dédié pour ce cas ponctuel et transitoire.
+export async function synchroniserEmailsRecus(env: any): Promise<{ verifies: number; ajoutes: number; erreurs: number }> {
+  if (!env.RESEND_API_KEY) return { verifies: 0, ajoutes: 0, erreurs: 0 };
+
+  const dejaEnregistres = new Set(
+    (await supabaseSelectTout(env, 'emails_recus', { select: 'message_id_original' }))
+      .map((l: any) => l.message_id_original)
+      .filter(Boolean),
+  );
+
+  let verifies = 0, ajoutes = 0, erreurs = 0;
+  let after: string | undefined;
+  for (let page = 0; page < 5; page++) { // 5×100 = 500 derniers emails reçus, large marge
+    const url = new URL('https://api.resend.com/emails/receiving');
+    url.searchParams.set('limit', '100');
+    if (after) url.searchParams.set('after', after);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` } });
+    if (!res.ok) {
+      console.error(`synchroniserEmailsRecus : GET /emails/receiving (liste) → ${res.status}`);
+      break;
+    }
+    const donnees = await res.json() as any;
+    const lignes: any[] = donnees.data || [];
+    verifies += lignes.length;
+
+    for (const e of lignes) {
+      if (!e.message_id || dejaEnregistres.has(e.message_id)) continue;
+      try {
+        await traiterEmailRecu(env, `sync-${e.id}`, e.id, e.from, e.subject || null, e.message_id);
+        dejaEnregistres.add(e.message_id);
+        ajoutes += 1;
+      } catch (err) {
+        console.error(`synchroniserEmailsRecus : échec pour l'email Resend ${e.id} :`, err);
+        erreurs += 1;
+      }
+    }
+
+    if (!donnees.has_more || !lignes.length) break;
+    after = lignes[lignes.length - 1].id;
+  }
+  return { verifies, ajoutes, erreurs };
 }

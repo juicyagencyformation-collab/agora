@@ -6,18 +6,20 @@
 // depuis le webhook (matching du prospect, déduplication par event_id). Aucun appel réseau réel :
 // fetch() est stubbé (Supabase + Resend), même esprit que test/onboarding-drip.test.ts.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { extraireAdresse, classifierParMotsCles, traiterEmailRecu } from '../src/backoffice/emails-recus';
+import { extraireAdresse, classifierParMotsCles, traiterEmailRecu, synchroniserEmailsRecus } from '../src/backoffice/emails-recus';
 
 // --- Fausse base Supabase + faux Resend, pilotés par fetch() -----------------------------------
 type Ligne = Record<string, any>;
 let db: Record<string, Ligne[]>;
 let resendCorpsReponse: { text?: string | null; html?: string | null; status?: number } | null = null;
 let resendAppels = 0;
+let resendListeRecus: any[] = []; // fixture pour GET /emails/receiving (liste), voir synchroniserEmailsRecus
 
 function reinitialiser() {
   db = { prospects: [], emails_recus: [] };
   resendCorpsReponse = null;
   resendAppels = 0;
+  resendListeRecus = [];
 }
 
 function correspond(valeur: any, filtre: string): boolean {
@@ -40,6 +42,13 @@ function fetchFake(input: any, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const methode = init?.method || 'GET';
 
+  if (url.hostname === 'api.resend.com' && url.pathname === '/emails/receiving') {
+    const after = url.searchParams.get('after');
+    const limit = parseInt(url.searchParams.get('limit') || '20', 10);
+    const debut = after ? resendListeRecus.findIndex((e) => e.id === after) + 1 : 0;
+    const page = resendListeRecus.slice(debut, debut + limit);
+    return Promise.resolve(new Response(JSON.stringify({ data: page, has_more: debut + limit < resendListeRecus.length }), { status: 200 }));
+  }
   if (url.hostname === 'api.resend.com' && url.pathname.startsWith('/emails/receiving/')) {
     resendAppels += 1;
     if (!resendCorpsReponse || resendCorpsReponse.status) {
@@ -191,5 +200,51 @@ describe('traiterEmailRecu — orchestration depuis le webhook', () => {
     await expect(traiterEmailRecu(ENV, 'evt-6', 'email-abc', '', null)).resolves.toBeUndefined();
     expect(resendAppels).toBe(0);
     expect(db.emails_recus).toHaveLength(0);
+  });
+});
+
+describe('synchroniserEmailsRecus — comble les trous via la liste faisant autorité de Resend', () => {
+  it('ajoute un email reçu par Resend mais absent de emails_recus (webhook jamais déclenché)', async () => {
+    resendListeRecus = [
+      { id: 'resend-1', from: 'mairie@testville.fr', subject: 'Absence du bureau', message_id: '<msg-1@mail.example.com>' },
+    ];
+    resendCorpsReponse = { text: 'Je suis en congés, de retour le 10 septembre.' };
+
+    const r = await synchroniserEmailsRecus(ENV);
+
+    expect(r).toEqual({ verifies: 1, ajoutes: 1, erreurs: 0 });
+    expect(db.emails_recus).toHaveLength(1);
+    expect(db.emails_recus[0]).toMatchObject({
+      message_id_original: '<msg-1@mail.example.com>', expediteur: 'mairie@testville.fr', categorie: 'fermeture',
+    });
+  });
+
+  it('ne réinsère pas un email déjà enregistré (matché par message_id, pas par event_id)', async () => {
+    db.emails_recus.push({
+      id: crypto.randomUUID(), event_id: 'evt-webhook-reel',
+      message_id_original: '<msg-2@mail.example.com>', expediteur: 'mairie@testville.fr',
+    });
+    resendListeRecus = [
+      { id: 'resend-2', from: 'mairie@testville.fr', subject: 'Absence', message_id: '<msg-2@mail.example.com>' },
+    ];
+
+    const r = await synchroniserEmailsRecus(ENV);
+
+    expect(r).toEqual({ verifies: 1, ajoutes: 0, erreurs: 0 });
+    expect(db.emails_recus).toHaveLength(1);
+  });
+
+  it('ignore une entrée Resend sans message_id (rien à comparer de façon fiable)', async () => {
+    resendListeRecus = [{ id: 'resend-3', from: 'mairie@testville.fr', subject: 'Sans message_id', message_id: null }];
+
+    const r = await synchroniserEmailsRecus(ENV);
+
+    expect(r).toEqual({ verifies: 1, ajoutes: 0, erreurs: 0 });
+    expect(db.emails_recus).toHaveLength(0);
+  });
+
+  it('sans RESEND_API_KEY, ne fait rien plutôt que d\'échouer', async () => {
+    const r = await synchroniserEmailsRecus({ ...ENV, RESEND_API_KEY: undefined });
+    expect(r).toEqual({ verifies: 0, ajoutes: 0, erreurs: 0 });
   });
 });

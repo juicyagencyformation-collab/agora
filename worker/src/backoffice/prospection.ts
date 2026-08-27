@@ -11,6 +11,7 @@ import { backofficeMiddleware } from '../middleware/backoffice';
 import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire, envoyerModeleGenerique, MODELE_ONBOARDING_RELANCE_J3_DEFAUT } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 import { destinataireCommune } from './onboarding-drip';
+import { synchroniserEmailsRecus } from './emails-recus';
 import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
 import { envoyerEmail } from '../lib/email';
@@ -328,6 +329,14 @@ app.get('/carte', async (c) => {
 // — Boîte de réception des réponses reçues (voir emails-recus.ts, alimentée par le webhook
 // Resend Receiving). Triée par mots-clés côté serveur, aucune IA : à traiter à la main. —
 const CATEGORIES_EMAILS_RECUS = ['verification_antispam', 'fermeture', 'changement_email', 'autre'] as const;
+
+// POST /emails-recus/synchroniser — bouton "🔄 Synchroniser avec Resend" : comble les trous en
+// repartant de la liste faisant autorité de Resend, voir synchroniserEmailsRecus (emails-recus.ts)
+// pour le pourquoi (webhook non déclenché pour certains messages, ex. réponses d'absence).
+app.post('/emails-recus/synchroniser', async (c) => {
+  const r = await synchroniserEmailsRecus(c.env);
+  return c.json({ ok: true, ...r });
+});
 
 app.get('/emails-recus', async (c) => {
   const where: Record<string, string> = {};
