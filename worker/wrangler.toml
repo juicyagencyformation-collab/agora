@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2026-01-01"
 
 [vars]
-R2_PUBLIC_BASE = "https://pub-5c0f5a71b091421086656f471ed44251.r2.dev"
+R2_PUBLIC_BASE = "https://cdn.plateforme-agora.fr"
 FRONTEND_URL = "https://plateforme-agora.fr"
 EMAIL_FROM = "Agora <contact@plateforme-agora.fr>"
 EMAIL_REPLY_TO_PROSPECTION = "prospection@replies.plateforme-agora.fr"
