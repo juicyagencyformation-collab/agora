@@ -1,14 +1,15 @@
 // worker/src/lib/vigilance-meteofrance.ts
-// Synchronisation automatique de la vigilance météo officielle (API Vigilance Météo-France,
-// gratuite avec compte : https://portail-api.meteofrance.fr) vers la table alertes_meteo.
-// No-op silencieux tant que METEOFRANCE_CLIENT_ID/METEOFRANCE_CLIENT_SECRET ne sont pas
-// configurés (wrangler secret put) — la fonctionnalité manuelle (worker/src/routes/alertes_meteo.ts)
-// fonctionne sans ça.
+// Synchronisation automatique de la vigilance météo officielle vers la table alertes_meteo.
 //
-// ⚠️ Le détail exact du JSON retourné par l'API (noms de champs) n'est documenté que dans le
-// Swagger accessible après connexion au portail — non consultable sans compte réel. Le parsing
-// ci-dessous est basé sur la doc publique (produit "textesvigilance", phénomènes numérotés 1-9,
-// couleurs 1=vert à 4=rouge) et devra être vérifié/ajusté au premier vrai appel avec un compte.
+// Source : miroir public Opendatasoft du bulletin de vigilance Météo-France (dataset
+// "weatherref-france-vigilance-meteo-departement"), interrogé en LECTURE ANONYME — aucune
+// inscription, aucune clé, aucun jeton à gérer. Choisi après que le portail officiel
+// (portail-api.meteofrance.fr, inscription + jeton OAuth) a posé problème à l'inscription
+// côté Léandre (2026-08-28) — ce miroir republie les mêmes données officielles sans cette
+// friction. Vérifié en direct avant intégration (champs confirmés, pas une supposition) :
+//   GET https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/
+//       weatherref-france-vigilance-meteo-departement/records?where=domain_id="80"
+//   → { domain_id, phenomenon_id, phenomenon, color_id, color, begin_time, end_time, ... }
 import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseUpsert } from '../db';
 import { deduireDepartement } from './geo';
 
@@ -18,79 +19,66 @@ export const TYPES_VIGILANCE = [
 ] as const;
 export const NIVEAUX_VIGILANCE = ['jaune', 'orange', 'rouge'] as const;
 
-// Numérotation officielle des phénomènes Météo-France (1 à 9) — 9 = vagues-submersion, hors
-// périmètre (littoral/DOM-TOM, pas les petites communes rurales visées par Agora).
-const PHENOMENE_PAR_CODE: Record<string, (typeof TYPES_VIGILANCE)[number]> = {
-  '1': 'vent_violent', '2': 'pluie_inondation', '3': 'orages', '4': 'crues',
-  '5': 'neige_verglas', '6': 'canicule', '7': 'grand_froid', '8': 'avalanches',
+// Numérotation officielle des phénomènes Météo-France (phenomenon_id, 1 à 9) — 9 =
+// vagues-submersion, hors périmètre (littoral/DOM-TOM, pas les petites communes rurales
+// visées par Agora).
+const PHENOMENE_PAR_CODE: Record<number, (typeof TYPES_VIGILANCE)[number]> = {
+  1: 'vent_violent', 2: 'pluie_inondation', 3: 'orages', 4: 'crues',
+  5: 'neige_verglas', 6: 'canicule', 7: 'grand_froid', 8: 'avalanches',
 };
-// 1 = vert (aucune alerte), 2 = jaune, 3 = orange, 4 = rouge.
-const NIVEAU_PAR_COULEUR: Record<string, (typeof NIVEAUX_VIGILANCE)[number] | undefined> = {
-  '2': 'jaune', '3': 'orange', '4': 'rouge',
+// color_id : 1 = vert (aucune alerte), 2 = jaune, 3 = orange, 4 = rouge.
+const NIVEAU_PAR_COULEUR: Record<number, (typeof NIVEAUX_VIGILANCE)[number] | undefined> = {
+  2: 'jaune', 3: 'orange', 4: 'rouge',
 };
 // Le jaune ("soyez attentif") est très fréquent — l'omettre évite un bandeau quasi permanent
 // et réserve l'automatique aux niveaux réellement actionnables. Un jaune reste possible à la
 // main si une mairie veut vraiment le communiquer.
 const NIVEAUX_AUTO_AFFICHES = new Set(['orange', 'rouge']);
 
-async function obtenirTokenMeteoFrance(env: any): Promise<string | null> {
-  if (!env.METEOFRANCE_CLIENT_ID || !env.METEOFRANCE_CLIENT_SECRET) return null;
+const URL_JEU_DE_DONNEES = 'https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/weatherref-france-vigilance-meteo-departement/records';
+
+type RisqueActif = { type: (typeof TYPES_VIGILANCE)[number]; niveau: (typeof NIVEAUX_VIGILANCE)[number] };
+
+// Un département n'a jamais plus de quelques lignes actives à la fois (8 phénomènes max) —
+// limit=20 est une marge large, pas une pagination à gérer.
+async function recupererRisquesDepartement(departement: string): Promise<RisqueActif[]> {
   try {
-    const identifiants = btoa(`${env.METEOFRANCE_CLIENT_ID}:${env.METEOFRANCE_CLIENT_SECRET}`);
-    const res = await fetch('https://portail-api.meteofrance.fr/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${identifiants}` },
-      body: 'grant_type=client_credentials',
-    });
-    if (!res.ok) { console.error('Échec authentification Météo-France :', res.status, await res.text()); return null; }
+    const params = new URLSearchParams({ where: `domain_id="${departement}" and color_id>1`, limit: '20' });
+    const res = await fetch(`${URL_JEU_DE_DONNEES}?${params}`);
+    if (!res.ok) { console.error(`Échec vigilance département ${departement} :`, res.status); return []; }
     const data: any = await res.json();
-    return data.access_token ?? null;
+    const maintenant = Date.now();
+
+    const resultat: RisqueActif[] = [];
+    for (const item of data.results ?? []) {
+      const type = PHENOMENE_PAR_CODE[item.phenomenon_id];
+      const niveau = NIVEAU_PAR_COULEUR[item.color_id];
+      if (!type || !niveau || !NIVEAUX_AUTO_AFFICHES.has(niveau)) continue;
+      // Le jeu de données inclut aussi les échéances à venir (J+1) — on ne garde que ce qui
+      // est actif maintenant, la fenêtre à venir sera reprise au prochain passage du cron.
+      const debut = new Date(item.begin_time).getTime();
+      const fin = new Date(item.end_time).getTime();
+      if (maintenant < debut || maintenant > fin) continue;
+      resultat.push({ type, niveau });
+    }
+    return resultat;
   } catch (e) {
-    console.error('Erreur authentification Météo-France :', e);
-    return null;
+    console.error(`Erreur vigilance département ${departement} :`, e);
+    return [];
   }
 }
 
-async function recupererBulletinDepartement(token: string, departement: string): Promise<any | null> {
-  try {
-    const res = await fetch(
-      `https://public-api.meteofrance.fr/public/DPVigilance/v1/textesvigilance/encours?domain=${encodeURIComponent(departement)}`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
-    );
-    if (!res.ok) { console.error(`Échec bulletin vigilance département ${departement} :`, res.status); return null; }
-    return await res.json();
-  } catch (e) {
-    console.error(`Erreur bulletin vigilance département ${departement} :`, e);
-    return null;
-  }
-}
-
-// Extrait {type, niveau}[] d'un bulletin — isolé dans sa propre fonction pour que le seul
-// endroit à corriger, une fois le vrai format connu, soit ici.
-function extrairePhenomenesActifs(bulletin: any): { type: (typeof TYPES_VIGILANCE)[number]; niveau: string }[] {
-  const items: any[] = bulletin?.product?.text_bloc_items ?? bulletin?.phenomenes ?? [];
-  const resultat: { type: (typeof TYPES_VIGILANCE)[number]; niveau: string }[] = [];
-  for (const item of items) {
-    const type = PHENOMENE_PAR_CODE[String(item.phenomenon_id ?? item.code)];
-    const niveau = NIVEAU_PAR_COULEUR[String(item.phenomenon_max_color_id ?? item.niveau)];
-    if (type && niveau && NIVEAUX_AUTO_AFFICHES.has(niveau)) resultat.push({ type, niveau });
-  }
-  return resultat;
-}
-
-async function appliquerBulletinCommune(env: any, communeId: string, bulletin: any) {
-  const actifs = extrairePhenomenesActifs(bulletin);
-
-  if (actifs.length) {
+async function appliquerRisquesCommune(env: any, communeId: string, risques: RisqueActif[]) {
+  if (risques.length) {
     await supabaseUpsert(
       env, 'alertes_meteo',
-      actifs.map((a) => ({ commune_id: communeId, type: a.type, niveau: a.niveau, origine: 'auto', fin: null })),
+      risques.map((r) => ({ commune_id: communeId, type: r.type, niveau: r.niveau, origine: 'auto', fin: null })),
       'commune_id,type,origine',
     );
   }
 
-  // Referme les alertes auto dont le type n'est plus (ou plus assez fort) dans le bulletin.
-  const typesActifs = new Set(actifs.map((a) => a.type));
+  // Referme les alertes auto dont le type n'est plus (ou plus assez fort) actif.
+  const typesActifs = new Set(risques.map((r) => r.type));
   const enCours = await supabaseSelect(env, 'alertes_meteo', {
     select: 'id,type', commune_id: `eq.${communeId}`, origine: 'eq.auto', fin: 'is.null',
   });
@@ -101,13 +89,11 @@ async function appliquerBulletinCommune(env: any, communeId: string, bulletin: a
   }
 }
 
-// Point d'entrée cron (voir worker/src/cron.ts) — un bulletin récupéré par département, appliqué
-// à toutes les communes de ce département en une fois.
+// Point d'entrée cron (voir worker/src/index.ts, toutes les 6h) — un jeu de risques récupéré
+// par département, appliqué à toutes les communes de ce département en une fois.
 export async function synchroniserVigilanceMeteoFrance(env: any) {
-  const token = await obtenirTokenMeteoFrance(env);
-  if (!token) return; // identifiants pas encore configurés : fonctionnalité auto pas activée
-
   const communes = await supabaseSelectTout(env, 'communes', { select: 'id,departement,lat,lng' });
+  if (!communes.length) return;
 
   // Filet de sécurité pour le stock existant : le département se déduit normalement tout seul
   // dès que les coordonnées d'une commune sont (re)posées (routes/commune.ts,
@@ -127,14 +113,12 @@ export async function synchroniserVigilanceMeteoFrance(env: any) {
   if (!avecDepartement.length) return;
 
   const departements = [...new Set(avecDepartement.map((c: any) => c.departement))];
-  const bulletins = new Map<string, any>();
+  const risquesParDepartement = new Map<string, RisqueActif[]>();
   for (const dep of departements) {
-    const bulletin = await recupererBulletinDepartement(token, dep);
-    if (bulletin) bulletins.set(dep, bulletin);
+    risquesParDepartement.set(dep, await recupererRisquesDepartement(dep));
   }
 
   for (const commune of avecDepartement) {
-    const bulletin = bulletins.get(commune.departement);
-    if (bulletin) await appliquerBulletinCommune(env, commune.id, bulletin);
+    await appliquerRisquesCommune(env, commune.id, risquesParDepartement.get(commune.departement) ?? []);
   }
 }
