@@ -10,6 +10,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseDelete } from '../db';
+import { notifierNouvelleVigilance } from '../lib/notification-meteo';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -64,6 +65,9 @@ app.post('/', async (c) => {
     commune_id, type: data.type, niveau: data.niveau,
     debut: data.debut ?? new Date().toISOString(), fin: data.fin ?? null, origine: 'manuel',
   });
+
+  c.executionCtx.waitUntil(notifierNouvelleVigilance(c.env, commune_id, data.type, data.niveau));
+
   return c.json({ alerte }, 201);
 });
 

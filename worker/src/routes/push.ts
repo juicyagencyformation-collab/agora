@@ -45,7 +45,7 @@ app.get('/preferences', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
   const [user] = await supabaseSelect(c.env, 'users', {
-    select: 'notif_articles,notif_chasses,notif_enigmes,notif_mur,notif_thermo,notif_agenda,notif_entraide,notif_meteo',
+    select: 'notif_articles,notif_chasses,notif_enigmes,notif_mur,notif_thermo,notif_agenda,notif_entraide,notif_meteo,notif_vigilance,notif_signalements',
     commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
   return c.json({
@@ -55,6 +55,7 @@ app.get('/preferences', async (c) => {
       // notif_meteo : opt-in (voir migration 056), pas true par défaut comme les autres —
       // un résumé quotidien garanti est plus intrusif qu'une notification événementielle.
       notif_meteo: false,
+      notif_vigilance: true, notif_signalements: true,
     },
   });
 });
@@ -68,6 +69,8 @@ const preferencesSchema = z.object({
   notif_agenda: z.boolean().optional(),
   notif_entraide: z.boolean().optional(),
   notif_meteo: z.boolean().optional(),
+  notif_vigilance: z.boolean().optional(),
+  notif_signalements: z.boolean().optional(),
 });
 
 app.patch('/preferences', async (c) => {

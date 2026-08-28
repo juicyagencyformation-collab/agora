@@ -7,6 +7,7 @@ import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '
 import { uploaderFichier, deleteObject } from '../storage';
 import { attribuerXp, XP_ACTIONS } from '../lib/gamification';
 import { crediterSignalementResolu } from '../lib/points-citoyens';
+import { envoyerNotificationAUtilisateurs } from '../lib/push';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -122,6 +123,22 @@ app.patch('/:id/reponse', async (c) => {
     reponse_le: reponse ? new Date().toISOString() : null,
   }, { id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}` });
 
+  // Notifie l'auteur qu'une réponse officielle a été publiée (pas d'opt-in requis : c'est une
+  // réponse à son propre contenu, comme une réponse directe, pas un abonnement à un flux).
+  if (reponse) {
+    c.executionCtx.waitUntil((async () => {
+      const [alerte] = await supabaseSelect(c.env, 'alertes', {
+        select: 'user_id,titre', id: `eq.${alerte_id}`, commune_id: `eq.${commune_id}`,
+      });
+      if (alerte && alerte.user_id !== user_id) {
+        await envoyerNotificationAUtilisateurs(
+          c.env, commune_id, [alerte.user_id],
+          '🏛️ La mairie a répondu', alerte.titre, '/index.html?onglet=alertes',
+        );
+      }
+    })());
+  }
+
   return c.json({ ok: true });
 });
 
@@ -146,6 +163,21 @@ app.post('/', async (c) => {
   }
 
   const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.signaler_alerte);
+
+  // Notifie les gestionnaires (jamais l'auteur, même si lui-même gestionnaire) — en arrière-
+  // plan, un envoi raté ne doit jamais faire échouer la création du signalement.
+  c.executionCtx.waitUntil((async () => {
+    const gestionnaires = await supabaseSelect(c.env, 'users', {
+      select: 'id', commune_id: `eq.${commune_id}`,
+      role: 'in.(admin,elu,maire,superadmin)', notif_signalements: 'eq.true',
+    });
+    const ids = gestionnaires.map((g: any) => g.id).filter((id: string) => id !== user_id);
+    await envoyerNotificationAUtilisateurs(
+      c.env, commune_id, ids,
+      data.urgent ? '🚨 Signalement urgent' : '🔔 Nouveau signalement',
+      data.titre, '/index.html?onglet=alertes',
+    );
+  })());
 
   return c.json({ alerte_id: alerte.id, ...resultatXp }, 201);
 });

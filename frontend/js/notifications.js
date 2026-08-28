@@ -321,8 +321,13 @@ async function initReglagesNotificationsProfil() {
 
   const res = await appelApi(`/${window.COMMUNE_SLUG}/push/preferences`);
   const { preferences } = res.ok ? await res.json() : {
-    preferences: { notif_articles: true, notif_chasses: true, notif_enigmes: true, notif_mur: true, notif_thermo: true, notif_agenda: true, notif_entraide: true, notif_meteo: false },
+    preferences: {
+      notif_articles: true, notif_chasses: true, notif_enigmes: true, notif_mur: true,
+      notif_thermo: true, notif_agenda: true, notif_entraide: true, notif_meteo: false,
+      notif_vigilance: true, notif_signalements: true,
+    },
   };
+  const estGestionnaireProfil = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 
   zone.innerHTML = `
     ${abonnementReel
@@ -352,6 +357,13 @@ async function initReglagesNotificationsProfil() {
     <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
       <input type="checkbox" id="pref-notif-meteo" style="width:auto;margin:0;" ${preferences.notif_meteo ? 'checked' : ''}> 🌦️ Résumé météo chaque matin
     </label>
+    <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
+      <input type="checkbox" id="pref-notif-vigilance" style="width:auto;margin:0;" ${preferences.notif_vigilance ? 'checked' : ''}> ⚠️ Vigilance météo (dès qu'une alerte se déclenche)
+    </label>
+    ${estGestionnaireProfil ? `
+    <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
+      <input type="checkbox" id="pref-notif-signalements" style="width:auto;margin:0;" ${preferences.notif_signalements ? 'checked' : ''}> 🔔 Nouveaux signalements citoyens
+    </label>` : ''}
   `;
 
   zone.querySelector('#btn-activer-notifs-profil')?.addEventListener('click', async () => {
@@ -359,7 +371,9 @@ async function initReglagesNotificationsProfil() {
     if (ok) { afficherToastMessage('Notifications activées ! 🔔', 'succes'); initReglagesNotificationsProfil(); }
   });
 
-  ['articles', 'chasses', 'enigmes', 'mur', 'thermo', 'agenda', 'entraide', 'meteo'].forEach((cle) => {
+  const clesPreferences = ['articles', 'chasses', 'enigmes', 'mur', 'thermo', 'agenda', 'entraide', 'meteo', 'vigilance'];
+  if (estGestionnaireProfil) clesPreferences.push('signalements');
+  clesPreferences.forEach((cle) => {
     zone.querySelector(`#pref-notif-${cle}`).addEventListener('change', async (e) => {
       await appelApi(`/${window.COMMUNE_SLUG}/push/preferences`, {
         method: 'PATCH',

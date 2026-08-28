@@ -15,11 +15,29 @@ const LABELS_METEO: Record<number, string> = {
   95: 'Orage ⛈️', 96: 'Orage avec grêle ⛈️', 99: 'Orage violent ⛈️',
 };
 
-const LABELS_TYPE_VIGILANCE: Record<string, string> = {
+export const LABELS_TYPE_VIGILANCE: Record<string, string> = {
   vent_violent: 'vent violent', pluie_inondation: 'pluie-inondation', orages: 'orages',
   crues: 'crues', neige_verglas: 'neige-verglas', canicule: 'canicule',
   grand_froid: 'grand froid', avalanches: 'avalanches',
 };
+
+// Notification immédiate au déclenchement d'une vigilance orange/rouge — ne pas attendre le
+// résumé du lendemain matin pour une info potentiellement urgente. Appelée à la fois par la
+// création manuelle (routes/alertes_meteo.ts) et par la synchro auto, mais seulement pour un
+// risque qui vient de s'activer (pas à chaque passage du cron tant qu'il reste actif — voir
+// l'appelant). Préférence SÉPARÉE de notif_meteo (le digest quotidien) : rare et important,
+// donc opt-out (true par défaut) plutôt qu'opt-in — quelqu'un peut vouloir être alerté d'une
+// vigilance sans pour autant recevoir un bulletin météo tous les matins.
+export async function notifierNouvelleVigilance(env: any, communeId: string, type: string, niveau: string) {
+  const userIds = await utilisateursAbonnesA(env, communeId, 'notif_vigilance');
+  if (!userIds.length) return;
+  await envoyerNotificationAUtilisateurs(
+    env, communeId, userIds,
+    `⚠️ Vigilance ${niveau} — ${LABELS_TYPE_VIGILANCE[type] ?? type}`,
+    'Consultez les détails et les horaires dans l\'application.',
+    '/index.html?onglet=accueil',
+  );
+}
 
 async function resumeMeteoDuJour(lat: number, lng: number): Promise<string | null> {
   try {

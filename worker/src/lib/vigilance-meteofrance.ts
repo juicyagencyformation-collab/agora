@@ -12,6 +12,7 @@
 //   → { domain_id, phenomenon_id, phenomenon, color_id, color, begin_time, end_time, ... }
 import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseUpsert } from '../db';
 import { deduireDepartement } from './geo';
+import { notifierNouvelleVigilance } from './notification-meteo';
 
 export const TYPES_VIGILANCE = [
   'vent_violent', 'pluie_inondation', 'orages', 'crues',
@@ -69,6 +70,15 @@ async function recupererRisquesDepartement(departement: string): Promise<RisqueA
 }
 
 async function appliquerRisquesCommune(env: any, communeId: string, risques: RisqueActif[]) {
+  // Interrogé AVANT l'upsert : sert à la fois à détecter les risques qui viennent de s'activer
+  // (pour ne notifier qu'une fois, pas à chaque passage du cron tant que ça reste actif) et
+  // ceux qui ne le sont plus (pour les refermer, voir plus bas).
+  const enCoursAvant = await supabaseSelect(env, 'alertes_meteo', {
+    select: 'id,type', commune_id: `eq.${communeId}`, origine: 'eq.auto', fin: 'is.null',
+  });
+  const typesDejaActifs = new Set(enCoursAvant.map((l: any) => l.type));
+  const nouveaux = risques.filter((r) => !typesDejaActifs.has(r.type));
+
   if (risques.length) {
     await supabaseUpsert(
       env, 'alertes_meteo',
@@ -79,13 +89,14 @@ async function appliquerRisquesCommune(env: any, communeId: string, risques: Ris
 
   // Referme les alertes auto dont le type n'est plus (ou plus assez fort) actif.
   const typesActifs = new Set(risques.map((r) => r.type));
-  const enCours = await supabaseSelect(env, 'alertes_meteo', {
-    select: 'id,type', commune_id: `eq.${communeId}`, origine: 'eq.auto', fin: 'is.null',
-  });
-  for (const ligne of enCours) {
+  for (const ligne of enCoursAvant) {
     if (!typesActifs.has(ligne.type)) {
       await supabaseUpdate(env, 'alertes_meteo', { fin: new Date().toISOString() }, { id: `eq.${ligne.id}` });
     }
+  }
+
+  for (const r of nouveaux) {
+    await notifierNouvelleVigilance(env, communeId, r.type, r.niveau);
   }
 }
 
