@@ -321,7 +321,7 @@ async function initReglagesNotificationsProfil() {
 
   const res = await appelApi(`/${window.COMMUNE_SLUG}/push/preferences`);
   const { preferences } = res.ok ? await res.json() : {
-    preferences: { notif_articles: true, notif_chasses: true, notif_enigmes: true, notif_mur: true, notif_thermo: true, notif_agenda: true, notif_entraide: true },
+    preferences: { notif_articles: true, notif_chasses: true, notif_enigmes: true, notif_mur: true, notif_thermo: true, notif_agenda: true, notif_entraide: true, notif_meteo: false },
   };
 
   zone.innerHTML = `
@@ -349,6 +349,9 @@ async function initReglagesNotificationsProfil() {
     <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
       <input type="checkbox" id="pref-notif-entraide" style="width:auto;margin:0;" ${preferences.notif_entraide ? 'checked' : ''}> 🤲 Entraide (offres/demandes)
     </label>
+    <label style="display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13.5px;">
+      <input type="checkbox" id="pref-notif-meteo" style="width:auto;margin:0;" ${preferences.notif_meteo ? 'checked' : ''}> 🌦️ Résumé météo chaque matin
+    </label>
   `;
 
   zone.querySelector('#btn-activer-notifs-profil')?.addEventListener('click', async () => {
@@ -356,7 +359,7 @@ async function initReglagesNotificationsProfil() {
     if (ok) { afficherToastMessage('Notifications activées ! 🔔', 'succes'); initReglagesNotificationsProfil(); }
   });
 
-  ['articles', 'chasses', 'enigmes', 'mur', 'thermo', 'agenda', 'entraide'].forEach((cle) => {
+  ['articles', 'chasses', 'enigmes', 'mur', 'thermo', 'agenda', 'entraide', 'meteo'].forEach((cle) => {
     zone.querySelector(`#pref-notif-${cle}`).addEventListener('change', async (e) => {
       await appelApi(`/${window.COMMUNE_SLUG}/push/preferences`, {
         method: 'PATCH',
