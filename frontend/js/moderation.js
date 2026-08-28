@@ -14,11 +14,10 @@ const LABELS_DECHET_MOD = {
 
 const LABELS_JOUR = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' };
 
-const LABELS_TYPE_VIGILANCE = {
-  vent_violent: 'Vent violent', pluie_inondation: 'Pluie-inondation', orages: 'Orages',
-  crues: 'Crues', neige_verglas: 'Neige-verglas', canicule: 'Canicule',
-  grand_froid: 'Grand froid', avalanches: 'Avalanches',
-};
+// LABELS_TYPE_VIGILANCE est déclaré dans dashboard.js (chargé avant ce fichier, voir
+// index.html) — réutilisé tel quel ici, pas de redéclaration (ça casserait tout le fichier :
+// une const déjà déclarée dans un autre <script> classique du même document est une
+// SyntaxError fatale, pas juste un écrasement silencieux).
 
 // ── Vue d'ensemble de la commune, en tête de l'onglet Modération ──
 
