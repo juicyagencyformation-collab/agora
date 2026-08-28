@@ -163,9 +163,10 @@ export default {
       await synchroniserEmailsRecusProspection(env);
     } else if (event.cron === '0 */6 * * *') {
       await synchroniserToutesLesLois(env);
-      await synchroniserVigilanceMeteoFrance(env);
     } else if (event.cron === '0 6 * * *') {
       await envoyerResumeMeteoMatinal(env);
+    } else if (event.cron === '0 * * * *') {
+      await synchroniserVigilanceMeteoFrance(env);
     } else {
       await nettoyerCoupsDeMainExpires(env);
     }
