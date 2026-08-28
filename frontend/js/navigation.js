@@ -207,6 +207,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initVoletRgpd();
   initVoletRegional();
   initVoletSyncLois();
+  initVoletVigilanceMeteo();
   initVoletsGeneriquesModeration();
   initFormulaireInfosMairie();
   initFormulaireBadgeCitoyen();

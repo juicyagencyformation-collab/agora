@@ -14,6 +14,12 @@ const LABELS_DECHET_MOD = {
 
 const LABELS_JOUR = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' };
 
+const LABELS_TYPE_VIGILANCE = {
+  vent_violent: 'Vent violent', pluie_inondation: 'Pluie-inondation', orages: 'Orages',
+  crues: 'Crues', neige_verglas: 'Neige-verglas', canicule: 'Canicule',
+  grand_froid: 'Grand froid', avalanches: 'Avalanches',
+};
+
 // ── Vue d'ensemble de la commune, en tête de l'onglet Modération ──
 
 async function chargerStatsModeration() {
@@ -136,6 +142,7 @@ async function chargerPanneauModeration() {
   chargerReglageContactRgpd();
   chargerReglagePartageRegional();
   chargerBadgesCitoyensModeration();
+  chargerReglageVigilanceMeteo();
 }
 
 // Infos mairie (horaires, permanences, tél, email) — configurables par les élus/maire, affichées
@@ -405,6 +412,95 @@ function initVoletCouleurs() {
       alert('Couleurs mises à jour pour tout le monde.');
     } else {
       alert('Erreur lors de la mise à jour.');
+    }
+  });
+}
+
+// ── Vigilance météo : département (synchro auto) + alertes manuelles ──
+
+async function chargerReglageVigilanceMeteo() {
+  const input = document.getElementById('departement-vigilance-input');
+  if (!input) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`);
+  if (res.ok) {
+    const { commune } = await res.json();
+    input.value = commune.departement || '';
+  }
+  chargerListeAlertesMeteoAdmin();
+}
+
+async function chargerListeAlertesMeteoAdmin() {
+  const zone = document.getElementById('liste-alertes-meteo-admin');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes-meteo`);
+  if (!res.ok) return;
+  const { alertes } = await res.json();
+
+  if (!alertes.length) {
+    zone.innerHTML = `<p class="dechets-vide">Aucune alerte active.</p>`;
+    return;
+  }
+
+  zone.innerHTML = alertes.map((a) => `
+    <div class="ligne-toggle-onglet" data-id="${a.id}">
+      <span>
+        <span class="badge-niveau-vigilance badge-niveau-${a.niveau}">${a.niveau}</span>
+        ${LABELS_TYPE_VIGILANCE[a.type] ?? a.type}
+        <span style="font-size:11px;color:var(--roseau);">${a.origine === 'auto' ? '· Météo-France' : '· ajoutée par la mairie'}</span>
+      </span>
+      ${a.origine === 'manuel' ? `<button type="button" class="btn-fermer-alerte-meteo" data-id="${a.id}" style="background:transparent;border:1.5px solid var(--eauL);color:var(--roseau);font-size:11px;padding:4px 10px;">Fermer</button>` : ''}
+    </div>
+  `).join('');
+
+  zone.querySelectorAll('.btn-fermer-alerte-meteo').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const rep = await appelApi(`/${window.COMMUNE_SLUG}/alertes-meteo/${btn.dataset.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fin: new Date().toISOString() }),
+      });
+      if (rep.ok) chargerListeAlertesMeteoAdmin();
+      else afficherToastMessage('Erreur lors de la fermeture.', 'erreur');
+    });
+  });
+}
+
+function initVoletVigilanceMeteo() {
+  const toggle = document.getElementById('toggle-volet-vigilance');
+  const volet = document.getElementById('volet-vigilance-contenu');
+  if (!toggle || !volet) return;
+
+  toggle.addEventListener('click', () => {
+    const ouvert = volet.classList.toggle('ouvert');
+    toggle.querySelector('.chevron').textContent = ouvert ? '▲' : '▼';
+  });
+
+  document.getElementById('form-departement-vigilance').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const departement = document.getElementById('departement-vigilance-input').value.trim();
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ departement }),
+    });
+    if (res.ok) afficherToastMessage('Département enregistré.', 'succes');
+    else { const d = await res.json().catch(() => ({})); afficherToastMessage(typeof d.erreur === 'string' ? d.erreur : 'Code département invalide (ex. 80).', 'erreur'); }
+  });
+
+  document.getElementById('form-alerte-meteo').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = document.getElementById('type-alerte-meteo-input').value;
+    const niveau = document.getElementById('niveau-alerte-meteo-input').value;
+    const finValeur = document.getElementById('fin-alerte-meteo-input').value;
+
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes-meteo`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, niveau, fin: finValeur ? new Date(finValeur).toISOString() : null }),
+    });
+    if (res.ok) {
+      afficherToastMessage('Alerte publiée.', 'succes');
+      document.getElementById('fin-alerte-meteo-input').value = '';
+      chargerListeAlertesMeteoAdmin();
+    } else {
+      afficherToastMessage('Erreur lors de la publication.', 'erreur');
     }
   });
 }

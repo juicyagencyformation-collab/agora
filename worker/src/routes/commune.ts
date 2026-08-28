@@ -12,7 +12,7 @@ const app = new Hono();
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id_resolue') ?? c.get('commune_id');
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date,horaires_ouverture,permanences,telephone_mairie,email_mairie',
+    select: 'id,slug,nom,population,departement,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date,horaires_ouverture,permanences,telephone_mairie,email_mairie',
     id: `eq.${commune_id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -39,6 +39,9 @@ app.patch('/', jwtMiddleware, async (c) => {
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
     nom: z.string().min(1).max(120).optional(),
+    // Code département (ex. "80", "2A") — sert uniquement à cibler le bon bulletin de
+    // vigilance météo lors de la synchro automatique (lib/vigilance-meteofrance.ts).
+    departement: z.string().trim().regex(/^[0-9][0-9AB]$|^97[1-6]$/i).optional(),
     couleur_theme: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
     couleur_accent: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
     photo_jour_seuil_validations: z.number().int().min(1).max(30).optional(),

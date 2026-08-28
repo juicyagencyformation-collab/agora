@@ -24,6 +24,16 @@ const CODES_METEO = {
   99: { label: 'Orage violent', icone: '⛈️' },
 };
 
+const LABELS_TYPE_VIGILANCE = {
+  vent_violent: 'Vent violent', pluie_inondation: 'Pluie-inondation', orages: 'Orages',
+  crues: 'Crues', neige_verglas: 'Neige-verglas', canicule: 'Canicule',
+  grand_froid: 'Grand froid', avalanches: 'Avalanches',
+};
+const ICONES_TYPE_VIGILANCE = {
+  vent_violent: '💨', pluie_inondation: '🌊', orages: '⛈️', crues: '🌊',
+  neige_verglas: '❄️', canicule: '🥵', grand_froid: '🥶', avalanches: '🏔️',
+};
+
 const LABELS_DECHET = {
   ordures_menageres: 'Ordures ménagères',
   tri_selectif: 'Tri sélectif',
@@ -43,6 +53,7 @@ async function chargerDashboard() {
   if (resumes) resumes.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
 
   afficherSalut();
+  chargerAlertesMeteoAccueil();
   initActionsRapidesAccueil();
   chargerChecklistOnboarding();
   chargerCielJour();
@@ -54,6 +65,37 @@ async function chargerDashboard() {
   chargerDernierPv();
   chargerProchainConseil();
   chargerInfosMairie();
+}
+
+// Vigilance météo (vent violent, orages, canicule...) — tout premier bloc de l'accueil, avant
+// même la salutation : une alerte de sécurité prime sur tout le reste. Posée à la main en
+// Modération, ou automatiquement par la synchro Météo-France (worker/src/lib/vigilance-
+// meteofrance.ts). Plusieurs alertes actives s'empilent proprement.
+async function chargerAlertesMeteoAccueil() {
+  const zone = document.getElementById('banniere-vigilance-meteo');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes-meteo`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { alertes } = await res.json();
+  if (!alertes.length) { zone.innerHTML = ''; return; }
+
+  zone.innerHTML = alertes.map((a) => `
+    <div class="carte-vigilance-meteo carte-vigilance-meteo--${a.niveau}">
+      <span class="vigilance-meteo-icone">${ICONES_TYPE_VIGILANCE[a.type] ?? '⚠️'}</span>
+      <div class="vigilance-meteo-texte">
+        <strong>Vigilance ${a.niveau} — ${LABELS_TYPE_VIGILANCE[a.type] ?? a.type}</strong>
+        <div class="vigilance-meteo-horaires">${formatPeriodeVigilance(a.debut, a.fin)}</div>
+        <div class="vigilance-meteo-source">${a.origine === 'auto' ? 'Source : Météo-France' : 'Ajoutée par la mairie'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function formatPeriodeVigilance(debut, fin) {
+  const opts = { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+  const d = new Date(debut).toLocaleString('fr-FR', opts);
+  if (!fin) return `Depuis le ${d}`;
+  return `Du ${d} au ${new Date(fin).toLocaleString('fr-FR', opts)}`;
 }
 
 // Infos pratiques de la mairie, tout en bas de l'accueil (configurées en Modération par les

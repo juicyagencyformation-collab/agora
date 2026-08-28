@@ -5,11 +5,13 @@ import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
 import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection } from './cron';
+import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 
 import auth from './auth';
 import commune from './routes/commune';
 import actus from './routes/actus';
 import alertes from './routes/alertes';
+import alertesMeteo from './routes/alertes_meteo';
 import sondages from './routes/sondages';
 import mur from './routes/mur';
 import agenda from './routes/agenda';
@@ -73,6 +75,7 @@ app.route('/:slug/actus', actus);
 
 app.use('/:slug/alertes/*', jwtMiddleware, requireOngletActif('alertes'));
 app.route('/:slug/alertes', alertes);
+app.route('/:slug/alertes-meteo', alertesMeteo);
 
 app.use('/:slug/sondages/*', jwtMiddleware, requireOngletActif('thermometre'));
 app.route('/:slug/sondages', sondages);
@@ -159,6 +162,7 @@ export default {
       await synchroniserEmailsRecusProspection(env);
     } else if (event.cron === '0 */6 * * *') {
       await synchroniserToutesLesLois(env);
+      await synchroniserVigilanceMeteoFrance(env);
     } else {
       await nettoyerCoupsDeMainExpires(env);
     }

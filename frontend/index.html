@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Agora</title>
-  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260826-1" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260826-2" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20260826-1">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20260826-1">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20260826-1">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20260826-1">
+  <link rel="stylesheet" href="/css/base.css?v=20260826-2">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20260826-2">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20260826-2">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20260826-2">
 </head>
 <body>
 
@@ -44,6 +44,8 @@
 
   <main>
     <section id="onglet-accueil" class="onglet-contenu">
+      <div id="banniere-vigilance-meteo"></div>
+
       <p id="salut-utilisateur" class="salut-utilisateur"></p>
 
       <div id="actions-rapides-accueil"></div>
@@ -487,6 +489,53 @@
       </div>
 
       <div class="volet-reglage">
+        <button type="button" id="toggle-volet-vigilance" class="volet-entete">
+          <span>🌦️ Vigilance météo</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div id="volet-vigilance-contenu" class="volet-contenu">
+          <p style="font-size:12.5px;color:var(--roseau);margin:0 0 12px;">
+            Bandeau affiché sur l'accueil en cas de risque météo. Peut être posé à la main
+            ci-dessous, ou automatiquement si le département est renseigné (bulletin officiel
+            Météo-France) — les deux peuvent coexister.
+          </p>
+
+          <form id="form-departement-vigilance">
+            <label style="font-size:13px;color:var(--roseau);">Département (pour la synchro automatique, optionnel)</label>
+            <input type="text" id="departement-vigilance-input" placeholder="ex. 80" maxlength="3" style="max-width:120px;">
+            <button type="submit">Enregistrer</button>
+          </form>
+
+          <h4 style="margin:18px 0 8px;font-size:13.5px;">Alertes actives</h4>
+          <div id="liste-alertes-meteo-admin"></div>
+
+          <h4 style="margin:18px 0 8px;font-size:13.5px;">Ajouter une alerte manuelle</h4>
+          <form id="form-alerte-meteo">
+            <label style="font-size:13px;color:var(--roseau);">Type de risque</label>
+            <select id="type-alerte-meteo-input">
+              <option value="vent_violent">Vent violent</option>
+              <option value="pluie_inondation">Pluie-inondation</option>
+              <option value="orages">Orages</option>
+              <option value="crues">Crues</option>
+              <option value="neige_verglas">Neige-verglas</option>
+              <option value="canicule">Canicule</option>
+              <option value="grand_froid">Grand froid</option>
+              <option value="avalanches">Avalanches</option>
+            </select>
+            <label style="font-size:13px;color:var(--roseau);">Niveau</label>
+            <select id="niveau-alerte-meteo-input">
+              <option value="jaune">Jaune</option>
+              <option value="orange" selected>Orange</option>
+              <option value="rouge">Rouge</option>
+            </select>
+            <label style="font-size:13px;color:var(--roseau);">Fin (optionnel — sinon à fermer manuellement)</label>
+            <input type="datetime-local" id="fin-alerte-meteo-input">
+            <button type="submit">Publier l'alerte</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="volet-reglage">
         <button type="button" id="toggle-volet-mur" class="volet-entete">
           <span>💬 Réglage — Mur des voisins</span>
           <span class="chevron">▼</span>
@@ -627,31 +676,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20260826-1"></script>
-  <script src="/js/config.js?v=20260826-1"></script>
-  <script src="/js/utils.js?v=20260826-1"></script>
-  <script src="/js/api.js?v=20260826-1"></script>
-  <script src="/js/editeur-riche.js?v=20260826-1"></script>
-  <script src="/js/dashboard.js?v=20260826-1"></script>
-  <script src="/js/articles.js?v=20260826-1"></script>
-  <script src="/js/alertes.js?v=20260826-1"></script>
-  <script src="/js/thermometre.js?v=20260826-1"></script>
-  <script src="/js/mur.js?v=20260826-1"></script>
-  <script src="/js/agenda.js?v=20260826-1"></script>
-  <script src="/js/coups-de-main.js?v=20260826-1"></script>
-  <script src="/js/coups-de-main-form.js?v=20260826-1"></script>
-  <script src="/js/chasse-tresor.js?v=20260826-1"></script>
-  <script src="/js/conseil.js?v=20260826-1"></script>
-  <script src="/js/annuaire.js?v=20260826-1"></script>
-  <script src="/js/bulletin.js?v=20260826-1"></script>
-  <script src="/js/photo-du-jour.js?v=20260826-1"></script>
-  <script src="/js/memoire.js?v=20260826-1"></script>
-  <script src="/js/enigmes.js?v=20260826-1"></script>
-  <script src="/js/profil.js?v=20260826-1"></script>
-  <script src="/js/notifications.js?v=20260826-1"></script>
-  <script src="/js/lois.js?v=20260826-1"></script>
-  <script src="/js/moderation.js?v=20260826-1"></script>
-  <script src="/js/participation-citoyenne.js?v=20260826-1"></script>
-  <script src="/js/navigation.js?v=20260826-1"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20260826-2"></script>
+  <script src="/js/config.js?v=20260826-2"></script>
+  <script src="/js/utils.js?v=20260826-2"></script>
+  <script src="/js/api.js?v=20260826-2"></script>
+  <script src="/js/editeur-riche.js?v=20260826-2"></script>
+  <script src="/js/dashboard.js?v=20260826-2"></script>
+  <script src="/js/articles.js?v=20260826-2"></script>
+  <script src="/js/alertes.js?v=20260826-2"></script>
+  <script src="/js/thermometre.js?v=20260826-2"></script>
+  <script src="/js/mur.js?v=20260826-2"></script>
+  <script src="/js/agenda.js?v=20260826-2"></script>
+  <script src="/js/coups-de-main.js?v=20260826-2"></script>
+  <script src="/js/coups-de-main-form.js?v=20260826-2"></script>
+  <script src="/js/chasse-tresor.js?v=20260826-2"></script>
+  <script src="/js/conseil.js?v=20260826-2"></script>
+  <script src="/js/annuaire.js?v=20260826-2"></script>
+  <script src="/js/bulletin.js?v=20260826-2"></script>
+  <script src="/js/photo-du-jour.js?v=20260826-2"></script>
+  <script src="/js/memoire.js?v=20260826-2"></script>
+  <script src="/js/enigmes.js?v=20260826-2"></script>
+  <script src="/js/profil.js?v=20260826-2"></script>
+  <script src="/js/notifications.js?v=20260826-2"></script>
+  <script src="/js/lois.js?v=20260826-2"></script>
+  <script src="/js/moderation.js?v=20260826-2"></script>
+  <script src="/js/participation-citoyenne.js?v=20260826-2"></script>
+  <script src="/js/navigation.js?v=20260826-2"></script>
 </body>
 </html>

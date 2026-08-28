@@ -883,6 +883,17 @@ h1, h2, h3, h4, p, span, a, button {
 .badge-statut-en_cours { background: rgba(226,201,126,.3); color: #8B6A2A; }
 .badge-statut-resolue { background: rgba(92,122,78,.16); color: var(--prairie); }
 
+/* Niveaux de vigilance météo — échelle officielle jaune/orange/rouge, à ne jamais confondre
+   avec les couleurs de statut des signalements ci-dessus (le vert n'existe pas ici : seuls
+   les niveaux actionnables orange/rouge remontent automatiquement, voir alertes_meteo.ts). */
+.badge-niveau-vigilance {
+  display: inline-block; font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+  text-transform: uppercase; letter-spacing: .02em;
+}
+.badge-niveau-jaune { background: rgba(226,201,126,.3); color: #8B6A2A; }
+.badge-niveau-orange { background: rgba(230,126,34,.16); color: #B9591A; }
+.badge-niveau-rouge { background: rgba(192,57,43,.14); color: var(--rouge); }
+
 .reponse-mairie {
   background: var(--eauXL); border-left: 3px solid var(--eau); border-radius: 10px;
   padding: 10px 12px; margin: 12px 0;
@@ -1048,6 +1059,27 @@ h1, h2, h3, h4, p, span, a, button {
 @keyframes pulse-dechets {
   0%, 100% { box-shadow: 0 0 0 0 rgba(226,201,126,.4); }
   50% { box-shadow: 0 0 0 6px rgba(226,201,126,0); }
+}
+
+/* Vigilance météo — tout premier bloc de l'accueil (voir chargerAlertesMeteoAccueil).
+   Plus imposante que l'alerte déchets : c'est une info de sécurité, pas un rappel pratique. */
+.carte-vigilance-meteo {
+  display: flex; align-items: flex-start; gap: 12px;
+  border-radius: var(--r); padding: 14px; margin-bottom: 10px; border-left-width: 5px; border-left-style: solid;
+}
+.carte-vigilance-meteo--jaune { background: linear-gradient(135deg, #FFF8E6, #FFF0C4); border-left-color: var(--aube); }
+.carte-vigilance-meteo--orange { background: linear-gradient(135deg, #FFEEDD, #FFD9B0); border-left-color: #E67E22; }
+.carte-vigilance-meteo--rouge {
+  background: linear-gradient(135deg, #FDE7E4, #FBCFC9); border-left-color: var(--rouge);
+  animation: pulse-vigilance-rouge 2.2s ease-in-out infinite;
+}
+.vigilance-meteo-icone { font-size: 26px; line-height: 1; flex-shrink: 0; }
+.vigilance-meteo-texte strong { display: block; font-size: 14.5px; color: var(--boue); text-transform: capitalize; }
+.vigilance-meteo-horaires { font-size: 12px; color: var(--roseau); margin-top: 2px; }
+.vigilance-meteo-source { font-size: 10.5px; color: var(--roseau); opacity: .8; margin-top: 3px; font-family: 'DM Mono', monospace; }
+@keyframes pulse-vigilance-rouge {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,.35); }
+  50% { box-shadow: 0 0 0 7px rgba(192,57,43,0); }
 }
 
 /* Puce-icône ronde réutilisée sur les cartes d'info (prochain conseil, dernier PV...) :
