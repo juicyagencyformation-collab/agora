@@ -249,15 +249,24 @@ app.post('/communes/:id/coordonnees', async (c) => {
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
   let centre: any = null;
+  let departement: string | null = null;
   const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'code_insee', commune_id: `eq.${id}` });
   if (prospect?.code_insee) {
-    const res = await fetch(`https://geo.api.gouv.fr/communes/${prospect.code_insee}?fields=centre&format=json`);
-    if (res.ok) centre = ((await res.json()) as any)?.centre;
+    const res = await fetch(`https://geo.api.gouv.fr/communes/${prospect.code_insee}?fields=centre,departement&format=json`);
+    if (res.ok) {
+      const data: any = await res.json();
+      centre = data?.centre;
+      departement = data?.departement?.code ?? null;
+    }
   }
   if (!centre) {
     // Repli : recherche par nom, on prend la commune la plus peuplée qui correspond.
-    const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(commune.nom)}&fields=centre&boost=population&limit=1`);
-    if (res.ok) centre = ((await res.json()) as any)?.[0]?.centre;
+    const res = await fetch(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(commune.nom)}&fields=centre,departement&boost=population&limit=1`);
+    if (res.ok) {
+      const data: any = (await res.json())?.[0];
+      centre = data?.centre;
+      departement = data?.departement?.code ?? null;
+    }
   }
 
   const coords = centre?.coordinates; // [lng, lat]
@@ -265,8 +274,9 @@ app.post('/communes/:id/coordonnees', async (c) => {
     return c.json({ erreur: 'Coordonnées introuvables pour cette commune.' }, 404);
   }
   const [lng, lat] = coords;
-  await supabaseUpdate(c.env, 'communes', { lat, lng }, { id: `eq.${id}` });
-  return c.json({ ok: true, lat, lng });
+  // departement : utile pour cibler le bon bulletin de vigilance météo (lib/vigilance-meteofrance.ts).
+  await supabaseUpdate(c.env, 'communes', { lat, lng, ...(departement ? { departement } : {}) }, { id: `eq.${id}` });
+  return c.json({ ok: true, lat, lng, departement });
 });
 
 // POST /communes/:id/renvoyer-acces — régénère un mot de passe temporaire pour le maire de la

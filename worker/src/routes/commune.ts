@@ -6,6 +6,7 @@ import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseUpdate } from '../db';
 import { uploaderFichier } from '../storage';
 import { genererQrSvgUrl } from '../lib/qr-url';
+import { deduireDepartement } from '../lib/geo';
 
 const app = new Hono();
 
@@ -58,7 +59,23 @@ app.patch('/', jwtMiddleware, async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
 
-  await supabaseUpdate(c.env, 'communes', body.data, { id: `eq.${commune_id}` });
+  const patch: Record<string, unknown> = { ...body.data };
+
+  // Département déduit automatiquement des coordonnées (pour la synchro vigilance météo) —
+  // seulement si les coordonnées changent ET que l'appelant n'a pas lui-même fourni de
+  // département (un envoi explicite reste une correction manuelle prioritaire, ex. commune
+  // à cheval sur deux départements que l'API situerait mal).
+  if ((body.data.lat !== undefined || body.data.lng !== undefined) && body.data.departement === undefined) {
+    const [actuelle] = await supabaseSelect(c.env, 'communes', { select: 'lat,lng', id: `eq.${commune_id}` });
+    const lat = body.data.lat ?? actuelle?.lat;
+    const lng = body.data.lng ?? actuelle?.lng;
+    if (lat != null && lng != null) {
+      const departementDeduit = await deduireDepartement(lat, lng);
+      if (departementDeduit) patch.departement = departementDeduit;
+    }
+  }
+
+  await supabaseUpdate(c.env, 'communes', patch, { id: `eq.${commune_id}` });
   return c.json({ ok: true });
 });
 

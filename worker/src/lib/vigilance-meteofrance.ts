@@ -10,6 +10,7 @@
 // ci-dessous est basé sur la doc publique (produit "textesvigilance", phénomènes numérotés 1-9,
 // couleurs 1=vert à 4=rouge) et devra être vérifié/ajusté au premier vrai appel avec un compte.
 import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseUpsert } from '../db';
+import { deduireDepartement } from './geo';
 
 export const TYPES_VIGILANCE = [
   'vent_violent', 'pluie_inondation', 'orages', 'crues',
@@ -106,17 +107,33 @@ export async function synchroniserVigilanceMeteoFrance(env: any) {
   const token = await obtenirTokenMeteoFrance(env);
   if (!token) return; // identifiants pas encore configurés : fonctionnalité auto pas activée
 
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,departement', departement: 'not.is.null' });
-  if (!communes.length) return;
+  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,departement,lat,lng' });
 
-  const departements = [...new Set(communes.map((c: any) => c.departement))];
+  // Filet de sécurité pour le stock existant : le département se déduit normalement tout seul
+  // dès que les coordonnées d'une commune sont (re)posées (routes/commune.ts,
+  // backoffice/administration.ts) — ceci couvre les communes dont les coordonnées existaient
+  // déjà avant l'ajout de cette déduction automatique.
+  for (const commune of communes) {
+    if (!commune.departement && commune.lat != null && commune.lng != null) {
+      const departement = await deduireDepartement(commune.lat, commune.lng);
+      if (departement) {
+        commune.departement = departement;
+        await supabaseUpdate(env, 'communes', { departement }, { id: `eq.${commune.id}` });
+      }
+    }
+  }
+
+  const avecDepartement = communes.filter((c: any) => c.departement);
+  if (!avecDepartement.length) return;
+
+  const departements = [...new Set(avecDepartement.map((c: any) => c.departement))];
   const bulletins = new Map<string, any>();
   for (const dep of departements) {
     const bulletin = await recupererBulletinDepartement(token, dep);
     if (bulletin) bulletins.set(dep, bulletin);
   }
 
-  for (const commune of communes) {
+  for (const commune of avecDepartement) {
     const bulletin = bulletins.get(commune.departement);
     if (bulletin) await appliquerBulletinCommune(env, commune.id, bulletin);
   }
