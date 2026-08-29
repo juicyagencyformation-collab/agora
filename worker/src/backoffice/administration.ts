@@ -1041,14 +1041,15 @@ app.post('/communes/:id/utilisateurs', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const data = body.data;
 
+  const email = data.email.trim().toLowerCase();
   const [existant] = await supabaseSelect(c.env, 'users', {
-    select: 'id', commune_id: `eq.${id}`, email: `eq.${data.email}`,
+    select: 'id', commune_id: `eq.${id}`, email: `ilike.${email}`,
   });
   if (existant) return c.json({ erreur: 'Un compte existe déjà avec cet email dans cette commune.' }, 409);
 
   const password_hash = await hasherMotDePasse(data.password);
   const [utilisateur] = await supabaseInsert(c.env, 'users', {
-    commune_id: id, nom: data.nom, prenom: data.prenom, email: data.email, role: data.role,
+    commune_id: id, nom: data.nom, prenom: data.prenom, email, role: data.role,
     password_hash, consentement_rgpd_le: new Date().toISOString(),
   });
   return c.json({ ok: true, utilisateur }, 201);

@@ -45,15 +45,19 @@ app.post('/register', async (c) => {
   if (data.site_web) return c.json({ ok: true }, 201);
 
   const commune_id = c.get('commune_id_resolue');
+  // Normalisé (espaces + casse) : un email est en pratique insensible à la casse partout
+  // (Gmail, Outlook...), et une virgule/espace collé au copier-coller ne doit jamais faire
+  // échouer une vérification qui devrait réussir.
+  const email = data.email.trim().toLowerCase();
 
   const [existant] = await supabaseSelect(c.env, 'users', {
-    select: 'id', commune_id: `eq.${commune_id}`, email: `eq.${data.email}`,
+    select: 'id', commune_id: `eq.${commune_id}`, email: `ilike.${email}`,
   });
   if (existant) return c.json({ erreur: 'Un compte existe déjà avec cet email' }, 400);
 
   const password_hash = await hasherMotDePasse(data.password);
   const [user] = await supabaseInsert(c.env, 'users', {
-    commune_id, email: data.email, password_hash, nom: data.nom, prenom: data.prenom,
+    commune_id, email, password_hash, nom: data.nom, prenom: data.prenom,
     role: 'citoyen', consentement_rgpd_le: new Date().toISOString(),
   });
 
@@ -86,13 +90,20 @@ app.post('/login', async (c) => {
 
   const commune_id = c.get('commune_id_resolue');
 
+  // ilike (insensible à la casse) plutôt que eq : des comptes existants ont été créés avec
+  // la casse telle que tapée dans le backoffice (ex. "Mairie@..."), et un email est en
+  // pratique insensible à la casse partout (Gmail, Outlook...) — un maire qui retape son
+  // adresse en minuscules ne doit jamais se voir refuser l'accès pour cette seule raison.
+  // Le mot de passe est trim() : les identifiants générés (genererMotDePasseTemporaire) ne
+  // contiennent jamais d'espace, donc un espace collé au copier-coller depuis l'email ne peut
+  // être qu'un accident de copier-coller, jamais un caractère voulu du mot de passe.
   const [user] = await supabaseSelect(c.env, 'users', {
     select: 'id,role,password_hash',
     commune_id: `eq.${commune_id}`,
-    email: `eq.${body.data.email}`,
+    email: `ilike.${body.data.email.trim()}`,
   });
 
-  if (!user || !(await verifierMotDePasse(body.data.password, user.password_hash))) {
+  if (!user || !(await verifierMotDePasse(body.data.password.trim(), user.password_hash))) {
     return c.json({ erreur: 'Email ou mot de passe incorrect' }, 401);
   }
 
@@ -143,7 +154,7 @@ app.post('/mot-de-passe-oublie', async (c) => {
 
   const commune_id = c.get('commune_id_resolue');
   const [user] = await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom', commune_id: `eq.${commune_id}`, email: `eq.${body.data.email}`,
+    select: 'id,prenom', commune_id: `eq.${commune_id}`, email: `ilike.${body.data.email.trim()}`,
   });
 
   // Toujours la même réponse, que le compte existe ou non — évite de révéler

@@ -74,7 +74,9 @@ app.post('/creer', async (c) => {
   const password_hash = await hasherMotDePasse(maire.password);
   const [utilisateurMaire] = await supabaseInsert(c.env, 'users', {
     commune_id: commune.id,
-    email: maire.email,
+    // Normalisé (espaces + casse) — un email tapé/collé avec une casse différente au moment
+    // de la connexion ne doit jamais être bloqué (voir aussi auth.ts /login, ilike).
+    email: maire.email.trim().toLowerCase(),
     password_hash,
     nom: maire.nom,
     prenom: maire.prenom,
