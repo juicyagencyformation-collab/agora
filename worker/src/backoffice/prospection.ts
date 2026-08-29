@@ -78,6 +78,14 @@ function formaterNomMaire(nom: string, prenom: string): string {
   return `${prenom.trim()} ${nomForme}`.trim();
 }
 
+// nom_maire est stocké déjà combiné ("Prénom Nom", voir formaterNomMaire ci-dessus) ; retrouve le
+// seul nom de famille en retirant le préfixe prénom — évite une 3e colonne juste pour ça. Utilisé
+// pour créer/corriger le compte maire avec son VRAI prénom/nom (voir activerCommuneGratuite et
+// POST /synchroniser-maires) plutôt que le placeholder "Maire de {commune}".
+function nomFamilleMaire(nomMaire: string, prenomMaire: string): string {
+  return nomMaire.startsWith(prenomMaire) ? nomMaire.slice(prenomMaire.length).trim() : nomMaire;
+}
+
 app.post('/synchroniser-maires', async (c) => {
   const t0 = Date.now();
   const chrono = () => `${Date.now() - t0}ms`;
@@ -87,7 +95,7 @@ app.post('/synchroniser-maires', async (c) => {
     // nom + departement (NOT NULL sans defaut) récupérés en même temps que code_insee : voir le
     // commentaire de supabaseUpsert dans db.ts, ils doivent accompagner CHAQUE ligne du payload
     // même quand seule nom_maire/maire_civilite change réellement.
-    existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee,nom,departement' });
+    existants = await supabaseSelectTout(c.env, 'prospects', { select: 'id,code_insee,nom,departement,commune_id' });
   } catch (err: any) {
     console.error('synchroniser-maires — lecture prospects échouée :', err);
     return c.json({ erreur: `Lecture des prospects impossible (${chrono()}) : ${err?.message || err}` }, 500);
@@ -132,7 +140,11 @@ app.post('/synchroniser-maires', async (c) => {
   // ne fait donc en pratique que mettre à jour, jamais créer de ligne. nom/departement repartent
   // inchangés dans le payload : voir le commentaire de supabaseUpsert (db.ts) pour pourquoi c'est
   // nécessaire malgré le fait qu'on ne veuille modifier QUE nom_maire/maire_civilite.
-  const maj: { code_insee: string; nom: string; departement: string; nom_maire: string; maire_civilite: string | null }[] = [];
+  const maj: { code_insee: string; nom: string; departement: string; nom_maire: string; prenom_maire: string; maire_civilite: string | null }[] = [];
+  // Communes déjà activées (compte maire déjà créé) à corriger après coup — voir la boucle
+  // corrective plus bas : le placeholder mis à la création n'a plus lieu d'être maintenant qu'on
+  // identifie le vrai prénom/nom.
+  const aCorrigerCoteUsers: { communeId: string; prenom: string; nom: string }[] = [];
   for (let i = 1; i < lignesTexte.length; i++) {
     if (!lignesTexte[i]) continue;
     const ligne = lignesTexte[i].split(';');
@@ -142,13 +154,22 @@ app.post('/synchroniser-maires', async (c) => {
     const nom = ligne[iNom], prenom = ligne[iPrenom];
     if (!nom || !prenom) continue;
     const sexe = iSexe >= 0 ? ligne[iSexe] : '';
+    const nomMaireForme = formaterNomMaire(nom, prenom);
+    const prenomMaireForme = prenom.trim();
     maj.push({
       code_insee: codeInsee,
       nom: prospect.nom,
       departement: prospect.departement,
-      nom_maire: formaterNomMaire(nom, prenom),
+      nom_maire: nomMaireForme,
+      prenom_maire: prenomMaireForme,
       maire_civilite: sexe === 'F' ? 'Madame' : sexe === 'M' ? 'Monsieur' : null,
     });
+    if (prospect.commune_id) {
+      aCorrigerCoteUsers.push({
+        communeId: prospect.commune_id, prenom: prenomMaireForme,
+        nom: nomFamilleMaire(nomMaireForme, prenomMaireForme),
+      });
+    }
   }
 
   if (maj.length) {
@@ -159,7 +180,22 @@ app.post('/synchroniser-maires', async (c) => {
       return c.json({ erreur: `Écriture en base impossible (${chrono()}, ${maj.length} ligne(s)) : ${err?.message || err}` }, 500);
     }
   }
-  return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length });
+
+  // Corrige les comptes maire déjà créés qui portent encore le placeholder "Maire de {commune}"
+  // (jamais touché depuis, ni par le maire lui-même ni par une correction manuelle — condition
+  // volontairement stricte pour ne jamais écraser un nom que le maire aurait modifié à la main
+  // depuis son profil).
+  let comptesCorriges = 0;
+  for (const { communeId, prenom, nom } of aCorrigerCoteUsers) {
+    const [maire] = await supabaseSelect(c.env, 'users', {
+      select: 'id,prenom', commune_id: `eq.${communeId}`, role: 'eq.maire', prenom: 'eq.Maire de',
+    });
+    if (!maire) continue;
+    await supabaseUpdate(c.env, 'users', { prenom, nom }, { id: `eq.${maire.id}` });
+    comptesCorriges += 1;
+  }
+
+  return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length, comptes_maire_corriges: comptesCorriges });
 });
 
 // — Liste (filtres sobres : statut, département, recherche) —
@@ -465,7 +501,7 @@ app.get('/prospects-a-relancer', async (c) => {
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,maire_civilite,etoiles',
+    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -734,9 +770,17 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
     await supabaseUpdate(env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${maire.id}` });
   } else {
     maireEmail = prospect.contact_email;
+    // Vrai prénom/nom quand le maire a été identifié via le RNE (voir POST /synchroniser-maires) ;
+    // repli sur un placeholder générique sinon plutôt que de bloquer l'activation — corrigé
+    // automatiquement dès qu'une synchronisation RNE ultérieure identifie ce maire (voir la boucle
+    // corrective de /synchroniser-maires).
+    const prenom = prospect.prenom_maire || 'Maire de';
+    const nom = prospect.prenom_maire && prospect.nom_maire
+      ? nomFamilleMaire(prospect.nom_maire, prospect.prenom_maire)
+      : prospect.nom;
     const [nouveauMaire] = await supabaseInsert(env, 'users', {
       commune_id: communeId, email: maireEmail, password_hash: await hasherMotDePasse(motDePasse),
-      prenom: 'Maire de', nom: prospect.nom, role: 'maire',
+      prenom, nom, role: 'maire',
       consentement_rgpd_le: new Date().toISOString(),
     });
     maireId = nouveauMaire.id;
@@ -809,7 +853,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
 app.post('/prospects/:id/prospecter', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -850,7 +894,7 @@ async function relancerCommuneActivee(env: any, staffId: string, prospect: any):
 app.post('/prospects/:id/relancer', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -895,7 +939,7 @@ app.post('/prospecter-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 communes par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `in.(${body.data.ids.join(',')})`,
   });
 
@@ -936,7 +980,7 @@ app.post('/prospects/relancer-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 prospects par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `in.(${body.data.ids.join(',')})`,
   });
 
