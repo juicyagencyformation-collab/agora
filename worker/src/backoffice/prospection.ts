@@ -704,7 +704,7 @@ async function genererSlugUnique(env: any, nom: string): Promise<string> {
 // une fois « gagné », ce flux n'est plus jamais appelé (voir prospecterUn, qui court-circuite
 // avant). Décision business du 2026-08-17 : zéro friction, chaque prospect reçoit son propre
 // espace fonctionnel dès le premier envoi de présentation, gratuitement.
-async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireEmail: string; motDePasse: string }> {
+async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireId: string; maireEmail: string; motDePasse: string }> {
   let communeId: string = prospect.commune_id || '';
 
   if (!communeId) {
@@ -727,19 +727,22 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
     select: 'id,email', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc',
   });
   let maireEmail: string;
+  let maireId: string;
   if (maire) {
     maireEmail = maire.email;
+    maireId = maire.id;
     await supabaseUpdate(env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${maire.id}` });
   } else {
     maireEmail = prospect.contact_email;
-    await supabaseInsert(env, 'users', {
+    const [nouveauMaire] = await supabaseInsert(env, 'users', {
       commune_id: communeId, email: maireEmail, password_hash: await hasherMotDePasse(motDePasse),
       prenom: 'Maire de', nom: prospect.nom, role: 'maire',
       consentement_rgpd_le: new Date().toISOString(),
     });
+    maireId = nouveauMaire.id;
   }
 
-  return { slug: communeActuelle.slug, communeId, maireEmail, motDePasse };
+  return { slug: communeActuelle.slug, communeId, maireId, maireEmail, motDePasse };
 }
 
 // — Prospecter en un clic : enrichit si besoin, active une commune gratuite pour le prospect
@@ -775,6 +778,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
 
   const { variante, resendEmailId } = await envoyerPresentation(env, email, ctx, {
     maireEmail: activation.maireEmail, motDePasse: activation.motDePasse,
+    slug: activation.slug, communeId: activation.communeId, userId: activation.maireId,
   }, undefined, carteVisiteHtml);
 
   // Ligne dédiée au suivi structuré (ouverture/clic/rejet via webhook Resend, voir index.ts et

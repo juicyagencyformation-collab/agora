@@ -100,7 +100,7 @@ app.post('/creer', async (c) => {
   if (envoyer_email) {
     await envoyerEmailBienvenue(c.env, {
       nomCommune: nom, slug, maireEmail: maire.email, motDePasse: maire.password,
-      frontendUrl: c.env.FRONTEND_URL,
+      frontendUrl: c.env.FRONTEND_URL, communeId: commune.id, userId: utilisateurMaire.id,
     });
   }
 

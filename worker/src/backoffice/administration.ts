@@ -17,6 +17,7 @@ import {
   MODELE_PRESENTATION_DEFAUT, MODELE_BIENVENUE_INSCRIPTION_DEFAUT, MODELE_RELANCE_INACTIVITE_DEFAUT,
   MODELE_ONBOARDING_RELANCE_J3_DEFAUT, MODELE_ONBOARDING_CHECKIN_J7_DEFAUT,
   MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT, MODELE_ONBOARDING_UPSELL_DEFAUT,
+  genererLienConnexionDirecte,
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
@@ -297,7 +298,7 @@ app.post('/communes/:id/renvoyer-acces', async (c) => {
 
   await envoyerEmailBienvenue(c.env, {
     nomCommune: commune.nom, slug: commune.slug, maireEmail: maire.email, motDePasse,
-    frontendUrl: c.env.FRONTEND_URL,
+    frontendUrl: c.env.FRONTEND_URL, communeId: id, userId: maire.id,
   });
   // Renvoyé aussi au staff (pas seulement au maire par email) : utile pour se connecter
   // soi-même configurer la commune sans attendre un retour du maire. Affiché une seule fois
@@ -343,9 +344,11 @@ app.post('/communes/:id/se-connecter-en-tant-que', async (c) => {
   return c.json({ ok: true, slug: commune.slug, email: maire.email });
 });
 
-// POST /communes/:id/lien-connexion — génère un lien de connexion directe à usage unique pour
-// le maire (valable 48h), à coller dans un email. Contrairement à /renvoyer-acces, ne touche
-// jamais au mot de passe existant : le compte reste utilisable normalement en parallèle.
+// POST /communes/:id/lien-connexion — génère à la demande un lien de connexion directe pour le
+// maire (valable 30 jours, réutilisable pendant cette durée), à coller dans un email. Utile en
+// dépannage ciblé (ex. un maire qui n'arrive pas à se connecter) — le même mécanisme est aussi
+// intégré automatiquement aux emails de bienvenue/présentation (voir email-commune.ts).
+// Contrairement à /renvoyer-acces, ne touche jamais au mot de passe existant.
 app.post('/communes/:id/lien-connexion', async (c) => {
   const id = c.req.param('id');
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
@@ -356,17 +359,7 @@ app.post('/communes/:id/lien-connexion', async (c) => {
   });
   if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
 
-  const token = crypto.randomUUID() + crypto.randomUUID();
-  await supabaseInsert(c.env, 'login_tokens', {
-    commune_id: id, user_id: maire.id,
-    token_hash: await hasherTokenSession(token),
-    expires_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-  });
-
-  // Passe par /api/ (proxy same-origin du frontend) et non l'URL .workers.dev directement :
-  // sinon le cookie de session serait posé sur un domaine tiers, invisible ensuite pour les
-  // appels /api/... same-origin de l'appli (même piège que les cookies Safari, voir CLAUDE.md).
-  const lien = `${c.env.FRONTEND_URL}/api/${commune.slug}/auth/lien-connexion/${token}`;
+  const lien = await genererLienConnexionDirecte(c.env, c.env.FRONTEND_URL, commune.slug, id, maire.id);
   return c.json({ ok: true, lien, email: maire.email });
 });
 

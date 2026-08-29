@@ -3,7 +3,8 @@
 // application déjà prête + identifiants provisoires. Utilisé par onboarding (à la création) et
 // par administration (bouton « Renvoyer les accès », qui régénère un mot de passe temporaire).
 import { envoyerEmail } from '../lib/email';
-import { supabaseSelect } from '../db';
+import { supabaseSelect, supabaseInsert } from '../db';
+import { hasherSha256Hex } from '../lib/hash';
 
 // Mot de passe temporaire lisible : sans caractères ambigus (0, O, o, 1, l, I, i).
 export function genererMotDePasseTemporaire(): string {
@@ -16,12 +17,36 @@ function echapper(s: string): string {
   return s.replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
 }
 
+// Lien de connexion directe (voir worker/src/auth.ts GET+POST /lien-connexion/:token) : valable
+// 30 jours, réutilisable pendant cette durée (pas à usage unique) — pensé pour rester
+// fonctionnel si l'email de bienvenue/présentation est rouvert des semaines plus tard. La vraie
+// connexion n'a lieu qu'au clic explicite d'un bouton sur une page de confirmation, jamais sur
+// le simple chargement du lien (protège contre les scanners de sécurité des messageries qui
+// visitent automatiquement les liens d'un email avant que le destinataire ne l'ouvre).
+export async function genererLienConnexionDirecte(
+  env: any, frontendUrl: string, slug: string, communeId: string, userId: string,
+): Promise<string> {
+  const token = crypto.randomUUID() + crypto.randomUUID();
+  await supabaseInsert(env, 'login_tokens', {
+    commune_id: communeId, user_id: userId,
+    token_hash: await hasherSha256Hex(token),
+    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+  });
+  return `${frontendUrl}/api/${slug}/auth/lien-connexion/${token}`;
+}
+
 interface DonneesBienvenue {
   nomCommune: string;
   slug: string;
   maireEmail: string;
   motDePasse: string;
   frontendUrl: string;
+  // Si fournis, un lien de connexion directe est généré et remplace le bouton principal par un
+  // accès en un clic — voir envoyerEmailBienvenue. Absents = bouton vers l'URL simple (ex.
+  // renvoi sans nouveau compte, cas hérité).
+  communeId?: string;
+  userId?: string;
+  lienConnexion?: string; // calculé par envoyerEmailBienvenue, jamais fourni par l'appelant
 }
 
 // Encart identifiants provisoires, réutilisé par l'email de bienvenue ET par l'email de
@@ -56,6 +81,7 @@ function blocPsModules(): string {
 
 export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const url = `${d.frontendUrl}/${d.slug}/`;
+  const urlBouton = d.lienConnexion || url;
   const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
   const afficheUrl = `${d.frontendUrl}/backoffice/affiche-citoyens?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
   const nom = echapper(d.nomCommune);
@@ -72,7 +98,7 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
     </p>
 
     <p style="margin:24px 0">
-      <a href="${url}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Ouvrir mon application</a>
+      <a href="${urlBouton}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Ouvrir mon application</a>
     </p>
 
     ${blocIdentifiants(url, d.maireEmail, d.motDePasse)}
@@ -101,11 +127,14 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
 }
 
 export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Promise<void> {
+  const lienConnexion = (d.communeId && d.userId)
+    ? await genererLienConnexionDirecte(env, d.frontendUrl, d.slug, d.communeId, d.userId)
+    : undefined;
   await envoyerEmail(
     env,
     d.maireEmail,
     `Votre application Agora pour ${d.nomCommune} est prête`,
-    emailBienvenueHtml(d),
+    emailBienvenueHtml({ ...d, lienConnexion }),
   );
 }
 
@@ -610,13 +639,21 @@ export function contextePresentation(frontendUrl: string, nomCommune: string, sl
 // est ajouté après le corps — un seul email, immédiatement exploitable, décision du 2026-08-17.
 export async function envoyerPresentation(
   env: any, contactEmail: string, ctx: ContextePresentation,
-  identifiants?: { maireEmail: string; motDePasse: string },
+  identifiants?: { maireEmail: string; motDePasse: string; slug?: string; communeId?: string; userId?: string },
   varianteId?: string,
   carteVisiteHtml?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
   const modele = varianteId ? await chargerVarianteParId(env, varianteId) : await chargerModelePresentation(env);
+  // Le bouton {{url}} pointe vers un lien de connexion directe quand un vrai compte vient
+  // d'être (re)crédité (slug+communeId+userId fournis) — sinon (test, relance sans nouveaux
+  // identifiants) il reste l'URL simple de l'app. blocIdentifiants plus bas garde toujours
+  // l'URL simple, elle, comme repère stable indépendant du lien de connexion.
+  const urlBouton = (identifiants?.slug && identifiants?.communeId && identifiants?.userId)
+    ? await genererLienConnexionDirecte(env, env.FRONTEND_URL, identifiants.slug, identifiants.communeId, identifiants.userId)
+    : ctx.url;
   const ctxComplet = {
     ...ctx,
+    url: urlBouton,
     signaturePhoto: baliseSignature(modele.signature_image_url),
     logo: baliseLogo(modele.logo_image_url),
   };

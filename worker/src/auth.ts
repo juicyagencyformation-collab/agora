@@ -181,13 +181,58 @@ app.post('/mot-de-passe-oublie', async (c) => {
   return c.json({ ok: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' });
 });
 
-// GET /lien-connexion/:token — lien de connexion directe à usage unique (généré depuis le
-// backoffice, voir backoffice/administration.ts POST /communes/:id/lien-connexion). Ouvre une
-// vraie session (mêmes cookies que /login) sans que la personne n'ait à taper email/mot de
-// passe — pensé pour un premier accès qui échoue à répétition (typo, casse, espace collé).
-// commune_id filtré en plus du hash : un lien généré pour une commune ne peut jamais ouvrir
-// une session sur une autre, même en cas de collision de hash improbable.
+// Petite page HTML autonome (pas de dépendance au CSS de l'app) pour les deux écrans du lien
+// de connexion directe — inline, dans le même esprit que les templates d'email de ce projet.
+function pageLienConnexion(corps: string, titre: string): string {
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>${titre} — Agora</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f8f4;margin:0;padding:48px 20px;text-align:center;color:#1b2a1c">
+  <div style="max-width:400px;margin:0 auto;background:#fff;border-radius:12px;padding:32px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
+    <div style="font-size:24px;font-weight:800;color:#2c5f2d;margin-bottom:18px">Agora<span style="color:#4a8c4a">.</span></div>
+    ${corps}
+  </div>
+</body></html>`;
+}
+
+// GET /lien-connexion/:token — étape 1 : affiche une page de confirmation, NE CONNECTE JAMAIS
+// sur ce simple GET. Beaucoup de messageries (Outlook/Defender, antivirus d'entreprise...)
+// visitent automatiquement les liens d'un email dès sa réception pour les scanner, avant même
+// que le destinataire l'ouvre — un lien qui connecterait directement sur un GET serait donc
+// "consommé" par un robot avant que le maire ne clique. La vraie connexion n'a lieu qu'au clic
+// explicite du bouton ci-dessous (POST /confirmer), qu'aucun scanner ne déclenche.
 app.get('/lien-connexion/:token', async (c) => {
+  const commune_id = c.get('commune_id_resolue');
+  const slug = c.req.param('slug');
+  const token = c.req.param('token');
+  const hash = await hasherToken(token);
+
+  const [enregistrement] = await supabaseSelect(c.env, 'login_tokens', {
+    select: 'id,expires_at', token_hash: `eq.${hash}`, commune_id: `eq.${commune_id}`,
+  });
+
+  if (!enregistrement || new Date(enregistrement.expires_at) < new Date()) {
+    return c.html(pageLienConnexion(`
+      <p style="font-size:15px;line-height:1.5">Ce lien n'est plus valable.</p>
+      <p style="font-size:14px;color:#5b6b5c">Connectez-vous avec votre email et votre mot de passe, ou demandez un nouveau lien.</p>
+      <a href="/connexion.html" style="display:inline-block;margin-top:14px;color:#2c5f2d;font-weight:600">Aller à la page de connexion</a>
+    `, 'Lien expiré'), 400);
+  }
+
+  return c.html(pageLienConnexion(`
+    <p style="font-size:15px;line-height:1.5;margin-bottom:22px">Cliquez ci-dessous pour accéder à votre espace.</p>
+    <form method="POST" action="/api/${slug}/auth/lien-connexion/${token}/confirmer">
+      <button type="submit" style="background:#2c5f2d;color:#fff;border:none;padding:14px 26px;border-radius:8px;font-weight:600;font-size:15px;cursor:pointer;width:100%">Accéder à mon espace</button>
+    </form>
+  `, 'Connexion'));
+});
+
+// POST /lien-connexion/:token/confirmer — étape 2, seule à ouvrir une vraie session (mêmes
+// cookies que /login). Réutilisable pendant toute la validité du jeton (30 jours, voir
+// backoffice/email-commune.ts genererLienConnexionDirecte) — pas à usage unique : un maire qui
+// rouvre l'email de bienvenue des semaines plus tard doit retrouver un lien qui marche encore.
+// commune_id filtré en plus du hash : un lien généré pour une commune ne peut jamais ouvrir une
+// session sur une autre, même en cas de collision de hash improbable.
+app.post('/lien-connexion/:token/confirmer', async (c) => {
   const commune_id = c.get('commune_id_resolue');
   const slug = c.req.param('slug');
   const hash = await hasherToken(c.req.param('token'));
@@ -195,17 +240,22 @@ app.get('/lien-connexion/:token', async (c) => {
   const [enregistrement] = await supabaseSelect(c.env, 'login_tokens', {
     select: 'id,user_id,expires_at,utilise', token_hash: `eq.${hash}`, commune_id: `eq.${commune_id}`,
   });
-
-  if (!enregistrement || enregistrement.utilise || new Date(enregistrement.expires_at) < new Date()) {
-    return c.redirect('/connexion.html?lien=expire', 302);
+  if (!enregistrement || new Date(enregistrement.expires_at) < new Date()) {
+    return c.html(pageLienConnexion(`
+      <p style="font-size:15px;line-height:1.5">Ce lien n'est plus valable.</p>
+      <a href="/connexion.html" style="display:inline-block;margin-top:14px;color:#2c5f2d;font-weight:600">Aller à la page de connexion</a>
+    `, 'Lien expiré'), 400);
   }
 
   const [user] = await supabaseSelect(c.env, 'users', { select: 'id,role', id: `eq.${enregistrement.user_id}` });
-  if (!user) return c.redirect('/connexion.html?lien=expire', 302);
+  if (!user) {
+    return c.html(pageLienConnexion(`<p style="font-size:15px;line-height:1.5">Ce lien n'est plus valable.</p>`, 'Lien expiré'), 400);
+  }
 
-  // Marqué utilisé avant toute autre chose : un lien cliqué deux fois (double-clic, aperçu
-  // d'un client mail qui pré-charge les liens) ne doit ouvrir qu'une seule session valide.
-  await supabaseUpdate(c.env, 'login_tokens', { utilise: true }, { id: `eq.${enregistrement.id}` });
+  // Simple repère informatif (première utilisation) — ne bloque jamais les suivantes.
+  if (!enregistrement.utilise) {
+    await supabaseUpdate(c.env, 'login_tokens', { utilise: true }, { id: `eq.${enregistrement.id}` });
+  }
 
   const accessToken = await sign(
     { user_id: user.id, commune_id, role: user.role, exp: Math.floor(Date.now() / 1000) + 900 },
