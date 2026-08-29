@@ -2462,6 +2462,8 @@
                         x-text="connexionMaireEnCours ? 'Ouverture…' : '🔑 Se connecter en tant que'"></button>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="renvoyerAcces()" :disabled="accesEnCours"
                         x-text="accesEnCours ? 'Envoi…' : 'Renvoyer les accès'"></button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="genererLienConnexion()" :disabled="lienConnexionEnCours"
+                        x-text="lienConnexionEnCours ? 'Génération…' : '🔗 Lien de connexion directe'"></button>
               </div>
             </div>
             <template x-if="accesGeneres">
@@ -2472,6 +2474,15 @@
                   <div class="bo-info" style="margin-top:2px">Affiché une seule fois ici — le maire l'a aussi reçu par email. Utilisable directement si tu dois configurer la commune toi-même.</div>
                 </div>
                 <button class="bo-btn bo-btn--sec bo-btn--compact" @click="copierAccesGeneres()">📋 Copier</button>
+              </div>
+            </template>
+            <template x-if="lienConnexionGenere">
+              <div style="margin-top:14px; padding:12px 14px; background:var(--bo-surface-2); border-radius:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+                <div style="font-size:13px; min-width:0">
+                  Pour <strong x-text="lienConnexionGenere.email"></strong> — à coller dans un email, valable 48h, usage unique&nbsp;:
+                  <div style="font-family:monospace; font-size:12px; word-break:break-all; margin-top:4px" x-text="lienConnexionGenere.lien"></div>
+                </div>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="copierLienConnexion()">📋 Copier</button>
               </div>
             </template>
           </div>
@@ -3166,7 +3177,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-9"></script>
+  <script src="/backoffice/js/app.js?v=20260827-10"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

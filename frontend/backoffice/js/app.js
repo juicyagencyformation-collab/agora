@@ -79,6 +79,8 @@ function backoffice() {
     accesMsg: '',
     accesGeneres: null,
     connexionMaireEnCours: false,
+    lienConnexionEnCours: false,
+    lienConnexionGenere: null,
     forfaitNom: '',
     forfaitQuota: '',
     forfaitEnCours: false,
@@ -321,6 +323,7 @@ function backoffice() {
       this.coordsMsg = '';
       this.accesMsg = '';
       this.accesGeneres = null;
+      this.lienConnexionGenere = null;
       this.forfaitMsg = '';
       this.presentMsg = '';
       this.frequentation = null;
@@ -927,6 +930,27 @@ function backoffice() {
     copierAccesGeneres() {
       if (!this.accesGeneres) return;
       navigator.clipboard?.writeText(`${this.accesGeneres.email} / ${this.accesGeneres.motDePasse}`);
+    },
+
+    // Lien de connexion directe (usage unique, 48h) : n'expose ni l'email ni le mot de passe
+    // dans l'URL (contrairement à un lien "tout-en-un" naïf) — juste un jeton opaque vérifié
+    // côté serveur. Ne touche jamais au mot de passe existant du maire.
+    async genererLienConnexion() {
+      this.lienConnexionEnCours = true;
+      this.accesMsg = '';
+      this.lienConnexionGenere = null;
+      try {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/lien-connexion', { method: 'POST' });
+        this.lienConnexionGenere = { email: r.email, lien: r.lien };
+      } catch (e) {
+        this.accesMsg = e.message || 'Génération impossible';
+      } finally {
+        this.lienConnexionEnCours = false;
+      }
+    },
+    copierLienConnexion() {
+      if (!this.lienConnexionGenere) return;
+      navigator.clipboard?.writeText(this.lienConnexionGenere.lien);
     },
 
     async recupererCoords() {

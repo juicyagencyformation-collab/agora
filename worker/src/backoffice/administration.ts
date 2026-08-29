@@ -343,6 +343,33 @@ app.post('/communes/:id/se-connecter-en-tant-que', async (c) => {
   return c.json({ ok: true, slug: commune.slug, email: maire.email });
 });
 
+// POST /communes/:id/lien-connexion — génère un lien de connexion directe à usage unique pour
+// le maire (valable 48h), à coller dans un email. Contrairement à /renvoyer-acces, ne touche
+// jamais au mot de passe existant : le compte reste utilisable normalement en parallèle.
+app.post('/communes/:id/lien-connexion', async (c) => {
+  const id = c.req.param('id');
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const [maire] = await supabaseSelect(c.env, 'users', {
+    select: 'id,email', commune_id: `eq.${id}`, role: 'eq.maire', order: 'created_at.asc',
+  });
+  if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
+
+  const token = crypto.randomUUID() + crypto.randomUUID();
+  await supabaseInsert(c.env, 'login_tokens', {
+    commune_id: id, user_id: maire.id,
+    token_hash: await hasherTokenSession(token),
+    expires_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+  });
+
+  // Passe par /api/ (proxy same-origin du frontend) et non l'URL .workers.dev directement :
+  // sinon le cookie de session serait posé sur un domaine tiers, invisible ensuite pour les
+  // appels /api/... same-origin de l'appli (même piège que les cookies Safari, voir CLAUDE.md).
+  const lien = `${c.env.FRONTEND_URL}/api/${commune.slug}/auth/lien-connexion/${token}`;
+  return c.json({ ok: true, lien, email: maire.email });
+});
+
 // POST /email-test — diagnostic d'envoi. Appelle Resend EN DIRECT (pas via envoyerEmail, qui
 // échoue silencieusement) pour remonter la vraie cause d'un échec : clé absente, domaine non
 // vérifié, etc. Envoie à l'adresse fournie, ou par défaut à l'email du staff connecté.

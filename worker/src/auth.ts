@@ -181,6 +181,49 @@ app.post('/mot-de-passe-oublie', async (c) => {
   return c.json({ ok: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' });
 });
 
+// GET /lien-connexion/:token — lien de connexion directe à usage unique (généré depuis le
+// backoffice, voir backoffice/administration.ts POST /communes/:id/lien-connexion). Ouvre une
+// vraie session (mêmes cookies que /login) sans que la personne n'ait à taper email/mot de
+// passe — pensé pour un premier accès qui échoue à répétition (typo, casse, espace collé).
+// commune_id filtré en plus du hash : un lien généré pour une commune ne peut jamais ouvrir
+// une session sur une autre, même en cas de collision de hash improbable.
+app.get('/lien-connexion/:token', async (c) => {
+  const commune_id = c.get('commune_id_resolue');
+  const slug = c.req.param('slug');
+  const hash = await hasherToken(c.req.param('token'));
+
+  const [enregistrement] = await supabaseSelect(c.env, 'login_tokens', {
+    select: 'id,user_id,expires_at,utilise', token_hash: `eq.${hash}`, commune_id: `eq.${commune_id}`,
+  });
+
+  if (!enregistrement || enregistrement.utilise || new Date(enregistrement.expires_at) < new Date()) {
+    return c.redirect('/connexion.html?lien=expire', 302);
+  }
+
+  const [user] = await supabaseSelect(c.env, 'users', { select: 'id,role', id: `eq.${enregistrement.user_id}` });
+  if (!user) return c.redirect('/connexion.html?lien=expire', 302);
+
+  // Marqué utilisé avant toute autre chose : un lien cliqué deux fois (double-clic, aperçu
+  // d'un client mail qui pré-charge les liens) ne doit ouvrir qu'une seule session valide.
+  await supabaseUpdate(c.env, 'login_tokens', { utilise: true }, { id: `eq.${enregistrement.id}` });
+
+  const accessToken = await sign(
+    { user_id: user.id, commune_id, role: user.role, exp: Math.floor(Date.now() / 1000) + 900 },
+    c.env.JWT_SECRET,
+  );
+  const refreshToken = genererRefreshToken();
+  await supabaseInsert(c.env, 'refresh_tokens', {
+    commune_id, user_id: user.id,
+    token_hash: await hasherToken(refreshToken),
+    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+  });
+
+  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+
+  return c.redirect(`/${slug}/`, 302);
+});
+
 const resetSchema = z.object({
   token: z.string().min(10),
   nouveau_mot_de_passe: z.string().min(6),
