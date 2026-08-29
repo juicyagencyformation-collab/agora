@@ -7,10 +7,19 @@
 //   pas seulement les textes de loi — on filtre donc sur le titre.
 // - Parlement européen : https://www.europarl.europa.eu/rss/doc/texts-adopted/fr.xml
 //   Contient uniquement les textes adoptés — pas de filtrage nécessaire.
+// - Journal officiel (JORF) : https://droit.org/flux/jorf.rss
+//   Légifrance n'expose aucun flux RSS officiel direct (vérifié le 2026-08-29 — beaucoup de
+//   sources en ligne l'affirment à tort ; l'accès officiel passe par l'API PISTE, OAuth2 +
+//   inscription, jugé disproportionné pour ce besoin). droit.org republie le sommaire du dernier
+//   JO en RSS 2.0 standard, avec des liens qui pointent vers de vraies pages legifrance.gouv.fr
+//   officielles (vérifié en direct) — miroir tiers du contenu officiel, pas une source alternative.
+//   Mélange lois/décrets/arrêtés/nominations : filtré sur le titre, seules les vraies lois
+//   ("LOI n°...", "Loi organique n°...") sont retenues. Statut "promulguee" — seule source du
+//   module qui va jusqu'au bout du cycle de vie (déposé → adopté UE → promulguée en France).
 //
-// Contenu XML réel inspecté et confirmé le 2026-08-05 : les deux flux sont du RSS 2.0
-// standard. Le flux du Parlement européen était bloqué par un WAF (voir le commentaire sur
-// le User-Agent plus bas) — pas un problème de format.
+// Contenu XML réel inspecté et confirmé le 2026-08-05 (AN + PE) puis le 2026-08-29 (JORF) : les
+// trois flux sont du RSS 2.0 standard. Le flux du Parlement européen était bloqué par un WAF (voir
+// le commentaire sur le User-Agent plus bas) — pas un problème de format.
 
 import { XMLParser } from 'fast-xml-parser';
 import { supabaseSelect, supabaseInsert } from '../db';
@@ -154,11 +163,22 @@ export async function synchroniserLoisParlementEuropeen(env: any): Promise<Resul
   );
 }
 
-// Lance les deux synchros et combine les résultats (utilisé par le cron automatique).
-export async function synchroniserToutesLesLois(env: any): Promise<{ an: ResultatSync; ue: ResultatSync }> {
-  const [an, ue] = await Promise.all([
+export async function synchroniserLoisJorf(env: any): Promise<ResultatSync> {
+  return synchroniserFlux(
+    env,
+    'https://droit.org/flux/jorf.rss',
+    'jorf',
+    'promulguee',
+    /^loi\b/i,
+  );
+}
+
+// Lance les trois synchros et combine les résultats (utilisé par le cron automatique).
+export async function synchroniserToutesLesLois(env: any): Promise<{ an: ResultatSync; ue: ResultatSync; jorf: ResultatSync }> {
+  const [an, ue, jorf] = await Promise.all([
     synchroniserLoisAssembleeNationale(env),
     synchroniserLoisParlementEuropeen(env),
+    synchroniserLoisJorf(env),
   ]);
-  return { an, ue };
+  return { an, ue, jorf };
 }

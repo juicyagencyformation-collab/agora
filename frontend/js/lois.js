@@ -4,11 +4,12 @@ const LABELS_SOURCE = {
   assemblee_nationale: '🏛️ Assemblée nationale',
   senat: '🏛️ Sénat',
   parlement_europeen: '🇪🇺 Parlement européen',
+  jorf: '📰 Journal officiel',
   autre: '📄 Autre',
 };
 const LABELS_STATUT = {
   depose: 'Déposé', commission: 'En commission', discussion: 'En discussion',
-  adopte: 'Adopté', rejete: 'Rejeté',
+  adopte: 'Adopté', promulguee: 'Promulguée', rejete: 'Rejeté',
 };
 
 async function chargerLois() {
@@ -161,6 +162,7 @@ function initFormulaireLoi() {
           <option value="assemblee_nationale">Assemblée nationale</option>
           <option value="senat">Sénat</option>
           <option value="parlement_europeen">Parlement européen</option>
+          <option value="jorf">Journal officiel</option>
           <option value="autre">Autre</option>
         </select>
         <label class="label-champ-edition">Statut</label>
@@ -169,6 +171,7 @@ function initFormulaireLoi() {
           <option value="commission">En commission</option>
           <option value="discussion">En discussion</option>
           <option value="adopte">Adopté</option>
+          <option value="promulguee">Promulguée</option>
           <option value="rejete">Rejeté</option>
         </select>
         <label class="label-champ-edition">Lien vers le texte officiel</label>

@@ -10,8 +10,8 @@ import { attribuerXp, XP_ACTIONS } from '../lib/gamification';
 const app = new Hono();
 app.use('*', jwtMiddleware);
 
-const SOURCES = ['assemblee_nationale', 'senat', 'parlement_europeen', 'autre'] as const;
-const STATUTS = ['depose', 'commission', 'discussion', 'adopte', 'rejete'] as const;
+const SOURCES = ['assemblee_nationale', 'senat', 'parlement_europeen', 'jorf', 'autre'] as const;
+const STATUTS = ['depose', 'commission', 'discussion', 'adopte', 'promulguee', 'rejete'] as const;
 
 const creationSchema = z.object({
   titre: z.string().min(1).max(300),
