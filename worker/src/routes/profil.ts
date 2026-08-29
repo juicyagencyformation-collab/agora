@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseUpdate, supabaseInsert } from '../db';
+import { hasherMotDePasse, verifierMotDePasse } from '../lib/password';
 import { uploaderFichier, deleteObject } from '../storage';
 import { xpRequisPourNiveau } from '../lib/gamification';
 import { calculerPalierCourant } from '../lib/points-citoyens';
@@ -115,6 +116,35 @@ app.put('/identite', async (c) => {
     id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
   });
   return c.json({ ok: true, prenom, nom });
+});
+
+// PUT /mot-de-passe — changer son mot de passe en étant déjà connecté (contrairement à
+// /auth/mot-de-passe-oublie + /auth/reinitialiser-mot-de-passe, qui couvrent le cas où on ne PEUT
+// plus se connecter). Exige le mot de passe actuel pour éviter qu'une session laissée ouverte sur
+// un appareil partagé suffise seule à en changer le mot de passe.
+const motDePasseSchema = z.object({
+  mot_de_passe_actuel: z.string().min(1),
+  nouveau_mot_de_passe: z.string().min(6),
+});
+
+app.put('/mot-de-passe', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const body = motDePasseSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [user] = await supabaseSelect(c.env, 'users', {
+    select: 'password_hash', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
+  });
+  if (!user) return c.json({ erreur: 'Utilisateur introuvable' }, 404);
+
+  const actuelValide = await verifierMotDePasse(body.data.mot_de_passe_actuel, user.password_hash);
+  if (!actuelValide) return c.json({ erreur: 'Mot de passe actuel incorrect' }, 400);
+
+  const password_hash = await hasherMotDePasse(body.data.nouveau_mot_de_passe);
+  await supabaseUpdate(c.env, 'users', { password_hash }, { id: `eq.${user_id}`, commune_id: `eq.${commune_id}` });
+  return c.json({ ok: true });
 });
 
 // POST /photo — photo de profil personnelle. Remplace le logo de la commune au centre du

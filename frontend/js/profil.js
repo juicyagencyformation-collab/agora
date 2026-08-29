@@ -375,7 +375,8 @@ function initReglagesRgpdProfil() {
   if (!zone) return;
 
   zone.innerHTML = `
-    <button type="button" id="btn-telecharger-donnees" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">📥 Télécharger mes données</button>
+    <button type="button" id="btn-changer-mdp" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">🔑 Changer mon mot de passe</button>
+    <button type="button" id="btn-telecharger-donnees" class="bouton-pilule-profil" style="margin-top:8px;color:var(--eau);border-color:var(--eauL);">📥 Télécharger mes données</button>
     <button type="button" id="btn-supprimer-compte" class="bouton-pilule-profil" style="margin-top:8px;color:var(--rouge);border-color:var(--rouge);">🗑️ Supprimer mon compte</button>
     <p style="font-size:11.5px;color:var(--roseau);margin-top:6px;">
       La suppression efface définitivement vos données personnelles (email, mot de passe, nom).
@@ -388,6 +389,42 @@ function initReglagesRgpdProfil() {
       <a href="/conditions-utilisation.html" target="_blank" rel="noopener">📄 Conditions générales d'utilisation</a>
     </div>
   `;
+
+  zone.querySelector('#btn-changer-mdp').addEventListener('click', () => {
+    const html = `
+      <form id="form-changer-mdp">
+        <label style="display:block;font-size:12.5px;color:var(--roseau);margin-bottom:3px;">Mot de passe actuel</label>
+        <input type="password" id="mdp-actuel" autocomplete="current-password" required>
+        <label style="display:block;font-size:12.5px;color:var(--roseau);margin:10px 0 3px;">Nouveau mot de passe</label>
+        <input type="password" id="mdp-nouveau" autocomplete="new-password" minlength="6" required>
+        <label style="display:block;font-size:12.5px;color:var(--roseau);margin:10px 0 3px;">Confirmer le nouveau mot de passe</label>
+        <input type="password" id="mdp-confirmation" autocomplete="new-password" minlength="6" required>
+        <p id="msg-changer-mdp" style="font-size:12px;color:var(--rouge);margin-top:8px;"></p>
+        <button type="submit" style="margin-top:12px;">Enregistrer</button>
+      </form>
+    `;
+    const overlay = ouvrirModaleFormulaire('Changer mon mot de passe', html);
+    overlay.querySelector('#form-changer-mdp').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const actuel = overlay.querySelector('#mdp-actuel').value;
+      const nouveau = overlay.querySelector('#mdp-nouveau').value;
+      const confirmation = overlay.querySelector('#mdp-confirmation').value;
+      const msg = overlay.querySelector('#msg-changer-mdp');
+      if (nouveau !== confirmation) { msg.textContent = 'Les deux mots de passe ne correspondent pas.'; return; }
+
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/profil/mot-de-passe`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mot_de_passe_actuel: actuel, nouveau_mot_de_passe: nouveau }),
+      });
+      if (res.ok) {
+        fermerModaleFormulaire(overlay);
+        afficherToastMessage('Mot de passe changé.', 'succes');
+      } else {
+        const d = await res.json();
+        msg.textContent = typeof d.erreur === 'string' ? d.erreur : 'Mot de passe invalide (6 caractères minimum).';
+      }
+    });
+  });
 
   zone.querySelector('#btn-telecharger-donnees').addEventListener('click', async () => {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/auth/mes-donnees`);
