@@ -880,7 +880,15 @@ async function relancerCommuneActivee(env: any, staffId: string, prospect: any):
   await envoyerModeleGenerique(env, 'onboarding_relance_j3', MODELE_ONBOARDING_RELANCE_J3_DEFAUT, destinataire, ctx);
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  await supabaseUpdate(env, 'prospects', { updated_at: new Date().toISOString(), prochaine_relance_le: relance }, { id: `eq.${prospect.id}` });
+  // Une commune déjà activée l'est forcément parce qu'on lui a déjà écrit au moins une fois
+  // (voir activerCommuneGratuite, appelée uniquement depuis un envoi) — un statut encore à
+  // "à_contacter" à ce stade est donc toujours obsolète, jamais un vrai signal. Même garde que
+  // prospecterUn (l'envoi de la toute première présentation), pour que la répartition par statut
+  // de l'aperçu Prospection ne sous-compte plus les communes réellement déjà contactées (bug
+  // constaté sur Talence le 2026-08-31 : relancée avec succès, statut resté bloqué).
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
+  if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
+  await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
   await supabaseInsert(env, 'prospect_interactions', {
     prospect_id: prospect.id, staff_id: staffId,
     type: 'email', contenu: `Email de relance (J+3, onboarding) envoyé à ${destinataire}`,
@@ -1013,6 +1021,27 @@ app.patch('/prospects/statut-lot', async (c) => {
     modifies += 1;
   }
   return c.json({ ok: true, modifies });
+});
+
+// POST /prospects/corriger-statuts-actives — correction ponctuelle (bug découvert sur Talence le
+// 2026-08-31) : bascule "à_contacter" → "contacté" pour tout prospect ayant déjà une commune
+// activée (donc ayant forcément déjà reçu un envoi, voir activerCommuneGratuite) — cas que
+// relancerCommuneActivee laissait jusqu'ici échapper au changement de statut (voir le correctif
+// juste au-dessus, dans relancerCommuneActivee). Idempotent : ne retouche que ce qui est encore
+// à corriger, sans risque à rejouer plusieurs fois.
+app.post('/prospects/corriger-statuts-actives', async (c) => {
+  const staffId = c.get('staff_id');
+  const prospects = await supabaseSelectTout(c.env, 'prospects', {
+    select: 'id', statut: 'eq.a_contacter', commune_id: 'not.is.null',
+  });
+  for (const p of prospects) {
+    await supabaseUpdate(c.env, 'prospects', { statut: 'contacte', updated_at: new Date().toISOString() }, { id: `eq.${p.id}` });
+    await supabaseInsert(c.env, 'prospect_interactions', {
+      prospect_id: p.id, staff_id: staffId,
+      type: 'statut', contenu: 'Statut corrigé automatiquement : à contacter → contacté (commune déjà activée)',
+    });
+  }
+  return c.json({ ok: true, corriges: prospects.length });
 });
 
 // — Mise à jour (statut, notes, relance, contact). Un changement de statut ou d'email est
