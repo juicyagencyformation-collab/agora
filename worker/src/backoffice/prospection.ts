@@ -184,15 +184,33 @@ app.post('/synchroniser-maires', async (c) => {
   // Corrige les comptes maire déjà créés qui portent encore le placeholder "Maire de {commune}"
   // (jamais touché depuis, ni par le maire lui-même ni par une correction manuelle — condition
   // volontairement stricte pour ne jamais écraser un nom que le maire aurait modifié à la main
-  // depuis son profil).
+  // depuis son profil). Par lots UPSERT (pas un select+update par commune) : même piège de
+  // sous-requêtes déjà rencontré ailleurs sur ce projet — avec des centaines de communes déjà
+  // activées, une boucle d'un select + un update par commune dépassait la limite par invocation
+  // (constaté le 2026-08-31). email/password_hash/commune_id repartent inchangés dans le payload
+  // de l'upsert : même raison que pour l'upsert des prospects plus haut (colonnes NOT NULL sans
+  // défaut requises dans TOUTE ligne d'un upsert PostgREST, même sur une ligne qui n'existera
+  // jamais qu'en UPDATE — voir supabaseUpsert dans db.ts).
+  const TAILLE_LOT_MAIRES = 100; // évite un in.() à des centaines d'UUID dans une seule URL
+  const correctionParCommune = new Map(aCorrigerCoteUsers.map((x) => [x.communeId, x]));
+  const communeIdsACorriger = [...correctionParCommune.keys()];
   let comptesCorriges = 0;
-  for (const { communeId, prenom, nom } of aCorrigerCoteUsers) {
-    const [maire] = await supabaseSelect(c.env, 'users', {
-      select: 'id,prenom', commune_id: `eq.${communeId}`, role: 'eq.maire', prenom: 'eq.Maire de',
+  for (let i = 0; i < communeIdsACorriger.length; i += TAILLE_LOT_MAIRES) {
+    const lot = communeIdsACorriger.slice(i, i + TAILLE_LOT_MAIRES);
+    const maires = await supabaseSelect(c.env, 'users', {
+      select: 'id,commune_id,email,password_hash',
+      commune_id: `in.(${lot.join(',')})`, role: 'eq.maire', prenom: 'eq.Maire de',
     });
-    if (!maire) continue;
-    await supabaseUpdate(c.env, 'users', { prenom, nom }, { id: `eq.${maire.id}` });
-    comptesCorriges += 1;
+    if (!maires.length) continue;
+    const payload = maires.map((m: any) => {
+      const correction = correctionParCommune.get(m.commune_id)!;
+      return {
+        id: m.id, commune_id: m.commune_id, email: m.email, password_hash: m.password_hash,
+        prenom: correction.prenom, nom: correction.nom,
+      };
+    });
+    await supabaseUpsert(c.env, 'users', payload, 'id');
+    comptesCorriges += payload.length;
   }
 
   return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length, comptes_maire_corriges: comptesCorriges });
