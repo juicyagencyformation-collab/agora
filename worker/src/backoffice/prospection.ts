@@ -613,12 +613,19 @@ app.post('/prospects/:id/enrichir', async (c) => {
 });
 
 // Correction en masse des emails invalides (bounces Resend) : retente l'annuaire pour chaque
-// prospect flagué email_invalide, dans l'espoir d'une adresse plus à jour que celle qui a
-// rejeté. Partagé par le bouton backoffice et le cron quotidien (voir worker/src/cron.ts).
-// Plafonné à 300 par passage : léger, un rattrapage suffit largement d'un jour sur l'autre.
+// prospect flagué email_invalide, dans l'espoir d'une adresse plus à jour (ou confirmée, voir
+// enrichirDepuisAnnuaire) que celle qui a rejeté. Partagé par le bouton backoffice et le cron
+// quotidien (voir worker/src/cron.ts).
 export async function corrigerEmailsInvalides(env: any): Promise<{ corriges: number; inchanges: number }> {
+  // Plafonné à 40 : chaque prospect coûte 2 sous-requêtes (annuaire externe + mise à jour), pas de
+  // bulk possible côté annuaire (une commune à la fois) — même limite et mêmes raisons que
+  // /prospecter-lot (Resend + sous-requêtes Worker). Un passage à 300 dépassait la limite dès
+  // qu'un gros lot de bounces arrivait d'un coup (constaté le 2026-08-31, ~200 bounces Orange en
+  // une journée) : 500 opaque plutôt qu'une correction, même sur les prospects traitables avant
+  // la limite. Le cron nocturne et ce bouton peuvent tous deux être rejoués plusieurs fois pour
+  // vider un gros arriéré sur plusieurs passages plutôt qu'en un seul.
   const prospects = await supabaseSelect(env, 'prospects', {
-    select: 'id,code_insee,contact_email,email_invalide', email_invalide: 'eq.true', limit: '300',
+    select: 'id,code_insee,contact_email,email_invalide', email_invalide: 'eq.true', limit: '40',
   });
   let corriges = 0, inchanges = 0;
   for (const prospect of prospects) {
