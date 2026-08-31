@@ -1034,13 +1034,21 @@ app.post('/prospects/corriger-statuts-actives', async (c) => {
   const prospects = await supabaseSelectTout(c.env, 'prospects', {
     select: 'id', statut: 'eq.a_contacter', commune_id: 'not.is.null',
   });
-  for (const p of prospects) {
-    await supabaseUpdate(c.env, 'prospects', { statut: 'contacte', updated_at: new Date().toISOString() }, { id: `eq.${p.id}` });
-    await supabaseInsert(c.env, 'prospect_interactions', {
-      prospect_id: p.id, staff_id: staffId,
-      type: 'statut', contenu: 'Statut corrigé automatiquement : à contacter → contacté (commune déjà activée)',
-    });
-  }
+  if (!prospects.length) return c.json({ ok: true, corriges: 0 });
+
+  // Une seule requête pour TOUTES les lignes (filtre statut+commune_id, pas un id précis) plutôt
+  // qu'une boucle de N updates — piège déjà rencontré sur ce projet (voir CLAUDE.md, incident de
+  // la synchro RNE) : une boucle dépasse vite la limite de sous-requêtes par invocation Worker dès
+  // que plusieurs dizaines de lignes sont concernées.
+  await supabaseUpdate(c.env, 'prospects', {
+    statut: 'contacte', updated_at: new Date().toISOString(),
+  }, { statut: 'eq.a_contacter', commune_id: 'not.is.null' });
+
+  await supabaseInsert(c.env, 'prospect_interactions', prospects.map((p: any) => ({
+    prospect_id: p.id, staff_id: staffId,
+    type: 'statut', contenu: 'Statut corrigé automatiquement : à contacter → contacté (commune déjà activée)',
+  })));
+
   return c.json({ ok: true, corriges: prospects.length });
 });
 
