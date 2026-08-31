@@ -616,24 +616,31 @@ app.post('/prospects/:id/enrichir', async (c) => {
 // prospect flagué email_invalide, dans l'espoir d'une adresse plus à jour (ou confirmée, voir
 // enrichirDepuisAnnuaire) que celle qui a rejeté. Partagé par le bouton backoffice et le cron
 // quotidien (voir worker/src/cron.ts).
-export async function corrigerEmailsInvalides(env: any): Promise<{ corriges: number; inchanges: number }> {
+export async function corrigerEmailsInvalides(env: any): Promise<{ corriges: number; inchanges: number; erreurs: number }> {
   // Plafonné à 40 : chaque prospect coûte 2 sous-requêtes (annuaire externe + mise à jour), pas de
   // bulk possible côté annuaire (une commune à la fois) — même limite et mêmes raisons que
-  // /prospecter-lot (Resend + sous-requêtes Worker). Un passage à 300 dépassait la limite dès
-  // qu'un gros lot de bounces arrivait d'un coup (constaté le 2026-08-31, ~200 bounces Orange en
-  // une journée) : 500 opaque plutôt qu'une correction, même sur les prospects traitables avant
-  // la limite. Le cron nocturne et ce bouton peuvent tous deux être rejoués plusieurs fois pour
-  // vider un gros arriéré sur plusieurs passages plutôt qu'en un seul.
+  // /prospecter-lot (Resend + sous-requêtes Worker). Le cron nocturne et ce bouton peuvent tous
+  // deux être rejoués plusieurs fois pour vider un gros arriéré sur plusieurs passages.
   const prospects = await supabaseSelect(env, 'prospects', {
     select: 'id,code_insee,contact_email,email_invalide', email_invalide: 'eq.true', limit: '40',
   });
-  let corriges = 0, inchanges = 0;
+  let corriges = 0, inchanges = 0, erreurs = 0;
   for (const prospect of prospects) {
-    const maj = await enrichirDepuisAnnuaire(env, prospect);
-    if (maj && maj.email_invalide === false) corriges += 1;
-    else inchanges += 1;
+    // Chaque prospect isolé dans son propre try/catch (même pattern que traiterLot) : sans ça,
+    // UNE SEULE réponse inattendue de l'annuaire (réseau, JSON invalide, commune sans fiche mal
+    // formée...) faisait planter tout le lot en 500 plutôt que de corriger les autres — constaté
+    // le 2026-08-31, persistait même après avoir réduit la taille du lot, signe que la vraie
+    // cause n'était pas le volume mais un échec isolé jamais rattrapé.
+    try {
+      const maj = await enrichirDepuisAnnuaire(env, prospect);
+      if (maj && maj.email_invalide === false) corriges += 1;
+      else inchanges += 1;
+    } catch (err) {
+      console.error(`corrigerEmailsInvalides a échoué pour le prospect ${prospect.id} (INSEE ${prospect.code_insee}) :`, err);
+      erreurs += 1;
+    }
   }
-  return { corriges, inchanges };
+  return { corriges, inchanges, erreurs };
 }
 
 app.post('/prospects/corriger-emails-invalides', async (c) => {
