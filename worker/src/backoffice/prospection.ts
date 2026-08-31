@@ -562,9 +562,13 @@ export function coordsDepuisAdresse(champJson: string | null | undefined): { lat
 // Récupère le contact mairie depuis l'annuaire, met à jour le prospect et renvoie la ligne à
 // jour. Renvoie null si l'annuaire n'a pas de fiche. Partagé par /enrichir, /prospecter et la
 // correction automatique des emails invalides (bounces Resend, voir corrigerEmailsInvalides).
-// Une adresse fraîche et DIFFÉRENTE de celle qui avait fait rejeter le mail lève le flag
-// email_invalide : elle mérite un nouvel essai. Si l'annuaire renvoie la même adresse (ou rien),
-// le flag reste posé — pas de nouvel envoi tant qu'on n'a pas une piste différente.
+// Toute adresse CONFIRMÉE par l'annuaire (même identique à celle déjà en base) lève le flag
+// email_invalide — pas seulement une adresse différente comme avant le 2026-08-31. Beaucoup de
+// bounces ne sont PAS une adresse morte mais un filtrage anti-spam ponctuel côté fournisseur
+// (Orange/Wanadoo notamment, ~200 bounces constatés le même jour, même message générique) : dans
+// ce cas l'annuaire renvoie légitimement la MÊME adresse, et l'ancienne condition ne débloquait
+// donc jamais rien pour toute cette catégorie — "Corriger via l'annuaire" semblait ne servir à
+// rien alors que l'adresse était en fait correcte depuis le début.
 async function enrichirDepuisAnnuaire(
   env: any,
   prospect: { id: string; code_insee: string; contact_email?: string | null; email_invalide?: boolean },
@@ -589,7 +593,7 @@ async function enrichirDepuisAnnuaire(
   };
   // Coordonnées récupérées « gratuitement » depuis l'annuaire : alimentent la carte au fil de l'eau.
   if (coords) { patch.lat = coords.lat; patch.lng = coords.lng; }
-  if (prospect.email_invalide && nouvelEmail && nouvelEmail !== prospect.contact_email) {
+  if (prospect.email_invalide && nouvelEmail) {
     patch.email_invalide = false;
   }
   const [maj] = await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });

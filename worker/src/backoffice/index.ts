@@ -93,6 +93,18 @@ app.post('/webhook-resend', async (c) => {
     const sujet = evt?.data?.subject || null;
     const raison = evt?.data?.bounce?.message || evt?.data?.bounce?.subType || evt?.data?.reason || evt.type;
 
+    // Un bounce "Permanent" (adresse qui n'existe plus) justifie de bloquer les renvois
+    // automatiques ; un bounce "Transient"/générique (typiquement un filtrage anti-spam en
+    // volume côté fournisseur — Orange/Wanadoo notamment, constaté le 2026-08-31 : ~200 bounces
+    // le même jour, même message générique, même fournisseur) ne veut pas dire que l'adresse est
+    // mauvaise. La bloquer quand même rendait "Corriger via l'annuaire" inopérant sur toute cette
+    // catégorie : l'annuaire renvoie la même adresse, déjà correcte, donc rien ne se débloquait
+    // jamais (voir aussi enrichirDepuisAnnuaire dans prospection.ts, assoupli pour ce même cas).
+    // Un signalement (email.complained) reste TOUJOURS bloquant quel que soit son type : c'est un
+    // choix délibéré du destinataire, pas un aléa technique d'acheminement.
+    const bounceType = evt?.data?.bounce?.type;
+    const bloquant = evt.type === 'email.complained' || bounceType === 'Permanent';
+
     for (const email of destinataires) {
       if (!email) continue;
       const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'nom', contact_email: `eq.${email}` });
@@ -104,6 +116,7 @@ app.post('/webhook-resend', async (c) => {
           event_id: eventId, email, commune_nom: prospect?.nom || null, sujet, type: evt.type, raison,
         });
       }
+      if (!bloquant) continue; // journalisé pour visibilité, mais aucun renvoi futur bloqué
       await supabaseUpdate(c.env, 'prospects', { email_invalide: true }, { contact_email: `eq.${email}` });
       // Même signal côté communes CLIENTES (rappels d'échéance, email de présentation) —
       // jusqu'ici seuls les prospects étaient tracés. Alimente le badge de santé du backoffice.
