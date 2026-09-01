@@ -137,7 +137,10 @@ const PALIERS_STREAK_CONNEXION = [10, 20, 40, 50, 75, 100, 150, 200, 300, 365, 4
 
 // Définitions des badges — chaque condition est vérifiée côté serveur, jamais fournie par le client.
 const DEFINITIONS_BADGES = [
-  { cle: 'premier_pas', verifie: async () => true }, // acquis dès la 1re vérification (après 1re connexion)
+  // 'premier_pas' retiré (2026-09-01) : se déclenchait automatiquement à la toute première
+  // connexion, affichant un popup dès la première ouverture de l'appli — pas l'accueil voulu
+  // pour un nouvel utilisateur. Label gardé dans frontend/js/profil.js (LABELS_BADGES) pour ne
+  // pas casser l'affichage de ceux qui l'ont déjà obtenu.
   { cle: 'assidu', verifie: async (_env: any, _cid: string, _uid: string, user: any) => (user.streak_actuel ?? 0) >= 7 },
   { cle: 'super_assidu', verifie: async (_env: any, _cid: string, _uid: string, user: any) => (user.streak_actuel ?? 0) >= 30 },
   ...PALIERS_STREAK_CONNEXION.map((jours) => ({
