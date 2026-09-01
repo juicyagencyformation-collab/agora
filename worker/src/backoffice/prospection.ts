@@ -268,26 +268,41 @@ app.get('/prospects', async (c) => {
       ? new Set([...idsFiltreCommune].filter((id) => idsCommunesConnectees.has(id)))
       : idsCommunesConnectees;
   }
-  if (idsFiltreCommune) {
-    where.commune_id = idsFiltreCommune.size
-      ? `in.(${[...idsFiltreCommune].join(',')})`
-      : 'eq.00000000-0000-0000-0000-000000000000'; // aucune commune correspondante : liste volontairement vide
-  }
 
   const tri = c.req.query('tri');
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const offset = (page - 1) * TAILLE_PAGE_PROSPECTS;
+  const selectProspects = 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le,commune_id,nom_maire';
+  const order = (tri && TRIS[tri]) || TRIS.nom;
 
-  const [prospects, total] = await Promise.all([
-    supabaseSelect(c.env, 'prospects', {
-      ...where,
-      select: 'id,code_insee,nom,departement,population,statut,contact_email,email_invalide,prochaine_relance_le,commune_id,nom_maire',
-      order: (tri && TRIS[tri]) || TRIS.nom,
-      limit: String(TAILLE_PAGE_PROSPECTS),
-      offset: String(offset),
-    }),
-    supabaseCount(c.env, 'prospects', where),
-  ]);
+  let prospects: any[];
+  let total: number;
+  if (idsFiltreCommune) {
+    // ⚠️ NE JAMAIS construire un filtre commune_id: in.(...) à partir de ce Set — à l'échelle
+    // de la prospection (des milliers de communes activées), l'URL PostgREST résultante dépasse
+    // toute limite raisonnable et échoue silencieusement en 500 (bug vécu le 2026-09-01, page
+    // Prospection entière en erreur). Comme ces deux signaux ("inscrit"/"maire connecté") ne
+    // vivent pas sur la table prospects elle-même, on filtre en mémoire après un chargement
+    // paginé classique (supabaseSelectTout — sans in.(), tient à n'importe quelle échelle,
+    // voir calculerStatsVariantes plus bas pour le même principe).
+    const tousLesProspectsFiltres = idsFiltreCommune.size
+      ? await supabaseSelectTout(c.env, 'prospects', { ...where, select: selectProspects, order })
+      : [];
+    const filtres = tousLesProspectsFiltres.filter((p: any) => p.commune_id && idsFiltreCommune!.has(p.commune_id));
+    total = filtres.length;
+    prospects = filtres.slice(offset, offset + TAILLE_PAGE_PROSPECTS);
+  } else {
+    [prospects, total] = await Promise.all([
+      supabaseSelect(c.env, 'prospects', {
+        ...where,
+        select: selectProspects,
+        order,
+        limit: String(TAILLE_PAGE_PROSPECTS),
+        offset: String(offset),
+      }),
+      supabaseCount(c.env, 'prospects', where),
+    ]);
+  }
 
   const prospectsAvecSignal = prospects.map((p: any) => ({
     ...p,
@@ -319,21 +334,22 @@ app.get('/prospects-export.csv', async (c) => {
     if (statut && STATUTS.includes(statut as any)) where.statut = `eq.${statut}`;
     if (departement) where.departement = `eq.${departement.toUpperCase()}`;
     if (recherche) where.nom = `ilike.*${recherche}*`;
-    if (c.req.query('maire_connecte') === '1') {
-      const idsCommunesConnectees = await chargerCommunesConnectees(c.env);
-      where.commune_id = idsCommunesConnectees.size
-        ? `in.(${[...idsCommunesConnectees].join(',')})`
-        : 'eq.00000000-0000-0000-0000-000000000000';
-    }
   }
 
   // Export = tout ce qui correspond, donc pagination complète (même piège que /apercu : un
   // simple limit élevé ne suffit pas, Supabase plafonne à 1000 lignes par réponse).
-  const prospects = await supabaseSelectTout(c.env, 'prospects', {
+  let prospects = await supabaseSelectTout(c.env, 'prospects', {
     ...where,
-    select: 'nom,departement,population,statut,nom_maire,contact_email,contact_telephone,site_web,prochaine_relance_le,created_at',
+    select: 'nom,departement,population,statut,nom_maire,contact_email,contact_telephone,site_web,prochaine_relance_le,created_at,commune_id',
     order: 'nom.asc',
   });
+  // ⚠️ Même piège que GET /prospects ci-dessus : jamais de commune_id: in.(...) construit à
+  // partir d'un Set qui peut contenir des milliers d'ids (URL PostgREST trop longue → 500).
+  // Filtré en mémoire après coup à la place.
+  if (c.req.query('maire_connecte') === '1') {
+    const idsCommunesConnectees = await chargerCommunesConnectees(c.env);
+    prospects = prospects.filter((p: any) => p.commune_id && idsCommunesConnectees.has(p.commune_id));
+  }
   const csv = versCsv(prospects, [
     { cle: 'nom', titre: 'Commune' }, { cle: 'departement', titre: 'Département' },
     { cle: 'population', titre: 'Population' }, { cle: 'statut', titre: 'Statut' },
