@@ -3001,7 +3001,7 @@
                   <div style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
                     <div class="bo-info" style="margin-bottom:6px" x-show="prospect.perdu_le">Refusé le <span x-text="formatDate(prospect.perdu_le)"></span> — relance prévue le <span x-text="formatDate(prospect.prochaine_relance_le)"></span> (dans ~10 mois par défaut, ajustable ci-dessus).</div>
                     <label style="margin-top:0">Raison invoquée</label>
-                    <input type="text" x-model="prospect.raison_perdu" placeholder="Budget, pas convaincu, mauvais moment…"
+                    <input type="text" x-model="prospect.raison_perdu" placeholder="Budget, pas convaincu, mauvais moment…" maxlength="500"
                            @blur="majProspect({ raison_perdu: prospect.raison_perdu || null })" />
                   </div>
                 </template>

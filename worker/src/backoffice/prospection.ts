@@ -543,12 +543,14 @@ app.get('/prospects-a-relancer', async (c) => {
 // du refus, raison, prochaine relance — nullslast pour remonter les refus déjà datés d'abord et
 // laisser en bas les quelques prospects marqués perdus avant l'existence de ce suivi (perdu_le
 // et prochaine_relance_le vides pour ceux-là, faute de backfill).
+// supabaseSelectTout (pas un simple `limit`) : même piège que /apercu et /prospects-a-relancer —
+// un plafond fixe tronquerait silencieusement ce tableau une fois plusieurs centaines de refus
+// accumulés, exactement le genre de bug déjà corrigé ailleurs dans ce fichier cette semaine.
 app.get('/prospects-perdus', async (c) => {
-  const prospects = await supabaseSelect(c.env, 'prospects', {
+  const prospects = await supabaseSelectTout(c.env, 'prospects', {
     select: 'id,nom,departement,perdu_le,raison_perdu,prochaine_relance_le',
     statut: 'eq.perdu',
     order: 'prochaine_relance_le.asc.nullslast',
-    limit: '500',
   });
   return c.json({ prospects });
 });
@@ -1198,9 +1200,14 @@ app.patch('/prospects/:id', async (c) => {
   }
   // Passage EN statut "perdu" (pas déjà perdu) : date du refus + relance automatique, pour que
   // ce prospect reste dans le pipeline plutôt que de se perdre — voir MOIS_RELANCE_APRES_REFUS.
+  // raison_perdu remise à zéro si non fournie dans ce même appel : un prospect relancé puis
+  // refusé une seconde fois pour un motif différent ne doit pas garder affichée l'ancienne
+  // raison (le staff est invité à la re-préciser sur la fiche, plutôt que de laisser une donnée
+  // potentiellement fausse silencieusement en place).
   if (body.data.statut === 'perdu' && prospect.statut !== 'perdu') {
     const aujourdhui = new Date().toISOString().slice(0, 10);
     patch.perdu_le = aujourdhui;
+    if (body.data.raison_perdu === undefined) patch.raison_perdu = null;
     if (body.data.prochaine_relance_le === undefined) {
       patch.prochaine_relance_le = ajouterMois(aujourdhui, MOIS_RELANCE_APRES_REFUS);
     }
