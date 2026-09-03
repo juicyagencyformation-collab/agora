@@ -107,6 +107,26 @@
           </div>
 
           <div class="bo-carte" style="margin-bottom:20px">
+            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>🕓 Refus à relancer<span class="bo-tiroir__compte" x-show="ajProspectsPerdusRelance.length" x-text="' — ' + ajProspectsPerdusRelance.length"></span></strong></div>
+            <template x-if="ajProspectsPerdusRelance.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Aucun refus à relancer aujourd'hui.</div>
+            </template>
+            <table x-show="ajProspectsPerdusRelance.length > 0">
+              <thead><tr><th>Commune</th><th>Raison du refus</th><th>Relance prévue</th></tr></thead>
+              <tbody>
+                <template x-for="p in ajProspectsPerdusRelance" :key="p.id">
+                  <tr @click="ouvrirProspect(p.id)">
+                    <td class="bo-nom-commune" x-text="p.nom"></td>
+                    <td x-text="p.raison_perdu || '—'"></td>
+                    <td><span class="bo-note--basse" x-text="formatDate(p.prochaine_relance_le)"></span></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div class="bo-info" style="padding:12px 18px" x-show="ajProspectsPerdusRelance.length > 0">Se retravaille à la main, personnalisé — pas de relance en lot pour un refus.</div>
+          </div>
+
+          <div class="bo-carte" style="margin-bottom:20px">
             <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>📥 Réponses reçues à traiter<span class="bo-tiroir__compte" x-show="ajEmailsRecus.length" x-text="' — ' + ajEmailsRecus.length"></span></strong></div>
             <template x-if="ajEmailsRecus.length === 0">
               <div class="bo-vide" style="padding:16px 18px">Rien à traiter.</div>
@@ -2532,6 +2552,42 @@
             <div class="bo-stat"><div class="bo-stat__val" x-text="apProsp.a_relancer ?? '—'"></div><div class="bo-stat__lib">À relancer</div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="apProsp.contactes_avec_commune ?? '—'"></div><div class="bo-stat__lib">Contactés, commune activée</div></div>
             <div class="bo-stat"><div class="bo-stat__val" :class="{ 'bo-note--basse': apProsp.contactes_sans_commune }" x-text="apProsp.contactes_sans_commune ?? '—'"></div><div class="bo-stat__lib">Contactés, à rattraper</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" :class="{ 'bo-note--basse': apProsp.perdus_a_relancer }" x-text="apProsp.perdus_a_relancer ?? '—'"></div><div class="bo-stat__lib">Refus à relancer</div></div>
+          </div>
+
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('pipeline_refus')">
+              <span>🕓 Pipeline de refus<span class="bo-tiroir__compte" x-show="prospectsPerdus.length" x-text="' — ' + prospectsPerdus.length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.pipeline_refus}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.pipeline_refus">
+              <template x-if="prospectsPerdus.length === 0">
+                <div style="padding:16px 18px" class="bo-info">Aucun refus pour l'instant.</div>
+              </template>
+              <template x-if="prospectsPerdus.length > 0">
+                <table>
+                  <thead><tr><th>Commune</th><th>Département</th><th>Refusé le</th><th>Raison</th><th>Relance prévue</th></tr></thead>
+                  <tbody>
+                    <template x-for="p in prospectsPerdus" :key="p.id">
+                      <tr @click="ouvrirProspect(p.id)">
+                        <td class="bo-nom-commune" x-text="p.nom"></td>
+                        <td x-text="p.departement || '—'"></td>
+                        <td x-text="p.perdu_le ? formatDate(p.perdu_le) : '—'"></td>
+                        <td x-text="p.raison_perdu || '—'"></td>
+                        <td>
+                          <span :class="perduRelanceDue(p) ? 'bo-note--basse' : ''"
+                                x-text="p.prochaine_relance_le ? formatDate(p.prochaine_relance_le) : '—'"></span>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </template>
+              <div style="padding:12px 18px" class="bo-info">
+                Un prospect passé en statut « Perdu » reste ici avec une relance reprogrammée automatiquement
+                (~10 mois plus tard, ajustable sur sa fiche) — au lieu de disparaître du suivi.
+              </div>
+            </div>
           </div>
 
           <div class="bo-tiroir">
@@ -2941,6 +2997,15 @@
                 </div>
                 <div class="bo-note--basse" style="font-size:12.5px; margin:-4px 0 8px" x-show="relanceEnRetard(prospect)">Relance en retard.</div>
 
+                <template x-if="prospect.statut === 'perdu'">
+                  <div style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px">
+                    <div class="bo-info" style="margin-bottom:6px" x-show="prospect.perdu_le">Refusé le <span x-text="formatDate(prospect.perdu_le)"></span> — relance prévue le <span x-text="formatDate(prospect.prochaine_relance_le)"></span> (dans ~10 mois par défaut, ajustable ci-dessus).</div>
+                    <label style="margin-top:0">Raison invoquée</label>
+                    <input type="text" x-model="prospect.raison_perdu" placeholder="Budget, pas convaincu, mauvais moment…"
+                           @blur="majProspect({ raison_perdu: prospect.raison_perdu || null })" />
+                  </div>
+                </template>
+
                 <template x-if="!fermeture.ouvert">
                   <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:10px" @click="fermeture.ouvert = true">🏛 Mairie fermée</button>
                 </template>
@@ -3177,7 +3242,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260827-10"></script>
+  <script src="/backoffice/js/app.js?v=20260903-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

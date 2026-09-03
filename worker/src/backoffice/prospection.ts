@@ -493,6 +493,10 @@ app.get('/apercu', async (c) => {
   for (const s of STATUTS) parStatut[s] = 0;
   const aujourdhui = new Date().toISOString().slice(0, 10);
   let a_relancer = 0;
+  // Distinct de a_relancer ci-dessus : un refus ("perdu") suit un rythme de relance long
+  // (+10 mois par défaut, voir MOIS_RELANCE_APRES_REFUS) — jamais mélangé au rappel actif, pour
+  // ne pas donner l'impression qu'il faut le retraiter tout de suite comme un prospect chaud.
+  let perdus_a_relancer = 0;
   // Contactés (au sens large : ont reçu au moins une présentation) mais toujours sans commune
   // réelle — ce que traite « Activer et renvoyer ». Distingué de ceux déjà activés, pour
   // vérifier précisément l'avancement du rattrapage plutôt que de se fier à un seul message.
@@ -503,13 +507,14 @@ app.get('/apercu', async (c) => {
     parStatut[p.statut] = (parStatut[p.statut] ?? 0) + 1;
     if (p.prochaine_relance_le && p.prochaine_relance_le <= aujourdhui &&
         p.statut !== 'gagne' && p.statut !== 'perdu') a_relancer += 1;
+    if (p.statut === 'perdu' && p.prochaine_relance_le && p.prochaine_relance_le <= aujourdhui) perdus_a_relancer += 1;
     if (STATUTS_CONTACTES.includes(p.statut)) {
       if (p.commune_id) contactes_avec_commune += 1;
       else contactes_sans_commune += 1;
     }
   }
   return c.json({
-    total: prospects.length, par_statut: parStatut, a_relancer,
+    total: prospects.length, par_statut: parStatut, a_relancer, perdus_a_relancer,
     contactes_sans_commune, contactes_avec_commune,
   });
 });
@@ -531,11 +536,44 @@ app.get('/prospects-a-relancer', async (c) => {
   return c.json({ prospects, aujourdhui });
 });
 
+// GET /prospects-perdus — pipeline de relance des refus ("tièdes"), demandé par Léandre le
+// 2026-09-03 : un prospect passé en "Perdu" ne doit pas sortir purement et simplement du radar,
+// juste basculer sur un rythme de relance long (voir MOIS_RELANCE_APRES_REFUS ci-dessous, posé
+// automatiquement par PATCH /prospects/:id). Tableau dédié dans la vue Prospection : nom, date
+// du refus, raison, prochaine relance — nullslast pour remonter les refus déjà datés d'abord et
+// laisser en bas les quelques prospects marqués perdus avant l'existence de ce suivi (perdu_le
+// et prochaine_relance_le vides pour ceux-là, faute de backfill).
+app.get('/prospects-perdus', async (c) => {
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,departement,perdu_le,raison_perdu,prochaine_relance_le',
+    statut: 'eq.perdu',
+    order: 'prochaine_relance_le.asc.nullslast',
+    limit: '500',
+  });
+  return c.json({ prospects });
+});
+
+// GET /prospects-perdus-a-relancer — sous-ensemble de la liste ci-dessus dû aujourd'hui ou en
+// retard, pour le rappel dans le tableau de bord "Aujourd'hui" (voir chargerAujourdhui côté
+// frontend). Volontairement PAS mélangé à /prospects-a-relancer ni à relancer-lot : un refus se
+// retravaille à la main, personnalisé — jamais par un email en lot comme les prospects chauds.
+app.get('/prospects-perdus-a-relancer', async (c) => {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,departement,raison_perdu,prochaine_relance_le',
+    statut: 'eq.perdu',
+    prochaine_relance_le: `lte.${aujourdhui}`,
+    order: 'prochaine_relance_le.asc',
+    limit: '200',
+  });
+  return c.json({ prospects, aujourdhui });
+});
+
 // — Fiche + timeline —
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles',
+    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles,perdu_le,raison_perdu',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -1112,7 +1150,27 @@ const patchSchema = z.object({
   prochaine_relance_le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   contact_email: z.string().email().optional().nullable(),
   etoiles: z.number().int().min(0).max(5).optional(),
+  raison_perdu: z.string().max(500).optional().nullable(),
 });
+
+// Un prospect "perdu" (refus explicite) ne doit pas juste disparaître du radar — voir le
+// tableau "Pipeline de refus" de la vue Prospection. Délai posé automatiquement pour rester
+// systématique (Léandre développe seul, rien ne doit reposer sur "il faut penser à programmer
+// la relance") : 10 mois, milieu de la fourchette 9-12 mois validée le 2026-09-03. Ajustable au
+// cas par cas ensuite via le champ "Prochaine relance" de la fiche, comme n'importe quel prospect.
+const MOIS_RELANCE_APRES_REFUS = 10;
+
+// Ajoute `mois` mois à une date ISO (YYYY-MM-DD), en gérant le débordement de fin de mois
+// (ex: 31 janvier + 1 mois → 28/29 février, jamais "3 mars" comme le ferait un setMonth naïf).
+function ajouterMois(dateIso: string, mois: number): string {
+  const d = new Date(dateIso + 'T00:00:00Z');
+  const jourVoulu = d.getUTCDate();
+  d.setUTCDate(1); // évite qu'un débordement de setUTCMonth ci-dessous ne décale encore le mois
+  d.setUTCMonth(d.getUTCMonth() + mois);
+  const dernierJourDuMois = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(jourVoulu, dernierJourDuMois));
+  return d.toISOString().slice(0, 10);
+}
 
 app.patch('/prospects/:id', async (c) => {
   const id = c.req.param('id');
@@ -1120,7 +1178,9 @@ app.patch('/prospects/:id', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
 
-  const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'statut,contact_email', id: `eq.${id}` });
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'statut,contact_email,raison_perdu', id: `eq.${id}`,
+  });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -1128,12 +1188,22 @@ app.patch('/prospects/:id', async (c) => {
   if (body.data.notes !== undefined) patch.notes = body.data.notes;
   if (body.data.prochaine_relance_le !== undefined) patch.prochaine_relance_le = body.data.prochaine_relance_le;
   if (body.data.etoiles !== undefined) patch.etoiles = body.data.etoiles;
+  if (body.data.raison_perdu !== undefined) patch.raison_perdu = body.data.raison_perdu;
   if (body.data.contact_email !== undefined) {
     patch.contact_email = body.data.contact_email;
     // Une correction manuelle mérite un nouvel essai : sans ça, une adresse pourtant réparée à
     // la main resterait bloquée par le flag posé au précédent rejet Resend (même logique que
     // l'enrichissement automatique via l'annuaire, voir enrichirDepuisAnnuaire ci-dessus).
     if (body.data.contact_email && body.data.contact_email !== prospect.contact_email) patch.email_invalide = false;
+  }
+  // Passage EN statut "perdu" (pas déjà perdu) : date du refus + relance automatique, pour que
+  // ce prospect reste dans le pipeline plutôt que de se perdre — voir MOIS_RELANCE_APRES_REFUS.
+  if (body.data.statut === 'perdu' && prospect.statut !== 'perdu') {
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    patch.perdu_le = aujourdhui;
+    if (body.data.prochaine_relance_le === undefined) {
+      patch.prochaine_relance_le = ajouterMois(aujourdhui, MOIS_RELANCE_APRES_REFUS);
+    }
   }
 
   await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
@@ -1142,6 +1212,12 @@ app.patch('/prospects/:id', async (c) => {
     await supabaseInsert(c.env, 'prospect_interactions', {
       prospect_id: id, staff_id: c.get('staff_id'),
       type: 'statut', contenu: `Statut : ${prospect.statut} → ${body.data.statut}`,
+    });
+  }
+  if (body.data.raison_perdu !== undefined && body.data.raison_perdu !== prospect.raison_perdu) {
+    await supabaseInsert(c.env, 'prospect_interactions', {
+      prospect_id: id, staff_id: c.get('staff_id'),
+      type: 'statut', contenu: `Raison du refus : ${body.data.raison_perdu || '(vide)'}`,
     });
   }
   if (body.data.contact_email !== undefined && body.data.contact_email !== prospect.contact_email) {

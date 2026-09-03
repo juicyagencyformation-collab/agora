@@ -203,6 +203,7 @@ function backoffice() {
     prospects: [],
     apProsp: {},
     statsVariantes: [],
+    prospectsPerdus: [], // pipeline de relance des refus — voir GET /prospects-perdus
     rattrapageEnCours: false,
     rattrapageMsg: '',
     selectionProspects: {}, // id -> true
@@ -231,6 +232,7 @@ function backoffice() {
     // onboardingSansContact/emailsRejetes, déjà chargés à chaque boot par chargerCommunes()
     // (dernier appel de init()) — pas la peine de les refetcher en double pour cette vue.
     ajProspectsRelance: [],
+    ajProspectsPerdusRelance: [], // refus dus aujourd'hui — voir GET /prospects-perdus-a-relancer
     ajDateAujourdhui: '',
     ajEmailsRecus: [],
     relanceLotEnCours: false,
@@ -282,6 +284,7 @@ function backoffice() {
           this.ongletsGratuitsSelection = r.onglets;
         } catch {}
         try { this.statsVariantes = (await boFetch('/prospection/stats-variantes')).variantes; } catch {}
+        try { this.prospectsPerdus = (await boFetch('/prospection/prospects-perdus')).prospects; } catch {}
         try { this.favoris = (await boFetch('/prospection/favoris')).prospects; } catch {}
         try { this.parametresEntreprise = (await boFetch('/administration/parametres-entreprise')).parametres; } catch {}
         this.chargerAujourdhui(); // pas de await : le badge se met à jour dès que ça arrive, ne bloque pas le reste de init()
@@ -980,11 +983,13 @@ function backoffice() {
     // visitée) que depuis allerAujourdhui() (pour un état frais à chaque visite). —
     async chargerAujourdhui() {
       try {
-        const [relance, recus] = await Promise.all([
+        const [relance, perdus, recus] = await Promise.all([
           boFetch('/prospection/prospects-a-relancer'),
+          boFetch('/prospection/prospects-perdus-a-relancer'),
           boFetch('/prospection/emails-recus?traite=0'),
         ]);
         this.ajProspectsRelance = relance.prospects;
+        this.ajProspectsPerdusRelance = perdus.prospects;
         this.ajDateAujourdhui = relance.aujourdhui;
         this.ajEmailsRecus = recus.emails;
       } catch {}
@@ -994,7 +999,7 @@ function backoffice() {
       await this.chargerAujourdhui();
     },
     totalAujourdhui() {
-      return this.ajProspectsRelance.length + this.ajEmailsRecus.length + this.echeances.length
+      return this.ajProspectsRelance.length + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
         + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length;
     },
     // « Tout traiter » : même bascule intelligente que le bouton Relancer d'une fiche
@@ -1721,11 +1726,19 @@ function backoffice() {
     async majProspect(patch) {
       try {
         await boFetch('/prospection/prospects/' + this.prospect.id, { method: 'PATCH', body: JSON.stringify(patch) });
-        // Un changement de statut ou d'email ajoute une entrée automatique à l'historique : on recharge.
+        // Un changement de statut ou d'email ajoute une entrée automatique à l'historique : on
+        // recharge. Fusion complète (pas juste email_invalide) : un passage à "perdu" calcule
+        // perdu_le/prochaine_relance_le côté serveur (voir PATCH /prospects/:id), le client ne
+        // les connaît pas avant ce rechargement.
         if (patch.statut !== undefined || patch.contact_email !== undefined) {
           const d = await boFetch('/prospection/prospects/' + this.prospect.id);
-          this.prospect.email_invalide = d.prospect.email_invalide;
+          this.prospect = { ...this.prospect, ...d.prospect };
           this.interactions = d.interactions;
+        }
+        // Entrée ou sortie du statut "perdu" : tableau "Pipeline de refus" à jour sans recharger
+        // toute la page (léger, une seule fois par changement de statut, jamais en boucle).
+        if (patch.statut !== undefined) {
+          try { this.prospectsPerdus = (await boFetch('/prospection/prospects-perdus')).prospects; } catch {}
         }
       } catch (e) {
         alert(e.message || 'Mise à jour impossible');
@@ -2436,6 +2449,9 @@ function backoffice() {
     relanceEnRetard(p) {
       if (!p.prochaine_relance_le || p.statut === 'gagne' || p.statut === 'perdu') return false;
       return p.prochaine_relance_le <= new Date().toISOString().slice(0, 10);
+    },
+    perduRelanceDue(p) {
+      return !!p.prochaine_relance_le && p.prochaine_relance_le <= new Date().toISOString().slice(0, 10);
     },
   };
 }
