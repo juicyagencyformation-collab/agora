@@ -182,7 +182,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -1238,11 +1238,17 @@ app.put('/offres-tarifaires-texte', async (c) => {
   return c.json({ ok: true });
 });
 
-// PATCH /communes/:id/abonnement — prix retenu, durée d'engagement (12 ou 36 mois), échéance.
+// PATCH /communes/:id/abonnement — prix retenu, durée d'engagement (12 ou 36 mois), échéance,
+// formule tarifaire. formule est purement déclaratif (mémorise le choix pour l'afficher/le
+// reproposer ensuite) : le prix effectivement facturé reste prix_annuel_ttc, toujours modifiable
+// à la main — voir calculerPrixFormule côté frontend (app.js) pour le calcul suggéré. Pas de
+// valeur 'personnalise' dans l'enum : NULL représente déjà sans ambiguïté "pas de formule/prix
+// négocié à la main", pas la peine d'une 4e valeur qui voudrait dire la même chose.
 const abonnementSchema = z.object({
   prix_annuel_ttc: z.number().min(0).nullable().optional(),
   duree_engagement_mois: z.union([z.literal(12), z.literal(36)]).optional(),
   prochaine_echeance: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  formule: z.enum(['autonomie', 'accompagne', 'premium']).nullable().optional(),
 });
 
 app.patch('/communes/:id/abonnement', async (c) => {

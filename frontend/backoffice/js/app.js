@@ -202,7 +202,11 @@ function backoffice() {
     onboardingSansContact: [],
     abonnementEnCours: false,
     abonnementMsg: '',
+    // Coché par défaut : une commune qui passe en Premium le fait pour la 1re fois la plupart du
+    // temps (création de la chasse au trésor) — à décocher à la main pour un renouvellement.
+    premiumPremiereAnnee: true,
     nouveauDevis: { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 },
+    devisFormule: '', // formule utilisée pour préremplir objet/montant_ht du devis, voir preremplirDevis()
     devisListe: [],
     facturesListe: [],
     devisEnCours: false,
@@ -352,6 +356,9 @@ function backoffice() {
         this.forfaitNom = this.fiche.commune.forfait || '';
         this.forfaitQuota = this.fiche.commune.quota_go ?? '';
         if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
+        if (!this.fiche.commune.formule) this.fiche.commune.formule = '';
+        this.premiumPremiereAnnee = true;
+        this.devisFormule = this.fiche.commune.formule;
         this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
         try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
         try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
@@ -2085,22 +2092,47 @@ function backoffice() {
     async enregistrerTarification() {
       await Promise.all([this.enregistrerBareme(), this.enregistrerOffresTexte()]);
     },
-    // Aperçu live du tiroir tarification — reproduit la formule de tarification.ts/accueil.html
-    // (3e copie, voir le commentaire en tête de tarification.ts) pour un retour instantané sans
-    // enregistrer ni changer d'onglet vers la landing.
-    calculerAutonomiePreview() {
+    // Calcul du barème au nombre d'habitants — reproduit la formule de tarification.ts/accueil.html
+    // (voir le commentaire en tête de tarification.ts pour la liste des copies). Paramétré par
+    // habitants plutôt que lié à un seul champ : réutilisé à la fois par l'aperçu live du tiroir
+    // tarification (calculerXxxPreview ci-dessous) ET par la suggestion de prix sur la fiche
+    // commune / le formulaire de devis (calculerPrixFormule, preremplirDevis).
+    calculerPrixAutonomie(habitants) {
       const b = this.baremeTarifaire;
-      const hab = Math.max(0, Math.floor(Number(this.tarifApercuHabitants)) || 0);
+      const hab = Math.max(0, Math.floor(Number(habitants)) || 0);
       const seuil = Number(b.seuil_degressif) || 0;
       const brut = Math.min(hab, seuil) * (Number(b.taux_base) || 0)
         + Math.max(0, hab - seuil) * (Number(b.taux_degressif) || 0);
       return Math.max(brut, Number(b.prix_plancher) || 0);
     },
+    calculerPrixAccompagne(habitants) {
+      return this.calculerPrixAutonomie(habitants) + (Number(this.baremeTarifaire.supplement_accompagne) || 0);
+    },
+    // premiereAnnee : la chasse au trésor (prix_patrimoine_premium) n'est facturée qu'une fois,
+    // à la création — un renouvellement Premium ne la doit plus (voir tarification.ts).
+    calculerPrixPremium(habitants, premiereAnnee) {
+      const accompagne = this.calculerPrixAccompagne(habitants);
+      return premiereAnnee ? accompagne + (Number(this.baremeTarifaire.prix_patrimoine_premium) || 0) : accompagne;
+    },
+    // null pour 'personnalise' ou vide : aucune suggestion possible, prix 100% libre.
+    calculerPrixFormule(formule, habitants, premiereAnnee) {
+      if (formule === 'autonomie') return this.calculerPrixAutonomie(habitants);
+      if (formule === 'accompagne') return this.calculerPrixAccompagne(habitants);
+      if (formule === 'premium') return this.calculerPrixPremium(habitants, premiereAnnee);
+      return null;
+    },
+    libelleFormule(formule) {
+      return { autonomie: 'Autonomie', accompagne: 'Accompagné', premium: 'Premium' }[formule] || 'Personnalisé';
+    },
+    // Aperçu live du tiroir tarification — population test, pas celle d'une commune réelle.
+    calculerAutonomiePreview() {
+      return this.calculerPrixAutonomie(this.tarifApercuHabitants);
+    },
     calculerAccompagnePreview() {
-      return this.calculerAutonomiePreview() + (Number(this.baremeTarifaire.supplement_accompagne) || 0);
+      return this.calculerPrixAccompagne(this.tarifApercuHabitants);
     },
     calculerPremiumPreview() {
-      return this.calculerAccompagnePreview() + (Number(this.baremeTarifaire.prix_patrimoine_premium) || 0);
+      return this.calculerPrixPremium(this.tarifApercuHabitants, true); // aperçu = toujours 1re année
     },
     formaterPrixApercu(n) {
       return Math.round(n).toLocaleString('fr-FR') + ' €';
@@ -2156,10 +2188,6 @@ function backoffice() {
     libelleTranche(t) {
       if (!t) return '';
       return t.population_max == null ? `> ${t.population_min - 1} hab.` : `${t.population_min}–${t.population_max} hab.`;
-    },
-    trancheSuggeree(population) {
-      if (!population || !this.grilleTarifaire.tranches.length) return null;
-      return this.grilleTarifaire.tranches.find((t) => population >= t.population_min && (t.population_max == null || population <= t.population_max)) || null;
     },
     joursAvantEcheance(dateStr) {
       if (!dateStr) return null;
@@ -2248,15 +2276,19 @@ function backoffice() {
       if (j === null) return '';
       return j <= 0 ? 'bo-note--basse' : j <= 60 ? 'bo-note--moyenne' : '';
     },
-    appliquerTarifSuggere() {
-      const t = this.trancheSuggeree(this.fiche.commune.population);
-      if (!t) return;
-      const prixBase = Number(t.prix_annuel_ttc) || 0;
+    // Remplace l'ancienne suggestion par tranches (trancheSuggeree/appliquerTarifSuggere,
+    // retirées le 2026-09-03) : le prix suggéré vient désormais du barème au nombre d'habitants
+    // (voir calculerPrixFormule), la formule choisie étant mémorisée sur la commune (formule).
+    // Même proratisation à 36 mois qu'avant (mois_offerts_3ans reste un paramètre commercial
+    // général, pas propre à l'ancienne grille — pas de raison de le dupliquer).
+    appliquerTarifFormule() {
+      const prixBase = this.calculerPrixFormule(this.fiche.commune.formule, this.fiche.commune.population, this.premiumPremiereAnnee);
+      if (prixBase === null) return;
       if (Number(this.fiche.commune.duree_engagement_mois) === 36) {
         const moisPayes = 36 - (Number(this.grilleTarifaire.mois_offerts_3ans) || 0);
         this.fiche.commune.prix_annuel_ttc = Math.round((prixBase / 12) * moisPayes);
       } else {
-        this.fiche.commune.prix_annuel_ttc = prixBase;
+        this.fiche.commune.prix_annuel_ttc = Math.round(prixBase);
       }
     },
     async enregistrerAbonnement() {
@@ -2269,6 +2301,7 @@ function backoffice() {
             prix_annuel_ttc: this.fiche.commune.prix_annuel_ttc === '' || this.fiche.commune.prix_annuel_ttc == null ? null : Number(this.fiche.commune.prix_annuel_ttc),
             duree_engagement_mois: Number(this.fiche.commune.duree_engagement_mois) || 12,
             prochaine_echeance: this.fiche.commune.prochaine_echeance || null,
+            formule: this.fiche.commune.formule || null,
           }),
         });
         this.abonnementMsg = 'Enregistré.';
@@ -2301,6 +2334,16 @@ function backoffice() {
       ]);
       this.devisListe = d.devis;
       this.facturesListe = f.factures;
+    },
+    // Préremplit objet + montant HT à partir d'une formule (Autonomie/Accompagné/Premium) et de
+    // la population de la commune — un raccourci de saisie, pas un champ mémorisé sur le devis
+    // (contrairement à fiche.commune.formule) : objet/montant_ht restent modifiables ensuite comme
+    // avant. taux_tva à 0 par défaut sur ce formulaire (communes) : montant_ht = montant final.
+    preremplirDevis() {
+      const prix = this.calculerPrixFormule(this.devisFormule, this.fiche.commune.population, this.premiumPremiereAnnee);
+      if (prix === null) return;
+      this.nouveauDevis.objet = 'Abonnement annuel — ' + this.libelleFormule(this.devisFormule);
+      this.nouveauDevis.montant_ht = Math.round(prix);
     },
     async creerDevis() {
       this.devisEnCours = true;

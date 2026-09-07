@@ -473,13 +473,20 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('grille_tarifaire')">
-              <span>💶 Grille tarifaire (abonnement annuel TTC, par population)</span>
+              <span>💶 Mois offerts (engagement 3 ans) + ancienne grille par tranches (legacy)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.grille_tarifaire}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.grille_tarifaire">
+              <label style="margin-top:0">Mois offerts pour un engagement 3 ans</label>
+              <input type="number" min="0" max="36" x-model="grilleTarifaire.mois_offerts_3ans" style="width:100px" />
+              <div class="bo-info" style="margin:6px 0 14px">
+                Réutilisé par la fiche commune ET le devis (proratisation du tarif suggéré sur 3 ans) — le seul réglage
+                de ce tiroir encore actif.
+              </div>
               <div class="bo-info" style="margin-bottom:12px">
-                Suivi des échéances uniquement — pas de paiement en ligne (règlement par mandat administratif).
-                Ces tarifs servent de suggestion sur la fiche de chaque commune ; le montant final reste modifiable au cas par cas.
+                Ancienne grille par tranches — remplacée le 2026-09-03 par la tarification au nombre d'habitants
+                (voir le tiroir « Tarification de la landing page » ci-dessous). Ne sert plus à rien côté fiche
+                commune ni devis ; gardée en base au cas où, sans suppression.
               </div>
               <table style="margin-bottom:14px">
                 <thead><tr><th>Tranche de population</th><th>Prix annuel TTC</th></tr></thead>
@@ -492,10 +499,8 @@
                   </template>
                 </tbody>
               </table>
-              <label style="margin-top:0">Mois offerts pour un engagement 3 ans</label>
-              <input type="number" min="0" max="36" x-model="grilleTarifaire.mois_offerts_3ans" style="width:100px" />
               <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
-                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer la grille</button>
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer</button>
                 <span class="bo-info" x-text="grilleMsg"></span>
               </div>
             </div>
@@ -2426,9 +2431,24 @@
             (passer en Version complète ci-dessus d'abord si elle doit être facturée).
           </div>
           <div class="bo-carte" style="padding:16px 18px">
-            <div class="bo-info" style="margin-bottom:10px">
-              <span x-show="fiche && trancheSuggeree(fiche.commune.population)" x-text="'Tranche suggérée : ' + libelleTranche(trancheSuggeree(fiche?.commune.population)) + ' — ' + (trancheSuggeree(fiche?.commune.population) ? trancheSuggeree(fiche.commune.population).prix_annuel_ttc : 0) + ' € TTC/an'"></span>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerTarifSuggere()" style="margin-left:8px" x-show="fiche && trancheSuggeree(fiche.commune.population)">Appliquer ce tarif</button>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px">
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Formule</label>
+                <select x-model="fiche.commune.formule" style="width:auto">
+                  <option value="">Personnalisé</option>
+                  <option value="autonomie">Autonomie</option>
+                  <option value="accompagne">Accompagné</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </div>
+              <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0" x-show="fiche.commune.formule === 'premium'">
+                <input type="checkbox" x-model="premiumPremiereAnnee" style="width:auto" /> 1re année (chasse au trésor incluse)
+              </label>
+            </div>
+            <div class="bo-info" style="margin-bottom:10px" x-show="fiche.commune.formule">
+              Prix suggéré pour <span x-text="fiche.commune.population || 0"></span> hab. :
+              <strong x-text="formaterPrixApercu(calculerPrixFormule(fiche.commune.formule, fiche.commune.population, premiumPremiereAnnee))"></strong> TTC/an
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerTarifFormule()" style="margin-left:8px">Appliquer ce tarif</button>
             </div>
             <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end">
               <div class="bo-champ-inline">
@@ -2460,6 +2480,22 @@
             <div class="bo-info" style="margin-bottom:12px">
               Une facture adressée à cette commune doit être déposée sur <strong>Chorus Pro</strong> (obligatoire
               pour toute administration publique depuis 2020) — ce backoffice génère le PDF conforme, le dépôt reste manuel.
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid var(--bo-border)">
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Préremplir depuis une formule</label>
+                <select x-model="devisFormule" style="width:auto">
+                  <option value="">— Personnalisé —</option>
+                  <option value="autonomie">Autonomie</option>
+                  <option value="accompagne">Accompagné</option>
+                  <option value="premium">Premium</option>
+                </select>
+              </div>
+              <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0" x-show="devisFormule === 'premium'">
+                <input type="checkbox" x-model="premiumPremiereAnnee" style="width:auto" /> 1re année (chasse au trésor incluse)
+              </label>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="preremplirDevis()" :disabled="!devisFormule">Préremplir</button>
+              <span class="bo-info" x-show="devisFormule" x-text="'Calculé pour ' + (fiche.commune.population || 0) + ' hab. — objet et montant restent modifiables ci-dessous.'"></span>
             </div>
             <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px">
               <div class="bo-champ-inline" style="flex:2; min-width:200px">
@@ -3320,7 +3356,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260903-2"></script>
+  <script src="/backoffice/js/app.js?v=20260903-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
