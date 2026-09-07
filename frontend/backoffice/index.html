@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260827-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260903-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -503,18 +503,22 @@
 
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('bareme_tarifaire')">
-              <span>📐 Barème au nombre d'habitants (landing page — Autonomie / Accompagné / Premium)</span>
+              <span>📐 Tarification de la landing page (Autonomie / Accompagné / Premium)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.bareme_tarifaire}">▸</span>
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.bareme_tarifaire">
               <div class="bo-info" style="margin-bottom:12px">
-                Utilisé par le calculateur de prix en direct sur la landing page publique
-                (accueil.html). Formule Autonomie : max(plancher, min(hab, seuil) × taux de base +
-                max(0, hab − seuil) × taux dégressif). Accompagné = Autonomie + supplément fixe
-                (modération auto + questionnaires thermomètre, coût qui ne dépend pas de la population).
-                Premium = Accompagné + patrimoine la 1re année seulement (création de la chasse au
-                trésor, prix de départ affiché, le reste sur devis) ; à partir de la 2e année,
-                Premium revient au prix Accompagné.
+                Alimente le calculateur de prix en direct de la landing page publique (accueil.html,
+                section Tarifs) — chiffres et textes des 3 offres, sans déploiement. L'aperçu tout en
+                bas reproduit exactement ce qu'un visiteur y voit.
+              </div>
+
+              <div class="bo-section-titre" style="margin-top:0">Formule de calcul</div>
+              <div class="bo-info" style="margin-bottom:12px">
+                Autonomie = max(plancher, min(hab, seuil) × taux de base + max(0, hab − seuil) ×
+                taux dégressif). Accompagné = Autonomie + supplément fixe. Premium = Accompagné +
+                patrimoine la 1re année seulement (création de la chasse au trésor) ; à partir de la
+                2e année, Premium revient au prix Accompagné.
               </div>
               <label style="margin-top:0">Taux de base (€ / habitant, en dessous du seuil)</label>
               <input type="number" min="0" step="0.1" x-model="baremeTarifaire.taux_base" style="width:120px" />
@@ -528,9 +532,83 @@
               <input type="number" min="0" step="10" x-model="baremeTarifaire.supplement_accompagne" style="width:120px" />
               <label>Premium — patrimoine, prix de départ (€, 1re année uniquement, sur devis au-delà)</label>
               <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_patrimoine_premium" style="width:120px" />
-              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
-                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerBareme()" :disabled="baremeEnCours">Enregistrer le barème</button>
-                <span class="bo-info" x-text="baremeMsg"></span>
+
+              <div class="bo-section-titre">Offre Autonomie</div>
+              <label style="margin-top:0">Nom de l'offre</label>
+              <input type="text" x-model="offresTexte.offre_autonomie_label" />
+              <label>Accroche</label>
+              <input type="text" x-model="offresTexte.offre_autonomie_titre" />
+              <label>Fonctionnalités (une par ligne)</label>
+              <textarea x-model="offresTexte.offre_autonomie_features" rows="4"></textarea>
+
+              <div class="bo-section-titre">Offre Accompagné</div>
+              <label style="margin-top:0">Nom de l'offre</label>
+              <input type="text" x-model="offresTexte.offre_accompagne_label" />
+              <label>Accroche</label>
+              <input type="text" x-model="offresTexte.offre_accompagne_titre" />
+              <label>Badge (mis en avant)</label>
+              <input type="text" x-model="offresTexte.offre_accompagne_badge" />
+              <label>Fonctionnalités (une par ligne)</label>
+              <textarea x-model="offresTexte.offre_accompagne_features" rows="4"></textarea>
+
+              <div class="bo-section-titre">Offre Premium</div>
+              <label style="margin-top:0">Nom de l'offre</label>
+              <input type="text" x-model="offresTexte.offre_premium_label" />
+              <label>Accroche</label>
+              <input type="text" x-model="offresTexte.offre_premium_titre" />
+              <label>Fonctionnalités (une par ligne)</label>
+              <textarea x-model="offresTexte.offre_premium_features" rows="4"></textarea>
+              <div class="bo-info" style="margin:8px 0 0">Les conditions (accueil sur site, patrimoine étendu sur devis) restent à modifier directement dans accueil.html — texte logistique peu amené à changer, volontairement pas repris ici.</div>
+
+              <div style="display:flex; align-items:center; gap:12px; margin:16px 0 26px">
+                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerTarification()" :disabled="baremeEnCours || offresTexteEnCours">Enregistrer</button>
+                <span class="bo-info" x-text="baremeMsg || offresTexteMsg"></span>
+              </div>
+
+              <div class="bo-section-titre">Aperçu (identique à la landing page)</div>
+              <div class="apercu-tarifs">
+                <div class="pricing-slider-box">
+                  <div class="pricing-slider-head">
+                    <span>Nombre d'habitants de votre commune</span>
+                    <span class="pricing-slider-valeur"><span x-text="Number(tarifApercuHabitants).toLocaleString('fr-FR')"></span> hab.</span>
+                  </div>
+                  <input type="range" min="50" max="8000" step="10" x-model.number="tarifApercuHabitants" class="pricing-slider" />
+                </div>
+                <div class="pricing-grid">
+                  <div class="pricing-card">
+                    <div class="pricing-label" x-text="offresTexte.offre_autonomie_label"></div>
+                    <div class="pricing-title" x-text="offresTexte.offre_autonomie_titre"></div>
+                    <div class="pricing-amount"><span class="amount" x-text="formaterPrixApercu(calculerAutonomiePreview())"></span><span class="period"> / an</span></div>
+                    <ul class="pricing-features">
+                      <template x-for="f in featuresListe(offresTexte.offre_autonomie_features)" :key="f"><li x-text="f"></li></template>
+                    </ul>
+                  </div>
+                  <div class="pricing-card featured">
+                    <div class="pricing-badge" x-show="offresTexte.offre_accompagne_badge" x-text="offresTexte.offre_accompagne_badge"></div>
+                    <div class="pricing-label" x-text="offresTexte.offre_accompagne_label"></div>
+                    <div class="pricing-title" x-text="offresTexte.offre_accompagne_titre"></div>
+                    <div class="pricing-amount"><span class="amount" x-text="formaterPrixApercu(calculerAccompagnePreview())"></span><span class="period"> / an</span></div>
+                    <ul class="pricing-features">
+                      <template x-for="f in featuresListe(offresTexte.offre_accompagne_features)" :key="f"><li x-text="f"></li></template>
+                    </ul>
+                  </div>
+                  <div class="pricing-card">
+                    <div class="pricing-label" x-text="offresTexte.offre_premium_label"></div>
+                    <div class="pricing-title" x-text="offresTexte.offre_premium_titre"></div>
+                    <div class="pricing-amount">
+                      <div class="pricing-amount-prefix">à partir de</div>
+                      <span class="amount" x-text="formaterPrixApercu(calculerPremiumPreview())"></span><span class="period"> la 1<sup>re</sup> année</span>
+                    </div>
+                    <div class="pricing-breakdown">
+                      <span x-text="formaterPrixApercu(calculerAccompagnePreview())"></span> (Accompagné) +
+                      <span x-text="formaterPrixApercu(Number(baremeTarifaire.prix_patrimoine_premium) || 0)"></span> (chasse au trésor) — puis
+                      <strong><span x-text="formaterPrixApercu(calculerAccompagnePreview())"></span> / an</strong> dès la 2<sup>e</sup> année.
+                    </div>
+                    <ul class="pricing-features">
+                      <template x-for="f in featuresListe(offresTexte.offre_premium_features)" :key="f"><li x-text="f"></li></template>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -3242,7 +3320,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260903-1"></script>
+  <script src="/backoffice/js/app.js?v=20260903-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

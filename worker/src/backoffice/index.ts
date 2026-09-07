@@ -10,7 +10,7 @@ import onboarding from './onboarding';
 import facturation from './facturation';
 import { chargerFiche } from './modele-fiche';
 import { chargerAfficheCitoyens } from './modele-affiche';
-import { chargerBareme } from './tarification';
+import { chargerBareme, chargerOffresTexte, structurerOffresTexte } from './tarification';
 import { chargerContenuTexte } from './contenu-texte';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
@@ -33,11 +33,13 @@ app.get('/affiche-citoyens-contenu', async (c) => {
   return c.json(await chargerAfficheCitoyens(c.env, slug));
 });
 
-// Barème tarifaire au nombre d'habitants (voir tarification.ts) — PUBLIC (pas d'auth) : consommé
-// par la landing page (accueil.html) pour calculer le prix en direct selon la population saisie
-// par le visiteur. Rien de sensible, ce sont les mêmes chiffres affichés sur le site.
+// Barème tarifaire au nombre d'habitants + textes des 3 offres (voir tarification.ts) — PUBLIC
+// (pas d'auth) : consommé par la landing page (accueil.html) pour calculer le prix en direct
+// selon la population saisie par le visiteur ET afficher les labels/accroches/fonctionnalités
+// éditées depuis le backoffice. Rien de sensible, c'est exactement ce qu'affiche déjà le site.
 app.get('/tarifs-contenu', async (c) => {
-  return c.json(await chargerBareme(c.env));
+  const [bareme, offresTexteBrut] = await Promise.all([chargerBareme(c.env), chargerOffresTexte(c.env)]);
+  return c.json({ ...bareme, offres: structurerOffresTexte(offresTexteBrut) });
 });
 
 // Petits textes citoyen éditables sans déploiement (popup module verrouillé, checklist de

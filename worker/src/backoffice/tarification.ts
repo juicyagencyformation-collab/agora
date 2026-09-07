@@ -5,10 +5,14 @@
 // clientes). Tout est stocké dans parametres_facturation (clé/valeur), jamais codé en dur : ce
 // fichier ne fait que lire ces valeurs et appliquer la formule, exposée publiquement (sans auth)
 // via GET /backoffice/tarifs-contenu pour que la landing page calcule le prix en direct côté
-// client — même formule recalculée en JS dans accueil.html (voir le commentaire là-bas), donc
-// TOUTE modification de la formule ici doit être répercutée manuellement à cet unique autre
-// endroit.
-import { supabaseSelect } from '../db';
+// client — même formule recalculée en JS dans accueil.html (voir le commentaire là-bas) ET dans
+// l'aperçu live du backoffice (frontend/backoffice/js/app.js, calculerAutonomiePreview et
+// consorts) : TOUTE modification de la formule ici doit être répercutée manuellement à ces DEUX
+// autres endroits.
+// Depuis le 2026-09-03, ce fichier porte aussi les textes des 3 offres (labels, accroches, badge,
+// fonctionnalités) — voir DEFAUTS_OFFRES_TEXTE plus bas — pour que la tarification de la landing
+// (chiffres ET mots) se pilote entièrement depuis le backoffice, avec aperçu fidèle avant d'enregistrer.
+import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 
 export type BaremeTarifaire = {
   taux_base: number;
@@ -65,4 +69,68 @@ export function calculerPrixAutonomie(habitants: number, b: BaremeTarifaire): nu
 
 export function calculerPrixAccompagne(habitants: number, b: BaremeTarifaire): number {
   return calculerPrixAutonomie(habitants, b) + b.supplement_accompagne;
+}
+
+// Textes des 3 offres affichées sur la landing (label, accroche, badge, liste de fonctionnalités)
+// — demandé par Léandre le 2026-09-03 pour ne plus avoir à toucher au HTML d'accueil.html pour un
+// changement de wording. Même mécanisme que contenu-texte.ts (clé/valeur dans modeles_email,
+// réutilisé comme table de petits textes génériques plutôt qu'une table dédiée de plus) : une
+// clé plate par champ, les fonctionnalités étant une liste stockée en une chaîne à une ligne par
+// item (correspond à un <textarea>, pas de JSON à parser côté client backoffice).
+export const DEFAUTS_OFFRES_TEXTE: Record<string, string> = {
+  offre_autonomie_label: 'Autonomie',
+  offre_autonomie_titre: 'Vous pilotez seul',
+  offre_autonomie_features: 'Tous les modules citoyens\nModération assurée par la mairie\nSupport email\nValorisation du patrimoine en option, sur devis',
+  offre_accompagne_label: 'Accompagné',
+  offre_accompagne_titre: 'On s\'occupe du quotidien',
+  offre_accompagne_badge: 'Le plus demandé',
+  offre_accompagne_features: 'Tout Autonomie, plus :\nModération automatique des photos\nQuestionnaires « thermomètre » publiés chaque semaine\nSupport prioritaire',
+  offre_premium_label: 'Premium',
+  offre_premium_titre: 'Patrimoine & découverte',
+  offre_premium_features: 'Tout Accompagné, plus :\nChasse au trésor numérique de valorisation du patrimoine local',
+};
+
+export const CLES_OFFRES_TEXTE = Object.keys(DEFAUTS_OFFRES_TEXTE);
+
+export async function chargerOffresTexte(env: any): Promise<Record<string, string>> {
+  try {
+    const lignes = await supabaseSelect(env, 'modeles_email', {
+      select: 'cle,corps_html', cle: `in.(${CLES_OFFRES_TEXTE.join(',')})`,
+    });
+    const parCle = new Map(lignes.map((l: any) => [l.cle, l.corps_html]));
+    const resultat: Record<string, string> = {};
+    for (const cle of CLES_OFFRES_TEXTE) resultat[cle] = parCle.get(cle) || DEFAUTS_OFFRES_TEXTE[cle];
+    return resultat;
+  } catch {
+    return { ...DEFAUTS_OFFRES_TEXTE };
+  }
+}
+
+export async function enregistrerOffreTexte(env: any, cle: string, valeur: string): Promise<void> {
+  const donnees = { objet: cle, corps_html: valeur, updated_at: new Date().toISOString() };
+  const [existant] = await supabaseSelect(env, 'modeles_email', { select: 'cle', cle: `eq.${cle}` });
+  if (existant) await supabaseUpdate(env, 'modeles_email', donnees, { cle: `eq.${cle}` });
+  else await supabaseInsert(env, 'modeles_email', { cle, nom: 'Défaut', ...donnees });
+}
+
+export type OffreTexte = { label: string; titre: string; badge?: string; features: string[] };
+
+// Transforme le stockage plat (édition côté backoffice) en objet structuré consommé par
+// accueil.html — une fonctionnalité par ligne non vide.
+export function structurerOffresTexte(brut: Record<string, string>): Record<'autonomie' | 'accompagne' | 'premium', OffreTexte> {
+  const enListe = (s: string) => (s || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  return {
+    autonomie: {
+      label: brut.offre_autonomie_label, titre: brut.offre_autonomie_titre,
+      features: enListe(brut.offre_autonomie_features),
+    },
+    accompagne: {
+      label: brut.offre_accompagne_label, titre: brut.offre_accompagne_titre,
+      badge: brut.offre_accompagne_badge, features: enListe(brut.offre_accompagne_features),
+    },
+    premium: {
+      label: brut.offre_premium_label, titre: brut.offre_premium_titre,
+      features: enListe(brut.offre_premium_features),
+    },
+  };
 }

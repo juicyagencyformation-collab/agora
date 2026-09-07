@@ -22,7 +22,7 @@ import {
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
 import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
-import { chargerBareme } from './tarification';
+import { chargerBareme, CLES_OFFRES_TEXTE, chargerOffresTexte, enregistrerOffreTexte } from './tarification';
 import { CLES_CONTENU_TEXTE, chargerContenuTexte, enregistrerContenuTexte } from './contenu-texte';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
@@ -1211,6 +1211,30 @@ app.put('/bareme-tarifaire', async (c) => {
     if (maj.length === 0) await supabaseInsert(c.env, 'parametres_facturation', { cle, valeur: String(valeur) });
   }));
   await journaliser(c.env, c.get('staff_id'), 'bareme_tarifaire_modifie');
+  return c.json({ ok: true });
+});
+
+// GET/PUT /offres-tarifaires-texte — labels/accroches/badge/fonctionnalités des 3 offres
+// affichées sur la landing (voir tarification.ts et accueil.html #tarifs). Même mécanisme que
+// /contenu-texte plus haut (clé/valeur dans modeles_email) : whitelist stricte sur CLES_OFFRES_TEXTE,
+// jamais de clé arbitraire acceptée.
+app.get('/offres-tarifaires-texte', async (c) => {
+  return c.json(await chargerOffresTexte(c.env));
+});
+
+const offresTarifairesTexteSchema = z.object(
+  Object.fromEntries(CLES_OFFRES_TEXTE.map((cle) => [cle, z.string().min(1).max(2000).optional()])),
+);
+
+app.put('/offres-tarifaires-texte', async (c) => {
+  const body = offresTarifairesTexteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  for (const cle of CLES_OFFRES_TEXTE) {
+    const valeur = (body.data as Record<string, string | undefined>)[cle];
+    if (valeur !== undefined) await enregistrerOffreTexte(c.env, cle, valeur);
+  }
+  await journaliser(c.env, c.get('staff_id'), 'offres_tarifaires_texte_modifiees');
   return c.json({ ok: true });
 });
 

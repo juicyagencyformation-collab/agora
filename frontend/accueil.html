@@ -1600,13 +1600,13 @@
 
       <div class="pricing-grid">
         <div class="pricing-card" data-reveal>
-          <div class="pricing-label">Autonomie</div>
-          <div class="pricing-title">Vous pilotez seul</div>
+          <div class="pricing-label" id="label-autonomie">Autonomie</div>
+          <div class="pricing-title" id="titre-autonomie">Vous pilotez seul</div>
           <div class="pricing-amount">
             <span class="amount"><span id="prix-autonomie">250 €</span></span>
             <span class="period"> / an</span>
           </div>
-          <ul class="pricing-features">
+          <ul class="pricing-features" id="features-autonomie">
             <li>Tous les modules citoyens</li>
             <li>Modération assurée par la mairie</li>
             <li>Support email</li>
@@ -1616,14 +1616,14 @@
         </div>
 
         <div class="pricing-card featured" data-reveal>
-          <div class="pricing-badge">Le plus demandé</div>
-          <div class="pricing-label">Accompagné</div>
-          <div class="pricing-title">On s'occupe du quotidien</div>
+          <div class="pricing-badge" id="badge-accompagne">Le plus demandé</div>
+          <div class="pricing-label" id="label-accompagne">Accompagné</div>
+          <div class="pricing-title" id="titre-accompagne">On s'occupe du quotidien</div>
           <div class="pricing-amount">
             <span class="amount"><span id="prix-accompagne">450 €</span></span>
             <span class="period"> / an</span>
           </div>
-          <ul class="pricing-features">
+          <ul class="pricing-features" id="features-accompagne">
             <li>Tout Autonomie, plus :</li>
             <li>Modération automatique des photos</li>
             <li>Questionnaires « thermomètre » publiés chaque semaine</li>
@@ -1633,8 +1633,8 @@
         </div>
 
         <div class="pricing-card" data-reveal>
-          <div class="pricing-label">Premium</div>
-          <div class="pricing-title">Patrimoine &amp; découverte</div>
+          <div class="pricing-label" id="label-premium">Premium</div>
+          <div class="pricing-title" id="titre-premium">Patrimoine &amp; découverte</div>
           <div class="pricing-amount" style="margin-bottom: 0.3rem;">
             <div class="pricing-amount-prefix">à partir de</div>
             <span class="amount"><span id="prix-premium">1 749 €</span></span>
@@ -1644,7 +1644,7 @@
             <span id="prix-accompagne-detail">1 000 €</span> (Accompagné) + 749 € (chasse au trésor, à régler une seule fois) — puis
             <strong><span id="prix-premium-recurrent">1 000 €</span> / an</strong> à partir de la 2<sup>e</sup> année.
           </div>
-          <ul class="pricing-features">
+          <ul class="pricing-features" id="features-premium">
             <li>Tout Accompagné, plus :</li>
             <li>Chasse au trésor numérique de valorisation du patrimoine local</li>
           </ul>
@@ -1739,12 +1739,39 @@
       curseur.addEventListener('input', actualiser);
       actualiser();
 
+      // Labels/accroches/badge/fonctionnalités des 3 offres, édités depuis le backoffice (voir
+      // tarification.ts, structurerOffresTexte) — repli silencieux sur le texte déjà écrit en dur
+      // ci-dessus si le réseau échoue ou qu'une clé manque, jamais de carte à moitié vide.
+      function appliquerTexteOffre(prefixe, offre) {
+        if (!offre) return;
+        var elLabel = document.getElementById('label-' + prefixe);
+        var elTitre = document.getElementById('titre-' + prefixe);
+        var elBadge = document.getElementById('badge-' + prefixe);
+        var elFeatures = document.getElementById('features-' + prefixe);
+        if (elLabel && offre.label) elLabel.textContent = offre.label;
+        if (elTitre && offre.titre) elTitre.textContent = offre.titre;
+        if (elBadge && offre.badge) elBadge.textContent = offre.badge;
+        if (elFeatures && offre.features && offre.features.length) {
+          elFeatures.innerHTML = '';
+          offre.features.forEach(function (texte) {
+            var li = document.createElement('li');
+            li.textContent = texte;
+            elFeatures.appendChild(li);
+          });
+        }
+      }
+
       fetch('/api/backoffice/tarifs-contenu')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (donnees) {
           if (!donnees) return;
           bareme = donnees;
           actualiser();
+          if (donnees.offres) {
+            appliquerTexteOffre('autonomie', donnees.offres.autonomie);
+            appliquerTexteOffre('accompagne', donnees.offres.accompagne);
+            appliquerTexteOffre('premium', donnees.offres.premium);
+          }
         })
         .catch(function () {});
     })();

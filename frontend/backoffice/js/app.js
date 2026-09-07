@@ -176,6 +176,17 @@ function backoffice() {
     },
     baremeEnCours: false,
     baremeMsg: '',
+    // Textes des 3 offres (landing page) — voir GET/PUT /administration/offres-tarifaires-texte
+    // et tarification.ts. Un seul champ plat par valeur (features = une ligne par item dans le
+    // textarea), pas de structure imbriquée côté backoffice pour rester un simple formulaire.
+    offresTexte: {
+      offre_autonomie_label: '', offre_autonomie_titre: '', offre_autonomie_features: '',
+      offre_accompagne_label: '', offre_accompagne_titre: '', offre_accompagne_badge: '', offre_accompagne_features: '',
+      offre_premium_label: '', offre_premium_titre: '', offre_premium_features: '',
+    },
+    offresTexteEnCours: false,
+    offresTexteMsg: '',
+    tarifApercuHabitants: 800, // population test pour l'aperçu live du tiroir tarification
     ongletsDisponibles: [],
     ongletsGratuitsSelection: [],
     ongletsGratuitsEnCours: false,
@@ -278,6 +289,7 @@ function backoffice() {
         try { this.contenuTexte = await boFetch('/contenu-texte'); } catch {}
         try { this.grilleTarifaire = await boFetch('/administration/grille-tarifaire'); } catch {}
         try { this.baremeTarifaire = await boFetch('/administration/bareme-tarifaire'); } catch {}
+        try { this.offresTexte = await boFetch('/administration/offres-tarifaires-texte'); } catch {}
         try {
           const r = await boFetch('/administration/onglets-gratuits');
           this.ongletsDisponibles = r.tous;
@@ -2054,6 +2066,47 @@ function backoffice() {
       } finally {
         this.baremeEnCours = false;
       }
+    },
+    async enregistrerOffresTexte() {
+      this.offresTexteEnCours = true;
+      this.offresTexteMsg = '';
+      try {
+        await boFetch('/administration/offres-tarifaires-texte', { method: 'PUT', body: JSON.stringify(this.offresTexte) });
+        this.offresTexteMsg = 'Textes des offres enregistrés.';
+      } catch (e) {
+        this.offresTexteMsg = e.message || 'Échec';
+      } finally {
+        this.offresTexteEnCours = false;
+      }
+    },
+    // Un seul bouton pour les deux PUT (chiffres + textes) : côté backoffice ça reste UNE
+    // tarification, la séparation en deux routes est un détail d'implémentation (voir
+    // tarification.ts) qui n'a pas à se voir dans l'UI.
+    async enregistrerTarification() {
+      await Promise.all([this.enregistrerBareme(), this.enregistrerOffresTexte()]);
+    },
+    // Aperçu live du tiroir tarification — reproduit la formule de tarification.ts/accueil.html
+    // (3e copie, voir le commentaire en tête de tarification.ts) pour un retour instantané sans
+    // enregistrer ni changer d'onglet vers la landing.
+    calculerAutonomiePreview() {
+      const b = this.baremeTarifaire;
+      const hab = Math.max(0, Math.floor(Number(this.tarifApercuHabitants)) || 0);
+      const seuil = Number(b.seuil_degressif) || 0;
+      const brut = Math.min(hab, seuil) * (Number(b.taux_base) || 0)
+        + Math.max(0, hab - seuil) * (Number(b.taux_degressif) || 0);
+      return Math.max(brut, Number(b.prix_plancher) || 0);
+    },
+    calculerAccompagnePreview() {
+      return this.calculerAutonomiePreview() + (Number(this.baremeTarifaire.supplement_accompagne) || 0);
+    },
+    calculerPremiumPreview() {
+      return this.calculerAccompagnePreview() + (Number(this.baremeTarifaire.prix_patrimoine_premium) || 0);
+    },
+    formaterPrixApercu(n) {
+      return Math.round(n).toLocaleString('fr-FR') + ' €';
+    },
+    featuresListe(texte) {
+      return (texte || '').split('\n').map((l) => l.trim()).filter(Boolean);
     },
     async chargerStaff() {
       if (this.staffListe.length) return; // déjà chargé, pas besoin de recharger à chaque ouverture du tiroir
