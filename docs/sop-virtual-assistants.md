@@ -1,6 +1,6 @@
 # Mode d'emploi du backoffice Agora — SOP Virtual Assistants
 
-> Document vivant : à mettre à jour à chaque nouveauté livrée sur le backoffice. Dernière mise à jour : **2026-09-03**.
+> Document vivant : à mettre à jour à chaque nouveauté livrée sur le backoffice. Dernière mise à jour : **2026-09-08**.
 > Destiné aux Virtual Assistants (VA) de Juicy Solutions qui opèrent le backoffice au quotidien (prospection, onboarding, facturation, support). Version "grand public" (mairies) : voir `guide-communes.md`.
 
 ## ⚠️ Règle d'or à lire avant tout
@@ -65,15 +65,23 @@ Trois vues : **Liste** (tableau), **Carte** (Leaflet, prospects géolocalisés),
 ```
 à contacter → contacté → relance → rdv → gagné
                                         ↘ perdu
+                                        ↘ ne plus contacter
 ```
 
 - Passage à "contacté" automatique dès le premier envoi.
 - Passage à "gagné" uniquement via la conversion manuelle en commune cliente (§4).
-- Un prospect "gagné" ou "perdu" ne peut plus recevoir d'envoi automatique.
+- Un prospect "gagné", "perdu" ou "ne plus contacter" ne peut plus recevoir d'envoi automatique **ni** de relance manuelle (bouton "🔁 Relancer" désactivé sur sa fiche).
 
-### 2.6 Gérer un refus (statut "perdu")
+### 2.6 Gérer un refus — deux statuts, pas un seul
 
-Quand tu passes un prospect en "Perdu" : la date du refus est posée automatiquement et une relance est programmée à ~10 mois (ajustable). **Précise toujours la raison invoquée** sur la fiche (budget, pas convaincu, mauvais moment...) — utile pour toi-même dans 10 mois. Le tiroir "🕓 Pipeline de refus" de la vue Prospection liste tous les refus avec leur date de relance.
+⚠️ Deux cas bien différents, à ne pas confondre :
+
+| Le prospect dit... | Statut à utiliser | Effet |
+|---|---|---|
+| "Pas maintenant", "on n'a pas le budget cette année", pas de réponse claire | **Perdu** | Date du refus posée automatiquement, relance reprogrammée à ~10 mois (ajustable). **Précise toujours la raison invoquée** sur la fiche — utile dans 10 mois. Visible dans le tiroir "🕓 Pipeline de refus". |
+| "Nous ne sommes pas intéressés, merci de ne plus nous relancer" (demande explicite) | **Ne plus contacter** | **Aucune relance, jamais** — ni automatique ni manuelle. Note le contexte de la demande (qui, quand, comment) dans les Notes de la fiche. |
+
+Passer par erreur un refus définitif en "Perdu" au lieu de "Ne plus contacter" reprogrammerait une relance dans 10 mois — à éviter, la demande de ne plus être contacté doit être respectée durablement.
 
 ### 2.7 Rattrapage
 
@@ -204,6 +212,7 @@ Section dédiée sur la fiche : nombre d'exports de données demandés, comptes 
 ## 9. Les règles à ne jamais enfreindre — checklist condensée
 
 - ☐ Jamais de relance en lot pour un prospect "perdu" — toujours en direct, personnalisé.
+- ☐ Une demande explicite de "ne plus être contacté" va au statut **"Ne plus contacter"**, pas "Perdu" (qui reprogrammerait une relance dans 10 mois).
 - ☐ Jamais "Lancer la séquence maintenant" hors test, sauf instruction explicite.
 - ☐ "Renvoyer les accès" écrase le mot de passe — vérifier que c'est vraiment nécessaire avant de cliquer.
 - ☐ Jamais toucher au Palier gratuit / à la Tarification / aux Comptes staff sans validation de Léandre.
@@ -215,7 +224,7 @@ Section dédiée sur la fiche : nombre d'exports de données demandés, comptes 
 
 ## Glossaire des statuts
 
-**Prospect** : à_contacter · contacté · relance · rdv · gagné · perdu
+**Prospect** : à_contacter · contacté · relance · rdv · gagné · perdu · ne_plus_contacter
 **Devis** : envoyé · accepté · refusé · expiré
 **Facture** : émise · déposée_chorus · payée
 **Commune** : statut client = active · suspendue · résiliée ; forfait = Gratuit · Version complète (ou personnalisé module par module)
