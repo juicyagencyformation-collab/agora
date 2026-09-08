@@ -172,9 +172,20 @@ app.post('/synchroniser-maires', async (c) => {
     }
   }
 
+  // Par lots : le RNE couvre la quasi-totalité des communes françaises, donc maj peut avoisiner
+  // le nombre total de prospects déjà importés (15 000+) — un upsert en un seul appel envoie tout
+  // ça comme un unique INSERT ... ON CONFLICT DO UPDATE côté Postgres, qui finit par dépasser le
+  // statement_timeout (500/503 constatés le 2026-09-08, avec un 503 collatéral sur /apercu juste
+  // après — la connexion restée ouverte trop longtemps a probablement saturé le pool Supabase).
+  // 500 lignes par lot : aucun précédent exact dans ce fichier pour un upsert à cette échelle
+  // (TAILLE_LOT_MAIRES = 100 juste plus bas répond à un problème différent, la longueur d'URL
+  // d'un in.(), pas la durée d'un upsert) — valeur prudente à ajuster si ça recasse.
+  const TAILLE_LOT_MAJ_PROSPECTS = 500;
   if (maj.length) {
     try {
-      await supabaseUpsert(c.env, 'prospects', maj, 'code_insee');
+      for (let i = 0; i < maj.length; i += TAILLE_LOT_MAJ_PROSPECTS) {
+        await supabaseUpsert(c.env, 'prospects', maj.slice(i, i + TAILLE_LOT_MAJ_PROSPECTS), 'code_insee');
+      }
     } catch (err: any) {
       console.error('synchroniser-maires — écriture en base échouée :', err);
       return c.json({ erreur: `Écriture en base impossible (${chrono()}, ${maj.length} ligne(s)) : ${err?.message || err}` }, 500);
