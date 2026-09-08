@@ -19,7 +19,12 @@ import { envoyerEmail } from '../lib/email';
 const app = new Hono();
 app.use('*', backofficeMiddleware);
 
-const STATUTS = ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'] as const;
+// ne_plus_contacter (2026-09-08) : distinct de "perdu" — un refus explicite de type "ne nous
+// recontactez jamais" (par opposition à "pas maintenant", qui reste sur le pipeline perdu et sa
+// relance à +10 mois). Jamais de relance programmée pour ce statut, jamais d'email automatique
+// — voir prospecterUn/relancerCommuneActivee plus bas, tous deux gardés contre les trois statuts
+// terminaux (gagne/perdu/ne_plus_contacter).
+const STATUTS = ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu', 'ne_plus_contacter'] as const;
 const TYPES_INTERACTION = ['note', 'appel', 'email', 'courrier', 'rdv', 'ferme'] as const;
 
 // — Import depuis geo.api.gouv.fr —
@@ -517,7 +522,7 @@ app.get('/apercu', async (c) => {
   for (const p of prospects) {
     parStatut[p.statut] = (parStatut[p.statut] ?? 0) + 1;
     if (p.prochaine_relance_le && p.prochaine_relance_le <= aujourdhui &&
-        p.statut !== 'gagne' && p.statut !== 'perdu') a_relancer += 1;
+        p.statut !== 'gagne' && p.statut !== 'perdu' && p.statut !== 'ne_plus_contacter') a_relancer += 1;
     if (p.statut === 'perdu' && p.prochaine_relance_le && p.prochaine_relance_le <= aujourdhui) perdus_a_relancer += 1;
     if (STATUTS_CONTACTES.includes(p.statut)) {
       if (p.commune_id) contactes_avec_commune += 1;
@@ -898,7 +903,7 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
 // Traite un prospect : enrichit si besoin, envoie l'email, journalise, met à jour statut/relance.
 // Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
 async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{ resultat: 'envoye' | 'sans_email' | 'saute'; email?: string }> {
-  if (prospect.statut === 'gagne' || prospect.statut === 'perdu') return { resultat: 'saute' };
+  if (prospect.statut === 'gagne' || prospect.statut === 'perdu' || prospect.statut === 'ne_plus_contacter') return { resultat: 'saute' };
 
   let email = prospect.contact_email;
   let emailInvalide = prospect.email_invalide;
@@ -973,6 +978,12 @@ app.post('/prospects/:id/prospecter', async (c) => {
 // onboarding-drip.ts), manuellement et sans ses contraintes de date/anti-doublon (décision de
 // Léandre du 2026-08-26) — destinataireCommune() choisit le meilleur destinataire déjà connu.
 async function relancerCommuneActivee(env: any, staffId: string, prospect: any): Promise<{ email: string | null }> {
+  // Même garde que prospecterUn — manquait ici jusqu'au 2026-09-08 (une commune déjà activée
+  // passait directement par cette fonction, sans jamais repasser par le contrôle de prospecterUn,
+  // pour un prospect gagné/perdu/à ne plus contacter). Portée ici plutôt que dupliquée dans
+  // chaque appelant (POST /prospects/:id/relancer, traiterLotRelance) : source de vérité unique.
+  if (prospect.statut === 'gagne' || prospect.statut === 'perdu' || prospect.statut === 'ne_plus_contacter') return { email: null };
+
   const [commune] = await supabaseSelect(env, 'communes', { select: 'nom,slug', id: `eq.${prospect.commune_id}` });
   if (!commune) return { email: null };
 
@@ -1009,6 +1020,9 @@ app.post('/prospects/:id/relancer', async (c) => {
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+  if (prospect.statut === 'gagne' || prospect.statut === 'perdu' || prospect.statut === 'ne_plus_contacter') {
+    return c.json({ erreur: 'Ce prospect est déjà gagné, perdu, ou a demandé à ne plus être contacté.' }, 400);
+  }
 
   if (prospect.commune_id) {
     const r = await relancerCommuneActivee(c.env, c.get('staff_id'), prospect);
@@ -1018,7 +1032,7 @@ app.post('/prospects/:id/relancer', async (c) => {
 
   const r = await prospecterUn(c.env, c.get('staff_id'), prospect);
   if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email valide pour cette commune (adresse manquante, ou signalée en échec et non corrigée par l\'annuaire).' }, 422);
-  if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400);
+  if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné, perdu, ou a demandé à ne plus être contacté.' }, 400);
   return c.json({ ok: true, email: r.email, type: 'presentation' });
 });
 
@@ -1222,6 +1236,13 @@ app.patch('/prospects/:id', async (c) => {
     if (body.data.prochaine_relance_le === undefined) {
       patch.prochaine_relance_le = ajouterMois(aujourdhui, MOIS_RELANCE_APRES_REFUS);
     }
+  }
+  // Passage EN statut "ne_plus_contacter" : l'exact opposé de "perdu" ci-dessus — aucune relance
+  // ne doit jamais être reprogrammée. On efface une éventuelle date déjà en place (héritée d'un
+  // statut précédent, ex. "relance" ou "perdu") plutôt que de la laisser resurgir plus tard.
+  if (body.data.statut === 'ne_plus_contacter' && prospect.statut !== 'ne_plus_contacter'
+      && body.data.prochaine_relance_le === undefined) {
+    patch.prochaine_relance_le = null;
   }
 
   await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });

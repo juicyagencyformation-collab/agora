@@ -9,7 +9,7 @@ let selectionSauvegardee = null;
 
 const COULEURS_STATUT = {
   a_contacter: '#94a3b8', contacte: '#38bdf8', relance: '#fbbf24',
-  rdv: '#a78bfa', gagne: '#34d399', perdu: '#f87171',
+  rdv: '#a78bfa', gagne: '#34d399', perdu: '#f87171', ne_plus_contacter: '#475569',
 };
 
 // Mêmes libellés que frontend/js/moderation.js (LABELS_ONGLET), pour rester cohérent avec ce
@@ -213,7 +213,7 @@ function backoffice() {
     devisMsg: '',
 
     // — Prospection —
-    statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu'],
+    statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu', 'ne_plus_contacter'],
     typesInteraction: ['note', 'appel', 'email', 'courrier', 'rdv'],
     prospects: [],
     apProsp: {},
@@ -1942,7 +1942,7 @@ function backoffice() {
       return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
     },
     libelleStatut(s) {
-      return { a_contacter: 'À contacter', contacte: 'Contacté', relance: 'Relancé', rdv: 'RDV', gagne: 'Gagné', perdu: 'Perdu' }[s] || s;
+      return { a_contacter: 'À contacter', contacte: 'Contacté', relance: 'Relancé', rdv: 'RDV', gagne: 'Gagné', perdu: 'Perdu', ne_plus_contacter: 'Ne plus contacter' }[s] || s;
     },
     libelleType(t) {
       return { note: 'Note', appel: 'Appel', email: 'Email', courrier: 'Courrier', rdv: 'RDV', statut: 'Statut', contact: 'Contact corrigé', ferme: 'Fermé/absent' }[t] || t;
@@ -2543,7 +2543,7 @@ function backoffice() {
       return Math.max(1, ...this.frequentation.serie.map((s) => s.count));
     },
     relanceEnRetard(p) {
-      if (!p.prochaine_relance_le || p.statut === 'gagne' || p.statut === 'perdu') return false;
+      if (!p.prochaine_relance_le || p.statut === 'gagne' || p.statut === 'perdu' || p.statut === 'ne_plus_contacter') return false;
       return p.prochaine_relance_le <= new Date().toISOString().slice(0, 10);
     },
     perduRelanceDue(p) {

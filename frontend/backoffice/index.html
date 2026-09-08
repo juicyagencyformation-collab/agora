@@ -3105,7 +3105,8 @@
                 <label>Prochaine relance</label>
                 <div style="display:flex; align-items:center; gap:8px">
                   <input type="date" x-model="prospect.prochaine_relance_le" @change="majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" style="flex:1" />
-                  <button class="bo-btn bo-btn--compact" style="white-space:nowrap" @click="relancer()" :disabled="prospEnCours"
+                  <button class="bo-btn bo-btn--compact" style="white-space:nowrap" @click="relancer()"
+                          :disabled="prospEnCours || ['gagne', 'perdu', 'ne_plus_contacter'].includes(prospect.statut)"
                           :title="prospect.commune_id ? 'Envoie l\'email de relance (compte déjà activé), remet la relance à +7 jours' : 'Envoie la présentation, remet la relance à +7 jours'"
                           x-text="prospEnCours ? '…' : '🔁 Relancer'"></button>
                 </div>
@@ -3117,6 +3118,12 @@
                     <label style="margin-top:0">Raison invoquée</label>
                     <input type="text" x-model="prospect.raison_perdu" placeholder="Budget, pas convaincu, mauvais moment…" maxlength="500"
                            @blur="majProspect({ raison_perdu: prospect.raison_perdu || null })" />
+                  </div>
+                </template>
+
+                <template x-if="prospect.statut === 'ne_plus_contacter'">
+                  <div class="bo-note--basse" style="margin-bottom:10px; padding:10px 12px; background:var(--bo-surface-2); border-radius:8px; font-size:12.5px">
+                    🚫 Exclu définitivement de toute relance (manuelle ou automatique) — jamais de date de relance reprogrammée. Note le contexte de la demande dans les Notes ci-dessous.
                   </div>
                 </template>
 
@@ -3356,7 +3363,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260903-3"></script>
+  <script src="/backoffice/js/app.js?v=20260908-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
