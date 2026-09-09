@@ -4,4 +4,9 @@
   z-index: 1000; cursor: zoom-out;
 }
 .lightbox-image { max-width: 95vw; max-height: 95vh; object-fit: contain; }
+.lightbox-legende {
+  position: absolute; left: 0; right: 0; bottom: 28px;
+  text-align: center; padding: 0 28px; color: #fff; font-size: 14px; line-height: 1.4;
+  text-shadow: 0 1px 4px rgba(0,0,0,.7);
+}
 .miniature-article { max-width: 200px; max-height: 200px; cursor: zoom-in; border-radius: 4px; margin: 4px; display: block; }

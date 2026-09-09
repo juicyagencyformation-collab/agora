@@ -336,10 +336,10 @@ h1, h2, h3, h4, p, span, a, button {
 }
 .carte-photo-jour {
   position: relative; aspect-ratio: 1; border-radius: var(--r); overflow: hidden;
-  background: var(--calc);
+  background: var(--calc); cursor: zoom-in;
 }
 .carte-photo-jour img {
-  width: 100%; height: 100%; object-fit: cover; transition: filter .3s; cursor: zoom-in;
+  width: 100%; height: 100%; object-fit: cover; transition: filter .3s;
 }
 .overlay-photo-jour {
   position: absolute; bottom: 0; left: 0; right: 0;
@@ -353,6 +353,10 @@ h1, h2, h3, h4, p, span, a, button {
 .overlay-photo-jour button:disabled { opacity: 0.6; }
 .auteur-photo-jour {
   flex-basis: 100%; color: #fff; font-size: 11px; font-weight: 600; margin-bottom: 2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.legende-photo-jour {
+  flex-basis: 100%; color: #fff; font-size: 10px; font-style: italic; opacity: .9; margin-bottom: 4px;
   text-shadow: 0 1px 3px rgba(0,0,0,.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .toggle-libre-droit {

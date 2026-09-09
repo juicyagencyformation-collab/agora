@@ -33,7 +33,7 @@ app.get('/', async (c) => {
   const duree = commune?.photo_jour_duree ?? 'semaine';
 
   const photos = await supabaseSelect(c.env, 'photos_du_jour', {
-    select: 'id,user_id,url,date_publication,created_at,libre_de_droit,force_deflout',
+    select: 'id,user_id,url,date_publication,created_at,libre_de_droit,force_deflout,legende',
     commune_id: `eq.${commune_id}`,
     statut: 'eq.visible',
     date_publication: `gte.${seuilAffichagePourDuree(duree)}`,
@@ -107,7 +107,7 @@ app.get('/vedette', async (c) => {
   const duree = commune?.photo_jour_duree ?? 'semaine';
 
   const photos = await supabaseSelect(c.env, 'photos_du_jour', {
-    select: 'id,url,user_id',
+    select: 'id,url,user_id,legende',
     commune_id: `eq.${commune_id}`,
     statut: 'eq.visible',
     libre_de_droit: 'eq.true',
@@ -128,7 +128,7 @@ app.get('/vedette', async (c) => {
   }
   if (meilleurScore <= 0) return c.json({ vedette: null }); // pas de photo mise en avant sans au moins 1 like
 
-  return c.json({ vedette: { id: meilleure.id, url: meilleure.url, total_likes: meilleurScore } });
+  return c.json({ vedette: { id: meilleure.id, url: meilleure.url, legende: meilleure.legende, total_likes: meilleurScore } });
 });
 
 app.post('/upload', async (c) => {
@@ -150,6 +150,7 @@ app.post('/upload', async (c) => {
 const creationSchema = z.object({
   r2_key: z.string().min(1),
   libre_de_droit: z.boolean().default(false),
+  legende: z.string().trim().max(140).optional(),
 });
 
 app.post('/', async (c) => {
@@ -176,6 +177,7 @@ app.post('/', async (c) => {
     commune_id, user_id, r2_key: body.data.r2_key,
     url: `${c.env.R2_PUBLIC_BASE}/${body.data.r2_key}`,
     date_publication: aujourdhui, statut: 'visible', libre_de_droit: body.data.libre_de_droit,
+    legende: body.data.legende || null,
   });
   // Registre permanent, jamais supprimé même si la photo l'est — empêche de contourner
   // la limite quotidienne en supprimant puis republiant. Aucune XP à la création (même raison).

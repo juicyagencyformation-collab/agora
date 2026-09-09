@@ -103,10 +103,13 @@ function linkifierHtmlRiche(html) {
   return conteneur.innerHTML;
 }
 
-function ouvrirLightbox(url, filtreCss = '') {
+function ouvrirLightbox(url, filtreCss = '', legende = '') {
   const overlay = document.createElement('div');
   overlay.className = 'lightbox-overlay';
-  overlay.innerHTML = `<img src="${url}" class="lightbox-image" style="filter:${filtreCss};">`;
+  overlay.innerHTML = `
+    <img src="${url}" class="lightbox-image" style="filter:${filtreCss};">
+    ${legende ? `<div class="lightbox-legende">${escapeAttr(legende)}</div>` : ''}
+  `;
   overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
 }

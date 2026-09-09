@@ -46,6 +46,7 @@ function renderPhotoDuJour(p, medaille) {
     ${medaille ? `<span class="medaille-photo">${medaille}</span>` : ''}
     <div class="overlay-photo-jour">
       <span class="auteur-photo-jour">📷 ${escapeAttr(p.auteur_prenom)} ${escapeAttr(p.auteur_nom)}</span>
+      ${p.legende ? `<span class="legende-photo-jour">${escapeAttr(p.legende)}</span>` : ''}
       <button class="btn-like-photo ${p.deja_like ? 'like-actif' : ''}">❤️ ${p.total_likes}</button>
       ${p.est_moi ? `
         <label class="toggle-libre-droit">
@@ -61,7 +62,13 @@ function renderPhotoDuJour(p, medaille) {
     ${p.est_moi ? '<span class="pastille-ma-photo" title="Personne, vous y compris, ne peut valider votre propre photo">ℹ️ Votre photo</span>' : ''}
   `;
 
-  el.querySelector('img').addEventListener('click', () => ouvrirLightbox(p.url, `blur(${flou}px)`));
+  // Toute la carte ouvre le plein écran (pas seulement l'image, en grande partie recouverte par
+  // l'overlay auteur/boutons sur une carte carrée déjà petite) — sauf les vrais contrôles
+  // interactifs (boutons, case à cocher, son label), qui gardent leur propre comportement.
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('button, input, label')) return;
+    ouvrirLightbox(p.url, `blur(${flou}px)`, p.legende || '');
+  });
 
   el.querySelector('.btn-like-photo').addEventListener('click', async () => {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour/${p.id}/liker`, { method: 'POST' });
@@ -112,6 +119,7 @@ function ouvrirModaleCreationPhotoJour() {
   const html = `
     <form id="form-modale-photo-jour">
       <input type="file" id="fichier-photo-jour-modale" accept="image/*" required>
+      <input type="text" id="legende-photo-jour-modale" placeholder="Légende (facultatif)" maxlength="140" style="margin-top:8px;">
       <label style="font-size:12.5px;color:var(--roseau);display:flex;align-items:center;gap:6px;margin:8px 0;">
         <input type="checkbox" id="libre-droit-photo-jour-modale" style="width:auto;margin:0;">
         J'autorise la mairie à réutiliser cette photo (libre de droit)
@@ -126,6 +134,7 @@ function ouvrirModaleCreationPhotoJour() {
     e.preventDefault();
     const fichier = corps.querySelector('#fichier-photo-jour-modale').files[0];
     if (!fichier) return;
+    const legende = corps.querySelector('#legende-photo-jour-modale').value.trim();
     const libreDeDroit = corps.querySelector('#libre-droit-photo-jour-modale').checked;
 
     try {
@@ -139,7 +148,7 @@ function ouvrirModaleCreationPhotoJour() {
       const res = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ r2_key: key, libre_de_droit: libreDeDroit }),
+        body: JSON.stringify({ r2_key: key, libre_de_droit: libreDeDroit, legende: legende || undefined }),
       });
       if (res.ok) {
         traiterRecompense(await res.clone().json());
