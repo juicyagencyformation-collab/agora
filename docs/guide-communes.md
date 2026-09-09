@@ -1,6 +1,6 @@
 # Guide d'utilisation — Plateforme Agora
 
-> Document vivant : à mettre à jour à chaque nouveauté livrée sur l'application. Dernière mise à jour : **2026-09-03**.
+> Document vivant : à mettre à jour à chaque nouveauté livrée sur l'application. Dernière mise à jour : **2026-09-09**.
 > Destiné aux mairies clientes (élus, agents municipaux) et à leurs habitants. Version interne (backoffice Juicy Solutions) : voir `sop-virtual-assistants.md`.
 
 ## Qu'est-ce qu'Agora ?
@@ -78,7 +78,7 @@ Publications officielles longues, façon gazette. Vous ne voyez que les bulletin
 
 ## A.12 Photo du jour 📸
 
-Galerie participative façon Instagram villageois — une photo par jour maximum (réglé par la mairie). Une photo reste floutée tant qu'elle n'a pas reçu assez de validations d'autres habitants (vous ne pouvez pas valider votre propre photo). Vous pouvez choisir si la mairie a le droit de réutiliser votre photo ("libre de droit").
+Galerie participative façon Instagram villageois — une photo par jour maximum (réglé par la mairie), avec une petite légende facultative (140 caractères). Une photo reste floutée tant qu'elle n'a pas reçu assez de validations d'autres habitants (vous ne pouvez pas valider votre propre photo). Vous pouvez choisir si la mairie a le droit de réutiliser votre photo ("libre de droit"). Toute la carte s'ouvre en plein écran d'un clic (sauf les boutons).
 
 ## A.13 Lois ⚖️
 
