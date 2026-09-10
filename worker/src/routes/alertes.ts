@@ -31,10 +31,13 @@ app.get('/', async (c) => {
   const statut = c.req.query('statut');
 
   const filtres: Record<string, string> = {
-    select: 'id,user_id,titre,description,lat,lng,statut,urgent,created_at,reponse_officielle,reponse_par,reponse_le',
+    select: 'id,user_id,titre,description,lat,lng,statut,urgent,created_at,reponse_officielle,reponse_par,reponse_le,archive',
     commune_id: `eq.${commune_id}`,
     order: 'urgent.desc,created_at.desc',
   };
+  // Par défaut : la liste/carte principale (archive=false). ?archives=true : la section
+  // Archives — même principe que les actus (voir routes/actus.ts).
+  filtres.archive = c.req.query('archives') === 'true' ? 'eq.true' : 'eq.false';
   if (statut && STATUTS_VALIDES.includes(statut as any)) filtres.statut = `eq.${statut}`;
 
   const alertes = await supabaseSelect(c.env, 'alertes', filtres);
@@ -233,9 +236,17 @@ app.patch('/:id', async (c) => {
     urgent: z.boolean().optional(),
     lat: z.number().min(-90).max(90).nullable().optional(),
     lng: z.number().min(-180).max(180).nullable().optional(),
+    archive: z.boolean().optional(),
   });
   const body = schema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  // Archiver/désarchiver reste réservé aux gestionnaires, même sur son propre signalement —
+  // c'est un rangement collectif de la liste (comme pour les actus), pas une édition de
+  // contenu personnelle.
+  if (body.data.archive !== undefined && !estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
 
   const patch: Record<string, unknown> = {};
   for (const [cle, valeur] of Object.entries(body.data)) {

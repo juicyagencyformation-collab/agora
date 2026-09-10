@@ -178,6 +178,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireArticle();
   initFormulaireAlerte();
   initToggleCarteAlertes();
+  initToggleArchivesAlerte();
   initFormulaireAgenda();
   initToggleHistoriqueAgenda();
   initToggleCarteAgenda();

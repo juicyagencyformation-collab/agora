@@ -2,6 +2,7 @@
 let carteAlertes;
 let positionSelectionneeAlerte = null;
 let alertesCache = [];
+let modeArchivesAlerte = false;
 
 const LABELS_STATUT_ALERTE = { ouverte: 'Ouverte', en_cours: 'En cours', resolue: 'Résolu' };
 
@@ -13,12 +14,24 @@ function estGestionnaireAlerte() {
 // la carte Leaflet elle-même (et ses requêtes de tuiles IGN) n'est créée qu'au premier clic
 // sur "Voir la carte" (voir initToggleCarteAlertes), pas à chaque ouverture de l'onglet.
 async function chargerAlertes() {
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes`);
+  const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/alertes`, window.location.origin);
+  if (modeArchivesAlerte) url.searchParams.set('archives', 'true');
+  const res = await appelApi(url);
   if (!res.ok) return;
   const { alertes } = await res.json();
   alertesCache = alertes;
   renderListeAlertes(alertes);
   afficherAlertesSurCarte(alertes);
+}
+
+function initToggleArchivesAlerte() {
+  const btn = document.getElementById('btn-toggle-archives-alertes');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    modeArchivesAlerte = !modeArchivesAlerte;
+    btn.textContent = modeArchivesAlerte ? '← Retour aux alertes' : '🗄️ Voir les archives';
+    chargerAlertes();
+  });
 }
 
 function afficherAlertesSurCarte(alertes) {
@@ -183,6 +196,7 @@ function remplirDetailAlerte(zone, alerte) {
         <label class="label-champ-edition">Réponse officielle de la mairie</label>
         <textarea class="reponse-officielle-input" placeholder="Répondre publiquement à ce signalement (optionnel)">${escapeAttr(alerte.reponse_officielle || '')}</textarea>
         <button type="button" class="btn-enregistrer-reponse">💬 Publier la réponse</button>
+        <button type="button" class="btn-archiver-alerte" style="margin-top:8px;background:transparent;color:var(--roseau);border:1.5px solid var(--eauL);">${alerte.archive ? '📤 Désarchiver' : '🗄️ Archiver'}</button>
       </div>` : ''}
 
     ${peutSupprimerAlerte(alerte) ? `
@@ -228,6 +242,21 @@ function remplirDetailAlerte(zone, alerte) {
       if (res.ok) { afficherToastMessage('Statut mis à jour.', 'succes'); chargerAlertes(); }
       else afficherToastMessage('Erreur lors du changement de statut.', 'erreur');
     });
+  });
+
+  // Archiver/désarchiver (gestionnaires) — sort de/revient dans la liste principale.
+  zone.querySelector('.btn-archiver-alerte')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes/${alerte.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archive: !alerte.archive }),
+    });
+    if (res.ok) {
+      afficherToastMessage(alerte.archive ? 'Signalement restauré.' : 'Signalement archivé.', 'succes');
+      chargerAlertes();
+    } else {
+      afficherToastMessage('Erreur lors de l\'archivage.', 'erreur');
+    }
   });
 
   // Réponse officielle (gestionnaires).

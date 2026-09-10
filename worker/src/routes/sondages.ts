@@ -138,19 +138,70 @@ app.post('/:id/vote', async (c) => {
   return c.json({ ok: true, ...resultatXp });
 });
 
+// Choix d'édition : id fourni = choix existant à mettre à jour (label + ordre, votes déjà
+// exprimés dessus conservés) ; id absent = nouveau choix. Tout choix existant non repris dans
+// le tableau est supprimé — ses votes disparaissent avec lui via la contrainte
+// ON DELETE CASCADE de choix_sondage vers votes (voir db/migrations/001_schema_initial.sql).
+const choixEditionSchema = z.object({
+  id: z.string().uuid().optional(),
+  label: z.string().min(1).max(120),
+});
+const editionSchema = z.object({
+  question: z.string().min(1).max(200).optional(),
+  multi_choix: z.boolean().optional(),
+  closes_at: z.string().datetime().nullable().optional(),
+  choix: z.array(choixEditionSchema).min(2).max(8).optional(),
+});
+
 app.patch('/:id', async (c) => {
   const role = c.get('role');
   if (!estGestionnaire(role)) {
     return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   }
   const commune_id = c.get('commune_id');
-  const schema = z.object({ question: z.string().min(1).max(200) });
-  const body = schema.safeParse(await c.req.json());
-  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const sondage_id = c.req.param('id');
 
-  await supabaseUpdate(c.env, 'sondages', { question: body.data.question }, {
-    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  const [sondageExistant] = await supabaseSelect(c.env, 'sondages', {
+    select: 'id', id: `eq.${sondage_id}`, commune_id: `eq.${commune_id}`,
   });
+  if (!sondageExistant) return c.json({ erreur: 'Sondage introuvable' }, 404);
+
+  const body = editionSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+
+  const patch: Record<string, unknown> = {};
+  if (data.question !== undefined) patch.question = data.question;
+  if (data.multi_choix !== undefined) patch.type = data.multi_choix ? 'multiple' : 'unique';
+  if (data.closes_at !== undefined) patch.closes_at = data.closes_at;
+  if (Object.keys(patch).length) {
+    await supabaseUpdate(c.env, 'sondages', patch, { id: `eq.${sondage_id}`, commune_id: `eq.${commune_id}` });
+  }
+
+  if (data.choix) {
+    const choixActuels = await supabaseSelect(c.env, 'choix_sondage', {
+      select: 'id', sondage_id: `eq.${sondage_id}`, commune_id: `eq.${commune_id}`,
+    });
+    const idsActuels = new Set(choixActuels.map((ch: any) => ch.id));
+    const idsConserves = new Set(data.choix.filter((ch) => ch.id).map((ch) => ch.id));
+
+    for (const id of idsActuels) {
+      if (!idsConserves.has(id)) {
+        await supabaseDelete(c.env, 'choix_sondage', { id: `eq.${id}`, commune_id: `eq.${commune_id}` });
+      }
+    }
+    for (let i = 0; i < data.choix.length; i++) {
+      const ch = data.choix[i];
+      if (ch.id && idsActuels.has(ch.id)) {
+        await supabaseUpdate(c.env, 'choix_sondage', { label: ch.label, ordre: i }, {
+          id: `eq.${ch.id}`, commune_id: `eq.${commune_id}`,
+        });
+      } else {
+        await supabaseInsert(c.env, 'choix_sondage', { commune_id, sondage_id, label: ch.label, ordre: i });
+      }
+    }
+  }
+
   return c.json({ ok: true });
 });
 
