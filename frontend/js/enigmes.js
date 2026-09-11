@@ -102,7 +102,9 @@ function tenterEnigme(enigmeId, bouton) {
   bouton.disabled = true;
   bouton.textContent = 'Localisation en cours…';
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
+  obtenirPositionPrecise((precision) => {
+    bouton.textContent = `Précision : ±${Math.round(precision)} m…`;
+  }).then(async (position) => {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/enigmes/${enigmeId}/valider`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -125,11 +127,11 @@ function tenterEnigme(enigmeId, bouton) {
       bouton.disabled = false;
       bouton.textContent = '📍 Je suis ici !';
     }
-  }, () => {
+  }).catch(() => {
     afficherToastMessage('Impossible de récupérer ta position. Vérifie que la géolocalisation est autorisée.', 'erreur');
     bouton.disabled = false;
     bouton.textContent = '📍 Je suis ici !';
-  }, { enableHighAccuracy: true, timeout: 10000 });
+  });
 }
 
 function initFormulaireEnigme() {
@@ -162,7 +164,9 @@ function ouvrirModaleCreationEnigme() {
     boutonSubmit.disabled = true;
     boutonSubmit.textContent = 'Localisation en cours…';
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
+    obtenirPositionPrecise((precision) => {
+      boutonSubmit.textContent = `Précision : ±${Math.round(precision)} m…`;
+    }).then(async (position) => {
       try {
         const compresse = await compresserImage(fichier, 1400, 0.8);
         const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/enigmes/upload`, {
@@ -190,10 +194,10 @@ function ouvrirModaleCreationEnigme() {
         boutonSubmit.disabled = false;
         boutonSubmit.textContent = 'Publier mon énigme';
       }
-    }, () => {
+    }).catch(() => {
       afficherToastMessage('Impossible de récupérer ta position. Vérifie que la géolocalisation est autorisée.', 'erreur');
       boutonSubmit.disabled = false;
       boutonSubmit.textContent = 'Publier mon énigme';
-    }, { enableHighAccuracy: true, timeout: 10000 });
+    });
   });
 }

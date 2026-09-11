@@ -148,7 +148,7 @@ function renderDetailChasse(chasse) {
 
   zone.querySelector('.btn-retour-detail').addEventListener('click', () => fermerDetailChasse());
   zone.querySelector('.btn-scanner')?.addEventListener('click', () => ouvrirScanner());
-  zone.querySelector('.btn-arrive')?.addEventListener('click', () => validerEtapePosition(chasse.etape_suivante.id));
+  zone.querySelector('.btn-arrive')?.addEventListener('click', (e) => validerEtapePosition(chasse.etape_suivante.id, null, e.currentTarget));
   zone.querySelector('.btn-classement-chasse').addEventListener('click', async () => {
     const zoneClassement = document.getElementById('zone-classement');
     zoneClassement.hidden = !zoneClassement.hidden;
@@ -218,13 +218,19 @@ function initCarteBalade(chasse) {
   setTimeout(() => carteBalade && carteBalade.invalidateSize(), 150);
 }
 
-// Validation d'une étape de balade par proximité GPS.
-function validerEtapePosition(etape_id, reponse = null) {
+// Validation d'une étape de balade par proximité GPS. bouton (optionnel) : retour visuel de
+// précision GPS pendant l'attente, si l'appelant en a un sous la main (voir obtenirPositionPrecise).
+function validerEtapePosition(etape_id, reponse = null, bouton = null) {
   if (!navigator.geolocation) {
     afficherToastMessage('GPS indisponible sur cet appareil.', 'erreur');
     return;
   }
-  navigator.geolocation.getCurrentPosition(async (pos) => {
+  const texteBoutonInitial = bouton?.textContent;
+  if (bouton) bouton.disabled = true;
+
+  obtenirPositionPrecise((precision) => {
+    if (bouton) bouton.textContent = `Précision : ±${Math.round(precision)} m…`;
+  }).then(async (pos) => {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider-position`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -248,8 +254,11 @@ function validerEtapePosition(etape_id, reponse = null) {
       afficherToastMessage(data.erreur || 'Erreur', 'erreur');
     }
     chargerChasses();
-  }, () => afficherToastMessage('Localisation refusée ou indisponible.', 'erreur'),
-     { enableHighAccuracy: true, timeout: 10000 });
+  }).catch(() => {
+    afficherToastMessage('Localisation refusée ou indisponible.', 'erreur');
+  }).finally(() => {
+    if (bouton) { bouton.disabled = false; bouton.textContent = texteBoutonInitial; }
+  });
 }
 
 function afficherEnigmeEtapePosition(etape_id, question) {
@@ -516,12 +525,18 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
     <div class="etape-champs-contenu"></div>
     ${etapeExistante ? '' : '<button type="button" class="btn-supprimer-etape">Retirer cette étape</button>'}
   `;
-  ligne.querySelector('.btn-position-etape').addEventListener('click', () => {
+  ligne.querySelector('.btn-position-etape').addEventListener('click', (e) => {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition((pos) => {
+    const bouton = e.currentTarget;
+    const texteInitial = bouton.textContent;
+    bouton.disabled = true;
+    obtenirPositionPrecise((precision) => {
+      bouton.textContent = `±${Math.round(precision)} m…`;
+    }).then((pos) => {
       ligne.querySelector('.etape-lat').value = pos.coords.latitude;
       ligne.querySelector('.etape-lng').value = pos.coords.longitude;
-    });
+    }).catch(() => afficherToastMessage('Impossible de récupérer la position.', 'erreur'))
+      .finally(() => { bouton.disabled = false; bouton.textContent = texteInitial; });
   });
 
   const zoneContenu = ligne.querySelector('.etape-champs-contenu');

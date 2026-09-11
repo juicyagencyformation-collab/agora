@@ -371,6 +371,39 @@ function compresserImage(fichier, maxLargeur = 1600, qualite = 0.82) {
   });
 }
 
+// Cherche une position GPS suffisamment précise avant de la retourner, réutilisé partout où
+// une validation par proximité GPS existe (Énigme photo, Chasse au trésor). Un simple
+// getCurrentPosition() peut retomber sur un premier point Wi-Fi/réseau très imprécis (parfois
+// des centaines de mètres d'erreur — typiquement à l'intérieur d'un bâtiment ou près d'un mur
+// épais) avant que la puce GPS n'ait eu le temps de s'affiner. watchPosition() laisse quelques
+// secondes de chance au GPS de s'affiner ; on garde la MEILLEURE lecture vue, pas juste la
+// première. callbackProgres(precisionMetres), optionnel, permet d'afficher un retour visuel
+// pendant l'attente ("Précision : ±120 m…").
+function obtenirPositionPrecise(callbackProgres, dureeMaxMs = 8000, precisionSuffisanteM = 25) {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('Géolocalisation indisponible')); return; }
+    let meilleure = null;
+    let watchId = null;
+    let termine = false;
+    const terminer = () => {
+      if (termine) return;
+      termine = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (meilleure) resolve(meilleure); else reject(new Error('Position indisponible'));
+    };
+    const minuteur = setTimeout(terminer, dureeMaxMs);
+    watchId = navigator.geolocation.watchPosition((position) => {
+      if (!meilleure || position.coords.accuracy < meilleure.coords.accuracy) meilleure = position;
+      callbackProgres?.(position.coords.accuracy);
+      if (position.coords.accuracy <= precisionSuffisanteM) {
+        clearTimeout(minuteur);
+        terminer();
+      }
+    }, () => { /* erreur ponctuelle ignorée : le minuteur ou une meilleure lecture suivante tranchera */ },
+      { enableHighAccuracy: true, timeout: dureeMaxMs, maximumAge: 0 });
+  });
+}
+
 // Scanner QR générique (caméra), réutilisé par Chasse au trésor et Participation citoyenne.
 // Utilise l'API native BarcodeDetector quand disponible (Chrome/Android), sinon bascule sur
 // jsQR (frontend/js/vendor/jsQR.min.js, vendoré en local — voir CLAUDE.md) : Safari/iOS
