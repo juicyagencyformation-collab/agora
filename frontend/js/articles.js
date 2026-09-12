@@ -197,6 +197,23 @@ function initFormulaireArticle() {
   initToggleArchivesActu();
 }
 
+// Bloc "sondage" réutilisé par la création ET l'édition d'article — mêmes id, sans risque
+// de collision puisqu'une seule modale est ouverte à la fois (querySelector scopé à `corps`).
+function htmlBlocSondageArticle() {
+  return `
+    <button type="button" id="btn-ajouter-sondage-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter un sondage</button>
+    <div id="zone-sondage-article-modale" style="display:none;margin-top:10px;">
+      <input type="text" id="question-sondage-article-modale" placeholder="Question du sondage" maxlength="200">
+      <label style="font-size:13px;color:var(--roseau);"><input type="checkbox" id="multi-choix-sondage-modale"> Plusieurs réponses possibles</label>
+      <div id="liste-choix-sondage-modale"></div>
+      <button type="button" id="btn-ajouter-choix-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12px;padding:6px 10px;">+ Ajouter un choix</button>
+      <label class="label-champ-edition">Date de clôture (optionnel)</label>
+      <input type="datetime-local" id="closes-at-sondage-article-modale">
+      <button type="button" id="btn-retirer-sondage-modale" style="display:none;background:transparent;color:var(--rouge);border:1.5px solid var(--eauL);font-size:12px;padding:6px 10px;margin-top:8px;">🗑️ Retirer ce sondage</button>
+    </div>
+  `;
+}
+
 function htmlFormulaireArticle() {
   return `
     <form id="form-modale-article">
@@ -208,13 +225,7 @@ function htmlFormulaireArticle() {
       <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Photos (optionnel — jusqu'à 10)</label>
       <input type="file" id="image-article-modale" accept="image/*" multiple>
       <div id="apercu-images-article-modale" class="apercu-images-modale"></div>
-      <button type="button" id="btn-ajouter-sondage-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter un sondage</button>
-      <div id="zone-sondage-article-modale" style="display:none;margin-top:10px;">
-        <input type="text" id="question-sondage-article-modale" placeholder="Question du sondage" maxlength="200">
-        <label style="font-size:13px;color:var(--roseau);"><input type="checkbox" id="multi-choix-sondage-modale"> Plusieurs réponses possibles</label>
-        <div id="liste-choix-sondage-modale"></div>
-        <button type="button" id="btn-ajouter-choix-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12px;padding:6px 10px;">+ Ajouter un choix</button>
-      </div>
+      ${htmlBlocSondageArticle()}
       <button type="submit" style="margin-top:12px;">Publier</button>
     </form>
   `;
@@ -239,16 +250,7 @@ function ouvrirModaleCreationArticle() {
     });
   });
 
-  corps.querySelector('#btn-ajouter-sondage-modale').addEventListener('click', () => {
-    const zone = corps.querySelector('#zone-sondage-article-modale');
-    const ouvert = zone.style.display !== 'none';
-    zone.style.display = ouvert ? 'none' : 'block';
-    if (!ouvert && corps.querySelectorAll('.choix-sondage-modale-input').length === 0) {
-      ajouterChoixSondageModale(corps);
-      ajouterChoixSondageModale(corps);
-    }
-  });
-  corps.querySelector('#btn-ajouter-choix-modale').addEventListener('click', () => ajouterChoixSondageModale(corps));
+  initBlocSondageArticle(corps);
 
   corps.querySelector('#form-modale-article').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -256,12 +258,86 @@ function ouvrirModaleCreationArticle() {
   });
 }
 
-function ajouterChoixSondageModale(corps) {
+// sondageExistant fourni = édition d'un article qui a déjà un sondage : la zone s'ouvre
+// pré-remplie, et "+ Ajouter un sondage" cède la place à "Retirer ce sondage". Sinon
+// (création, ou édition d'un article sans sondage) : zone repliée, bouton "+" classique.
+// Distinct du simple repli visuel : seul le clic sur "Retirer" marque le sondage pour
+// suppression à l'enregistrement (voir lireSondageDuFormulaire) — replier puis rouvrir la
+// zone ne doit jamais effacer un sondage existant par erreur.
+function initBlocSondageArticle(corps, sondageExistant = null) {
+  const zone = corps.querySelector('#zone-sondage-article-modale');
+  const btnAjouterSondage = corps.querySelector('#btn-ajouter-sondage-modale');
+  const btnRetirer = corps.querySelector('#btn-retirer-sondage-modale');
+
+  const afficherZone = () => {
+    zone.style.display = 'block';
+    btnAjouterSondage.style.display = 'none';
+    btnRetirer.style.display = 'inline-block';
+  };
+  const masquerZone = () => {
+    zone.style.display = 'none';
+    btnAjouterSondage.style.display = 'inline-block';
+  };
+
+  btnAjouterSondage.addEventListener('click', () => {
+    afficherZone();
+    if (corps.querySelectorAll('.ligne-choix-sondage-modale').length === 0) {
+      ajouterChoixSondageModale(corps);
+      ajouterChoixSondageModale(corps);
+    }
+  });
+  corps.querySelector('#btn-ajouter-choix-modale').addEventListener('click', () => ajouterChoixSondageModale(corps));
+  btnRetirer.addEventListener('click', () => {
+    if (!confirm('Retirer ce sondage de l\'article ? Les votes déjà exprimés seront perdus à l\'enregistrement.')) return;
+    masquerZone();
+  });
+
+  if (sondageExistant) {
+    afficherZone();
+    corps.querySelector('#question-sondage-article-modale').value = sondageExistant.question;
+    corps.querySelector('#multi-choix-sondage-modale').checked = !!sondageExistant.multi_choix;
+    corps.querySelector('#closes-at-sondage-article-modale').value = isoVersDatetimeLocal(sondageExistant.closes_at);
+    sondageExistant.choix.forEach((ch) => ajouterChoixSondageModale(corps, ch.label, ch.id));
+  }
+}
+
+// texte/id fournis = choix existant (édition, préserve ses votes) ; sinon ligne vide (création).
+function ajouterChoixSondageModale(corps, texte = '', id = '') {
   choixSondageCompteur++;
   const conteneur = corps.querySelector('#liste-choix-sondage-modale');
   const ligne = document.createElement('div');
-  ligne.innerHTML = `<input type="text" class="choix-sondage-modale-input" placeholder="Choix ${choixSondageCompteur}" maxlength="120">`;
+  ligne.className = 'ligne-choix-sondage-modale';
+  ligne.dataset.choixId = id;
+  ligne.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
+  ligne.innerHTML = `
+    <input type="text" class="choix-sondage-modale-input" placeholder="Choix ${choixSondageCompteur}" maxlength="120" value="${escapeAttr(texte)}" style="flex:1;margin:0;">
+    <button type="button" class="btn-retirer-choix-sondage" title="Retirer ce choix" style="background:transparent;color:var(--rouge);border:1.5px solid var(--eauL);font-size:12px;padding:6px 9px;flex-shrink:0;">✕</button>
+  `;
+  ligne.querySelector('.btn-retirer-choix-sondage').addEventListener('click', () => {
+    if (conteneur.children.length <= 2) { alert('Un sondage doit avoir au moins 2 choix.'); return; }
+    ligne.remove();
+  });
   conteneur.appendChild(ligne);
+}
+
+// Lit l'état du bloc sondage d'une modale (création ou édition) : null si la zone est fermée
+// ou incomplète (moins de 2 choix), sinon l'objet prêt à envoyer au serveur.
+function lireSondageDuFormulaire(corps) {
+  const zoneSondage = corps.querySelector('#zone-sondage-article-modale');
+  if (zoneSondage.style.display === 'none') return null;
+
+  const question = corps.querySelector('#question-sondage-article-modale').value.trim();
+  const multi_choix = corps.querySelector('#multi-choix-sondage-modale').checked;
+  const closesAtSaisi = corps.querySelector('#closes-at-sondage-article-modale').value;
+  const choix = [...corps.querySelectorAll('.ligne-choix-sondage-modale')]
+    .map((ligne) => ({
+      id: ligne.dataset.choixId || undefined,
+      label: ligne.querySelector('.choix-sondage-modale-input').value.trim(),
+    }))
+    .filter((ch) => ch.label);
+
+  if (!question || choix.length < 2) return null;
+  return { question, multi_choix, choix, closes_at: closesAtSaisi ? new Date(closesAtSaisi).toISOString() : null };
 }
 
 async function soumettreArticleModale(corps, overlay) {
@@ -285,15 +361,7 @@ async function soumettreArticleModale(corps, overlay) {
     } catch { console.warn('Upload image échoué.'); }
   }
 
-  let sondage = null;
-  const zoneSondage = corps.querySelector('#zone-sondage-article-modale');
-  if (zoneSondage.style.display !== 'none') {
-    const question = corps.querySelector('#question-sondage-article-modale').value.trim();
-    const multiChoix = corps.querySelector('#multi-choix-sondage-modale').checked;
-    const choix = [...corps.querySelectorAll('.choix-sondage-modale-input')]
-      .map((i) => i.value.trim()).filter(Boolean).map((label) => ({ label }));
-    if (question && choix.length >= 2) sondage = { question, multi_choix: multiChoix, choix };
-  }
+  const sondage = lireSondageDuFormulaire(corps);
 
   const res = await appelApi(`/${window.COMMUNE_SLUG}/actus`, {
     method: 'POST',
@@ -328,6 +396,7 @@ function ouvrirModaleEditionArticle(article) {
       <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Ajouter des photos (jusqu'à 10)</label>
       <input type="file" id="image-edition-article-modale" accept="image/*" multiple>
       <div id="apercu-images-edition-modale" class="apercu-images-modale"></div>
+      ${htmlBlocSondageArticle()}
       <button type="submit" style="margin-top:12px;">Enregistrer</button>
     </form>
   `;
@@ -335,6 +404,8 @@ function ouvrirModaleEditionArticle(article) {
   const corps = overlay.querySelector('.corps-modale-formulaire');
   const editeur = creerEditeurRiche('editeur-edition-article-modale');
   editeur.setHtml(article.contenu_html);
+  choixSondageCompteur = 0;
+  initBlocSondageArticle(corps, article.sondage);
 
   // Photos existantes : chacune avec un bouton × qui la marque à supprimer (retrait
   // effectif à l'enregistrement seulement).
@@ -401,6 +472,7 @@ function ouvrirModaleEditionArticle(article) {
         titre, categorie, contenu_html,
         image_r2_keys: imageR2Keys,
         image_ids_supprimees: [...idsSupprimees],
+        sondage: lireSondageDuFormulaire(corps),
       }),
     });
     boutonSubmit.disabled = false;

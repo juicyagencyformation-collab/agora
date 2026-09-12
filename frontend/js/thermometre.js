@@ -66,14 +66,6 @@ function initFormulaireSondage() {
   btn.addEventListener('click', () => ouvrirModaleCreationSondage());
 }
 
-// Convertit une date ISO en valeur pour <input type="datetime-local"> (heure locale).
-function isoVersDatetimeLocal(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const decalage = d.getTimezoneOffset() * 60000;
-  return new Date(d.getTime() - decalage).toISOString().slice(0, 16);
-}
-
 function ouvrirModaleCreationSondage(sondage = null) {
   const html = `
     <form id="form-modale-sondage">

@@ -371,6 +371,15 @@ function compresserImage(fichier, maxLargeur = 1600, qualite = 0.82) {
   });
 }
 
+// Convertit une date ISO en valeur pour <input type="datetime-local"> (heure locale) —
+// réutilisé par les formulaires de sondage (Thermomètre, Actus).
+function isoVersDatetimeLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const decalage = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - decalage).toISOString().slice(0, 16);
+}
+
 // Cherche une position GPS suffisamment précise avant de la retourner, réutilisé partout où
 // une validation par proximité GPS existe (Énigme photo, Chasse au trésor). Un simple
 // getCurrentPosition() peut retomber sur un premier point Wi-Fi/réseau très imprécis (parfois

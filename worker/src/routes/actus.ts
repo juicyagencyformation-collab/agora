@@ -22,12 +22,14 @@ async function ongletActifPourSection(env: any, commune_id: string, section: str
   return row?.actif !== false; // pas de ligne configurée = actif par défaut
 }
 
-const choixSchema = z.object({ label: z.string().min(1).max(120) });
+// id optionnel : présent à l'édition pour un choix déjà existant (préserve ses votes),
+// absent pour un nouveau choix ou à la création — voir PATCH /:id ci-dessous.
+const choixSchema = z.object({ id: z.string().uuid().optional(), label: z.string().min(1).max(120) });
 const sondageSchema = z.object({
   question: z.string().min(1).max(200),
   multi_choix: z.boolean().default(false),
   choix: z.array(choixSchema).min(2).max(10),
-  closes_at: z.string().datetime().optional(),
+  closes_at: z.string().datetime().nullable().optional(),
 });
 const CATEGORIES_VALIDES = ['vie_village', 'projets_travaux', 'environnement', 'agenda', 'info_pratique'] as const;
 
@@ -238,6 +240,61 @@ app.patch('/:id', async (c) => {
       commune_id, article_id, r2_key: key,
       url: `${c.env.R2_PUBLIC_BASE}/${key}`, ordre: ordreDepart + i,
     })));
+  }
+
+  // Sondage : clé absente du corps = on n'y touche pas ; sondage: null = on le retire ;
+  // sondage: {...} = création (aucun sondage encore lié à cet article) ou mise à jour.
+  if ('sondage' in body.data) {
+    const [sondageExistant] = await supabaseSelect(c.env, 'article_sondages', {
+      select: 'id', commune_id: `eq.${commune_id}`, article_id: `eq.${article_id}`,
+    });
+
+    if (body.data.sondage === null) {
+      if (sondageExistant) {
+        await supabaseDelete(c.env, 'article_sondages', { id: `eq.${sondageExistant.id}`, commune_id: `eq.${commune_id}` });
+      }
+    } else if (body.data.sondage) {
+      const donneesSondage = body.data.sondage;
+      let sondageId = sondageExistant?.id;
+
+      if (sondageId) {
+        await supabaseUpdate(c.env, 'article_sondages', {
+          question: donneesSondage.question, multi_choix: donneesSondage.multi_choix,
+          closes_at: donneesSondage.closes_at ?? null,
+        }, { id: `eq.${sondageId}`, commune_id: `eq.${commune_id}` });
+      } else {
+        const [nouveauSondage] = await supabaseInsert(c.env, 'article_sondages', {
+          commune_id, article_id,
+          question: donneesSondage.question, multi_choix: donneesSondage.multi_choix,
+          closes_at: donneesSondage.closes_at ?? null,
+        });
+        sondageId = nouveauSondage.id;
+      }
+
+      // Choix existants non repris dans le nouveau tableau : supprimés, votes retirés avec eux
+      // via ON DELETE CASCADE (article_sondage_choix -> article_sondage_votes).
+      const choixActuels = await supabaseSelect(c.env, 'article_sondage_choix', {
+        select: 'id', sondage_id: `eq.${sondageId}`, commune_id: `eq.${commune_id}`,
+      });
+      const idsActuels = new Set(choixActuels.map((ch: any) => ch.id));
+      const idsConserves = new Set(donneesSondage.choix.filter((ch) => ch.id).map((ch) => ch.id));
+
+      for (const id of idsActuels) {
+        if (!idsConserves.has(id)) {
+          await supabaseDelete(c.env, 'article_sondage_choix', { id: `eq.${id}`, commune_id: `eq.${commune_id}` });
+        }
+      }
+      for (let i = 0; i < donneesSondage.choix.length; i++) {
+        const ch = donneesSondage.choix[i];
+        if (ch.id && idsActuels.has(ch.id)) {
+          await supabaseUpdate(c.env, 'article_sondage_choix', { label: ch.label, ordre: i }, {
+            id: `eq.${ch.id}`, commune_id: `eq.${commune_id}`,
+          });
+        } else {
+          await supabaseInsert(c.env, 'article_sondage_choix', { commune_id, sondage_id: sondageId, label: ch.label, ordre: i });
+        }
+      }
+    }
   }
 
   return c.json({ ok: true });
