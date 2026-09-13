@@ -1,0 +1,14 @@
+-- db/migrations/065_enigme_reussites_unique.sql
+-- Garde-fou anti double-validation : sans cette contrainte, un double-clic rapide sur
+-- "Je suis ici !" (ou deux requêtes quasi simultanées) pourrait valider deux fois la même
+-- énigme pour la même personne et doubler l'XP gagné (voir POST /enigmes/:id/valider —
+-- la vérification "déjà trouvée" fait un SELECT puis un INSERT séparés, pas atomique sans
+-- contrainte en base). Équivalent de UNIQUE(etape_id, user_id) déjà en place sur
+-- progressions_chasse (table sœur de la chasse au trésor, voir 001_schema_initial.sql).
+--
+-- photos_enigmes / enigme_reussites / enigme_signalements ont été créées directement dans
+-- Supabase, sans migration correspondante commitée — impossible de vérifier depuis le code
+-- si cette contrainte existe déjà. Nom de contrainte volontairement distinct de la
+-- convention auto-générée de Postgres pour ne jamais entrer en collision avec une contrainte
+-- existante portant un nom différent : au pire redondante (inoffensif), jamais en erreur.
+ALTER TABLE enigme_reussites ADD CONSTRAINT enigme_reussites_unique_par_joueur UNIQUE (enigme_id, user_id);

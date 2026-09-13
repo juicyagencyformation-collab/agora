@@ -136,7 +136,7 @@ app.post('/:id/valider', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
   const [enigme] = await supabaseSelect(c.env, 'photos_enigmes', {
-    select: 'id,user_id,lat,lng', commune_id: `eq.${commune_id}`, id: `eq.${enigme_id}`,
+    select: 'id,user_id,lat,lng', commune_id: `eq.${commune_id}`, id: `eq.${enigme_id}`, statut: 'eq.active',
   });
   if (!enigme) return c.json({ erreur: 'Énigme introuvable' }, 404);
   if (enigme.user_id === user_id) {
@@ -180,9 +180,15 @@ app.post('/:id/signaler', async (c) => {
   const enigme_id = c.req.param('id');
 
   const [enigme] = await supabaseSelect(c.env, 'photos_enigmes', {
-    select: 'id', commune_id: `eq.${commune_id}`, id: `eq.${enigme_id}`,
+    select: 'id,user_id', commune_id: `eq.${commune_id}`, id: `eq.${enigme_id}`,
   });
   if (!enigme) return c.json({ erreur: 'Énigme introuvable' }, 404);
+  // Anti-farming : sans ce blocage, se signaler puis se supprimer soi-même (voir DELETE /:id,
+  // qui récompense chaque signaleur d'une énigme "masquée" au moment de sa suppression) offrait
+  // de l'XP gratuit et illimité — créer une énigme, se signaler, se supprimer, répéter.
+  if (enigme.user_id === user_id) {
+    return c.json({ erreur: 'Vous ne pouvez pas signaler votre propre énigme' }, 400);
+  }
 
   const [existant] = await supabaseSelect(c.env, 'enigme_signalements', {
     select: 'id', commune_id: `eq.${commune_id}`, enigme_id: `eq.${enigme_id}`, user_id: `eq.${user_id}`,

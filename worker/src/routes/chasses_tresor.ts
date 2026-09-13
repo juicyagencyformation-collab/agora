@@ -170,7 +170,7 @@ app.get('/:id/etapes/:etapeId/qr-page', async (c) => {
   const commune_id = c.get('commune_id');
   const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
     select: 'qr_token',
-    commune_id: `eq.${commune_id}`, id: `eq.${c.req.param('etapeId')}`,
+    commune_id: `eq.${commune_id}`, chasse_id: `eq.${c.req.param('id')}`, id: `eq.${c.req.param('etapeId')}`,
   });
   if (!etape) return c.json({ erreur: 'Étape introuvable' }, 404);
 
@@ -320,6 +320,13 @@ app.post('/valider', async (c) => {
   });
   if (!etape) return c.json({ erreur: 'QR code invalide' }, 404);
 
+  // Une chasse archivée (actif=false) n'est plus jouable — même logique que le masquage
+  // immédiat des énigmes signalées : rien ne doit rester validable une fois retiré de la liste.
+  const [chasseActive] = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'id', commune_id: `eq.${commune_id}`, id: `eq.${etape.chasse_id}`, actif: 'eq.true',
+  });
+  if (!chasseActive) return c.json({ erreur: 'Cette chasse n\'est plus active' }, 404);
+
   return finaliserValidationEtape(c, commune_id, user_id, etape, body.data.reponse);
 });
 
@@ -345,15 +352,19 @@ app.post('/valider-position', async (c) => {
   if (!etape) return c.json({ erreur: 'Étape introuvable' }, 404);
 
   const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
-    select: 'rayon_metres', commune_id: `eq.${commune_id}`, id: `eq.${etape.chasse_id}`,
+    select: 'rayon_metres,actif', commune_id: `eq.${commune_id}`, id: `eq.${etape.chasse_id}`,
   });
-  const rayon = chasse?.rayon_metres ?? 50;
+  if (!chasse?.actif) return c.json({ erreur: 'Cette chasse n\'est plus active' }, 404);
+
+  const rayon = chasse.rayon_metres ?? 50;
   const distance = distanceMetres(body.data.lat, body.data.lng, etape.lat, etape.lng);
 
-  // La proximité n'est contournée que pour la 2e étape d'une énigme (soumission de la
-  // réponse), où elle a déjà été vérifiée au 1er appel — jamais pour texte/photo/aucun.
-  const soumissionReponseEnigme = etape.type_contenu === 'enigme' && !!body.data.reponse;
-  if (distance > rayon && !soumissionReponseEnigme) {
+  // Toujours vérifié, y compris à la soumission de la réponse d'une énigme : le client
+  // renvoie une vraie lecture GPS fraîche à cet appel aussi (voir validerEtapePosition côté
+  // frontend), donc rien ne justifie de faire confiance à un ancien contrôle non prouvé —
+  // l'ancien contournement ("déjà vérifié au 1er appel") permettait de valider une étape
+  // énigme depuis n'importe où dès lors qu'on connaissait la réponse.
+  if (distance > rayon) {
     return c.json({ ok: true, reussi: false, distance_metres: Math.round(distance) });
   }
 
