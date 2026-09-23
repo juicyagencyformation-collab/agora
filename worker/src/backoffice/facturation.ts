@@ -71,10 +71,14 @@ const devisSchema = z.object({
   validite_jours: z.number().int().min(1).max(365).default(30),
 });
 
+// sans_commune=1 : devis/factures "libres" (client hors commune, ex. prestation annexe à l'EI
+// de Léandre — voir POST /devis, commune_id est optionnel/nullable exprès pour ce cas) — jamais
+// combiné avec commune_id, l'un ou l'autre.
 app.get('/devis', async (c) => {
   const communeId = c.req.query('commune_id');
   const filtres: Record<string, string> = { select: '*', order: 'created_at.desc', limit: '500' };
-  if (communeId) filtres.commune_id = `eq.${communeId}`;
+  if (c.req.query('sans_commune') === '1') filtres.commune_id = 'is.null';
+  else if (communeId) filtres.commune_id = `eq.${communeId}`;
   const devis = await supabaseSelect(c.env, 'devis', filtres);
   return c.json({ devis });
 });
@@ -150,7 +154,8 @@ app.post('/devis/:id/facturer', async (c) => {
 app.get('/factures', async (c) => {
   const communeId = c.req.query('commune_id');
   const filtres: Record<string, string> = { select: '*', order: 'created_at.desc', limit: '500' };
-  if (communeId) filtres.commune_id = `eq.${communeId}`;
+  if (c.req.query('sans_commune') === '1') filtres.commune_id = 'is.null';
+  else if (communeId) filtres.commune_id = `eq.${communeId}`;
   const factures = await supabaseSelect(c.env, 'factures', filtres);
   return c.json({ factures });
 });

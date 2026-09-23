@@ -21,6 +21,7 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'facturation_libre' }" @click="allerFacturationLibre()">🧾 Facturation libre</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__favoris" x-show="favoris.length > 0">
@@ -2092,6 +2093,103 @@
         </div>
       </template>
 
+      <!-- Vue : Facturation libre — devis/factures hors commune (ex. prestation annexe à l'EI
+           de Léandre, sans rapport avec Agora) : même circuit devis→facture que sur une fiche
+           commune, mais destinataire en texte libre au lieu d'être lié à une commune. Jamais
+           mélangé aux stats/CA par commune (commune_id reste NULL en base). -->
+      <template x-if="!chargement && vue === 'facturation_libre'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">🧾 Facturation libre</div>
+              <div class="bo-sous">Devis et factures hors commune — prestations sans rapport avec Agora, sous la même entité (voir Réglages → Informations légales de l'entreprise).</div>
+            </div>
+          </div>
+
+          <div class="bo-carte" style="padding:16px 18px">
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px">
+              <div class="bo-champ-inline" style="flex:1; min-width:160px">
+                <label style="margin-top:0">Destinataire</label>
+                <input type="text" x-model="nouveauDevisLibre.nom_destinataire" placeholder="Nom du client" />
+              </div>
+              <div class="bo-champ-inline" style="flex:1; min-width:160px">
+                <label style="margin-top:0">Adresse (facultatif)</label>
+                <input type="text" x-model="nouveauDevisLibre.adresse_destinataire" placeholder="Adresse du client" />
+              </div>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px">
+              <div class="bo-champ-inline" style="flex:2; min-width:200px">
+                <label style="margin-top:0">Objet</label>
+                <input type="text" x-model="nouveauDevisLibre.objet" placeholder="ex. Création d'un site internet vitrine" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Montant HT</label>
+                <input type="number" min="0" step="10" x-model.number="nouveauDevisLibre.montant_ht" style="width:110px" />
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">TVA %</label>
+                <input type="number" min="0" max="100" step="0.1" x-model.number="nouveauDevisLibre.taux_tva" style="width:80px" />
+              </div>
+              <button class="bo-btn bo-btn--compact" @click="creerDevisLibre()" :disabled="devisEnCours || !nouveauDevisLibre.nom_destinataire || !nouveauDevisLibre.objet || !nouveauDevisLibre.montant_ht">Créer le devis</button>
+            </div>
+            <span class="bo-info" x-text="devisMsg"></span>
+
+            <table style="margin-top:10px" x-show="devisListe.length">
+              <thead><tr><th>N°</th><th>Destinataire</th><th>Objet</th><th>Montant TTC</th><th>Statut</th><th>Bon de commande</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="d in devisListe" :key="d.id">
+                  <tr style="cursor:default">
+                    <td x-text="d.numero"></td>
+                    <td x-text="d.nom_destinataire"></td>
+                    <td x-text="d.objet"></td>
+                    <td x-text="d.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td>
+                      <select x-model="d.statut" @change="changerStatutDevis(d)" style="width:auto">
+                        <template x-for="s in ['envoye','accepte','refuse','expire']" :key="s">
+                          <option :value="s" x-text="s"></option>
+                        </template>
+                      </select>
+                    </td>
+                    <td>
+                      <span x-show="d.bon_commande_recu_le" class="bo-info" x-text="'Reçu · ' + formatDate(d.bon_commande_recu_le)"></span>
+                      <button x-show="!d.bon_commande_recu_le" class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerBonCommande(d)">Marquer reçu</button>
+                    </td>
+                    <td style="display:flex; gap:6px">
+                      <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=devis&id=' + d.id" target="_blank">Voir / PDF</a>
+                      <button x-show="d.statut === 'accepte' && d.bon_commande_recu_le && !d.facture_id" class="bo-btn bo-btn--compact" @click="genererFacture(d)">Facturer</button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+            <div class="bo-vide" x-show="!devisListe.length">Aucun devis hors commune pour l'instant.</div>
+
+            <table style="margin-top:16px" x-show="facturesListe.length">
+              <thead><tr><th>N°</th><th>Destinataire</th><th>Objet</th><th>Montant TTC</th><th>Échéance</th><th>Statut</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="f in facturesListe" :key="f.id">
+                  <tr style="cursor:default">
+                    <td x-text="f.numero"></td>
+                    <td x-text="f.nom_destinataire"></td>
+                    <td x-text="f.objet"></td>
+                    <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td x-text="formatDate(f.date_echeance)"></td>
+                    <td>
+                      <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
+                        <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
+                          <option :value="s" x-text="s"></option>
+                        </template>
+                      </select>
+                    </td>
+                    <td><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
       <!-- Vue : Activité (flux CRM cross-communes — inscriptions + publications) -->
       <template x-if="!chargement && vue === 'activite'">
         <div>
@@ -3363,7 +3461,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260908-1"></script>
+  <script src="/backoffice/js/app.js?v=20260923-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

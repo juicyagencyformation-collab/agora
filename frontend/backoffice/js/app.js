@@ -211,6 +211,8 @@ function backoffice() {
     facturesListe: [],
     devisEnCours: false,
     devisMsg: '',
+    // — Facturation libre (hors commune) — voir allerFacturationLibre()
+    nouveauDevisLibre: { nom_destinataire: '', adresse_destinataire: '', objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: null, validite_jours: 30 },
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu', 'ne_plus_contacter'],
@@ -2327,13 +2329,40 @@ function backoffice() {
     },
 
     // — Devis & facturation —
+    // communeId omis/faux : recharge la facturation libre (hors commune, commune_id NULL en
+    // base) au lieu de celle d'une fiche — voir allerFacturationLibre().
     async chargerDevisFactures(communeId) {
+      const requete = communeId ? 'commune_id=' + communeId : 'sans_commune=1';
       const [d, f] = await Promise.all([
-        boFetch('/administration/devis?commune_id=' + communeId),
-        boFetch('/administration/factures?commune_id=' + communeId),
+        boFetch('/administration/devis?' + requete),
+        boFetch('/administration/factures?' + requete),
       ]);
       this.devisListe = d.devis;
       this.facturesListe = f.factures;
+    },
+    // Contexte de la vue actuelle, pour recharger la bonne liste après une action (bon de
+    // commande reçu, facturation) sans dupliquer chargerDevisFactures pour chaque vue.
+    communeIdFacturationActuelle() {
+      return this.vue === 'facturation_libre' ? null : this.fiche.commune.id;
+    },
+    async allerFacturationLibre() {
+      this.vue = 'facturation_libre';
+      this.devisMsg = '';
+      try { await this.chargerDevisFactures(null); } catch {}
+    },
+    async creerDevisLibre() {
+      this.devisEnCours = true;
+      this.devisMsg = '';
+      try {
+        await boFetch('/administration/devis', { method: 'POST', body: JSON.stringify(this.nouveauDevisLibre) });
+        this.nouveauDevisLibre = { nom_destinataire: '', adresse_destinataire: '', objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: null, validite_jours: 30 };
+        await this.chargerDevisFactures(null);
+        this.devisMsg = 'Devis créé.';
+      } catch (e) {
+        this.devisMsg = e.message || 'Échec';
+      } finally {
+        this.devisEnCours = false;
+      }
     },
     // Préremplit objet + montant HT à partir d'une formule (Autonomie/Accompagné/Premium) et de
     // la population de la commune — un raccourci de saisie, pas un champ mémorisé sur le devis
@@ -2374,14 +2403,14 @@ function backoffice() {
           method: 'PATCH',
           body: JSON.stringify({ bon_commande_recu_le: new Date().toISOString(), bon_commande_reference: reference }),
         });
-        await this.chargerDevisFactures(this.fiche.commune.id);
+        await this.chargerDevisFactures(this.communeIdFacturationActuelle());
       } catch (e) { alert(e.message || 'Échec'); }
     },
     async genererFacture(d) {
       if (!confirm(`Générer la facture pour le devis ${d.numero} ?`)) return;
       try {
         await boFetch('/administration/devis/' + d.id + '/facturer', { method: 'POST' });
-        await this.chargerDevisFactures(this.fiche.commune.id);
+        await this.chargerDevisFactures(this.communeIdFacturationActuelle());
         this.devisMsg = 'Facture générée.';
       } catch (e) { alert(e.message || 'Échec'); }
     },
