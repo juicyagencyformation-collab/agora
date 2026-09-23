@@ -4,6 +4,8 @@ let chassesCache = [];
 let idChasseDetailOuverte = null;
 let carteBalade = null;
 let modeArchivesChasses = false;
+let carteCreationChasse = null;
+let marqueursEtapesChasse = new Map();
 
 async function chargerChasses() {
   const url = modeArchivesChasses
@@ -470,6 +472,9 @@ function ouvrirModaleCreationChasse() {
         <label style="display:block;margin-bottom:4px;font-size:13px;color:var(--roseau);">Rayon de validation autour de chaque point (mètres)</label>
         <input type="number" id="rayon-chasse-modale" value="50" min="20" max="500">
       </div>
+      <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">📍 Emplacement des étapes</label>
+      <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Clique sur la carte pour placer chaque étape — pas besoin d'être sur place. Fais glisser un repère pour l'ajuster.</p>
+      <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
       <button type="button" id="btn-ajouter-etape-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter une étape</button>
       <button type="submit" style="margin-top:12px;">Créer la chasse</button>
@@ -483,6 +488,7 @@ function ouvrirModaleCreationChasse() {
     corps.querySelector('#ligne-rayon-balade').style.display = e.target.value === 'balade' ? 'block' : 'none';
   });
 
+  initCarteCreationChasse(corps);
   corps.querySelector('#btn-ajouter-etape-modale').addEventListener('click', () => ajouterLigneEtape(corps));
   ajouterLigneEtape(corps);
 
@@ -490,6 +496,63 @@ function ouvrirModaleCreationChasse() {
     e.preventDefault();
     await soumettreChasse(corps, overlay);
   });
+}
+
+// Carte partagée de la modale (création ou édition) : un repère numéroté par étape, posé au
+// clic (pas besoin d'être sur place) et déplaçable à la souris pour affiner. Voir
+// definirPositionEtape pour la synchronisation avec les champs lat/lng de chaque ligne.
+function initCarteCreationChasse(corps) {
+  marqueursEtapesChasse = new Map();
+  const latDepart = window.COMMUNE_LAT ?? 43.6047;
+  const lngDepart = window.COMMUNE_LNG ?? 1.4442;
+  carteCreationChasse = L.map(corps.querySelector('#carte-creation-chasse'), { maxZoom: 20 })
+    .setView([latDepart, lngDepart], window.COMMUNE_COORDS_MANQUANTES ? 6 : 14);
+  L.tileLayer(
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+    { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
+  ).addTo(carteCreationChasse);
+
+  // Un clic cible toujours la première étape encore sans position — flux naturel : "+ Ajouter
+  // une étape" puis clic sur la carte, en boucle. Une fois toutes les étapes placées, un clic
+  // supplémentaire n'a d'effet qu'en ajoutant une nouvelle étape au préalable ou en faisant
+  // glisser un repère existant.
+  carteCreationChasse.on('click', (e) => {
+    const ligneAPlacer = [...corps.querySelectorAll('.ligne-etape-chasse')]
+      .find((l) => !l.querySelector('.etape-lat').value || !l.querySelector('.etape-lng').value);
+    if (!ligneAPlacer) {
+      afficherToastMessage('Ajoute une étape pour placer un point supplémentaire, ou fais glisser un repère existant.', 'info');
+      return;
+    }
+    definirPositionEtape(ligneAPlacer, e.latlng.lat, e.latlng.lng);
+  });
+
+  // La carte est créée dans une modale tout juste insérée dans le DOM : Leaflet a besoin d'un
+  // invalidateSize() une fois le conteneur réellement visible (voir agenda.js, même piège).
+  setTimeout(() => carteCreationChasse.invalidateSize(), 80);
+}
+
+// Pose ou déplace le repère numéroté d'une étape sur la carte partagée, et synchronise ses
+// champs lat/lng cachés — point d'entrée commun au clic sur la carte, au glisser-déposer d'un
+// repère, au bouton "Ma position" et à une saisie manuelle des coordonnées.
+function definirPositionEtape(ligne, lat, lng) {
+  ligne.querySelector('.etape-lat').value = lat;
+  ligne.querySelector('.etape-lng').value = lng;
+  const id = ligne.dataset.etapeId;
+  let marqueur = marqueursEtapesChasse.get(id);
+  if (marqueur) {
+    marqueur.setLatLng([lat, lng]);
+  } else {
+    marqueur = L.marker([lat, lng], {
+      draggable: true,
+      icon: L.divIcon({ className: 'pastille-numero-etape', html: ligne.dataset.numero, iconSize: [26, 26], iconAnchor: [13, 13] }),
+    }).addTo(carteCreationChasse);
+    marqueur.on('dragend', () => {
+      const pos = marqueur.getLatLng();
+      ligne.querySelector('.etape-lat').value = pos.lat;
+      ligne.querySelector('.etape-lng').value = pos.lng;
+    });
+    marqueursEtapesChasse.set(id, marqueur);
+  }
 }
 
 // etapeExistante (optionnel) : pré-remplit la ligne pour la modale d'édition plutôt que de
@@ -503,6 +566,7 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
   const ligne = document.createElement('div');
   ligne.className = 'ligne-etape-chasse';
   ligne.dataset.etapeId = n;
+  ligne.dataset.numero = etapeExistante ? etapeExistante.ordre + 1 : n;
   if (etapeExistante) ligne.dataset.dbId = etapeExistante.id;
   if (etapeExistante?.photo_r2_key) ligne.dataset.photoActuelle = etapeExistante.photo_r2_key;
   ligne.style.cssText = 'border:1.5px solid var(--eauL);border-radius:10px;padding:10px;margin-bottom:10px;';
@@ -533,11 +597,23 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
     obtenirPositionPrecise((precision) => {
       bouton.textContent = `±${Math.round(precision)} m…`;
     }).then((pos) => {
-      ligne.querySelector('.etape-lat').value = pos.coords.latitude;
-      ligne.querySelector('.etape-lng').value = pos.coords.longitude;
+      definirPositionEtape(ligne, pos.coords.latitude, pos.coords.longitude);
+      carteCreationChasse?.setView([pos.coords.latitude, pos.coords.longitude], 16);
     }).catch(() => afficherToastMessage('Impossible de récupérer la position.', 'erreur'))
       .finally(() => { bouton.disabled = false; bouton.textContent = texteInitial; });
   });
+
+  // Symétrie avec le clic sur la carte : une saisie manuelle des coordonnées pose ou déplace
+  // aussi le repère, pour que la carte reste toujours le reflet fidèle des champs.
+  const essaierSyncDepuisChamps = () => {
+    const lat = parseFloat(ligne.querySelector('.etape-lat').value);
+    const lng = parseFloat(ligne.querySelector('.etape-lng').value);
+    if (!isNaN(lat) && !isNaN(lng)) definirPositionEtape(ligne, lat, lng);
+  };
+  ligne.querySelector('.etape-lat').addEventListener('change', essaierSyncDepuisChamps);
+  ligne.querySelector('.etape-lng').addEventListener('change', essaierSyncDepuisChamps);
+
+  if (etapeExistante) definirPositionEtape(ligne, etapeExistante.lat, etapeExistante.lng);
 
   const zoneContenu = ligne.querySelector('.etape-champs-contenu');
   const selectType = ligne.querySelector('.etape-type');
@@ -563,7 +639,11 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
     remplirChamps(etapeExistante.type_contenu);
   }
 
-  ligne.querySelector('.btn-supprimer-etape')?.addEventListener('click', () => ligne.remove());
+  ligne.querySelector('.btn-supprimer-etape')?.addEventListener('click', () => {
+    marqueursEtapesChasse.get(ligne.dataset.etapeId)?.remove();
+    marqueursEtapesChasse.delete(ligne.dataset.etapeId);
+    ligne.remove();
+  });
   conteneur.appendChild(ligne);
   return ligne;
 }
@@ -645,6 +725,9 @@ async function ouvrirModaleEditionChasse(chasse) {
         <input type="number" id="rayon-chasse-modale" value="${chasse.rayon_metres || 50}" min="20" max="500">
       ` : ''}
       <p style="font-size:12px;color:var(--roseau);margin:10px 0 4px;">Corrige les étapes ci-dessous. Ajouter, retirer ou réordonner une étape n'est pas possible ici — il faut recréer la chasse pour ça.</p>
+      <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">📍 Emplacement des étapes</label>
+      <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Fais glisser un repère pour corriger sa position, sans avoir à te rendre sur place.</p>
+      <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
       <button type="submit" style="margin-top:12px;">Enregistrer les modifications</button>
     </form>
@@ -652,7 +735,15 @@ async function ouvrirModaleEditionChasse(chasse) {
   const overlay = ouvrirModaleFormulaire('Modifier la chasse', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   compteurEtapes = 0;
+  initCarteCreationChasse(corps);
   etapes.forEach((e) => ajouterLigneEtape(corps, e));
+  // Après l'invalidateSize (voir initCarteCreationChasse) : le conteneur doit avoir sa taille
+  // réelle pour que fitBounds calcule un zoom correct, pas celle d'une modale encore réduite.
+  if (marqueursEtapesChasse.size) {
+    setTimeout(() => {
+      carteCreationChasse.fitBounds(L.featureGroup([...marqueursEtapesChasse.values()]).getBounds().pad(0.25));
+    }, 120);
+  }
 
   corps.querySelector('#form-modale-edition-chasse').addEventListener('submit', async (e) => {
     e.preventDefault();

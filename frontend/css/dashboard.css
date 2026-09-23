@@ -493,6 +493,11 @@ h1, h2, h3, h4, p, span, a, button {
   font-size: 20px; text-align: center; line-height: 26px;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
 }
+.pastille-numero-etape {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--eau); color: #fff;
+  font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
 
 /* ─── Écrans de détail Chasse au trésor / Énigme photo ─── */
 .carte-chasse-compacte, .carte-enigme-compacte {
