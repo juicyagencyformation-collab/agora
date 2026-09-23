@@ -186,6 +186,7 @@ tbody tr:hover { background: var(--bo-surface-2); }
 .bo-statut--rdv { background: #3b2d5c; color: #c4b5fd; }
 .bo-statut--gagne { background: #14432c; color: #34d399; }
 .bo-statut--perdu { background: #4a1d1d; color: #f87171; }
+.bo-statut--ne_plus_contacter { background: #1e293b; color: #94a3b8; }
 /* Statuts commune cliente */
 .bo-statut--active { background: #14432c; color: #34d399; }
 .bo-statut--suspendue { background: #4a3410; color: #fbbf24; }

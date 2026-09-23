@@ -360,6 +360,10 @@ function backoffice() {
       this.activiteCommune = [];
       try {
         this.fiche = await boFetch('/administration/communes/' + id);
+        // Fiable dès l'ouverture de la fiche, pas seulement après avoir ouvert le panneau
+        // Utilisateurs — rafraichirCompteursCommune() (statut, forfait, abonnement...) en dépend
+        // et échouait silencieusement tant que ce panneau n'avait jamais été ouvert.
+        this.communeActiveId = id;
         this.forfaitNom = this.fiche.commune.forfait || '';
         this.forfaitQuota = this.fiche.commune.quota_go ?? '';
         if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
@@ -403,12 +407,20 @@ function backoffice() {
       }
     },
 
+    // Le <select> est lié en x-model : fiche.commune.statut_client affiche déjà la nouvelle
+    // valeur avant même que cet appel ne parte. rafraichirCompteursCommune() resynchronise sur
+    // la vérité serveur dans les deux cas — si le PATCH échoue, ça annule le changement optimiste
+    // au lieu de le laisser affiché sans être enregistré (voir son commentaire).
     async majStatutClient() {
       try {
         await boFetch('/administration/communes/' + this.fiche.commune.id + '/statut', {
           method: 'PATCH', body: JSON.stringify({ statut_client: this.fiche.commune.statut_client }),
         });
-      } catch (e) { alert(e.message || 'Mise à jour impossible'); }
+      } catch (e) {
+        alert(e.message || 'Mise à jour impossible');
+      } finally {
+        await this.rafraichirCompteursCommune();
+      }
     },
 
     async envoyerPresentationCommune() {
@@ -871,13 +883,17 @@ function backoffice() {
         const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets/preset', {
           method: 'POST', body: JSON.stringify({ preset }),
         });
-        this.fiche.commune.forfait = r.forfait;
         this.forfaitNom = r.forfait;
         this.presetMsg = 'Appliqué : ' + r.forfait;
         try { this.ongletsCommune = (await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets')).onglets; } catch {}
       } catch (e) {
         this.presetMsg = e.message || 'Échec';
       } finally {
+        // Le passage en "Gratuit" vide aussi prix_annuel_ttc/prochaine_echeance côté serveur
+        // (voir POST .../onglets/preset) — sans ce rechargement, le tiroir Abonnement affichait
+        // encore l'ancien prix : un "Enregistrer" sur ce formulaire aurait renvoyé cette valeur
+        // périmée et annulé silencieusement le nettoyage fait par le serveur.
+        await this.rafraichirCompteursCommune();
         this.presetEnCours = false;
       }
     },
@@ -899,15 +915,14 @@ function backoffice() {
       this.forfaitMsg = '';
       try {
         const quota = this.forfaitQuota === '' || this.forfaitQuota === null ? null : Number(this.forfaitQuota);
-        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/forfait', {
+        await boFetch('/administration/communes/' + this.fiche.commune.id + '/forfait', {
           method: 'PATCH', body: JSON.stringify({ forfait: this.forfaitNom || null, quota_go: quota }),
         });
-        this.fiche.commune.forfait = r.forfait ?? null;
-        this.fiche.commune.quota_go = r.quota_go ?? null;
         this.forfaitMsg = 'Enregistré.';
       } catch (e) {
         this.forfaitMsg = e.message || 'Échec';
       } finally {
+        await this.rafraichirCompteursCommune(); // fiche + tableau "Communes clientes" à jour dans tous les cas
         this.forfaitEnCours = false;
       }
     },
@@ -1768,6 +1783,17 @@ function backoffice() {
         }
       } catch (e) {
         alert(e.message || 'Mise à jour impossible');
+        // Tous les champs modifiables ici (statut, étoiles, notes, relance...) sont liés en
+        // x-model : la valeur affichée a déjà changé avant même cet appel. Sans ce rattrapage, un
+        // échec de PATCH laissait la fiche sur la nouvelle valeur sans qu'elle soit réellement
+        // enregistrée — l'ancienne valeur ne réapparaissait qu'au prochain rechargement de la
+        // fiche, donnant l'impression que "ça ne persiste pas" (constaté le 2026-09-23 sur le
+        // statut "Ne plus contacter"). On resynchronise donc sur la vérité serveur ici aussi.
+        try {
+          const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+          this.prospect = { ...this.prospect, ...d.prospect };
+          this.interactions = d.interactions;
+        } catch {}
       }
     },
     // Normalise le champ avant envoi : un champ vidé doit être enregistré comme "pas d'email"
@@ -2315,6 +2341,7 @@ function backoffice() {
       } catch (e) {
         this.abonnementMsg = e.message || 'Échec';
       } finally {
+        await this.rafraichirCompteursCommune(); // tableau "Communes clientes" à jour (échéance/statut santé)
         this.abonnementEnCours = false;
       }
     },
@@ -2324,11 +2351,11 @@ function backoffice() {
       this.abonnementMsg = '';
       try {
         const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/abonnement/marquer-paye', { method: 'POST' });
-        this.fiche.commune.prochaine_echeance = r.prochaine_echeance;
         this.abonnementMsg = 'Payé — prochaine échéance : ' + this.formatDate(r.prochaine_echeance);
       } catch (e) {
         this.abonnementMsg = e.message || 'Échec';
       } finally {
+        await this.rafraichirCompteursCommune();
         this.abonnementEnCours = false;
       }
     },
@@ -2598,12 +2625,15 @@ function backoffice() {
       }
     },
 
-    // L'enregistrement se fait bien côté serveur (voir PATCH .../utilisateurs/:id), mais rien
-    // ne rafraîchissait jusqu'ici la fiche ni le tableau "Communes clientes" affichés à l'écran
-    // (chargés une fois à l'ouverture) : après un changement de rôle, l'ancien total restait
-    // visible partout — au point de ressembler à un enregistrement qui a échoué (constaté le
-    // 2026-08-19). Recalcule localement à partir de fiche.citoyens.par_role, sans re-fetch coûteux
-    // de la liste complète des ~5000 communes.
+    // L'enregistrement se fait bien côté serveur, mais rien ne rafraîchissait jusqu'ici la fiche
+    // ni le tableau "Communes clientes" affichés à l'écran (chargés une fois à l'ouverture) :
+    // après un changement de rôle, statut, forfait ou abonnement, l'ancienne valeur restait
+    // visible partout — au point de ressembler à un enregistrement qui a échoué (compteurs de
+    // rôles : constaté le 2026-08-19 ; généralisé au statut/forfait/abonnement le 2026-09-23,
+    // même symptôme repéré sur "Ne plus contacter" côté prospects). Recharge fiche.commune en
+    // entier depuis le serveur (vérité serveur plutôt que mémoriser l'ancienne valeur pour un
+    // rollback manuel) et resynchronise les mêmes champs dans la liste, sans re-fetch coûteux de
+    // la liste complète des ~5000 communes.
     async rafraichirCompteursCommune() {
       try {
         this.fiche = await boFetch('/administration/communes/' + this.communeActiveId);
@@ -2613,6 +2643,10 @@ function backoffice() {
           c.nb_citoyens = this.fiche.citoyens.total; // citoyen + admin + elu, déjà calculé côté serveur
           c.nb_admin = parRole.admin ?? 0;
           c.nb_elu = parRole.elu ?? 0;
+          c.statut_client = this.fiche.commune.statut_client;
+          c.forfait = this.fiche.commune.forfait;
+          c.quota_go = this.fiche.commune.quota_go;
+          c.prochaine_echeance = this.fiche.commune.prochaine_echeance;
         }
       } catch { /* purement cosmétique : ne doit jamais bloquer le retour à l'utilisateur */ }
     },
