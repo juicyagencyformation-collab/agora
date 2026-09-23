@@ -1,6 +1,6 @@
 # Mode d'emploi du backoffice Agora — SOP Virtual Assistants
 
-> Document vivant : à mettre à jour à chaque nouveauté livrée sur le backoffice. Dernière mise à jour : **2026-09-08**.
+> Document vivant : à mettre à jour à chaque nouveauté livrée sur le backoffice. Dernière mise à jour : **2026-09-23**.
 > Destiné aux Virtual Assistants (VA) de Juicy Solutions qui opèrent le backoffice au quotidien (prospection, onboarding, facturation, support). Version "grand public" (mairies) : voir `guide-communes.md`.
 
 ## ⚠️ Règle d'or à lire avant tout
@@ -191,6 +191,7 @@ Section dédiée sur la fiche : nombre d'exports de données demandés, comptes 
 
 - **Activité** : flux de toutes les inscriptions/publications citoyennes, toutes communes confondues.
 - **Chiffre d'affaires** : distingue strictement le **Réel encaissé** (factures payées) de la **Projection** (abonnements actifs théoriques) — jamais additionnés. Le **Churn** ne suit que les vraies pertes (communes qui payaient avant).
+- **🧾 Facturation libre** : ❌ **Usage personnel de Léandre uniquement** — sert à facturer des prestations sans rapport avec Agora sous sa même entité (EI). Ne jamais y créer de devis/facture sans instruction explicite.
 
 ---
 
