@@ -21,6 +21,7 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || vue === 'prospect' }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'toutes_factures' }" @click="allerToutesFactures()">📑 Toutes les factures</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'facturation_libre' }" @click="allerFacturationLibre()">🧾 Facturation libre</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
@@ -2190,6 +2191,76 @@
         </div>
       </template>
 
+      <!-- Vue : Toutes les factures — vue d'ensemble (communes + facturation libre confondues),
+           lecture + mise à jour de statut, sans passer par une fiche commune ni par Facturation
+           libre. Tri/recherche/filtre côté client (liste plafonnée à 500, largement suffisant). -->
+      <template x-if="!chargement && vue === 'toutes_factures'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">📑 Toutes les factures</div>
+              <div class="bo-sous">Vue d'ensemble — communes et facturation libre confondues.</div>
+            </div>
+            <a class="bo-btn bo-btn--sec bo-btn--compact" :href="urlExportFactures()" download>⬇ Exporter en CSV</a>
+          </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
+
+          <div class="bo-grille-stats">
+            <div class="bo-stat"><div class="bo-stat__val" x-text="statsToutesFactures().totalTtc.toLocaleString('fr-FR') + ' €'"></div><div class="bo-stat__lib">Total facturé (TTC)</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="statsToutesFactures().encaisseTtc.toLocaleString('fr-FR') + ' €'"></div><div class="bo-stat__lib">Encaissé</div></div>
+            <div class="bo-stat"><div class="bo-stat__val" x-text="statsToutesFactures().enAttenteTtc.toLocaleString('fr-FR') + ' €'"></div><div class="bo-stat__lib">En attente</div></div>
+            <div class="bo-stat" :class="{ 'bo-note--basse': statsToutesFactures().enRetardNb }">
+              <div class="bo-stat__val" x-text="statsToutesFactures().enRetardTtc.toLocaleString('fr-FR') + ' €'"></div>
+              <div class="bo-stat__lib" x-text="statsToutesFactures().enRetardNb + ' en retard'"></div>
+            </div>
+          </div>
+
+          <div class="bo-outils" style="margin-bottom:14px">
+            <select x-model="filtreFactureStatut">
+              <option value="">Tous les statuts</option>
+              <option value="emise">Émise</option>
+              <option value="deposee_chorus">Déposée Chorus Pro</option>
+              <option value="payee">Payée</option>
+            </select>
+            <input type="text" x-model="filtreFactureRecherche" placeholder="N°, destinataire, objet…" />
+          </div>
+
+          <table x-show="facturesFiltreesTriees().length">
+            <thead>
+              <tr>
+                <th style="cursor:pointer" @click="trierParFacture('numero')">N°<span x-text="flecheTriFacture('numero')"></span></th>
+                <th style="cursor:pointer" @click="trierParFacture('nom_destinataire')">Destinataire<span x-text="flecheTriFacture('nom_destinataire')"></span></th>
+                <th>Objet</th>
+                <th style="cursor:pointer" @click="trierParFacture('montant_ttc')">Montant TTC<span x-text="flecheTriFacture('montant_ttc')"></span></th>
+                <th style="cursor:pointer" @click="trierParFacture('date_echeance')">Échéance<span x-text="flecheTriFacture('date_echeance')"></span></th>
+                <th>Statut</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="f in facturesFiltreesTriees()" :key="f.id">
+                <tr style="cursor:default">
+                  <td x-text="f.numero"></td>
+                  <td class="bo-nom-commune" x-text="f.nom_destinataire"></td>
+                  <td x-text="f.objet"></td>
+                  <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                  <td><span :class="classeEcheanceFacture(f)" x-text="f.date_echeance ? formatDate(f.date_echeance) : '—'"></span></td>
+                  <td>
+                    <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
+                      <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
+                        <option :value="s" x-text="s"></option>
+                      </template>
+                    </select>
+                  </td>
+                  <td><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="bo-vide" x-show="!facturesFiltreesTriees().length">Aucune facture ne correspond à ces filtres.</div>
+        </div>
+      </template>
+
       <!-- Vue : Activité (flux CRM cross-communes — inscriptions + publications) -->
       <template x-if="!chargement && vue === 'activite'">
         <div>
@@ -3461,7 +3532,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260818-5"></script>
-  <script src="/backoffice/js/app.js?v=20260923-1"></script>
+  <script src="/backoffice/js/app.js?v=20260923-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

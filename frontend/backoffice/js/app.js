@@ -213,6 +213,11 @@ function backoffice() {
     devisMsg: '',
     // — Facturation libre (hors commune) — voir allerFacturationLibre()
     nouveauDevisLibre: { nom_destinataire: '', adresse_destinataire: '', objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: null, validite_jours: 30 },
+    // — Toutes les factures (vue d'ensemble, communes + libres) — voir allerToutesFactures()
+    toutesFacturesListe: [],
+    filtreFactureStatut: '',
+    filtreFactureRecherche: '',
+    triFactures: { cle: null, sens: 'desc' },
 
     // — Prospection —
     statuts: ['a_contacter', 'contacte', 'relance', 'rdv', 'gagne', 'perdu', 'ne_plus_contacter'],
@@ -2391,9 +2396,13 @@ function backoffice() {
         this.devisEnCours = false;
       }
     },
+    // Recharge depuis le serveur après le PATCH (au lieu de se fier au seul état local posé par
+    // x-model) : sans ça, un échec silencieux du PATCH n'était jamais visible — le statut avait
+    // l'air changé à l'écran mais ne persistait pas réellement (constaté le 2026-09-23).
     async changerStatutDevis(d) {
       try {
         await boFetch('/administration/devis/' + d.id, { method: 'PATCH', body: JSON.stringify({ statut: d.statut }) });
+        await this.chargerDevisFactures(this.communeIdFacturationActuelle());
       } catch (e) { alert(e.message || 'Échec'); }
     },
     async enregistrerBonCommande(d) {
@@ -2417,7 +2426,80 @@ function backoffice() {
     async changerStatutFacture(f) {
       try {
         await boFetch('/administration/factures/' + f.id, { method: 'PATCH', body: JSON.stringify({ statut: f.statut }) });
+        if (this.vue === 'toutes_factures') await this.chargerToutesFactures();
+        else await this.chargerDevisFactures(this.communeIdFacturationActuelle());
       } catch (e) { alert(e.message || 'Échec'); }
+    },
+
+    // — Toutes les factures (vue d'ensemble communes + libres) —
+    async chargerToutesFactures() {
+      this.toutesFacturesListe = (await boFetch('/administration/factures')).factures;
+    },
+    async allerToutesFactures() {
+      this.vue = 'toutes_factures';
+      this.erreurChargement = '';
+      try { await this.chargerToutesFactures(); } catch (e) { this.erreurChargement = e.message || 'Erreur de chargement des factures'; }
+    },
+    statsToutesFactures() {
+      const aujourdhui = new Date().toISOString().slice(0, 10);
+      const stats = { totalTtc: 0, encaisseTtc: 0, enAttenteTtc: 0, enRetardTtc: 0, enRetardNb: 0 };
+      for (const f of this.toutesFacturesListe) {
+        stats.totalTtc += Number(f.montant_ttc) || 0;
+        if (f.statut === 'payee') {
+          stats.encaisseTtc += Number(f.montant_ttc) || 0;
+        } else {
+          stats.enAttenteTtc += Number(f.montant_ttc) || 0;
+          if (f.date_echeance && f.date_echeance < aujourdhui) {
+            stats.enRetardTtc += Number(f.montant_ttc) || 0;
+            stats.enRetardNb += 1;
+          }
+        }
+      }
+      return stats;
+    },
+    // Rouge si en retard ET pas encore payée — une facture payée avec une échéance passée n'a
+    // rien d'anormal (réglée après le délai, ou le jour même).
+    classeEcheanceFacture(f) {
+      if (f.statut === 'payee' || !f.date_echeance) return '';
+      return this.classeEcheance(f.date_echeance);
+    },
+    trierParFacture(cle) {
+      if (this.triFactures.cle === cle) {
+        this.triFactures.sens = this.triFactures.sens === 'asc' ? 'desc' : 'asc';
+      } else {
+        this.triFactures = { cle, sens: 'asc' };
+      }
+    },
+    flecheTriFacture(cle) {
+      if (this.triFactures.cle !== cle) return '';
+      return this.triFactures.sens === 'asc' ? ' ▲' : ' ▼';
+    },
+    facturesFiltreesTriees() {
+      const recherche = this.filtreFactureRecherche.trim().toLowerCase();
+      let liste = this.toutesFacturesListe.filter((f) => {
+        if (this.filtreFactureStatut && f.statut !== this.filtreFactureStatut) return false;
+        if (recherche && !(f.nom_destinataire.toLowerCase().includes(recherche) || f.objet.toLowerCase().includes(recherche) || f.numero.toLowerCase().includes(recherche))) return false;
+        return true;
+      });
+      const { cle, sens } = this.triFactures;
+      if (cle) {
+        liste = [...liste].sort((a, b) => {
+          let va = a[cle], vb = b[cle];
+          const videA = va === null || va === undefined || va === '';
+          const videB = vb === null || vb === undefined || vb === '';
+          if (videA && videB) return 0;
+          if (videA) return 1;
+          if (videB) return -1;
+          if (typeof va === 'string') va = va.toLowerCase();
+          if (typeof vb === 'string') vb = vb.toLowerCase();
+          const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+          return sens === 'asc' ? cmp : -cmp;
+        });
+      }
+      return liste;
+    },
+    urlExportFactures() {
+      return '/api/backoffice/administration/factures-export.csv';
     },
 
     // — Gestion des utilisateurs d'une commune —

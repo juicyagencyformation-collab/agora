@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
+import { versCsv } from '../lib/csv';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -151,6 +152,10 @@ app.post('/devis/:id/facturer', async (c) => {
 });
 
 // — Factures —
+// Sans commune_id ni sans_commune : TOUTES les factures (communes + libres confondues) — vue
+// d'ensemble "Toutes les factures" du backoffice, voir frontend. nom_destinataire/objet sont
+// dupliqués sur chaque ligne à la création (jamais recalculés depuis une commune), donc cette
+// liste globale n'a besoin d'aucune jointure.
 app.get('/factures', async (c) => {
   const communeId = c.req.query('commune_id');
   const filtres: Record<string, string> = { select: '*', order: 'created_at.desc', limit: '500' };
@@ -158,6 +163,28 @@ app.get('/factures', async (c) => {
   else if (communeId) filtres.commune_id = `eq.${communeId}`;
   const factures = await supabaseSelect(c.env, 'factures', filtres);
   return c.json({ factures });
+});
+
+// GET /factures-export.csv — export de la vue "Toutes les factures" (mêmes colonnes que le
+// tableau backoffice), pour la compta.
+app.get('/factures-export.csv', async (c) => {
+  const factures = await supabaseSelect(c.env, 'factures', {
+    select: 'numero,nom_destinataire,objet,montant_ht,taux_tva,montant_ttc,date_emission,date_echeance,statut',
+    order: 'created_at.desc', limit: '500',
+  });
+  const csv = versCsv(factures, [
+    { cle: 'numero', titre: 'N°' }, { cle: 'nom_destinataire', titre: 'Destinataire' },
+    { cle: 'objet', titre: 'Objet' }, { cle: 'montant_ht', titre: 'Montant HT' },
+    { cle: 'taux_tva', titre: 'TVA %' }, { cle: 'montant_ttc', titre: 'Montant TTC' },
+    { cle: 'date_emission', titre: 'Émise le' }, { cle: 'date_echeance', titre: 'Échéance' },
+    { cle: 'statut', titre: 'Statut' },
+  ]);
+  return new Response(csv, {
+    headers: {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="factures-${new Date().toISOString().slice(0, 10)}.csv"`,
+    },
+  });
 });
 
 app.get('/factures/:id', async (c) => {
