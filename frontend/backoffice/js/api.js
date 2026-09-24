@@ -47,5 +47,24 @@ function redirigerVersConnexion() {
   }
 }
 
+// Rafraîchissement proactif (2026-09-24) : le refresh ci-dessus est réactif (il ne se déclenche
+// qu'APRÈS un 401), donc un onglet resté ouvert sans interaction pendant plus de 15 min essuyait
+// toujours un premier échec visible (401 en console, léger délai) à la prochaine action. Toutes
+// les 10 min — marge large sous les 15 min du token d'accès (voir auth.ts) — on rafraîchit en
+// silence tant que la page reste ouverte, via le même rafraichissementEnCours que le chemin
+// réactif (jamais deux refresh en parallèle, même piège de rotation à usage unique que plus haut).
+// Rien de spécial si un cycle échoue (refresh token vraiment expiré/révoqué, ex. après 30 jours
+// d'inactivité) : la prochaine vraie action de l'utilisateur retombera sur le chemin réactif de
+// boFetch, qui redirige proprement vers la connexion.
+if (!location.pathname.endsWith('/connexion') && !location.pathname.endsWith('/connexion.html')) {
+  setInterval(() => {
+    if (!rafraichissementEnCours) {
+      rafraichissementEnCours = fetch(BO_API + '/auth/refresh', { method: 'POST', credentials: 'include' })
+        .then((r) => r.ok)
+        .finally(() => { rafraichissementEnCours = null; });
+    }
+  }, 10 * 60 * 1000);
+}
+
 window.boFetch = boFetch;
 window.redirigerVersConnexion = redirigerVersConnexion;
