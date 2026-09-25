@@ -214,7 +214,7 @@ app.patch('/:id', async (c) => {
   const event_id = c.req.param('id');
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,user_id,type_action', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
+    select: 'id,user_id,type_action,r2_key', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
   if (event.user_id !== user_id && !estGestionnaire(role)) {
@@ -249,7 +249,13 @@ app.patch('/:id', async (c) => {
   if (data.lng !== undefined) patch.lng = data.lng;
   if (data.date_debut) patch.date_debut = data.date_debut;
   if (data.date_fin) patch.date_fin = data.date_fin;
-  if (data.r2_key) { patch.photo_url = `${c.env.R2_PUBLIC_BASE}/${data.r2_key}`; patch.r2_key = data.r2_key; }
+  // La photo est remplacée par une autre : celle qui était en place devient orpheline en R2
+  // si on ne l'efface pas explicitement (même piège que pour les étapes de chasse au trésor).
+  if (data.r2_key) {
+    patch.photo_url = `${c.env.R2_PUBLIC_BASE}/${data.r2_key}`;
+    patch.r2_key = data.r2_key;
+    if (event.r2_key && event.r2_key !== data.r2_key) await deleteObject(c.env, event.r2_key);
+  }
   if (data.type_action !== undefined) {
     patch.type_action = data.type_action || null;
     patch.necessite_validation_presence = !!data.type_action;

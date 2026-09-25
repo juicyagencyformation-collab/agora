@@ -260,9 +260,17 @@ function renderEvent(event) {
   const dateAffichee = formatDateAffichageEvent(event);
   const badgeQuand = !modeHistoriqueAgenda ? badgeQuandEvenement(event.date_debut) : null;
 
+  const debutEvent = new Date(event.date_debut);
+  const moisAbrege = debutEvent.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '').toUpperCase();
+  const vignetteSansPhoto = `
+    <div class="miniature-liste-article miniature-vide vignette-date-event">
+      <span class="jour-vignette-event">${debutEvent.getDate()}</span>
+      <span class="mois-vignette-event">${moisAbrege}</span>
+    </div>`;
+
   el.innerHTML = `
     <button type="button" class="entete-event-compact">
-      ${event.photo_url ? `<img src="${event.photo_url}" class="miniature-liste-article">` : '<div class="miniature-liste-article miniature-vide">📅</div>'}
+      ${event.photo_url ? `<img src="${event.photo_url}" class="miniature-liste-article">` : vignetteSansPhoto}
       <div class="texte-entete-event">
         <div class="badges-event-compact">
           <span class="badge-categorie-article ${event.officiel ? 'badge-officiel-event' : ''}">${event.officiel ? '🏛️ Officiel' : '👤 Citoyen'}</span>
@@ -596,6 +604,11 @@ function ouvrirEditionEvent(event) {
       <label class="label-champ-edition">Lieu</label>
       <input type="text" id="lieu-edition-event-modale" value="${escapeAttr(event.lieu || '')}" placeholder="Lieu">
 
+      <label class="label-champ-edition">Image</label>
+      ${event.photo_url ? `<img src="${event.photo_url}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin-bottom:6px;">` : ''}
+      <input type="file" id="image-edition-event-modale" accept="image/*">
+      <p style="font-size:12px;color:var(--roseau);margin:4px 0 0;">${event.photo_url ? 'Choisis un fichier pour la remplacer, laisse vide pour la garder.' : ''}</p>
+
       ${htmlChampsDateHeure('edition-event-modale', valeurs)}
       ${htmlChampPosition('edition-event-modale', event.lat, event.lng)}
       ${estGestionnaireAgenda ? htmlChampTypeAction('edition-event-modale', event.type_action) : ''}
@@ -620,12 +633,25 @@ function ouvrirEditionEvent(event) {
     const lng = corps.querySelector('#lng-edition-event-modale').value;
     const typeAction = estGestionnaireAgenda ? lireChampTypeAction(corps, 'edition-event-modale') : undefined;
 
+    let r2Key;
+    const fichier = corps.querySelector('#image-edition-event-modale').files[0];
+    if (fichier) {
+      try {
+        const compresse = await compresserImage(fichier);
+        const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/agenda/upload`, {
+          method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+        });
+        if (resUpload.ok) { const { key } = await resUpload.json(); r2Key = key; }
+      } catch { console.warn('Upload image échoué, image non modifiée.'); }
+    }
+
     const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda/${event.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         titre, description, lieu, date_debut, date_fin,
         ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
+        ...(r2Key ? { r2_key: r2Key } : {}),
         ...(estGestionnaireAgenda ? { type_action: typeAction ?? '', partage_autour: lireChampPartageAutour(corps, 'edition-event-modale') } : {}),
       }),
     });

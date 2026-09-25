@@ -992,6 +992,9 @@ h1, h2, h3, h4, p, span, a, button {
   min-height: 88px;
 }
 .entete-event-compact .miniature-vide { min-height: 88px; }
+.entete-event-compact .vignette-date-event { flex-direction: column; gap: 0; }
+.entete-event-compact .jour-vignette-event { font-family: 'Playfair Display', serif; font-weight: 700; font-size: 27px; line-height: 1; color: var(--eau); }
+.entete-event-compact .mois-vignette-event { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 10px; letter-spacing: .05em; color: var(--roseau); margin-top: 3px; }
 .texte-entete-event { flex: 1; min-width: 0; }
 .badges-event-compact { display: flex; gap: 5px; margin-bottom: 3px; flex-wrap: wrap; }
 .badge-officiel-event { background: rgba(107,53,160,.14); color: var(--admin, #6B35A0); }
