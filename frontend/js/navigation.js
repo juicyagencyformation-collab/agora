@@ -189,6 +189,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initToggleArchivesChasses();
   initFormulaireCoupDeMain();
   initFormulaireDechets();
+  initFormulaireDechetsException();
   initFormulaireSondage();
   initFormulaireDeliberation();
   initFormulairePv();

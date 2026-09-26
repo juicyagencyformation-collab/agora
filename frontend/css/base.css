@@ -170,6 +170,10 @@ form input, form textarea, form select {
   font-family: 'DM Sans', sans-serif; font-size: 16px; color: var(--boue);
 }
 form input:focus, form textarea:focus, form select:focus { outline: none; border-color: var(--eau); }
+/* Le input[type=color] natif n'a pas besoin (et s'accommode mal) du padding/de la largeur à
+   100% des champs de formulaire ci-dessus : sans cette règle, le picker s'écrase en un long
+   trait fin plutôt que d'afficher un vrai carré de couleur (voir CLAUDE.md, module Déchets). */
+form input[type="color"] { width: 50px; height: 38px; padding: 3px; cursor: pointer; }
 form button {
   padding: 10px 18px; border-radius: 100px; border: none;
   background: var(--eau); color: #fff; font-family: 'DM Sans', sans-serif;

@@ -41,26 +41,45 @@ function prochaineDateCollecte(jourSemaine: number, frequence: string): Date {
 
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id');
-  const configs = await supabaseSelect(c.env, 'dechets_config', {
-    select: 'id,type,jour_semaine,frequence,couleur',
-    commune_id: `eq.${commune_id}`,
-  });
-
   const aujourdhui = new Date();
   aujourdhui.setHours(0, 0, 0, 0);
 
-  const result = configs.map((cfg: any) => {
+  const [configs, exceptionsBrutes] = await Promise.all([
+    supabaseSelect(c.env, 'dechets_config', {
+      select: 'id,type,jour_semaine,frequence,couleur',
+      commune_id: `eq.${commune_id}`,
+    }),
+    supabaseSelect(c.env, 'dechets_exceptions', {
+      select: 'id,date,libelle,couleur',
+      commune_id: `eq.${commune_id}`,
+      date: `gte.${aujourdhui.toISOString().slice(0, 10)}`,
+      order: 'date.asc',
+    }),
+  ]);
+
+  const collectes = configs.map((cfg: any) => {
     const prochaine = prochaineDateCollecte(cfg.jour_semaine, cfg.frequence);
-    const estAujourdhui = prochaine.getTime() === aujourdhui.getTime();
     return {
       ...cfg,
       prochaine_date: prochaine.toISOString().slice(0, 10),
-      aujourdhui: estAujourdhui,
+      aujourdhui: prochaine.getTime() === aujourdhui.getTime(),
       dans_jours: Math.round((prochaine.getTime() - aujourdhui.getTime()) / 86400000),
     };
   }).sort((a: any, b: any) => a.dans_jours - b.dans_jours);
 
-  return c.json({ collectes: result });
+  // Même logique d'échéance (aujourd'hui / dans_jours) que les collectes récurrentes
+  // ci-dessus, pour que le dashboard puisse traiter les deux listes de façon uniforme dans
+  // la carte "sortez vos poubelles ce soir" (voir chargerDechetsDashboard côté frontend).
+  const exceptions = exceptionsBrutes.map((exc: any) => {
+    const date = new Date(exc.date + 'T00:00:00');
+    return {
+      ...exc,
+      aujourdhui: date.getTime() === aujourdhui.getTime(),
+      dans_jours: Math.round((date.getTime() - aujourdhui.getTime()) / 86400000),
+    };
+  });
+
+  return c.json({ collectes, exceptions });
 });
 
 const configSchema = z.object({
@@ -110,6 +129,42 @@ app.delete('/:id', async (c) => {
   }
   const commune_id = c.get('commune_id');
   await supabaseDelete(c.env, 'dechets_config', {
+    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true });
+});
+
+// ── Dates exceptionnelles : jour férié qui décale la collecte, ramassage ponctuel... ──
+// Distinctes des règles récurrentes ci-dessus (une ligne = une date précise, jamais répétée).
+
+const exceptionSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  libelle: z.string().min(1).max(200),
+});
+
+app.post('/exceptions', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+
+  const body = exceptionSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  await supabaseInsert(c.env, 'dechets_exceptions', {
+    commune_id, date: body.data.date, libelle: body.data.libelle,
+  });
+  return c.json({ ok: true }, 201);
+});
+
+app.delete('/exceptions/:id', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+  await supabaseDelete(c.env, 'dechets_exceptions', {
     id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
   });
   return c.json({ ok: true });

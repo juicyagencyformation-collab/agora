@@ -399,16 +399,22 @@ async function chargerDechetsDashboard() {
   if (!zone) return;
   const res = await appelApi(`/${window.COMMUNE_SLUG}/dechets`);
   if (!res.ok) { zone.innerHTML = ''; return; }
-  const { collectes } = await res.json();
+  const { collectes, exceptions } = await res.json();
 
-  if (!collectes.length) {
+  // Les dates exceptionnelles (jour férié, ramassage ponctuel...) suivent exactement la même
+  // logique de rappel que les collectes récurrentes — sans ça, la mairie pourrait les saisir
+  // sans que personne ne soit jamais averti la veille, ce qui viderait la fonctionnalité de son
+  // intérêt. Un simple libellé (${LABELS_DECHET[c.type] ?? c.libelle}) sert pour les deux cas.
+  const toutes = [...collectes, ...exceptions ?? []];
+
+  if (!toutes.length) {
     if (zoneAlerte) zoneAlerte.hidden = true;
     zone.innerHTML = `<p class="dechets-vide">Aucun calendrier de collecte configuré. (Modération → Déchets)</p>`;
     return;
   }
 
-  const aujourdhui = collectes.filter((c) => c.aujourdhui);
-  const veille = collectes.filter((c) => !c.aujourdhui && c.dans_jours === 1);
+  const aujourdhui = toutes.filter((c) => c.aujourdhui);
+  const veille = toutes.filter((c) => !c.aujourdhui && c.dans_jours === 1);
 
   // Carte d'alerte bien visible, en haut de l'accueil, uniquement la veille du ramassage.
   if (zoneAlerte) {
@@ -419,7 +425,7 @@ async function chargerDechetsDashboard() {
           <span style="font-size:26px;">🗑️</span>
           <div>
             <strong>Sortez vos poubelles ce soir !</strong>
-            <p>Collecte "${LABELS_DECHET[c.type] ?? c.type}" demain matin</p>
+            <p>Collecte "${LABELS_DECHET[c.type] ?? escapeAttr(c.libelle)}" demain matin</p>
           </div>
         </div>
       `).join('');
@@ -435,7 +441,7 @@ async function chargerDechetsDashboard() {
   if (aujourdhui.length) {
     html += aujourdhui.map((c) => `
       <div class="ligne-dechet ligne-dechet-today" style="border-left-color:${c.couleur}">
-        <strong>🗑️ Aujourd'hui : ${LABELS_DECHET[c.type] ?? c.type}</strong>
+        <strong>🗑️ Aujourd'hui : ${LABELS_DECHET[c.type] ?? escapeAttr(c.libelle)}</strong>
       </div>
     `).join('');
   } else if (!veille.length) {

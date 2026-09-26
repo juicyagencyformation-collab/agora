@@ -777,7 +777,7 @@ async function chargerListeDechetsModeration() {
   if (!zone) return;
   const res = await appelApi(`/${window.COMMUNE_SLUG}/dechets`);
   if (!res.ok) return;
-  const { collectes } = await res.json();
+  const { collectes, exceptions } = await res.json();
 
   zone.innerHTML = collectes.map((c) => `
     <div class="ligne-toggle-onglet">
@@ -794,6 +794,50 @@ async function chargerListeDechetsModeration() {
       await appelApi(`/${window.COMMUNE_SLUG}/dechets/${btn.dataset.id}`, { method: 'DELETE' });
       chargerListeDechetsModeration();
     });
+  });
+
+  const zoneExceptions = document.getElementById('liste-dechets-exceptions');
+  if (!zoneExceptions) return;
+  zoneExceptions.innerHTML = (exceptions ?? []).map((exc) => `
+    <div class="ligne-toggle-onglet">
+      <span style="display:flex;align-items:center;gap:8px;">
+        <span style="width:12px;height:12px;border-radius:50%;background:${exc.couleur};display:inline-block;"></span>
+        ${new Date(exc.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — ${escapeAttr(exc.libelle)}
+      </span>
+      <button data-id="${exc.id}" class="btn-supprimer-dechet-exception" style="background:transparent;border:1.5px solid var(--eauL);border-radius:8px;padding:4px 10px;font-size:12px;">Retirer</button>
+    </div>
+  `).join('') || '<p class="dechets-vide">Aucune date exceptionnelle à venir.</p>';
+
+  zoneExceptions.querySelectorAll('.btn-supprimer-dechet-exception').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await appelApi(`/${window.COMMUNE_SLUG}/dechets/exceptions/${btn.dataset.id}`, { method: 'DELETE' });
+      chargerListeDechetsModeration();
+    });
+  });
+}
+
+function initFormulaireDechetsException() {
+  const form = document.getElementById('form-dechets-exception');
+  if (!form) return;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const date = document.getElementById('date-dechet-exception').value;
+    const libelle = document.getElementById('libelle-dechet-exception').value.trim();
+    if (!date || !libelle) return;
+
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/dechets/exceptions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, libelle }),
+    });
+    if (res.ok) {
+      form.reset();
+      chargerListeDechetsModeration();
+    } else {
+      const data = await res.json();
+      alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur');
+    }
   });
 }
 
