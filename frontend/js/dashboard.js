@@ -42,6 +42,9 @@ const LABELS_DECHET = {
   dechets_verts: 'Déchets verts',
 };
 
+const LABELS_JOUR_DECHET = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 5: 'Vendredi', 6: 'Samedi', 7: 'Dimanche' };
+const LABELS_FREQUENCE_DECHET = { chaque_semaine: 'chaque semaine', semaines_paires: 'semaines paires', semaines_impaires: 'semaines impaires' };
+
 async function chargerDashboard() {
   const meteo = document.getElementById('carte-meteo');
   const dechets = document.getElementById('carte-dechets');
@@ -447,7 +450,34 @@ async function chargerDechetsDashboard() {
   } else if (!veille.length) {
     html += `<p class="dechets-rien">Rien à sortir aujourd'hui.</p>`;
   }
+
+  // Volontairement replié par défaut (voir commentaire ci-dessus) : mais un citoyen qui veut
+  // savoir quand aura lieu le PROCHAIN tri sélectif (pas juste demain) doit pouvoir le
+  // consulter sans attendre la veille — sans ce détail, le calendrier complet saisi en
+  // Modération ne serait consultable nulle part côté citoyen.
+  const detailCollectes = [...collectes].sort((a, b) => a.jour_semaine - b.jour_semaine).map((c) => `
+    <div class="ligne-dechet" style="border-left-color:${c.couleur}">
+      ${LABELS_DECHET[c.type] ?? c.type} — ${LABELS_JOUR_DECHET[c.jour_semaine]} (${LABELS_FREQUENCE_DECHET[c.frequence] ?? c.frequence})
+    </div>
+  `).join('');
+  const detailExceptions = (exceptions ?? []).map((e) => `
+    <div class="ligne-dechet" style="border-left-color:${e.couleur}">
+      ${new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — ${escapeAttr(e.libelle)}
+    </div>
+  `).join('');
+
+  html += `
+    <button type="button" id="btn-toggle-calendrier-dechets" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12.5px;padding:6px 12px;border-radius:100px;margin-top:6px;">📆 Voir tout le calendrier</button>
+    <div id="detail-calendrier-dechets" hidden style="margin-top:8px;">${detailCollectes}${detailExceptions}</div>
+  `;
   zone.innerHTML = html;
+
+  const btnToggle = zone.querySelector('#btn-toggle-calendrier-dechets');
+  const detail = zone.querySelector('#detail-calendrier-dechets');
+  btnToggle?.addEventListener('click', () => {
+    detail.hidden = !detail.hidden;
+    btnToggle.textContent = detail.hidden ? '📆 Voir tout le calendrier' : '📆 Masquer le calendrier';
+  });
 }
 
 async function chargerDerniereActu() {

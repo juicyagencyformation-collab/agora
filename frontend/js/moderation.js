@@ -747,9 +747,21 @@ async function chargerListeUtilisateurs() {
   });
 }
 
+let dernieresCollectesModeration = [];
+
+// Le formulaire fait un upsert (un type = une seule ligne, voir POST /dechets) : sans
+// pré-remplissage, choisir un type déjà configuré écraserait silencieusement son jour/sa
+// fréquence/sa couleur actuels sans que la mairie les voie avant de valider.
 function initFormulaireDechets() {
   const form = document.getElementById('form-dechets');
   if (!form) return;
+
+  document.getElementById('type-dechet').addEventListener('change', (e) => {
+    const existant = dernieresCollectesModeration.find((c) => c.type === e.target.value);
+    document.getElementById('jour-dechet').value = existant ? existant.jour_semaine : 1;
+    document.getElementById('frequence-dechet').value = existant ? existant.frequence : 'chaque_semaine';
+    document.getElementById('couleur-dechet').value = existant ? existant.couleur : '#8B7355';
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -764,10 +776,11 @@ function initFormulaireDechets() {
       body: JSON.stringify({ type, jour_semaine, frequence, couleur }),
     });
     if (res.ok) {
+      afficherToastMessage('Calendrier mis à jour.', 'succes');
       chargerListeDechetsModeration();
     } else {
       const data = await res.json();
-      alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur');
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur', 'erreur');
     }
   });
 }
@@ -778,6 +791,7 @@ async function chargerListeDechetsModeration() {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/dechets`);
   if (!res.ok) return;
   const { collectes, exceptions } = await res.json();
+  dernieresCollectesModeration = collectes;
 
   zone.innerHTML = collectes.map((c) => `
     <div class="ligne-toggle-onglet">
@@ -833,10 +847,11 @@ function initFormulaireDechetsException() {
     });
     if (res.ok) {
       form.reset();
+      afficherToastMessage('Date exceptionnelle ajoutée.', 'succes');
       chargerListeDechetsModeration();
     } else {
       const data = await res.json();
-      alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur');
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur', 'erreur');
     }
   });
 }
