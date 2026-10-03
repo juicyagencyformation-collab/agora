@@ -2,3 +2,5 @@ node_modules/
 .dev.vars
 .wrangler/
 dist/
+.pilotage_token
+.pilotage_apikey

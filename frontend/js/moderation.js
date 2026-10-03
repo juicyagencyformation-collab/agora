@@ -84,6 +84,15 @@ async function chargerStatsConnexions() {
 // propre initVolet*() car ils embarquent une logique spécifique) : juste replier/déplier,
 // écouteur unique posé une fois sur le conteneur plutôt qu'un par volet.
 function initVoletsGeneriquesModeration() {
+  // Volet « Faire connaître l'appli » : liens vers l'affiche et le dossier conseil (pages du
+  // backoffice, publiques) avec le slug explicite — sur iPhone, une PWA installée n'a pas le même
+  // stockage que Safari, le repli localStorage de ces pages n'y suffirait donc pas.
+  const slugKit = encodeURIComponent(window.COMMUNE_SLUG || '');
+  const lienAffiche = document.getElementById('lien-kit-affiche');
+  const lienDossier = document.getElementById('lien-kit-dossier');
+  if (lienAffiche) lienAffiche.href = `/backoffice/affiche-citoyens?slug=${slugKit}`;
+  if (lienDossier) lienDossier.href = `/backoffice/dossier-conseil?slug=${slugKit}`;
+
   document.getElementById('onglet-moderation')?.addEventListener('click', (e) => {
     const toggle = e.target.closest('.volet-entete-generique');
     if (!toggle) return;

@@ -71,9 +71,11 @@ export const MODELE_AFFICHE_CITOYENS_DEFAUT = `
 // le client affiche quand même la page avec le nom passé en paramètre d'URL en repli.
 export async function chargerAfficheCitoyens(
   env: any, slug: string,
-): Promise<{ contenu_html: string; commune_nom: string | null; logo_url: string | null }> {
+): Promise<{ contenu_html: string; commune_nom: string | null; logo_url: string | null; departement: string | null }> {
+  // departement : code saisi par la mairie (ex. "80"), utilisé par le dossier pour le conseil
+  // municipal (frontend/backoffice/dossier-conseil.html) pour l'en-tête de la délibération.
   const [commune] = await supabaseSelect(env, 'communes', {
-    select: 'nom,logo_url', slug: `eq.${slug}`,
+    select: 'nom,logo_url,departement', slug: `eq.${slug}`,
   }).catch(() => [] as any[]);
 
   let contenu_html = MODELE_AFFICHE_CITOYENS_DEFAUT;
@@ -88,5 +90,6 @@ export async function chargerAfficheCitoyens(
     contenu_html,
     commune_nom: commune?.nom || null,
     logo_url: commune?.logo_url || null,
+    departement: commune?.departement || null,
   };
 }

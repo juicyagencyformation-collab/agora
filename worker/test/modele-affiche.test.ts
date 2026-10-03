@@ -45,6 +45,14 @@ describe('chargerAfficheCitoyens', () => {
     expect(r.contenu_html).toBe(MODELE_AFFICHE_CITOYENS_DEFAUT);
   });
 
+  it('renvoie le code département de la commune (en-tête de la délibération du dossier conseil)', async () => {
+    db.communes.push({ slug: 'fay-les-etangs', nom: 'Fay-les-Étangs', logo_url: null, departement: '60' });
+
+    const r = await chargerAfficheCitoyens(ENV, 'fay-les-etangs');
+
+    expect(r.departement).toBe('60');
+  });
+
   it('utilise le contenu personnalisé stocké en base s\'il existe', async () => {
     db.communes.push({ slug: 'eaucourt', nom: 'Eaucourt-sur-Somme', logo_url: null });
     db.modeles_email.push({ cle: 'affiche_citoyens', actif: true, corps_html: '<p>{{commune}} personnalisé</p>' });
@@ -59,6 +67,7 @@ describe('chargerAfficheCitoyens', () => {
 
     expect(r.commune_nom).toBeNull();
     expect(r.logo_url).toBeNull();
+    expect(r.departement).toBeNull();
     expect(r.contenu_html).toBe(MODELE_AFFICHE_CITOYENS_DEFAUT);
   });
 

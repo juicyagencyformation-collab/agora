@@ -84,6 +84,7 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const urlBouton = d.lienConnexion || url;
   const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
   const afficheUrl = `${d.frontendUrl}/backoffice/affiche-citoyens?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
+  const dossierUrl = `${d.frontendUrl}/backoffice/dossier-conseil?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
   const nom = echapper(d.nomCommune);
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
@@ -114,6 +115,11 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
         Une affiche prête à imprimer, avec le QR code de ${nom} pour que vos habitants créent leur
         compte en la scannant&nbsp;:
         <a href="${afficheUrl}" style="color:#2c5f2d">imprimer l'affiche citoyenne</a>.
+      </p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6;margin-top:8px">
+        Pour présenter l'application au conseil municipal, un dossier prêt à l'emploi (présentation,
+        modèle de délibération, plan de lancement)&nbsp;:
+        <a href="${dossierUrl}" style="color:#2c5f2d">ouvrir le dossier pour le conseil</a>.
       </p>
     </div>
 

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<!-- frontend/backoffice/dossier-conseil.html — dossier imprimable (3 pages A4) pour présenter
+     Agora au CONSEIL MUNICIPAL d'une commune : présentation, modèle de délibération à compléter,
+     plan de lancement + texte prêt à publier pour les habitants. Complète l'affiche citoyenne
+     (affiche-citoyens.html, même palette) : l'affiche s'adresse aux habitants, ce dossier aux élus.
+     Paramètres d'URL : ?slug=fay-les-etangs[&nom=...][&programme=fondatrice]
+       - slug absent : repli sur la dernière commune ouverte sur cet appareil (lien depuis les
+         réglages de l'app, voir index.html, volet « Faire connaître l'appli »).
+       - programme=fondatrice : ajoute l'encadré et les clauses « Commune fondatrice » (gratuit
+         jusqu'au terme du mandat) — uniquement depuis le backoffice, jamais par défaut.
+     Remplissage : backoffice/js/dossier-conseil.js. Aucune donnée sensible (nom, département). -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Agora — Dossier pour le conseil municipal</title>
+  <link rel="icon" href="/backoffice/logo.png?v=20260818-3" />
+  <style>
+    :root {
+      --navy: #1c3b57;
+      --vert: #2c5f2d;
+      --vert-clair: #4a8c4a;
+      --or: #b9791a;
+      --or-fond: #fbeed9;
+      --corail: #c85a3f;
+      --encre: #1c2226;
+      --gris: #5c6b74;
+      --bord: #e3e7ea;
+      --fond-doux: #f7f9fb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--encre); background: #e9edf0; line-height: 1.5;
+    }
+    h1, h2 { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif; font-weight: 600; color: var(--navy); }
+
+    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 10px; justify-content: flex-end; padding: 0 12px; }
+    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--navy); color: #fff; }
+    .btn--sec { background: #fff; color: var(--navy); border: 1px solid var(--bord); }
+
+    .feuille {
+      width: 210mm; min-height: 297mm; margin: 0 auto 24px; background: #fff; padding: 16mm 17mm 14mm;
+      box-shadow: 0 10px 34px rgba(15, 30, 45, .14); position: relative; display: flex; flex-direction: column;
+    }
+    .contenu { flex: 1; }
+    .tete { display: flex; align-items: center; gap: 16px; border-bottom: 2.5px solid var(--navy); padding-bottom: 14px; margin-bottom: 16px; }
+    .tete img { width: 58px; height: 58px; object-fit: contain; }
+    .sur { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--vert); font-weight: 700; }
+    .tete h1 { font-size: 24px; line-height: 1.2; }
+    h2 { font-size: 16px; margin: 16px 0 6px; }
+    p { font-size: 13px; margin-bottom: 7px; }
+    ul { font-size: 13px; padding-left: 18px; margin-bottom: 6px; }
+    li { margin-bottom: 3px; }
+
+    .cartes { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 6px 0 4px; }
+    .carte { border: 1px solid var(--bord); border-left: 3px solid var(--navy); border-radius: 8px; padding: 9px 12px; background: var(--fond-doux); font-size: 12px; color: var(--gris); }
+    .carte b { display: block; color: var(--encre); font-size: 13px; margin-bottom: 2px; }
+    .carte:nth-child(2) { border-left-color: var(--vert); }
+    .carte:nth-child(3) { border-left-color: var(--or); }
+    .carte:nth-child(4) { border-left-color: var(--corail); }
+
+    .encadre { margin-top: 14px; border: 1.5px solid var(--or); background: var(--or-fond); border-radius: 10px; padding: 12px 16px; }
+    .encadre h2 { margin-top: 0; color: #8a5a10; }
+    .encadre p { margin: 0; }
+
+    .acces { display: flex; gap: 16px; align-items: center; margin-top: 14px; padding: 12px 16px; border: 1px solid var(--bord); border-radius: 10px; }
+    .acces__qr { width: 92px; height: 92px; flex-shrink: 0; }
+    .acces__qr svg { width: 100%; height: 100%; }
+    .acces p { margin: 0; }
+    .url { font-weight: 700; color: var(--navy); word-break: break-all; }
+
+    .delib p { font-size: 12.5px; text-align: justify; }
+    .delib .c { text-align: center; }
+    .delib h2 { font-size: 14px; margin: 14px 0 10px; }
+    .blanc { display: inline-block; min-width: 38mm; border-bottom: 1px dotted var(--gris); height: 1em; vertical-align: baseline; }
+    .court { min-width: 12mm; }
+    .long { min-width: 62mm; }
+    .note { font-size: 11px; color: var(--gris); font-style: italic; margin-top: 10px; }
+
+    .cal { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 4px 0 6px; }
+    .cal td { border-bottom: 1px solid var(--bord); padding: 7px 8px; vertical-align: top; }
+    .cal td:first-child { font-weight: 700; color: var(--vert); width: 30mm; white-space: nowrap; }
+    .msg { white-space: pre-wrap; font-size: 12.5px; background: var(--fond-doux); border: 1px dashed var(--bord); border-radius: 8px; padding: 12px 14px; }
+
+    footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; gap: 12px; font-size: 10.5px; color: var(--gris); }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 720px) {
+      .feuille { width: auto; min-height: auto; padding: 20px 16px; margin: 0 8px 16px; }
+      .cartes { grid-template-columns: 1fr; }
+      .acces, footer { flex-direction: column; text-align: center; }
+      .cal td:first-child { white-space: normal; width: auto; }
+    }
+    @media print {
+      body { background: #fff; }
+      .barre-actions { display: none; }
+      .feuille { box-shadow: none; margin: 0; width: auto; min-height: 297mm; padding: 13mm 15mm; break-after: page; }
+      .feuille:last-child { break-after: auto; }
+      .carte, .encadre, .msg { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: A4; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="barre-actions">
+    <button class="btn btn--sec" onclick="history.back()">← Retour</button>
+    <button class="btn" onclick="window.print()">Imprimer / PDF</button>
+  </div>
+
+  <!-- — Page 1 : présentation — -->
+  <section class="feuille">
+    <div class="contenu">
+      <div class="tete">
+        <img src="/backoffice/logo.png?v=20260818-3" alt="Agora" />
+        <div>
+          <div class="sur">Dossier pour le conseil municipal</div>
+          <h1>Agora, l'application de <span data-commune></span></h1>
+        </div>
+      </div>
+      <p>Agora est une application pensée par un élu local pour les petites communes. Elle permet à la mairie d'informer <b>tous</b> les habitants au même endroit, et aux habitants de participer à la vie de la commune. Les habitants l'installent sur leur téléphone en <b>scannant un QR code</b> ou en ouvrant un lien, <b>sans passer par un magasin d'applications</b>.</p>
+
+      <h2>Ce que la commune peut faire avec Agora</h2>
+      <div class="cartes">
+        <div class="carte"><b>Informer</b>Actualités de la mairie, bulletin, délibérations du conseil, annuaire des services et associations.</div>
+        <div class="carte"><b>Prévenir</b>Alertes envoyées en notification sur le téléphone, vigilance météo automatique, rappels de collecte des déchets.</div>
+        <div class="carte"><b>Faire participer</b>Sondages « Thermomètre », signalements (voirie, éclairage…), agenda des événements.</div>
+        <div class="carte"><b>Rapprocher les habitants</b>Entraide entre voisins (« Coups de main »), mur citoyen, chasse au trésor du patrimoine.</div>
+      </div>
+
+      <h2>Simple à gérer</h2>
+      <ul>
+        <li>Pensée pour être gérée par une seule personne : publier une actualité prend une minute.</li>
+        <li>La mairie peut déléguer à un ou plusieurs élus, avec des droits adaptés.</li>
+        <li>Modération : tout contenu signalé est masqué immédiatement, puis examiné par la mairie.</li>
+      </ul>
+
+      <h2>Données et confidentialité</h2>
+      <ul>
+        <li>Zéro publicité, aucune revente de données.</li>
+        <li>Chaque habitant peut consulter, télécharger ou supprimer ses données.</li>
+        <li>Un accord de sous-traitance RGPD est fourni à la commune.</li>
+      </ul>
+
+      <div class="encadre" data-fondatrice hidden>
+        <h2>Programme « Commune fondatrice »</h2>
+        <p>Agora est mis à disposition <b>gratuitement jusqu'à la fin du mandat municipal en cours</b>, puis à un tarif préférentiel réservé aux communes fondatrices. En contrepartie, la commune partage ses retours d'expérience pour améliorer l'outil. Accompagnement à la prise en main inclus.</p>
+      </div>
+
+      <div class="acces">
+        <div class="acces__qr" data-qr></div>
+        <p>L'espace de <span data-commune></span> est déjà en ligne :<br /><span class="url" data-url></span></p>
+      </div>
+    </div>
+    <footer><span data-contact></span><span>plateforme-agora.fr · 1/3</span></footer>
+  </section>
+
+  <!-- — Page 2 : modèle de délibération — -->
+  <section class="feuille delib">
+    <div class="contenu">
+      <p class="c"><b>COMMUNE DE <span data-commune-maj></span></b><span data-departement-ligne></span></p>
+      <p class="c"><b>EXTRAIT DU REGISTRE DES DÉLIBÉRATIONS DU CONSEIL MUNICIPAL</b></p>
+      <p class="c">Séance du <span class="blanc"></span></p>
+      <p>Nombre de conseillers : en exercice <span class="blanc court"></span> présents <span class="blanc court"></span> votants <span class="blanc court"></span></p>
+      <p>Date de la convocation : <span class="blanc"></span> — Secrétaire de séance : <span class="blanc long"></span></p>
+
+      <h2>Objet : Mise en place de l'application citoyenne Agora<span data-fondatrice hidden> — programme « Commune fondatrice »</span></h2>
+      <p>Le conseil municipal,</p>
+      <p>Vu le Code général des collectivités territoriales, et notamment son article L. 2121-29 ;</p>
+      <p>Considérant la volonté de la commune d'améliorer l'information de l'ensemble des habitants, notamment en cas d'alerte, et de favoriser leur participation à la vie locale ;</p>
+      <p>Considérant que l'application Agora, éditée par l'entreprise individuelle Léandre SALLÉ (SIREN 882 992 472), permet à la mairie de diffuser ses informations, alertes et événements, et aux habitants de participer à la vie de la commune ;</p>
+      <p data-fondatrice hidden>Considérant que, dans le cadre du programme « Commune fondatrice », ce service est mis à disposition gratuitement jusqu'au terme du mandat municipal en cours ;</p>
+      <p>Après en avoir délibéré, par <span class="blanc court"></span> voix pour, <span class="blanc court"></span> voix contre et <span class="blanc court"></span> abstentions,</p>
+      <p><b>DÉCIDE</b> de mettre en place l'application Agora pour la commune de <span data-commune></span> ;</p>
+      <p><b>AUTORISE</b> le Maire à accepter les conditions d'utilisation du service, à signer l'accord de sous-traitance des données personnelles (RGPD) ainsi que tout document s'y rapportant ;</p>
+      <p><b>DÉSIGNE</b> <span class="blanc long"></span> comme référent(e) de l'application pour la commune ;</p>
+      <p data-fondatrice hidden><b>PRÉCISE</b> que cette mise en place n'entraîne aucune dépense pour la commune pendant la durée du programme.</p>
+      <p style="margin-top:6mm">Fait et délibéré les jour, mois et an susdits.</p>
+      <p style="text-align:right;margin-top:6mm">Le Maire,<br /><br /><br /><br /></p>
+      <p class="note">Modèle indicatif fourni pour faciliter le travail de la mairie, à adapter librement selon les usages de la commune.</p>
+    </div>
+    <footer><span data-contact></span><span>plateforme-agora.fr · 2/3</span></footer>
+  </section>
+
+  <!-- — Page 3 : plan de lancement — -->
+  <section class="feuille">
+    <div class="contenu">
+      <div class="tete">
+        <img src="/backoffice/logo.png?v=20260818-3" alt="Agora" />
+        <div>
+          <div class="sur">Kit de lancement</div>
+          <h1>Faire connaître l'application aux habitants</h1>
+        </div>
+      </div>
+      <p>L'application se partage par <b>lien</b> et par <b>QR code</b>. Lien de <span data-commune></span> : <span class="url" data-url></span></p>
+
+      <h2>Le calendrier conseillé</h2>
+      <table class="cal">
+        <tr><td>Avant l'annonce</td><td>Publier 2 ou 3 actualités (prochain événement, horaires de la mairie, collecte des déchets) : les premiers inscrits doivent trouver du contenu.</td></tr>
+        <tr><td>Jour J</td><td>Affiche avec QR code à la mairie et sur le panneau d'affichage ; message sur le site, la page Facebook ou le bulletin (texte ci-dessous).</td></tr>
+        <tr><td>Semaine 1</td><td>Affiche glissée dans les boîtes aux lettres ou jointe au bulletin ; QR code présenté lors des événements (cérémonie, fête, réunion publique).</td></tr>
+        <tr><td>Semaine 2</td><td>Publier un premier sondage (ex. « Quel projet pour la commune ? ») : c'est ce qui donne envie de revenir.</td></tr>
+        <tr><td>En continu</td><td>Proposer de l'aide aux habitants moins à l'aise avec le numérique, par exemple lors d'une permanence en mairie.</td></tr>
+      </table>
+      <p>L'affiche à imprimer : <span class="url" data-url-affiche></span></p>
+
+      <h2>Texte prêt à publier (site, Facebook, bulletin)</h2>
+      <div class="msg" data-message></div>
+    </div>
+    <footer><span data-contact></span><span>plateforme-agora.fr · 3/3</span></footer>
+  </section>
+
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-3"></script>
+  <script src="/backoffice/js/dossier-conseil.js?v=20261002-1"></script>
+</body>
+</html>

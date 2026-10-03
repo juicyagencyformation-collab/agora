@@ -5,7 +5,11 @@
 // Agora — voir le commentaire d'en-tête de modele-affiche.ts pour le pourquoi.
 (function () {
   const params = new URLSearchParams(location.search);
-  const slug = (params.get('slug') || '').trim();
+  // Sans ?slug= (lien depuis les réglages de l'app, volet « Faire connaître l'appli ») : repli
+  // sur la dernière commune ouverte sur cet appareil, même clé que frontend/js/config.js.
+  let memorisee = '';
+  try { memorisee = localStorage.getItem('agora_derniere_commune') || ''; } catch { /* stockage bloqué */ }
+  const slug = (params.get('slug') || memorisee || '').trim();
   const urlApp = `${location.origin}/${slug}/`;
   const urlAffichee = `plateforme-agora.fr/${slug}/`;
 

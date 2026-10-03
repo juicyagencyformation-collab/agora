@@ -15,6 +15,8 @@ import { chargerContenuTexte } from './contenu-texte';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierSignatureSvix } from '../lib/svix';
 import { traiterEmailRecu } from './emails-recus';
+import { demandeContactSchema, emailDemandeContactHtml, sujetDemandeContact } from './demande-contact';
+import { envoyerEmail } from '../lib/email';
 
 const app = new Hono();
 
@@ -48,6 +50,23 @@ app.get('/tarifs-contenu', async (c) => {
 // des textes d'aide identiques pour toutes les communes.
 app.get('/contenu-texte', async (c) => {
   return c.json(await chargerContenuTexte(c.env));
+});
+
+// Formulaire « Commune fondatrice » de la landing page (voir demande-contact.ts) — PUBLIC (pas
+// d'auth). Envoie un email à la boîte contact, reply_to = le demandeur pour lui répondre en un
+// clic. Champ piège rempli = robot : on répond « ok » sans rien envoyer (ne pas l'aider à
+// comprendre qu'il a été détecté).
+app.post('/demande-contact', async (c) => {
+  const body = demandeContactSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Merci de vérifier les champs du formulaire.' }, 400);
+  if (body.data.site_web) return c.json({ ok: true });
+  const destinataire = c.env.EMAIL_CONTACT || 'contact@plateforme-agora.fr';
+  const id = await envoyerEmail(
+    c.env, destinataire, sujetDemandeContact(body.data), emailDemandeContactHtml(body.data),
+    undefined, body.data.email,
+  );
+  if (!id) return c.json({ erreur: 'Envoi impossible pour le moment.' }, 502);
+  return c.json({ ok: true });
 });
 
 // Webhook Resend (bounces / plaintes / ouvertures / clics / réponses reçues) — PUBLIC mais

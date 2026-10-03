@@ -1198,6 +1198,91 @@
       z-index: 20;
     }
 
+
+    /* — RUBAN « COMMUNE FONDATRICE » EN TRAVERS DES TARIFS (esprit filigrane) —
+       Bande inclinée posée par-dessus la grille des tarifs, cliquable, qui renvoie vers le
+       formulaire #contact. Seule la bande capte les clics : les boutons des cartes restent
+       utilisables au-dessus et en dessous. Sur mobile (cartes empilées), elle passe au-dessus de
+       la grille, à peine inclinée. */
+    .pricing { overflow: hidden; }
+    .pricing-zone { position: relative; }
+    .ruban-fondatrice {
+      position: absolute;
+      left: -6%; right: -6%;
+      top: 41%;
+      z-index: 3;
+      /* Inclinaison montante vers la gauche : la bande traverse les listes de fonctionnalités
+         des trois cartes sans masquer ni les prix ni les boutons « Demander un devis ». */
+      transform: rotate(4deg);
+      display: flex; align-items: center; justify-content: center; gap: 1.1rem; flex-wrap: wrap;
+      padding: 1.05rem 2rem;
+      background: linear-gradient(90deg, rgba(232,98,58,0.94), rgba(244,165,41,0.94));
+      color: white;
+      text-decoration: none;
+      box-shadow: 0 12px 34px rgba(27,42,74,0.22);
+      border-top: 1px solid rgba(255,255,255,0.45);
+      border-bottom: 1px solid rgba(255,255,255,0.45);
+      transition: filter 0.2s, box-shadow 0.2s;
+    }
+    .ruban-fondatrice:hover { filter: brightness(1.05); box-shadow: 0 16px 40px rgba(27,42,74,0.3); }
+    .ruban-fondatrice:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
+    .ruban-texte {
+      font-family: 'Fraunces', serif;
+      font-size: 1.55rem;
+      font-weight: 900;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.12);
+      text-align: center;
+    }
+    .ruban-texte em { font-style: italic; font-weight: 700; text-transform: none; }
+    .ruban-cta {
+      background: white;
+      color: var(--coral);
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    /* — FORMULAIRE COMMUNE FONDATRICE — */
+    .contact-fondatrice { background: var(--cream); }
+    .contact-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 3rem; align-items: start; }
+    .contact-avantages { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
+    .contact-avantages li { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.95rem; line-height: 1.5; }
+    .contact-avantages li::before { content: '✓'; color: var(--green); font-weight: 700; }
+    .contact-form {
+      background: white; border: 1.5px solid var(--border-light); border-radius: 18px;
+      padding: 2rem 1.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.1rem;
+    }
+    .contact-form .plein { grid-column: 1 / -1; }
+    .contact-form label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .contact-form label span { font-weight: 400; color: var(--text-muted); }
+    .contact-form input, .contact-form select, .contact-form textarea {
+      width: 100%; font: inherit; font-size: 0.95rem; color: var(--navy);
+      border: 1.5px solid var(--border-light); border-radius: 10px; padding: 0.7rem 0.85rem; background: white;
+    }
+    .contact-form textarea { min-height: 96px; resize: vertical; }
+    .contact-form input:focus, .contact-form select:focus, .contact-form textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+    .contact-form .piege { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .contact-form button { justify-self: start; font-family: inherit; }
+    .contact-form button[disabled] { opacity: 0.6; cursor: wait; }
+    .contact-statut { font-size: 0.9rem; line-height: 1.5; }
+    .contact-statut.erreur { color: #b5431f; }
+    .contact-merci { text-align: center; padding: 1rem 0; }
+    .contact-merci strong { display: block; font-family: 'Fraunces', serif; font-size: 1.5rem; margin-bottom: 0.4rem; }
+
+    @media (max-width: 900px) {
+      .ruban-fondatrice {
+        position: relative; left: auto; right: auto; top: auto;
+        margin: 0 -1.5rem 1.75rem; transform: rotate(-2deg); padding: 0.9rem 1.25rem;
+      }
+      .ruban-texte { font-size: 1.15rem; }
+      .contact-grid { grid-template-columns: 1fr; gap: 2rem; }
+      .contact-form { grid-template-columns: 1fr; padding: 1.5rem 1.25rem; }
+    }
+
     /* — RESPONSIVE — */
     @media (max-width: 900px) {
       .demo-section .wrap { flex-direction: column; gap: 2rem; }
@@ -1598,6 +1683,11 @@
         </div>
       </div>
 
+      <div class="pricing-zone">
+      <a href="#contact" class="ruban-fondatrice" aria-label="Communes fondatrices : gratuit pendant tout le mandat. Je candidate">
+        <span class="ruban-texte">Gratuit pendant tout le mandat <em>· communes fondatrices</em></span>
+        <span class="ruban-cta">Je candidate →</span>
+      </a>
       <div class="pricing-grid">
         <div class="pricing-card" data-reveal>
           <div class="pricing-label" id="label-autonomie">Autonomie</div>
@@ -1655,11 +1745,76 @@
           <a href="mailto:contact@plateforme-agora.fr" id="devis-premium" class="btn-pricing btn-pricing-light">Demander un devis</a>
         </div>
       </div>
+      </div>
       <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
         Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps · Prix indicatif, base de votre devis personnalisé
       </p>
     </div>
   </section>
+
+  <!-- — COMMUNE FONDATRICE : FORMULAIRE DE CONTACT —
+       Cible du ruban des tarifs. Envoi vers /api/backoffice/demande-contact (Worker,
+       voir worker/src/backoffice/demande-contact.ts) : un vrai formulaire plutôt qu'un mailto:,
+       qui échoue chez qui n'a pas de logiciel de messagerie (fréquent en mairie). -->
+  <section class="section contact-fondatrice" id="contact">
+    <div class="wrap contact-grid">
+      <div data-reveal>
+        <div class="section-eyebrow">Communes fondatrices</div>
+        <h2 class="section-title">Gratuit pendant <em style="color:var(--coral); font-style:italic;">tout le mandat.</em></h2>
+        <p class="section-subtitle">Les premières communes qui nous rejoignent construisent Agora avec nous. En échange de leurs retours, elles en profitent gratuitement jusqu'à la fin du mandat en cours.</p>
+        <ul class="contact-avantages">
+          <li>Toutes les fonctionnalités, gratuitement jusqu'à la fin du mandat</li>
+          <li>Prise en main accompagnée, par un élu local</li>
+          <li>Un tarif préférentiel garanti ensuite</li>
+          <li>Un dossier prêt à présenter au conseil municipal (modèle de délibération inclus)</li>
+        </ul>
+      </div>
+      <div data-reveal>
+        <form class="contact-form" id="form-fondatrice" novalidate>
+          <div>
+            <label for="cf-nom">Nom et prénom</label>
+            <input id="cf-nom" name="nom" type="text" autocomplete="name" required minlength="2" maxlength="120" />
+          </div>
+          <div>
+            <label for="cf-fonction">Fonction</label>
+            <select id="cf-fonction" name="fonction" required>
+              <option value="">Choisir…</option>
+              <option>Maire</option>
+              <option>Adjoint(e)</option>
+              <option>Conseiller(e) municipal(e)</option>
+              <option>Secrétaire de mairie</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div class="plein">
+            <label for="cf-commune">Commune</label>
+            <input id="cf-commune" name="commune" type="text" required minlength="2" maxlength="120" placeholder="Nom ou code postal" />
+          </div>
+          <div>
+            <label for="cf-email">Email</label>
+            <input id="cf-email" name="email" type="email" autocomplete="email" required maxlength="200" />
+          </div>
+          <div>
+            <label for="cf-telephone">Téléphone <span>(facultatif)</span></label>
+            <input id="cf-telephone" name="telephone" type="tel" autocomplete="tel" maxlength="30" />
+          </div>
+          <div class="plein">
+            <label for="cf-message">Message <span>(facultatif)</span></label>
+            <textarea id="cf-message" name="message" maxlength="2000" placeholder="Le meilleur moment pour vous rappeler, une question…"></textarea>
+          </div>
+          <div class="piege" aria-hidden="true">
+            <label for="cf-site">Site web</label>
+            <input id="cf-site" name="site_web" type="text" tabindex="-1" autocomplete="off" />
+          </div>
+          <div class="plein">
+            <button type="submit" class="btn-cta-green">Devenir commune fondatrice →</button>
+          </div>
+          <p class="contact-statut plein" id="cf-statut" role="status"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
 
   <script>
     (function () {
@@ -1889,6 +2044,46 @@
       ['cta-nav-activer', 'cta-hero-activer'].forEach(function (id) {
         var lien = document.getElementById(id);
         if (lien) lien.addEventListener('click', demanderActivation);
+      });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      // Formulaire « Commune fondatrice » : envoi en JSON au Worker (même origine via /api).
+      // En cas d'échec réseau/serveur, on propose l'email direct plutôt que de perdre la demande.
+      var form = document.getElementById('form-fondatrice');
+      if (!form) return;
+      var statut = document.getElementById('cf-statut');
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        statut.className = 'contact-statut plein';
+        if (!form.checkValidity()) {
+          statut.classList.add('erreur');
+          statut.textContent = 'Merci de renseigner votre nom, votre fonction, votre commune et un email valide.';
+          var invalide = form.querySelector(':invalid');
+          if (invalide) invalide.focus();
+          return;
+        }
+        var donnees = {};
+        new FormData(form).forEach(function (v, k) { donnees[k] = String(v).trim(); });
+        var bouton = form.querySelector('button[type="submit"]');
+        bouton.disabled = true;
+        statut.textContent = 'Envoi…';
+        fetch('/api/backoffice/demande-contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(donnees),
+        }).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          form.innerHTML = '<div class="contact-merci plein"><strong>Merci, c\u2019est bien reçu !</strong>'
+            + 'Léandre vous rappelle sous 48 h ouvrées pour en parler.</div>';
+        }).catch(function () {
+          bouton.disabled = false;
+          statut.classList.add('erreur');
+          statut.innerHTML = 'L\u2019envoi n\u2019a pas fonctionné. Écrivez-nous à '
+            + '<a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a> ou appelez le 06 48 06 10 97.';
+        });
       });
     })();
   </script>
