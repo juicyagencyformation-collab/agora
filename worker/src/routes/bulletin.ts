@@ -70,4 +70,71 @@ app.delete('/:id', async (c) => {
   return c.json({ ok: true });
 });
 
+// ── Rubriques : rédaction participative — une association ou un habitant propose un texte,
+// visible des citoyens seulement une fois validé par la mairie. Indépendant des numéros
+// complets ci-dessus (bulletin_municipal), rédigés par la mairie elle-même. ──
+
+const rubriqueSchema = z.object({
+  titre: z.string().min(1).max(150),
+  nom_auteur: z.string().max(100).optional(),
+  contenu_html: z.string().min(1).max(5000),
+});
+
+// GET /rubriques — un citoyen ne voit que les rubriques validées ; un gestionnaire voit aussi
+// celles en attente, pour les modérer directement depuis l'onglet Bulletin.
+app.get('/rubriques', async (c) => {
+  const commune_id = c.get('commune_id');
+  const role = c.get('role');
+
+  const filtres: Record<string, string> = {
+    select: 'id,auteur_id,nom_auteur,titre,contenu_html,statut,created_at',
+    commune_id: `eq.${commune_id}`,
+    order: 'created_at.desc',
+  };
+  if (!estGestionnaire(role)) filtres.statut = 'eq.validee';
+
+  const rubriques = await supabaseSelect(c.env, 'bulletin_rubriques', filtres);
+  return c.json({ rubriques });
+});
+
+// POST /rubriques — réservé aux gestionnaires (rédaction collaborative en interne) : un admin
+// propose, un élu/maire/superadmin valide — même principe de double regard que les bulletins
+// complets ci-dessus. Jamais publiée directement, toujours en attente de validation.
+app.post('/rubriques', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const body = rubriqueSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  await supabaseInsert(c.env, 'bulletin_rubriques', {
+    commune_id, auteur_id: user_id, nom_auteur: body.data.nom_auteur?.trim() || null,
+    titre: body.data.titre, contenu_html: sanitizeHtml(body.data.contenu_html), statut: 'attente',
+  });
+  return c.json({ ok: true }, 201);
+});
+
+app.patch('/rubriques/:id/valider', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  await supabaseUpdate(c.env, 'bulletin_rubriques', { statut: 'validee' }, {
+    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true });
+});
+
+// Sert à la fois à refuser une rubrique en attente et à en retirer une déjà validée.
+app.delete('/rubriques/:id', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  await supabaseDelete(c.env, 'bulletin_rubriques', {
+    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true });
+});
+
 export default app;

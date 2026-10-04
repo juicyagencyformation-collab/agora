@@ -196,6 +196,7 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireProchainConseil();
   initFormulaireAnnuaire();
   initFormulaireBulletin();
+  initFormulaireRubrique();
   initFormulairePhotoDuJour();
   initFormulaireMemoire();
   initFormulaireEnigme();
