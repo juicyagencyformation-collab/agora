@@ -46,6 +46,34 @@ app.post('/', async (c) => {
   return c.json({ bulletin_id: bulletin.id }, 201);
 });
 
+// PATCH /:id — modification directe d'un brouillon, réservée à son auteur ou à élu/maire/
+// superadmin (la même autorité qui peut déjà publier ou supprimer n'importe quel brouillon).
+// Un autre gestionnaire doit passer par une proposition (ci-dessous) pour ne jamais écraser
+// le travail d'autrui sans son accord.
+app.patch('/:id', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const role = c.get('role');
+  const bulletin_id = c.req.param('id');
+
+  const [bulletin] = await supabaseSelect(c.env, 'bulletin_municipal', {
+    select: 'id,auteur_id,statut', commune_id: `eq.${commune_id}`, id: `eq.${bulletin_id}`,
+  });
+  if (!bulletin) return c.json({ erreur: 'Bulletin introuvable' }, 404);
+  if (bulletin.auteur_id !== user_id && !peutGererRoles(role)) {
+    return c.json({ erreur: 'Seuls l\'auteur, un élu, le maire ou le superadmin peuvent modifier directement ce brouillon — les autres gestionnaires peuvent proposer une version.' }, 403);
+  }
+  if (bulletin.statut !== 'brouillon') return c.json({ erreur: 'Un bulletin déjà publié ne peut plus être modifié' }, 400);
+
+  const body = creationSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  await supabaseUpdate(c.env, 'bulletin_municipal', {
+    titre: body.data.titre, contenu_html: sanitizeHtml(body.data.contenu_html),
+  }, { id: `eq.${bulletin_id}`, commune_id: `eq.${commune_id}` });
+  return c.json({ ok: true });
+});
+
 // PATCH /:id/publier — réservé à élu/superadmin (validation au-dessus de l'auteur admin)
 app.patch('/:id/publier', async (c) => {
   const role = c.get('role');
@@ -82,13 +110,23 @@ app.get('/:id/propositions', async (c) => {
   const role = c.get('role');
   if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
 
   const propositions = await supabaseSelect(c.env, 'bulletin_propositions', {
     select: 'id,auteur_id,titre,contenu_html,created_at',
     commune_id: `eq.${commune_id}`, bulletin_id: `eq.${c.req.param('id')}`,
     order: 'created_at.asc',
   });
-  return c.json({ propositions });
+  const ids = propositions.map((p: any) => p.id);
+  const soutiens = ids.length ? await supabaseSelect(c.env, 'bulletin_proposition_soutiens', {
+    select: 'proposition_id,user_id', commune_id: `eq.${commune_id}`, proposition_id: `in.(${ids.join(',')})`,
+  }) : [];
+
+  const result = propositions.map((p: any) => {
+    const sesSoutiens = soutiens.filter((s: any) => s.proposition_id === p.id);
+    return { ...p, soutiens: sesSoutiens.length, je_soutiens: sesSoutiens.some((s: any) => s.user_id === user_id) };
+  });
+  return c.json({ propositions: result });
 });
 
 app.post('/:id/propositions', async (c) => {
@@ -147,6 +185,37 @@ app.delete('/:id/propositions/:propId', async (c) => {
     id: `eq.${c.req.param('propId')}`, commune_id: `eq.${commune_id}`, bulletin_id: `eq.${c.req.param('id')}`,
   });
   return c.json({ ok: true });
+});
+
+// POST /:id/propositions/:propId/soutenir — un gestionnaire soutient (ou retire son soutien
+// à) une proposition, purement indicatif pour éclairer la décision d'adoption. Un seul
+// soutien par personne (contrainte UNIQUE), pas d'XP (c'est un espace interne, pas un module
+// à gamification).
+app.post('/:id/propositions/:propId/soutenir', async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const proposition_id = c.req.param('propId');
+
+  const [proposition] = await supabaseSelect(c.env, 'bulletin_propositions', {
+    select: 'id', commune_id: `eq.${commune_id}`, id: `eq.${proposition_id}`, bulletin_id: `eq.${c.req.param('id')}`,
+  });
+  if (!proposition) return c.json({ erreur: 'Proposition introuvable' }, 404);
+
+  const [existant] = await supabaseSelect(c.env, 'bulletin_proposition_soutiens', {
+    select: 'id', proposition_id: `eq.${proposition_id}`, user_id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (existant) {
+    await supabaseDelete(c.env, 'bulletin_proposition_soutiens', { id: `eq.${existant.id}`, commune_id: `eq.${commune_id}` });
+  } else {
+    await supabaseInsert(c.env, 'bulletin_proposition_soutiens', { commune_id, proposition_id, user_id });
+  }
+
+  const tous = await supabaseSelect(c.env, 'bulletin_proposition_soutiens', {
+    select: 'id', proposition_id: `eq.${proposition_id}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ soutiens: tous.length, je_soutiens: !existant });
 });
 
 // ── Rubriques : rédaction participative — une association ou un habitant propose un texte,

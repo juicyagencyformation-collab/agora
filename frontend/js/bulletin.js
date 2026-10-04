@@ -50,12 +50,18 @@ function remplirContenuBulletin(zone, bulletin, estBrouillon) {
   zone.innerHTML = `<div class="contenu-article">${linkifierHtmlRiche(bulletin.contenu_html)}</div>`;
 
   if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
+    const peutModifierDirectement = estBrouillon
+      && (bulletin.auteur_id === window.USER_ID || ['elu', 'maire', 'superadmin'].includes(window.ROLE));
+
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
-    bar.innerHTML = estBrouillon && ['elu', 'maire', 'superadmin'].includes(window.ROLE)
-      ? `<button data-action="publier">Valider et publier</button><button data-action="supprimer">Supprimer</button>`
-      : `<button data-action="supprimer">Supprimer</button>`;
+    bar.innerHTML = [
+      peutModifierDirectement ? '<button data-action="modifier">Modifier</button>' : '',
+      estBrouillon && ['elu', 'maire', 'superadmin'].includes(window.ROLE) ? '<button data-action="publier">Valider et publier</button>' : '',
+      '<button data-action="supprimer">Supprimer</button>',
+    ].join('');
 
+    bar.querySelector('[data-action="modifier"]')?.addEventListener('click', () => ouvrirModaleCreationBulletin(bulletin));
     bar.querySelector('[data-action="publier"]')?.addEventListener('click', async () => {
       if (!confirm('Publier ce bulletin ? Il deviendra visible par tous les citoyens.')) return;
       await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletin.id}/publier`, { method: 'PATCH' });
@@ -92,18 +98,22 @@ function initFormulaireBulletin() {
   btn.addEventListener('click', () => ouvrirModaleCreationBulletin());
 }
 
-function ouvrirModaleCreationBulletin() {
+// bulletin (optionnel) : pré-remplit et bascule en modification directe plutôt que création —
+// réservée à son auteur ou à élu/maire/superadmin (voir PATCH /:id côté serveur) ; les autres
+// gestionnaires passent par "Proposer ma version" pour ne jamais écraser le travail d'autrui.
+function ouvrirModaleCreationBulletin(bulletin = null) {
   const html = `
     <form id="form-modale-bulletin">
-      <input type="text" id="titre-bulletin-modale" placeholder="Titre" maxlength="200" required>
+      <input type="text" id="titre-bulletin-modale" placeholder="Titre" maxlength="200" required value="${bulletin ? escapeAttr(bulletin.titre) : ''}">
       <div id="editeur-bulletin-modale"></div>
-      <p style="font-size:12px;color:var(--roseau);margin-top:10px;">Un brouillon doit être validé par un élu ou le superadmin avant d'être visible par les citoyens.</p>
-      <button type="submit" style="margin-top:6px;">Enregistrer comme brouillon</button>
+      ${bulletin ? '' : '<p style="font-size:12px;color:var(--roseau);margin-top:10px;">Un brouillon doit être validé par un élu ou le superadmin avant d\'être visible par les citoyens.</p>'}
+      <button type="submit" style="margin-top:6px;">${bulletin ? 'Enregistrer les modifications' : 'Enregistrer comme brouillon'}</button>
     </form>
   `;
-  const overlay = ouvrirModaleFormulaire('Rédiger un bulletin', html);
+  const overlay = ouvrirModaleFormulaire(bulletin ? 'Modifier le brouillon' : 'Rédiger un bulletin', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   editeurBulletin = creerEditeurRiche('editeur-bulletin-modale');
+  if (bulletin) editeurBulletin.setHtml(bulletin.contenu_html);
 
   corps.querySelector('#form-modale-bulletin').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -111,8 +121,8 @@ function ouvrirModaleCreationBulletin() {
     const contenu_html = editeurBulletin.getHtml();
     if (!titre || !contenu_html) return;
 
-    const res = await appelApi(`/${window.COMMUNE_SLUG}/bulletin`, {
-      method: 'POST',
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/bulletin${bulletin ? '/' + bulletin.id : ''}`, {
+      method: bulletin ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ titre, contenu_html }),
     });
@@ -121,7 +131,7 @@ function ouvrirModaleCreationBulletin() {
       chargerBulletin();
     } else {
       const data = await res.json();
-      alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de création');
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur d\'enregistrement', 'erreur');
     }
   });
 }
@@ -293,11 +303,25 @@ function renderProposition(bulletinId, p) {
     <strong>${escapeAttr(p.titre)}</strong>
     <p style="font-size:12px;color:var(--roseau);margin:2px 0 8px;">Proposé le ${dateAffichee}</p>
     <p style="font-size:13px;">${escapeAttr(extraitBrut.slice(0, 160))}${extraitBrut.length > 160 ? '…' : ''}</p>
+    <div class="ligne-soutien-alerte">
+      <button type="button" class="btn-soutenir ${p.je_soutiens ? 'soutenu' : ''}">👍 <span class="txt-soutien">${p.je_soutiens ? 'Soutenu' : 'Soutenir'}</span> · <span class="compteur-soutien">${p.soutiens}</span></button>
+    </div>
     <div class="actions-admin" style="margin-top:8px;">
       <button data-action="adopter">Adopter cette version</button>
       <button data-action="rejeter">Rejeter</button>
     </div>
   `;
+  el.querySelector('.btn-soutenir').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}/soutenir`, { method: 'POST' });
+    btn.disabled = false;
+    if (!res.ok) return;
+    const { soutiens, je_soutiens } = await res.json();
+    btn.classList.toggle('soutenu', je_soutiens);
+    btn.querySelector('.txt-soutien').textContent = je_soutiens ? 'Soutenu' : 'Soutenir';
+    btn.querySelector('.compteur-soutien').textContent = soutiens;
+  });
   el.querySelector('[data-action="adopter"]').addEventListener('click', async () => {
     if (!confirm('Remplacer le brouillon par cette version ? Les autres propositions seront retirées.')) return;
     await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}/adopter`, { method: 'PATCH' });
