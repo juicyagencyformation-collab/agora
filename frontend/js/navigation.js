@@ -191,7 +191,6 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireDechets();
   initFormulaireDechetsException();
   initFormulaireSondage();
-  initFormulaireDeliberation();
   initFormulairePv();
   initFormulaireMembreConseil();
   initFormulaireProchainConseil();

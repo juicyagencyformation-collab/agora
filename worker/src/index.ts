@@ -23,7 +23,6 @@ import dechets from './routes/dechets';
 import profil from './routes/profil';
 import push from './routes/push';
 import enigmes from './routes/enigmes';
-import deliberations from './routes/deliberations';
 import conseilMembres from './routes/conseil_membres';
 import annuaire from './routes/annuaire';
 import bulletin from './routes/bulletin';
@@ -109,10 +108,6 @@ app.route('/:slug/push', push);
 // Énigme photo (énigmes géolocalisées)
 app.use('/:slug/enigmes/*', jwtMiddleware, requireOngletActif('enigmes'));
 app.route('/:slug/enigmes', enigmes);
-
-// Conseil municipal (délibérations) — les comptes-rendus utilisent /actus?section=conseil
-app.use('/:slug/deliberations/*', jwtMiddleware, requireOngletActif('conseil'));
-app.route('/:slug/deliberations', deliberations);
 
 // Trombinoscope du conseil municipal (maire, adjoints, conseillers)
 app.use('/:slug/conseil-membres/*', jwtMiddleware, requireOngletActif('conseil'));
