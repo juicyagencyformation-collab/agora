@@ -37,6 +37,12 @@ async function initUtilisateur() {
     document.querySelectorAll('[data-onglet="moderation"]').forEach((btn) => {
       btn.style.display = peutVoirModeration ? '' : 'none';
     });
+
+    // Bulletin n'est plus une publication citoyenne : un espace de rédaction interne au
+    // conseil/admin (voir bulletin.js) — un citoyen n'a rien à y faire.
+    document.querySelectorAll('[data-onglet="bulletin"]').forEach((btn) => {
+      btn.style.display = peutVoirModeration ? '' : 'none';
+    });
   } catch {}
 }
 

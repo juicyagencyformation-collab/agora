@@ -14,19 +14,18 @@ const creationSchema = z.object({
   contenu_html: z.string().min(1).max(20000),
 });
 
-// GET / — un citoyen ne voit que les bulletins publiés ; un gestionnaire voit aussi les brouillons.
+// GET / — Bulletin est un espace de rédaction interne (conseil/admin), pas une publication
+// citoyenne : réservé aux gestionnaires, brouillons compris.
 app.get('/', async (c) => {
-  const commune_id = c.get('commune_id');
   const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
 
-  const filtres: Record<string, string> = {
+  const bulletins = await supabaseSelect(c.env, 'bulletin_municipal', {
     select: 'id,auteur_id,titre,contenu_html,statut,publie_at,created_at',
     commune_id: `eq.${commune_id}`,
     order: 'created_at.desc',
-  };
-  if (!estGestionnaire(role)) filtres.statut = 'eq.publie';
-
-  const bulletins = await supabaseSelect(c.env, 'bulletin_municipal', filtres);
+  });
   return c.json({ bulletins });
 });
 
@@ -80,20 +79,17 @@ const rubriqueSchema = z.object({
   contenu_html: z.string().min(1).max(5000),
 });
 
-// GET /rubriques — un citoyen ne voit que les rubriques validées ; un gestionnaire voit aussi
-// celles en attente, pour les modérer directement depuis l'onglet Bulletin.
+// GET /rubriques — même principe que GET / ci-dessus : réservé aux gestionnaires.
 app.get('/rubriques', async (c) => {
-  const commune_id = c.get('commune_id');
   const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
 
-  const filtres: Record<string, string> = {
+  const rubriques = await supabaseSelect(c.env, 'bulletin_rubriques', {
     select: 'id,auteur_id,nom_auteur,titre,contenu_html,statut,created_at',
     commune_id: `eq.${commune_id}`,
     order: 'created_at.desc',
-  };
-  if (!estGestionnaire(role)) filtres.statut = 'eq.validee';
-
-  const rubriques = await supabaseSelect(c.env, 'bulletin_rubriques', filtres);
+  });
   return c.json({ rubriques });
 });
 
