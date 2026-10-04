@@ -296,14 +296,13 @@ async function chargerPropositions(bulletinId, zone) {
 function renderProposition(bulletinId, p) {
   const el = document.createElement('div');
   el.className = 'carte-dashboard';
-  const extraitBrut = texteBrutDepuisHtml(p.contenu_html).replace(/\s+/g, ' ').trim();
   const dateAffichee = new Date(p.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   el.innerHTML = `
     <strong>${escapeAttr(p.titre)}</strong>
     <p style="font-size:12px;color:var(--roseau);margin:2px 0 8px;">Proposé le ${dateAffichee}</p>
-    <p style="font-size:13px;">${escapeAttr(extraitBrut.slice(0, 160))}${extraitBrut.length > 160 ? '…' : ''}</p>
-    <div class="ligne-soutien-alerte">
+    <div class="contenu-article">${linkifierHtmlRiche(p.contenu_html)}</div>
+    <div class="ligne-soutien-alerte" style="margin-top:8px;">
       <button type="button" class="btn-soutenir ${p.je_soutiens ? 'soutenu' : ''}">👍 <span class="txt-soutien">${p.je_soutiens ? 'Soutenu' : 'Soutenir'}</span> · <span class="compteur-soutien">${p.soutiens}</span></button>
     </div>
     <div class="actions-admin" style="margin-top:8px;">
