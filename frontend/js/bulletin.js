@@ -68,6 +68,22 @@ function remplirContenuBulletin(zone, bulletin, estBrouillon) {
     });
     zone.appendChild(bar);
   }
+
+  // Rédaction collaborative sur un brouillon : un autre gestionnaire propose sa propre
+  // version (corrections, reformulation...) sans toucher au texte original tant qu'elle n'est
+  // pas adoptée — celui qui adopte choisit laquelle devient le contenu officiel du brouillon.
+  if (estBrouillon && ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
+    const zonePropositions = document.createElement('div');
+    zonePropositions.className = 'zone-propositions-bulletin';
+    zonePropositions.innerHTML = `
+      <h4 style="margin:14px 0 6px;font-size:13.5px;">Versions proposées</h4>
+      <div class="liste-propositions-bulletin"></div>
+      <button type="button" data-action="proposer" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12.5px;padding:6px 12px;border-radius:100px;margin-top:6px;">+ Proposer ma version</button>
+    `;
+    zonePropositions.querySelector('[data-action="proposer"]').addEventListener('click', () => ouvrirModaleProposition(bulletin));
+    zone.appendChild(zonePropositions);
+    chargerPropositions(bulletin.id, zonePropositions.querySelector('.liste-propositions-bulletin'));
+  }
 }
 
 function initFormulaireBulletin() {
@@ -244,6 +260,87 @@ function ouvrirModaleCreationRubrique() {
     if (res.ok) {
       fermerModaleFormulaire(overlay);
       afficherToastMessage('Rubrique proposée, en attente de validation.', 'succes');
+    } else {
+      const data = await res.json();
+      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur d\'envoi', 'erreur');
+    }
+  });
+}
+
+// ── Versions proposées sur un brouillon : rédaction à plusieurs mains sans jamais écraser
+// le texte en place tant que personne n'a choisi d'adopter une proposition. ──
+
+async function chargerPropositions(bulletinId, zone) {
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions`);
+  if (!res.ok) return;
+  const { propositions } = await res.json();
+
+  zone.innerHTML = '';
+  if (!propositions.length) {
+    zone.innerHTML = `<p class="dechets-vide">Aucune version proposée pour l'instant.</p>`;
+    return;
+  }
+  propositions.forEach((p) => zone.appendChild(renderProposition(bulletinId, p)));
+}
+
+function renderProposition(bulletinId, p) {
+  const el = document.createElement('div');
+  el.className = 'carte-dashboard';
+  const extraitBrut = texteBrutDepuisHtml(p.contenu_html).replace(/\s+/g, ' ').trim();
+  const dateAffichee = new Date(p.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+  el.innerHTML = `
+    <strong>${escapeAttr(p.titre)}</strong>
+    <p style="font-size:12px;color:var(--roseau);margin:2px 0 8px;">Proposé le ${dateAffichee}</p>
+    <p style="font-size:13px;">${escapeAttr(extraitBrut.slice(0, 160))}${extraitBrut.length > 160 ? '…' : ''}</p>
+    <div class="actions-admin" style="margin-top:8px;">
+      <button data-action="adopter">Adopter cette version</button>
+      <button data-action="rejeter">Rejeter</button>
+    </div>
+  `;
+  el.querySelector('[data-action="adopter"]').addEventListener('click', async () => {
+    if (!confirm('Remplacer le brouillon par cette version ? Les autres propositions seront retirées.')) return;
+    await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}/adopter`, { method: 'PATCH' });
+    afficherToastMessage('Version adoptée.', 'succes');
+    chargerBulletin();
+  });
+  el.querySelector('[data-action="rejeter"]').addEventListener('click', async () => {
+    if (!confirm('Rejeter cette proposition ?')) return;
+    await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}`, { method: 'DELETE' });
+    chargerBulletin();
+  });
+  return el;
+}
+
+function ouvrirModaleProposition(bulletin) {
+  const html = `
+    <form id="form-modale-proposition">
+      <input type="text" id="titre-proposition-modale" placeholder="Titre" maxlength="200" required value="${escapeAttr(bulletin.titre)}">
+      <div id="editeur-proposition-modale"></div>
+      <p style="font-size:12px;color:var(--roseau);margin-top:10px;">Part du texte actuel du brouillon — corrige-le ou réécris-le librement. Le brouillon original n'est pas modifié tant que personne n'adopte ta version.</p>
+      <button type="submit" style="margin-top:6px;">Proposer cette version</button>
+    </form>
+  `;
+  const overlay = ouvrirModaleFormulaire('Proposer une version', html);
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+  const editeurProposition = creerEditeurRiche('editeur-proposition-modale');
+  editeurProposition.setHtml(bulletin.contenu_html);
+
+  corps.querySelector('#form-modale-proposition').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const titre = corps.querySelector('#titre-proposition-modale').value.trim();
+    const contenu_html = editeurProposition.getHtml();
+    if (!titre || !contenu_html) return;
+
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletin.id}/propositions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titre, contenu_html }),
+    });
+    if (res.ok) {
+      fermerModaleFormulaire(overlay);
+      afficherToastMessage('Version proposée.', 'succes');
+      chargerBulletin();
     } else {
       const data = await res.json();
       afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur d\'envoi', 'erreur');
