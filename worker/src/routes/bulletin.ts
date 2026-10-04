@@ -242,9 +242,10 @@ app.get('/rubriques', async (c) => {
   return c.json({ rubriques });
 });
 
-// POST /rubriques — réservé aux gestionnaires (rédaction collaborative en interne) : un admin
-// propose, un élu/maire/superadmin valide — même principe de double regard que les bulletins
-// complets ci-dessus. Jamais publiée directement, toujours en attente de validation.
+// POST /rubriques — réservé aux gestionnaires (rédaction collaborative en interne) : admin,
+// élu, maire et superadmin peuvent tous proposer et valider une rubrique (contrairement aux
+// bulletins complets ci-dessus, pas de double regard séparé ici — une rubrique est plus courte
+// et moins engageante qu'un bulletin entier). Jamais publiée directement, toujours en attente.
 app.post('/rubriques', async (c) => {
   const role = c.get('role');
   if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
