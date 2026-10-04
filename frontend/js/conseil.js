@@ -1,6 +1,4 @@
 // frontend/js/conseil.js
-let editeurPv;
-
 async function chargerConseil() {
   chargerConseilMembres();
   chargerDeliberations();
@@ -350,49 +348,42 @@ function ouvrirModaleCreationPv() {
   const html = `
     <form id="form-modale-pv">
       <input type="text" id="titre-pv-modale" placeholder="Titre (ex: Conseil du 12 septembre 2026)" maxlength="150" required>
-      <div id="editeur-pv-modale"></div>
-      <label class="label-champ-edition">Joindre le compte-rendu (PDF, JPEG ou PNG — 15 Mo max, optionnel)</label>
-      <input type="file" id="fichier-pv-modale" accept="application/pdf,image/jpeg,image/png">
+      <label class="label-champ-edition">Compte-rendu (PDF, JPEG ou PNG — 15 Mo max)</label>
+      <input type="file" id="fichier-pv-modale" accept="application/pdf,image/jpeg,image/png" required>
       <button type="submit" style="margin-top:12px;">Publier</button>
     </form>
   `;
-  const overlay = ouvrirModaleFormulaire('Rédiger un compte-rendu', html);
+  const overlay = ouvrirModaleFormulaire('Ajouter un compte-rendu', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
-  editeurPv = creerEditeurRiche('editeur-pv-modale');
 
   corps.querySelector('#form-modale-pv').addEventListener('submit', async (e) => {
     e.preventDefault();
     const titre = corps.querySelector('#titre-pv-modale').value.trim();
-    const contenu_html = editeurPv.getHtml() || '<p></p>';
-    if (!titre) return;
-
-    let fichier_pv_url;
-    let fichier_pv_type;
     const fichier = corps.querySelector('#fichier-pv-modale').files[0];
-    if (fichier) {
-      if (fichier.size > 15 * 1024 * 1024) {
-        afficherToastMessage('Fichier trop volumineux (15 Mo maximum).', 'erreur');
-        return;
-      }
-      const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/actus/pv-upload`, {
-        method: 'POST',
-        headers: { 'Content-Type': fichier.type },
-        body: fichier,
-      });
-      if (!resUpload.ok) {
-        const d = await resUpload.json().catch(() => ({}));
-        afficherToastMessage(d.erreur || 'Échec de l\'envoi du fichier.', 'erreur');
-        return;
-      }
-      const data = await resUpload.json();
-      fichier_pv_url = data.url;
-      fichier_pv_type = data.type;
+    if (!titre || !fichier) return;
+
+    if (fichier.size > 15 * 1024 * 1024) {
+      afficherToastMessage('Fichier trop volumineux (15 Mo maximum).', 'erreur');
+      return;
     }
+    const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/actus/pv-upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': fichier.type },
+      body: fichier,
+    });
+    if (!resUpload.ok) {
+      const d = await resUpload.json().catch(() => ({}));
+      afficherToastMessage(d.erreur || 'Échec de l\'envoi du fichier.', 'erreur');
+      return;
+    }
+    const { url: fichier_pv_url, type: fichier_pv_type } = await resUpload.json();
 
     const res = await appelApi(`/${window.COMMUNE_SLUG}/actus`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ section: 'conseil', titre, contenu_html, fichier_pv_url, fichier_pv_type }),
+      // contenu_html requis par le schéma (texte libre d'un article classique) mais sans objet
+      // ici : le fichier joint est tout le contenu du compte-rendu, voir renderPv ci-dessus.
+      body: JSON.stringify({ section: 'conseil', titre, contenu_html: '<p></p>', fichier_pv_url, fichier_pv_type }),
     });
     if (res.ok) {
       fermerModaleFormulaire(overlay);
