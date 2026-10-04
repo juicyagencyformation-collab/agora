@@ -293,14 +293,41 @@ async function chargerPropositions(bulletinId, zone) {
   propositions.forEach((p) => zone.appendChild(renderProposition(bulletinId, p)));
 }
 
+// Repliée par défaut (même accordéon que les bulletins/rubriques ci-dessus) : avec plusieurs
+// propositions sur un même brouillon, les afficher toutes dépliées obligerait à scroller une
+// longue liste pour comparer. Un clic déplie le texte complet d'une seule à la fois.
 function renderProposition(bulletinId, p) {
-  const el = document.createElement('div');
-  el.className = 'carte-dashboard';
+  const el = document.createElement('article');
+  el.className = 'carte-article-compacte';
   const dateAffichee = new Date(p.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
   el.innerHTML = `
-    <strong>${escapeAttr(p.titre)}</strong>
-    <p style="font-size:12px;color:var(--roseau);margin:2px 0 8px;">Proposé le ${dateAffichee}</p>
+    <button type="button" class="entete-article-compact">
+      <div class="miniature-liste-article miniature-vide">✍️</div>
+      <div class="texte-entete-article">
+        <h3 class="titre-article-compact">${escapeAttr(p.titre)}</h3>
+        <p class="extrait-article-compact">Proposé le ${dateAffichee} · 👍 ${p.soutiens}</p>
+      </div>
+    </button>
+    <div class="contenu-article-deplie" hidden></div>
+  `;
+
+  const zoneDepliee = el.querySelector('.contenu-article-deplie');
+  let deploye = false;
+  el.querySelector('.entete-article-compact').addEventListener('click', () => {
+    deploye = !deploye;
+    zoneDepliee.hidden = !deploye;
+    if (deploye && zoneDepliee.dataset.rempli !== 'true') {
+      remplirContenuProposition(zoneDepliee, bulletinId, p);
+      zoneDepliee.dataset.rempli = 'true';
+    }
+  });
+
+  return el;
+}
+
+function remplirContenuProposition(zone, bulletinId, p) {
+  zone.innerHTML = `
     <div class="contenu-article">${linkifierHtmlRiche(p.contenu_html)}</div>
     <div class="ligne-soutien-alerte" style="margin-top:8px;">
       <button type="button" class="btn-soutenir ${p.je_soutiens ? 'soutenu' : ''}">👍 <span class="txt-soutien">${p.je_soutiens ? 'Soutenu' : 'Soutenir'}</span> · <span class="compteur-soutien">${p.soutiens}</span></button>
@@ -310,7 +337,7 @@ function renderProposition(bulletinId, p) {
       <button data-action="rejeter">Rejeter</button>
     </div>
   `;
-  el.querySelector('.btn-soutenir').addEventListener('click', async (e) => {
+  zone.querySelector('.btn-soutenir').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     btn.disabled = true;
     const res = await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}/soutenir`, { method: 'POST' });
@@ -321,18 +348,17 @@ function renderProposition(bulletinId, p) {
     btn.querySelector('.txt-soutien').textContent = je_soutiens ? 'Soutenu' : 'Soutenir';
     btn.querySelector('.compteur-soutien').textContent = soutiens;
   });
-  el.querySelector('[data-action="adopter"]').addEventListener('click', async () => {
+  zone.querySelector('[data-action="adopter"]').addEventListener('click', async () => {
     if (!confirm('Remplacer le brouillon par cette version ? Les autres propositions seront retirées.')) return;
     await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}/adopter`, { method: 'PATCH' });
     afficherToastMessage('Version adoptée.', 'succes');
     chargerBulletin();
   });
-  el.querySelector('[data-action="rejeter"]').addEventListener('click', async () => {
+  zone.querySelector('[data-action="rejeter"]').addEventListener('click', async () => {
     if (!confirm('Rejeter cette proposition ?')) return;
     await appelApi(`/${window.COMMUNE_SLUG}/bulletin/${bulletinId}/propositions/${p.id}`, { method: 'DELETE' });
     chargerBulletin();
   });
-  return el;
 }
 
 function ouvrirModaleProposition(bulletin) {
