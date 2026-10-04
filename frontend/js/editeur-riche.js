@@ -117,6 +117,20 @@ function creerEditeurRiche(conteneurId) {
     }
   });
 
+  // Collage : sans ce traitement, le navigateur insère le HTML brut du presse-papier
+  // (souvent très verbeux depuis Word/Google Docs) tel quel, que le sanitizer serveur
+  // dépouille ensuite à l'aveugle — une liste à puces par exemple perd ses <li> sans qu'aucun
+  // retour à la ligne ne les remplace, et se retrouve collée en un seul bloc illisible. On
+  // nettoie donc nous-mêmes vers les seules balises que l'éditeur sait représenter.
+  zone.addEventListener('paste', (e) => {
+    e.preventDefault();
+    const html = e.clipboardData?.getData('text/html');
+    const texte = e.clipboardData?.getData('text/plain') ?? '';
+    const htmlPropre = html ? nettoyerHtmlColle(html) : echapperTexte(texte).replace(/\r?\n/g, '<br>');
+    document.execCommand('insertHTML', false, htmlPropre);
+    sauverSelection();
+  });
+
   return {
     // Normalise les balises que certains navigateurs génèrent (<strong>/<em>/<strike>)
     // vers celles autorisées par le sanitizer serveur (<b>/<i>/<s>).
@@ -142,4 +156,58 @@ function envelopperSelection(zone, tagName, styleInline) {
   range.insertNode(wrapper);
   sel.removeAllRanges();
   zone.focus();
+}
+
+function echapperTexte(texte) {
+  return texte.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+}
+
+// Balises inline qu'un texte collé peut porter et que l'éditeur sait représenter.
+const BALISES_INLINE_COLLAGE = { b: 'b', strong: 'b', i: 'i', em: 'i', u: 'u', s: 's', strike: 's' };
+// Éléments de bloc (paragraphe, ligne de liste, titre, cellule...) : leur contenu devient une
+// ligne à part — l'éditeur ne connaît que des retours à la ligne simples (<br>, voir le
+// gestionnaire de la touche Entrée ci-dessus), jamais de <p> ni de <li> imbriqués.
+const BALISES_BLOC_COLLAGE = new Set(['p', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'blockquote']);
+
+function nettoyerNoeudColle(noeud) {
+  if (noeud.nodeType === Node.TEXT_NODE) return echapperTexte(noeud.textContent);
+  if (noeud.nodeType !== Node.ELEMENT_NODE) return '';
+
+  const tag = noeud.tagName.toLowerCase();
+  if (tag === 'style' || tag === 'script') return '';
+  const enfants = Array.from(noeud.childNodes).map(nettoyerNoeudColle).join('');
+
+  if (tag === 'br') return '<br>';
+
+  if (tag === 'a') {
+    const href = noeud.getAttribute('href') || '';
+    return /^https?:\/\//i.test(href) ? `<a href="${href}">${enfants}</a>` : enfants;
+  }
+
+  let html = enfants;
+  // Beaucoup d'éditeurs (Word, Google Docs) expriment gras/italique/souligné/couleur en
+  // style inline plutôt qu'en balise sémantique — on les détecte dans les deux cas.
+  if (tag in BALISES_INLINE_COLLAGE) html = `<${BALISES_INLINE_COLLAGE[tag]}>${html}</${BALISES_INLINE_COLLAGE[tag]}>`;
+  if (/^(bold|[6-9]00)$/.test(noeud.style?.fontWeight || '')) html = `<b>${html}</b>`;
+  if (noeud.style?.fontStyle === 'italic') html = `<i>${html}</i>`;
+  const decoration = `${noeud.style?.textDecorationLine || ''} ${noeud.style?.textDecoration || ''}`;
+  if (tag !== 'a' && /underline/.test(decoration)) html = `<u>${html}</u>`;
+  if (/line-through/.test(decoration)) html = `<s>${html}</s>`;
+  if (noeud.style?.color) html = `<span style="color:${noeud.style.color}">${html}</span>`;
+
+  if (BALISES_BLOC_COLLAGE.has(tag) && html) html += '<br>';
+  return html;
+}
+
+// Convertit le HTML du presse-papier vers les seules balises que l'éditeur représente,
+// en remplaçant toute structure de bloc (paragraphes, listes, titres...) par des retours
+// à la ligne simples plutôt que de la perdre silencieusement.
+function nettoyerHtmlColle(html) {
+  const conteneur = document.createElement('div');
+  conteneur.innerHTML = html;
+  const resultat = Array.from(conteneur.childNodes).map(nettoyerNoeudColle).join('');
+  return resultat
+    .replace(/(?:<br>\s*){3,}/gi, '<br><br>')
+    .replace(/^(?:<br>\s*)+/i, '')
+    .replace(/(?:<br>\s*)+$/i, '');
 }
