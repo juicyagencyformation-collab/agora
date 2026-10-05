@@ -376,6 +376,68 @@ app.get('/me', jwtMiddleware, async (c) => {
   });
 });
 
+// ── Comptes liés : une secrétaire mutualisée administrant plusieurs communes a un compte par
+// commune, reliés entre eux (personne_id partagé) depuis le backoffice (jamais via l'app
+// citoyenne — voir worker/src/backoffice/administration.ts, POST /utilisateurs/:userId/lier).
+// Permet de basculer instantanément sans ressaisir de mot de passe. ──
+
+// GET /mes-communes-liees — vide si jamais lié par le staff.
+app.get('/mes-communes-liees', jwtMiddleware, async (c) => {
+  const user_id = c.get('user_id');
+  const [moi] = await supabaseSelect(c.env, 'users', { select: 'personne_id', id: `eq.${user_id}` });
+  if (!moi?.personne_id) return c.json({ comptes: [] });
+
+  const autres = await supabaseSelect(c.env, 'users', {
+    select: 'id,commune_id,role', personne_id: `eq.${moi.personne_id}`, id: `neq.${user_id}`,
+  });
+  if (!autres.length) return c.json({ comptes: [] });
+
+  const communes = await supabaseSelect(c.env, 'communes', {
+    select: 'id,nom,slug', id: `in.(${autres.map((u: any) => u.commune_id).join(',')})`,
+  });
+  const comptes = autres.map((u: any) => {
+    const commune = communes.find((cm: any) => cm.id === u.commune_id);
+    return { user_id: u.id, role: u.role, commune_nom: commune?.nom ?? '?', commune_slug: commune?.slug ?? '' };
+  });
+  return c.json({ comptes });
+});
+
+// POST /basculer/:autreUserId — émet un nouveau jeton pour le compte ciblé, après avoir
+// revérifié côté serveur que les deux comptes partagent bien le même personne_id (jamais
+// faire confiance à un id envoyé par le client seul pour décider qui peut devenir qui).
+app.post('/basculer/:autreUserId', jwtMiddleware, async (c) => {
+  const user_id = c.get('user_id');
+  const autreUserId = c.req.param('autreUserId');
+
+  const [moi] = await supabaseSelect(c.env, 'users', { select: 'personne_id', id: `eq.${user_id}` });
+  if (!moi?.personne_id) return c.json({ erreur: 'Aucun compte lié' }, 403);
+
+  const [cible] = await supabaseSelect(c.env, 'users', {
+    select: 'id,commune_id,role,personne_id', id: `eq.${autreUserId}`,
+  });
+  if (!cible || cible.personne_id !== moi.personne_id) {
+    return c.json({ erreur: 'Ce compte n\'est pas lié au vôtre' }, 403);
+  }
+
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${cible.commune_id}` });
+
+  const accessToken = await sign(
+    { user_id: cible.id, commune_id: cible.commune_id, role: cible.role, exp: Math.floor(Date.now() / 1000) + 900 },
+    c.env.JWT_SECRET,
+  );
+  const refreshToken = genererRefreshToken();
+  await supabaseInsert(c.env, 'refresh_tokens', {
+    commune_id: cible.commune_id, user_id: cible.id,
+    token_hash: await hasherToken(refreshToken),
+    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+  });
+
+  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+
+  return c.json({ ok: true, slug: commune?.slug ?? '' });
+});
+
 // DELETE /moi — droit à l'effacement (RGPD). Le compte est anonymisé plutôt que supprimé :
 // les données strictement personnelles sont effacées, mais le contenu créé (articles,
 // messages, chasses, votes...) reste intact — il n'est simplement plus rattaché à une

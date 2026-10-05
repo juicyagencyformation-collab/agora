@@ -1116,6 +1116,68 @@ app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
   return c.json({ ok: true, email: u.email, mot_de_passe: motDePasse });
 });
 
+// POST /communes/:id/utilisateurs/:userId/lier — relie ce compte à un autre, dans une autre
+// commune, comme appartenant à la même personne réelle (ex. une secrétaire mutualisée qui
+// administre plusieurs petites communes) : une fois lié, un sélecteur côté app citoyenne
+// permet de basculer instantanément entre les deux, sans ressaisir de mot de passe (voir
+// worker/src/auth.ts, POST /auth/basculer/:id). Aucune preuve de mot de passe demandée ici —
+// le staff backoffice peut déjà créer des comptes et réinitialiser n'importe quel mot de
+// passe (routes ci-dessus) : relier deux comptes existants n'ouvre aucun pouvoir nouveau.
+const lierCompteSchema = z.object({ autre_user_id: z.string().uuid() });
+
+app.post('/communes/:id/utilisateurs/:userId/lier', async (c) => {
+  const userId = c.req.param('userId');
+  const body = lierCompteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const autreUserId = body.data.autre_user_id;
+  if (autreUserId === userId) return c.json({ erreur: 'Un compte ne peut pas être lié à lui-même' }, 400);
+
+  const [a] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id', id: `eq.${userId}` });
+  const [b] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id', id: `eq.${autreUserId}` });
+  if (!a || !b) return c.json({ erreur: 'Compte introuvable' }, 404);
+  if (a.commune_id === b.commune_id) return c.json({ erreur: 'Ces deux comptes sont déjà dans la même commune' }, 400);
+  if (a.personne_id && b.personne_id && a.personne_id !== b.personne_id) {
+    return c.json({ erreur: 'Ces deux comptes appartiennent déjà à des groupes différents — déliez-en un d\'abord.' }, 409);
+  }
+
+  const personneId = a.personne_id || b.personne_id || crypto.randomUUID();
+  if (!a.personne_id) await supabaseUpdate(c.env, 'users', { personne_id: personneId }, { id: `eq.${a.id}` });
+  if (!b.personne_id) await supabaseUpdate(c.env, 'users', { personne_id: personneId }, { id: `eq.${b.id}` });
+
+  await journaliser(c.env, c.get('staff_id'), 'comptes_lies', `${a.email} (commune ${a.commune_id}) <-> ${b.email} (commune ${b.commune_id})`);
+  return c.json({ ok: true });
+});
+
+// GET /communes/:id/utilisateurs/:userId/lies — comptes déjà liés à celui-ci, avec le nom de
+// leur commune, pour l'afficher dans l'écran de gestion avant/après avoir créé un lien.
+app.get('/communes/:id/utilisateurs/:userId/lies', async (c) => {
+  const userId = c.req.param('userId');
+  const [moi] = await supabaseSelect(c.env, 'users', { select: 'personne_id', id: `eq.${userId}` });
+  if (!moi?.personne_id) return c.json({ comptes: [] });
+
+  const autres = await supabaseSelect(c.env, 'users', {
+    select: 'id,commune_id,email', personne_id: `eq.${moi.personne_id}`, id: `neq.${userId}`,
+  });
+  if (!autres.length) return c.json({ comptes: [] });
+
+  const communes = await supabaseSelect(c.env, 'communes', {
+    select: 'id,nom', id: `in.(${autres.map((u: any) => u.commune_id).join(',')})`,
+  });
+  const comptes = autres.map((u: any) => ({
+    user_id: u.id, email: u.email, commune_nom: communes.find((cm: any) => cm.id === u.commune_id)?.nom ?? '?',
+  }));
+  return c.json({ comptes });
+});
+
+// DELETE /communes/:id/utilisateurs/:userId/lier — retire CE compte de son groupe (les
+// autres comptes déjà liés entre eux le restent).
+app.delete('/communes/:id/utilisateurs/:userId/lier', async (c) => {
+  const userId = c.req.param('userId');
+  await supabaseUpdate(c.env, 'users', { personne_id: null }, { id: `eq.${userId}` });
+  await journaliser(c.env, c.get('staff_id'), 'compte_delie', userId);
+  return c.json({ ok: true });
+});
+
 // DELETE /communes/:id/utilisateurs/:userId — anonymisation RGPD (même mécanisme que
 // DELETE /auth/moi, en libre-service côté citoyen) : jamais de suppression physique de la
 // ligne, pour ne pas casser le contenu communautaire déjà publié par la personne.

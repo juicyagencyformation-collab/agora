@@ -3525,6 +3525,26 @@
             <div x-text="resetMdpResultat"></div>
           </div>
 
+          <div class="bo-section-titre">Comptes liés</div>
+          <div class="bo-info" style="margin-bottom:8px">Pour une secrétaire administrant plusieurs communes : relie ce compte à son compte dans une autre commune pour qu'elle puisse basculer d'un clic, sans ressaisir de mot de passe.</div>
+          <template x-for="cl in comptesLies" :key="cl.user_id">
+            <div class="bo-carte" style="padding:12px 18px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+              <div><strong x-text="cl.commune_nom"></strong> — <span x-text="cl.email"></span></div>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="delierCompte(cl)" :disabled="utilisateurEnCours">Délier</button>
+            </div>
+          </template>
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+            <select x-model="lienCommuneId" style="flex:1; min-width:160px">
+              <option value="">Commune de l'autre compte…</option>
+              <template x-for="c in communes.filter(c => c.id !== communeActiveId)" :key="c.id">
+                <option :value="c.id" x-text="c.nom"></option>
+              </template>
+            </select>
+            <input type="email" x-model="lienEmail" placeholder="Email de l'autre compte" style="flex:1; min-width:180px; margin:0" />
+            <button class="bo-btn bo-btn--sec bo-btn--compact" @click="lierCompte()" :disabled="utilisateurEnCours || !lienCommuneId || !lienEmail">Lier</button>
+          </div>
+          <div class="bo-info" x-show="msgLienCompte" x-text="msgLienCompte" style="margin-top:6px"></div>
+
           <div class="bo-section-titre">Zone sensible</div>
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
             <div class="bo-info">Supprime le compte (anonymisation RGPD — le contenu déjà publié reste, sans identité).</div>
@@ -3538,7 +3558,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20260923-3"></script>
+  <script src="/backoffice/js/app.js?v=20261005-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

@@ -335,6 +335,40 @@ function initBoutonChangerCommune() {
   });
 }
 
+const LABELS_ROLE_COMPTE_LIE = { admin: 'Admin', elu: 'Élu', maire: 'Maire', superadmin: 'Superadmin' };
+
+// Comptes reliés par le staff (voir backoffice) : bascule en un clic, sans mot de passe ni
+// déconnexion — contrairement au bouton manuel ci-dessus qui reste le repli pour une commune
+// pas encore reliée.
+async function chargerComptesLies() {
+  const zone = document.getElementById('liste-comptes-lies');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/auth/mes-communes-liees`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { comptes } = await res.json();
+  if (!comptes.length) { zone.innerHTML = ''; return; }
+
+  zone.innerHTML = `
+    <p style="font-size:11.5px;color:var(--roseau);margin:0 0 6px;font-weight:600;">Comptes reliés</p>
+    ${comptes.map((c) => `
+      <button type="button" class="bouton-deconnexion-profil btn-basculer-compte-lie" data-id="${c.user_id}"
+        style="color:var(--eau);border-color:var(--eauL);margin-top:6px;display:flex;justify-content:space-between;align-items:center;padding-inline:16px;">
+        <span>🏛️ ${escapeAttr(c.commune_nom)}</span>
+        <span style="font-size:11px;color:var(--roseau);">${LABELS_ROLE_COMPTE_LIE[c.role] ?? c.role}</span>
+      </button>
+    `).join('')}
+  `;
+  zone.querySelectorAll('.btn-basculer-compte-lie').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/auth/basculer/${btn.dataset.id}`, { method: 'POST' });
+      if (!res.ok) { btn.disabled = false; afficherToastMessage('Impossible de basculer vers ce compte.', 'erreur'); return; }
+      const { slug } = await res.json();
+      document.location.href = `/${slug}/`;
+    });
+  });
+}
+
 function initTogglesCategoriesProfil() {
   document.getElementById('onglet-profil')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.entete-categorie-profil');

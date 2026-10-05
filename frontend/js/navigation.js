@@ -116,7 +116,7 @@ const CHARGEURS = {
   bulletin: () => chargerBulletin(),
   'photo-du-jour': () => chargerPhotoDuJour(),
   memoire: () => chargerMemoire(),
-  profil: () => { chargerProfil(); initReglagesNotificationsProfil(); initSectionInstallationProfil(); },
+  profil: () => { chargerProfil(); initReglagesNotificationsProfil(); initSectionInstallationProfil(); chargerComptesLies(); },
   lois: () => chargerLois(),
   moderation: () => chargerPanneauModeration(),
 };

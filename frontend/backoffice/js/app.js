@@ -73,6 +73,10 @@ function backoffice() {
     utilisateurEnCours: false,
     msgUtilisateurs: '',
     resetMdpResultat: '',
+    comptesLies: [],
+    lienCommuneId: '',
+    lienEmail: '',
+    msgLienCompte: '',
     coordsEnCours: false,
     coordsMsg: '',
     accesEnCours: false,
@@ -2601,7 +2605,55 @@ function backoffice() {
       this.utilisateurEdite = { ...u };
       this.resetMdpResultat = '';
       this.msgUtilisateurs = '';
+      this.lienCommuneId = '';
+      this.lienEmail = '';
+      this.msgLienCompte = '';
       this.vue = 'utilisateur';
+      this.chargerComptesLies();
+    },
+
+    async chargerComptesLies() {
+      try {
+        const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/lies');
+        this.comptesLies = r.comptes;
+      } catch { this.comptesLies = []; }
+    },
+
+    // Résout l'email saisi en user_id (recherche dans la commune choisie) avant de créer le
+    // lien — le endpoint de liaison attend un id, pas un email, pour ne jamais lier le mauvais
+    // compte en cas d'homonymie entre communes.
+    async lierCompte() {
+      this.utilisateurEnCours = true;
+      this.msgLienCompte = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.lienCommuneId + '/utilisateurs?recherche=' + encodeURIComponent(this.lienEmail));
+        const cible = r.utilisateurs.find((u) => u.email.toLowerCase() === this.lienEmail.trim().toLowerCase());
+        if (!cible) { this.msgLienCompte = 'Aucun compte avec cet email dans cette commune.'; return; }
+
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/lier', {
+          method: 'POST', body: JSON.stringify({ autre_user_id: cible.id }),
+        });
+        this.lienCommuneId = '';
+        this.lienEmail = '';
+        await this.chargerComptesLies();
+      } catch (e) {
+        this.msgLienCompte = e.message || 'Échec de la liaison';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
+    async delierCompte(cl) {
+      if (!confirm('Délier ce compte ? La bascule sans mot de passe ne sera plus possible entre les deux.')) return;
+      this.utilisateurEnCours = true;
+      try {
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + cl.user_id + '/lier', { method: 'DELETE' });
+        await this.chargerComptesLies();
+      } catch (e) {
+        this.msgLienCompte = e.message || 'Échec';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
     },
 
     async enregistrerUtilisateur() {
