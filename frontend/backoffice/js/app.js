@@ -74,8 +74,7 @@ function backoffice() {
     msgUtilisateurs: '',
     resetMdpResultat: '',
     comptesLies: [],
-    lienCommuneId: '',
-    lienEmail: '',
+    lienCommuneIds: [],
     lienRole: 'admin',
     msgLienCompte: '',
     coordsEnCours: false,
@@ -2606,8 +2605,7 @@ function backoffice() {
       this.utilisateurEdite = { ...u };
       this.resetMdpResultat = '';
       this.msgUtilisateurs = '';
-      this.lienCommuneId = '';
-      this.lienEmail = '';
+      this.lienCommuneIds = [];
       this.lienRole = 'admin';
       this.msgLienCompte = '';
       this.vue = 'utilisateur';
@@ -2621,23 +2619,34 @@ function backoffice() {
       } catch { this.comptesLies = []; }
     },
 
-    // Si aucun compte n'a encore cet email sur l'autre commune, le serveur le crée à la volée
-    // (identité copiée, mot de passe aléatoire jamais utilisé) — pas besoin d'en choisir un ici.
+    // Même email que le compte d'origine, sur chaque commune choisie — jamais redemandé.
+    // Si le compte n'y existe pas encore, le serveur le crée à la volée (identité copiée, mot
+    // de passe aléatoire jamais utilisé). Une commune à la fois côté serveur, mais la sélection
+    // multiple ici permet d'en relier plusieurs en un seul clic.
     async lierCompte() {
       this.utilisateurEnCours = true;
       this.msgLienCompte = '';
+      let creees = 0, liees = 0;
+      const echecs = [];
       try {
-        const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/lier', {
-          method: 'POST',
-          body: JSON.stringify({ autre_commune_id: this.lienCommuneId, autre_email: this.lienEmail, autre_role: this.lienRole }),
-        });
-        this.msgLienCompte = r.compte_cree ? 'Compte créé et lié.' : 'Compte lié.';
-        this.lienCommuneId = '';
-        this.lienEmail = '';
+        for (const communeId of this.lienCommuneIds) {
+          try {
+            const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/lier', {
+              method: 'POST', body: JSON.stringify({ autre_commune_id: communeId, autre_role: this.lienRole }),
+            });
+            if (r.compte_cree) creees++; else liees++;
+          } catch (e) {
+            echecs.push(this.communes.find((c) => c.id === communeId)?.nom + ' (' + (e.message || 'échec') + ')');
+          }
+        }
+        const parties = [];
+        if (creees) parties.push(creees + ' compte(s) créé(s) et lié(s)');
+        if (liees) parties.push(liees + ' compte(s) existant(s) lié(s)');
+        if (echecs.length) parties.push('échec : ' + echecs.join(', '));
+        this.msgLienCompte = parties.join(' — ') || 'Rien à faire.';
+        this.lienCommuneIds = [];
         this.lienRole = 'admin';
         await this.chargerComptesLies();
-      } catch (e) {
-        this.msgLienCompte = e.message || 'Échec de la liaison';
       } finally {
         this.utilisateurEnCours = false;
       }

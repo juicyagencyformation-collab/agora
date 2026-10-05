@@ -3526,25 +3526,29 @@
           </div>
 
           <div class="bo-section-titre">Comptes liés</div>
-          <div class="bo-info" style="margin-bottom:8px">Pour une secrétaire administrant plusieurs communes : relie ce compte à son compte sur une autre commune pour qu'elle puisse basculer d'un clic, sans ressaisir de mot de passe. Si elle n'a pas encore de compte là-bas, indique juste son email — il est créé automatiquement (mot de passe aléatoire, jamais utilisé : elle passera toujours par la bascule).</div>
+          <div class="bo-info" style="margin-bottom:8px">Pour une secrétaire administrant plusieurs communes : attribue-lui une ou plusieurs autres communes, avec le même email que ce compte — elle pourra basculer d'un clic entre toutes, sans ressaisir de mot de passe. Si elle n'a pas encore de compte sur une commune choisie, il est créé automatiquement (mot de passe aléatoire, jamais utilisé).</div>
           <template x-for="cl in comptesLies" :key="cl.user_id">
             <div class="bo-carte" style="padding:12px 18px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
               <div><strong x-text="cl.commune_nom"></strong> — <span x-text="cl.email"></span></div>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="delierCompte(cl)" :disabled="utilisateurEnCours">Délier</button>
             </div>
           </template>
-          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
-            <select x-model="lienCommuneId" style="flex:1; min-width:160px">
-              <option value="">Commune de l'autre compte…</option>
-              <template x-for="c in communes.filter(c => c.id !== communeActiveId)" :key="c.id">
-                <option :value="c.id" x-text="c.nom"></option>
-              </template>
-            </select>
-            <input type="email" x-model="lienEmail" placeholder="Son email" style="flex:1; min-width:160px; margin:0" />
-            <select x-model="lienRole" style="min-width:110px">
-              <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
-            </select>
-            <button class="bo-btn bo-btn--sec bo-btn--compact" @click="lierCompte()" :disabled="utilisateurEnCours || !lienCommuneId || !lienEmail">Lier</button>
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap">
+            <div style="flex:1; min-width:200px">
+              <label style="margin-top:0">Commune(s) à attribuer (⌘/Ctrl-clic pour en choisir plusieurs)</label>
+              <select x-model="lienCommuneIds" multiple size="4" style="width:100%">
+                <template x-for="c in communes.filter(c => c.id !== communeActiveId)" :key="c.id">
+                  <option :value="c.id" x-text="c.nom"></option>
+                </template>
+              </select>
+            </div>
+            <div style="min-width:140px">
+              <label style="margin-top:0">Rôle (si compte à créer)</label>
+              <select x-model="lienRole">
+                <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+              </select>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:8px; width:100%" @click="lierCompte()" :disabled="utilisateurEnCours || !lienCommuneIds.length">Lier</button>
+            </div>
           </div>
           <div class="bo-info" style="margin-top:4px">Le rôle choisi ne compte que si un nouveau compte doit être créé — sans effet si le compte existe déjà là-bas.</div>
           <div class="bo-info" x-show="msgLienCompte" x-text="msgLienCompte" style="margin-top:6px"></div>
@@ -3562,7 +3566,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261005-2"></script>
+  <script src="/backoffice/js/app.js?v=20261005-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

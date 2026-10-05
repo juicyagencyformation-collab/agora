@@ -1116,11 +1116,12 @@ app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
   return c.json({ ok: true, email: u.email, mot_de_passe: motDePasse });
 });
 
-// POST /communes/:id/utilisateurs/:userId/lier — relie ce compte à celui portant l'email
-// donné sur une autre commune, comme appartenant à la même personne réelle (ex. une
-// secrétaire mutualisée qui administre plusieurs petites communes) : une fois lié, un
-// sélecteur côté app citoyenne permet de basculer instantanément entre les deux, sans
-// ressaisir de mot de passe (voir worker/src/auth.ts, POST /auth/basculer/:id).
+// POST /communes/:id/utilisateurs/:userId/lier — relie ce compte au compte du même email sur
+// une autre commune, comme appartenant à la même personne réelle (ex. une secrétaire
+// mutualisée qui administre plusieurs petites communes) : une fois lié, un sélecteur côté app
+// citoyenne permet de basculer instantanément entre les deux, sans ressaisir de mot de passe
+// (voir worker/src/auth.ts, POST /auth/basculer/:id). L'email n'est jamais redemandé : on
+// réutilise celui du compte d'origine (même personne = même adresse, par hypothèse).
 //
 // Si aucun compte n'existe encore avec cet email sur l'autre commune, il est créé à la volée
 // (identité copiée depuis le compte d'origine, mot de passe aléatoire jamais communiqué —
@@ -1130,7 +1131,6 @@ app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
 // nouveau.
 const lierCompteSchema = z.object({
   autre_commune_id: z.string().uuid(),
-  autre_email: z.string().email(),
   autre_role: z.enum(ROLES_GERABLES).default('admin'),
 });
 
@@ -1139,11 +1139,11 @@ app.post('/communes/:id/utilisateurs/:userId/lier', async (c) => {
   const body = lierCompteSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const { autre_commune_id: autreCommuneId, autre_role: autreRole } = body.data;
-  const autreEmail = body.data.autre_email.trim().toLowerCase();
 
   const [a] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id,nom,prenom', id: `eq.${userId}` });
   if (!a) return c.json({ erreur: 'Compte introuvable' }, 404);
   if (a.commune_id === autreCommuneId) return c.json({ erreur: 'Choisis une commune différente de celle-ci' }, 400);
+  const autreEmail = a.email;
 
   let [b] = await supabaseSelect(c.env, 'users', {
     select: 'id,personne_id,email,commune_id', commune_id: `eq.${autreCommuneId}`, email: `ilike.${autreEmail}`,
