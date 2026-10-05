@@ -306,6 +306,35 @@ function initBoutonDeconnexionProfil() {
   });
 }
 
+// Pour une secrétaire qui administre plusieurs communes : le cookie de session est posé sur
+// tout le domaine, pas par commune — rester connecté à la commune A puis ouvrir la commune B
+// écrase la session en place. Se déconnecter D'ABORD puis naviguer vers une URL absolue évite
+// le rebond confus (sinon le serveur détecte le jeton de l'ancienne commune et renvoie
+// silencieusement vers elle, voir jwtMiddleware côté Worker).
+function initBoutonChangerCommune() {
+  const btn = document.getElementById('btn-changer-commune');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    const html = `
+      <form id="form-changer-commune">
+        <label class="label-champ-edition">Identifiant de l'autre commune</label>
+        <input type="text" id="slug-autre-commune" placeholder="ex : eaucourt" required>
+        <p style="font-size:12px;color:var(--roseau);margin-top:6px;">C'est la partie de l'adresse après plateforme-agora.fr/ — par exemple "eaucourt" pour plateforme-agora.fr/eaucourt/.</p>
+        <button type="submit" style="margin-top:10px;">Se déconnecter et continuer</button>
+      </form>
+    `;
+    const overlay = ouvrirModaleFormulaire('Changer de commune', html);
+    const corps = overlay.querySelector('.corps-modale-formulaire');
+    corps.querySelector('#form-changer-commune').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const slug = corps.querySelector('#slug-autre-commune').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      if (!slug) return;
+      await appelApi(`/${window.COMMUNE_SLUG}/auth/logout`, { method: 'POST' });
+      document.location.href = `/${slug}/connexion.html`;
+    });
+  });
+}
+
 function initTogglesCategoriesProfil() {
   document.getElementById('onglet-profil')?.addEventListener('click', (e) => {
     const btn = e.target.closest('.entete-categorie-profil');
