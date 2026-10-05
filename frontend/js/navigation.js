@@ -220,7 +220,6 @@ document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach(
   initFormulaireInfosMairie();
   initFormulaireBadgeCitoyen();
   initBoutonDeconnexionProfil();
-  initBoutonChangerCommune();
   initTogglesCategoriesProfil();
   initBadgeEntete();
   await initServiceWorker();
