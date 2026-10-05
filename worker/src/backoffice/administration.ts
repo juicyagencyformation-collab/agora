@@ -1431,11 +1431,12 @@ app.get('/chiffre-affaires', async (c) => {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([annee, montant]) => ({ annee, montant: Math.round(montant * 100) / 100 }));
 
-  // Projection : forfait <> 'Gratuit' exclut aussi NULL en SQL (une commune sans forfait défini
-  // n'est pas comptée comme payante), donc pas besoin d'un filtre "is not null" séparé.
+  // Projection : ni Gratuit ni Fondateur ne sont des forfaits payants (Fondateur = accès complet
+  // offert) — ce filtre exclut aussi NULL en SQL (une commune sans forfait défini n'est pas
+  // comptée comme payante), donc pas besoin d'un filtre "is not null" séparé.
   const communesPayantes = await supabaseSelectTout(c.env, 'communes', {
     select: 'id,nom,prix_annuel_ttc,forfait,duree_engagement_mois',
-    niveau_national: 'not.is.true', statut_client: 'eq.active', forfait: 'neq.Gratuit',
+    niveau_national: 'not.is.true', statut_client: 'eq.active', forfait: 'not.in.(Gratuit,Fondateur)',
   });
   const projectionTotal = communesPayantes.reduce(
     (s: number, cm: any) => s + montantAnnualise(cm.prix_annuel_ttc, cm.duree_engagement_mois), 0,
@@ -1472,36 +1473,40 @@ app.get('/chiffre-affaires', async (c) => {
 });
 
 // POST /communes/:id/onglets/preset — applique en un clic le palier « gratuit » (périmètre
-// courant de la table onglets_gratuits) ou « complet » (tout actif). Met aussi à jour le
-// libellé forfait affiché.
-const presetSchema = z.object({ preset: z.enum(['gratuit', 'complet']) });
+// courant de la table onglets_gratuits), « complet » (tout actif, payant) ou « fondateur »
+// (tout actif comme complet, mais gratuit comme gratuit — communes à qui l'accès complet est
+// offert, ex. premières communes pilotes). Met aussi à jour le libellé forfait affiché.
+const presetSchema = z.object({ preset: z.enum(['gratuit', 'complet', 'fondateur']) });
+const LIBELLES_FORFAIT_PRESET: Record<string, string> = {
+  gratuit: 'Gratuit', complet: 'Version complète', fondateur: 'Fondateur',
+};
 
 app.post('/communes/:id/onglets/preset', async (c) => {
   const id = c.req.param('id');
   const body = presetSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Préréglage invalide' }, 400);
+  const { preset } = body.data;
 
-  const ongletsActifs = body.data.preset === 'complet' ? [...TOUS_LES_ONGLETS] : await chargerOngletsGratuits(c.env);
+  const ongletsActifs = preset === 'gratuit' ? await chargerOngletsGratuits(c.env) : [...TOUS_LES_ONGLETS];
   await appliquerOngletsSurCommune(c.env, id, ongletsActifs);
 
-  const forfait = body.data.preset === 'complet' ? 'Version complète' : 'Gratuit';
+  const forfait = LIBELLES_FORFAIT_PRESET[preset];
   const donnees: Record<string, unknown> = { forfait };
-  if (body.data.preset === 'gratuit') {
+  // Gratuit et Fondateur ne doivent jamais traîner de prix/échéance — sinon ça ressort en
+  // 🔴/🟡 (santé) et dans "Facturation à traiter" alors que la commune ne doit rien.
+  if (preset === 'gratuit' || preset === 'fondateur') {
     // Churn (migration 048) : uniquement si la commune payait réellement avant ce geste — sinon
-    // une commune déjà gratuite qu'on "repasse en gratuit" par erreur/habitude compterait comme
-    // un churn fantôme. Capturé AVANT le nettoyage ci-dessous qui vide prix_annuel_ttc.
+    // une commune déjà gratuite/fondateur qu'on repasse sur ce palier par erreur/habitude
+    // compterait comme un churn fantôme. Capturé AVANT le nettoyage ci-dessous.
     const [avant] = await supabaseSelect(c.env, 'communes', {
       select: 'forfait,prix_annuel_ttc,duree_engagement_mois', id: `eq.${id}`,
     });
-    if (avant && avant.forfait && avant.forfait !== 'Gratuit') {
+    if (avant && avant.forfait && avant.forfait !== 'Gratuit' && avant.forfait !== 'Fondateur') {
       await supabaseInsert(c.env, 'churn_events', {
         commune_id: id, type: 'passage_gratuit', ancien_forfait: avant.forfait,
         prix_annuel_perdu: avant.prix_annuel_ttc, duree_engagement_mois: avant.duree_engagement_mois,
       });
     }
-    // Une commune gratuite ne doit plus traîner de prix/échéance : sinon elle continue de
-    // ressortir en 🔴/🟡 (santé) et dans "Facturation à traiter" alors qu'elle ne doit rien
-    // (bug constaté le 2026-08-18 — passer en Gratuit ne nettoyait jamais ces champs).
     donnees.prix_annuel_ttc = null;
     donnees.prochaine_echeance = null;
   }

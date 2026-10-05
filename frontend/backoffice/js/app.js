@@ -878,8 +878,21 @@ function backoffice() {
       }
     },
 
+    classeForfait(forfait) {
+      if (forfait === 'Gratuit') return 'gratuit';
+      if (forfait === 'Fondateur') return 'fondateur';
+      return 'complet';
+    },
+    titreForfait(forfait) {
+      if (forfait === 'Gratuit') return 'Palier gratuit — pas (encore) une cliente payante';
+      if (forfait === 'Fondateur') return 'Accès complet offert — pas une cliente payante';
+      return 'Forfait payant';
+    },
+
     async appliquerPresetOnglets(preset) {
-      const libelle = preset === 'complet' ? 'Version complète (tous les modules)' : 'Gratuit (périmètre défini dans Réglages)';
+      const libelle = preset === 'complet' ? 'Version complète (tous les modules)'
+        : preset === 'fondateur' ? 'Fondateur (tous les modules, offert)'
+        : 'Gratuit (périmètre défini dans Réglages)';
       if (!confirm(`Basculer cette commune sur le préréglage « ${libelle} » ?`)) return;
       this.presetEnCours = true;
       this.presetMsg = '';

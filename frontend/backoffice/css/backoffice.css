@@ -197,9 +197,11 @@ tbody tr:hover { background: var(--bo-surface-2); }
 .bo-statut--elu { background: #3b2d5c; color: #c4b5fd; }
 .bo-statut--maire { background: #4a3410; color: #fbbf24; }
 
-/* Forfait, en un coup d'œil : violet vampire = gratuit, vert = vraie cliente payante. */
+/* Forfait, en un coup d'œil : violet vampire = gratuit, vert = vraie cliente payante,
+   doré = fondateur (accès complet offert — à ne pas confondre avec une cliente payante). */
 .bo-statut--gratuit { background: #3b1650; color: #c084fc; }
 .bo-statut--complet { background: #14432c; color: #34d399; }
+.bo-statut--fondateur { background: #4a3410; color: #fbbf24; }
 
 /* Barre d'outils (filtres) */
 .bo-outils { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }

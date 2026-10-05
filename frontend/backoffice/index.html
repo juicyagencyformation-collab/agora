@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20260923-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261005-4" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -380,8 +380,8 @@
                     <td x-text="c.nb_elu"></td>
                     <td>
                       <template x-if="c.forfait">
-                        <span class="bo-statut" :class="'bo-statut--' + (c.forfait === 'Gratuit' ? 'gratuit' : 'complet')"
-                              :title="c.forfait === 'Gratuit' ? 'Palier gratuit — pas (encore) une cliente payante' : 'Forfait payant'"
+                        <span class="bo-statut" :class="'bo-statut--' + classeForfait(c.forfait)"
+                              :title="titreForfait(c.forfait)"
                               x-text="c.forfait + (c.quota_go ? ' · ' + c.quota_go + ' Go' : '')"></span>
                       </template>
                       <span class="bo-vide" x-show="!c.forfait">—</span>
@@ -2559,6 +2559,7 @@
               <span class="bo-info">Préréglage des modules :</span>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('gratuit')" :disabled="presetEnCours">🆓 Passer en Gratuit</button>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('complet')" :disabled="presetEnCours">💶 Passer en Version complète</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('fondateur')" :disabled="presetEnCours">🌟 Passer en Fondateur</button>
               <span class="bo-info" x-text="presetMsg"></span>
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--bo-border)">
@@ -2595,8 +2596,8 @@
           </div>
 
           <div class="bo-section-titre">Abonnement</div>
-          <div class="bo-info" style="margin:-8px 0 10px" x-show="fiche?.commune.forfait === 'Gratuit'">
-            Commune sur le palier Gratuit — un prix/échéance renseigné ici n'a normalement pas lieu d'être
+          <div class="bo-info" style="margin:-8px 0 10px" x-show="fiche?.commune.forfait === 'Gratuit' || fiche?.commune.forfait === 'Fondateur'">
+            Commune sur le palier <span x-text="fiche?.commune.forfait"></span> — un prix/échéance renseigné ici n'a normalement pas lieu d'être
             (passer en Version complète ci-dessus d'abord si elle doit être facturée).
           </div>
           <div class="bo-carte" style="padding:16px 18px">
@@ -3566,7 +3567,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261005-3"></script>
+  <script src="/backoffice/js/app.js?v=20261005-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
