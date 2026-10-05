@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Agora</title>
-  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261004-11" />
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-1" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20261004-11">
-  <link rel="stylesheet" href="/css/lightbox.css?v=20261004-11">
-  <link rel="stylesheet" href="/css/thermometre.css?v=20261004-11">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261004-11">
+  <link rel="stylesheet" href="/css/base.css?v=20261005-1">
+  <link rel="stylesheet" href="/css/lightbox.css?v=20261005-1">
+  <link rel="stylesheet" href="/css/thermometre.css?v=20261005-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261005-1">
 </head>
 <body>
 
@@ -364,25 +364,7 @@
     <section id="onglet-moderation" class="onglet-contenu" hidden>
       <div id="recap-stats-moderation" class="recap-stats-moderation"></div>
 
-      <div class="volet-reglage">
-        <button type="button" class="volet-entete-generique">
-          <span>📊 Fréquentation</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div class="volet-contenu">
-          <div id="stats-connexions"></div>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" class="volet-entete-generique">
-          <span>🗂️ Onglets actifs</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div class="volet-contenu">
-          <div id="panneau-onglets"></div>
-        </div>
-      </div>
+      <p style="font-size:12.5px;color:var(--roseau);margin:4px 0 14px;">👋 Premiers réglages à faire pour démarrer :</p>
 
       <div class="volet-reglage">
         <button type="button" class="volet-entete-generique">
@@ -425,45 +407,6 @@
       </div>
 
       <div class="volet-reglage">
-        <button type="button" class="volet-entete-generique">
-          <span>🚨 Contenu signalé en attente</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div class="volet-contenu">
-          <h4>📸 Photos du jour</h4>
-          <div id="liste-photos-attente"></div>
-          <h4 style="margin-top:16px;">🧭 Énigmes</h4>
-          <div id="liste-enigmes-attente"></div>
-          <h4 style="margin-top:16px;">💬 Mur des voisins</h4>
-          <div id="liste-mur-attente"></div>
-          <h4 style="margin-top:16px;">📖 Mémoire du village</h4>
-          <div id="liste-memoire-attente"></div>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-photo" class="volet-entete">
-          <span>⚙️ Réglage — Photo du jour</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-photo-contenu" class="volet-contenu">
-          <form id="form-seuil-photo">
-            <label style="font-size:13px;color:var(--roseau);">Validations nécessaires pour devenir totalement nette</label>
-            <input type="number" id="seuil-photo-input" min="1" max="30" value="6">
-            <label style="font-size:13px;color:var(--roseau);">Nombre de photos autorisées par personne et par jour</label>
-            <input type="number" id="max-photo-input" min="1" max="10" value="1">
-            <label style="font-size:13px;color:var(--roseau);">Durée de vie des photos avant suppression automatique</label>
-            <select id="duree-photo-input">
-              <option value="jour">1 jour</option>
-              <option value="semaine">1 semaine</option>
-              <option value="mois">1 mois</option>
-            </select>
-            <button type="submit">Enregistrer</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
         <button type="button" id="toggle-volet-couleurs" class="volet-entete">
           <span>🎨 Couleurs de l'application</span>
           <span class="chevron">▼</span>
@@ -476,133 +419,6 @@
             <input type="color" id="couleur-accent-input" value="#E2C97E">
             <button type="submit">Appliquer</button>
           </form>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-enigme" class="volet-entete">
-          <span>🧭 Réglage — Énigme photo</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-enigme-contenu" class="volet-contenu">
-          <form id="form-rayon-enigme">
-            <label style="font-size:13px;color:var(--roseau);">Distance tolérée pour valider une énigme (mètres)</label>
-            <input type="number" id="rayon-enigme-input" min="5" max="500" value="40">
-            <label style="font-size:13px;color:var(--roseau);">Durée de vie d'une énigme avant suppression automatique</label>
-            <select id="duree-enigme-input">
-              <option value="48h">48 heures</option>
-              <option value="semaine">1 semaine</option>
-              <option value="mois">1 mois</option>
-              <option value="6mois">6 mois</option>
-              <option value="an">1 an</option>
-            </select>
-            <button type="submit">Enregistrer</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-vigilance" class="volet-entete">
-          <span>🌦️ Vigilance météo</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-vigilance-contenu" class="volet-contenu">
-          <p style="font-size:12.5px;color:var(--roseau);margin:0 0 12px;">
-            Bandeau affiché sur l'accueil en cas de risque météo. Peut être posé à la main
-            ci-dessous, ou automatiquement selon le bulletin officiel Météo-France pour le
-            département de la commune — les deux peuvent coexister.
-          </p>
-
-          <form id="form-departement-vigilance">
-            <label style="font-size:13px;color:var(--roseau);">Département (déduit automatiquement des coordonnées de la commune — à corriger seulement si besoin)</label>
-            <input type="text" id="departement-vigilance-input" placeholder="ex. 80" maxlength="3" style="max-width:120px;">
-            <button type="submit">Enregistrer</button>
-          </form>
-
-          <h4 style="margin:18px 0 8px;font-size:13.5px;">Alertes actives</h4>
-          <div id="liste-alertes-meteo-admin"></div>
-
-          <h4 style="margin:18px 0 8px;font-size:13.5px;">Ajouter une alerte manuelle</h4>
-          <form id="form-alerte-meteo">
-            <label style="font-size:13px;color:var(--roseau);">Type de risque</label>
-            <select id="type-alerte-meteo-input">
-              <option value="vent_violent">Vent violent</option>
-              <option value="pluie_inondation">Pluie-inondation</option>
-              <option value="orages">Orages</option>
-              <option value="crues">Crues</option>
-              <option value="neige_verglas">Neige-verglas</option>
-              <option value="canicule">Canicule</option>
-              <option value="grand_froid">Grand froid</option>
-              <option value="avalanches">Avalanches</option>
-            </select>
-            <label style="font-size:13px;color:var(--roseau);">Niveau</label>
-            <select id="niveau-alerte-meteo-input">
-              <option value="jaune">Jaune</option>
-              <option value="orange" selected>Orange</option>
-              <option value="rouge">Rouge</option>
-            </select>
-            <label style="font-size:13px;color:var(--roseau);">Fin (optionnel — sinon à fermer manuellement)</label>
-            <input type="datetime-local" id="fin-alerte-meteo-input">
-            <button type="submit">Publier l'alerte</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-mur" class="volet-entete">
-          <span>💬 Réglage — Mur des voisins</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-mur-contenu" class="volet-contenu">
-          <form id="form-duree-mur">
-            <label style="font-size:13px;color:var(--roseau);">Durée de vie d'un message avant suppression automatique</label>
-            <select id="duree-mur-input">
-              <option value="24h">24 heures</option>
-              <option value="48h">48 heures</option>
-            </select>
-            <button type="submit">Enregistrer</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-rgpd" class="volet-entete">
-          <span>🔒 Réglage — Contact RGPD</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-rgpd-contenu" class="volet-contenu">
-          <form id="form-contact-rgpd">
-            <label style="font-size:13px;color:var(--roseau);">Email de contact pour l'exercice des droits RGPD des citoyens (affiché sur la politique de confidentialité)</label>
-            <input type="email" id="contact-rgpd-input" placeholder="mairie@macommune.fr">
-            <button type="submit">Enregistrer</button>
-          </form>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-regional" class="volet-entete">
-          <span>🗺️ Réglage — Découverte régionale</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-regional-contenu" class="volet-contenu">
-          <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--roseau);margin-bottom:10px;">
-            <input type="checkbox" id="partage-regional-input" style="width:auto;margin:0;">
-            Partager les événements officiels de ma commune sur la page publique "Autour de moi"
-          </label>
-          <p style="font-size:11.5px;color:var(--roseau);">Seuls les événements marqués "🏛️ Officiel" sont partagés, jamais le contenu créé par les citoyens. Cette page est visible sans connexion, par n'importe qui à proximité.</p>
-          <button type="button" id="btn-enregistrer-regional">Enregistrer</button>
-        </div>
-      </div>
-
-      <div class="volet-reglage">
-        <button type="button" id="toggle-volet-sync-lois" class="volet-entete">
-          <span>⚖️ Synchro Lois (Assemblée nationale)</span>
-          <span class="chevron">▼</span>
-        </button>
-        <div id="volet-sync-lois-contenu" class="volet-contenu">
-          <p style="font-size:11.5px;color:var(--roseau);">Récupère automatiquement les nouveaux projets/propositions de loi toutes les 6h. Teste manuellement ici pour vérifier que ça fonctionne.</p>
-          <button type="button" id="btn-sync-lois-manuel">🔄 Synchroniser maintenant</button>
-          <p id="resultat-sync-lois" style="font-size:12px;color:var(--roseau);margin-top:8px;"></p>
         </div>
       </div>
 
@@ -629,18 +445,6 @@
         </div>
 
         <div class="volet-reglage">
-          <button type="button" class="volet-entete-generique">
-            <span>📣 Faire connaître l'appli</span>
-            <span class="chevron">▼</span>
-          </button>
-          <div class="volet-contenu">
-            <p style="font-size:12.5px;margin-bottom:8px;">Documents prêts à imprimer, avec le QR code de la commune :</p>
-            <p style="margin-bottom:6px;"><a id="lien-kit-affiche" href="/backoffice/affiche-citoyens" target="_blank" rel="noopener">🪧 Affiche pour les habitants</a></p>
-            <p style="margin-bottom:6px;"><a id="lien-kit-dossier" href="/backoffice/dossier-conseil" target="_blank" rel="noopener">📜 Dossier pour le conseil municipal</a> <span style="font-size:11.5px;color:var(--roseau);">(présentation, modèle de délibération, plan de lancement)</span></p>
-          </div>
-        </div>
-
-        <div class="volet-reglage">
           <button type="button" id="toggle-volet-logo" class="volet-entete">
             <span>🖼️ Logo de la commune</span>
             <span class="chevron">▼</span>
@@ -651,29 +455,239 @@
             <p style="font-size:11.5px;color:var(--roseau);">JPEG ou PNG (fond transparent conservé), 4 Mo maximum. Remplace le logo actuel s'il y en a un.</p>
           </div>
         </div>
-
-        <div class="volet-reglage">
-          <button type="button" class="volet-entete-generique">
-            <span>👤 Gestion des rôles</span>
-            <span class="chevron">▼</span>
-          </button>
-          <div class="volet-contenu">
-            <div id="liste-utilisateurs"></div>
-          </div>
-        </div>
       </div>
 
-      <div class="badges-superadmin-only">
-        <div class="volet-reglage">
-          <button type="button" class="volet-entete-generique">
-            <span>🏅 Badges citoyens (participation)</span>
-            <span class="chevron">▼</span>
-          </button>
-          <div class="volet-contenu">
-            <p style="font-size:11.5px;color:var(--roseau);">Badges liés au score de participation citoyenne (présence vérifiée aux actions). Distinct des badges d'activité sur l'appli.</p>
-            <button type="button" id="btn-ouvrir-creation-badge-citoyen">+ Créer un badge citoyen</button>
-            <div id="liste-badges-citoyens"></div>
+      <div class="volet-reglage">
+        <button type="button" class="volet-entete-generique">
+          <span>⚙️ Autres réglages</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="volet-contenu">
+
+          <div class="volet-reglage">
+            <button type="button" class="volet-entete-generique">
+              <span>📊 Fréquentation</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="volet-contenu">
+              <div id="stats-connexions"></div>
+            </div>
           </div>
+
+          <div class="volet-reglage">
+            <button type="button" class="volet-entete-generique">
+              <span>🗂️ Onglets actifs</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="volet-contenu">
+              <div id="panneau-onglets"></div>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" class="volet-entete-generique">
+              <span>🚨 Contenu signalé en attente</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div class="volet-contenu">
+              <h4>📸 Photos du jour</h4>
+              <div id="liste-photos-attente"></div>
+              <h4 style="margin-top:16px;">🧭 Énigmes</h4>
+              <div id="liste-enigmes-attente"></div>
+              <h4 style="margin-top:16px;">💬 Mur des voisins</h4>
+              <div id="liste-mur-attente"></div>
+              <h4 style="margin-top:16px;">📖 Mémoire du village</h4>
+              <div id="liste-memoire-attente"></div>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-photo" class="volet-entete">
+              <span>⚙️ Réglage — Photo du jour</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-photo-contenu" class="volet-contenu">
+              <form id="form-seuil-photo">
+                <label style="font-size:13px;color:var(--roseau);">Validations nécessaires pour devenir totalement nette</label>
+                <input type="number" id="seuil-photo-input" min="1" max="30" value="6">
+                <label style="font-size:13px;color:var(--roseau);">Nombre de photos autorisées par personne et par jour</label>
+                <input type="number" id="max-photo-input" min="1" max="10" value="1">
+                <label style="font-size:13px;color:var(--roseau);">Durée de vie des photos avant suppression automatique</label>
+                <select id="duree-photo-input">
+                  <option value="jour">1 jour</option>
+                  <option value="semaine">1 semaine</option>
+                  <option value="mois">1 mois</option>
+                </select>
+                <button type="submit">Enregistrer</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-enigme" class="volet-entete">
+              <span>🧭 Réglage — Énigme photo</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-enigme-contenu" class="volet-contenu">
+              <form id="form-rayon-enigme">
+                <label style="font-size:13px;color:var(--roseau);">Distance tolérée pour valider une énigme (mètres)</label>
+                <input type="number" id="rayon-enigme-input" min="5" max="500" value="40">
+                <label style="font-size:13px;color:var(--roseau);">Durée de vie d'une énigme avant suppression automatique</label>
+                <select id="duree-enigme-input">
+                  <option value="48h">48 heures</option>
+                  <option value="semaine">1 semaine</option>
+                  <option value="mois">1 mois</option>
+                  <option value="6mois">6 mois</option>
+                  <option value="an">1 an</option>
+                </select>
+                <button type="submit">Enregistrer</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-vigilance" class="volet-entete">
+              <span>🌦️ Vigilance météo</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-vigilance-contenu" class="volet-contenu">
+              <p style="font-size:12.5px;color:var(--roseau);margin:0 0 12px;">
+                Bandeau affiché sur l'accueil en cas de risque météo. Peut être posé à la main
+                ci-dessous, ou automatiquement selon le bulletin officiel Météo-France pour le
+                département de la commune — les deux peuvent coexister.
+              </p>
+
+              <form id="form-departement-vigilance">
+                <label style="font-size:13px;color:var(--roseau);">Département (déduit automatiquement des coordonnées de la commune — à corriger seulement si besoin)</label>
+                <input type="text" id="departement-vigilance-input" placeholder="ex. 80" maxlength="3" style="max-width:120px;">
+                <button type="submit">Enregistrer</button>
+              </form>
+
+              <h4 style="margin:18px 0 8px;font-size:13.5px;">Alertes actives</h4>
+              <div id="liste-alertes-meteo-admin"></div>
+
+              <h4 style="margin:18px 0 8px;font-size:13.5px;">Ajouter une alerte manuelle</h4>
+              <form id="form-alerte-meteo">
+                <label style="font-size:13px;color:var(--roseau);">Type de risque</label>
+                <select id="type-alerte-meteo-input">
+                  <option value="vent_violent">Vent violent</option>
+                  <option value="pluie_inondation">Pluie-inondation</option>
+                  <option value="orages">Orages</option>
+                  <option value="crues">Crues</option>
+                  <option value="neige_verglas">Neige-verglas</option>
+                  <option value="canicule">Canicule</option>
+                  <option value="grand_froid">Grand froid</option>
+                  <option value="avalanches">Avalanches</option>
+                </select>
+                <label style="font-size:13px;color:var(--roseau);">Niveau</label>
+                <select id="niveau-alerte-meteo-input">
+                  <option value="jaune">Jaune</option>
+                  <option value="orange" selected>Orange</option>
+                  <option value="rouge">Rouge</option>
+                </select>
+                <label style="font-size:13px;color:var(--roseau);">Fin (optionnel — sinon à fermer manuellement)</label>
+                <input type="datetime-local" id="fin-alerte-meteo-input">
+                <button type="submit">Publier l'alerte</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-mur" class="volet-entete">
+              <span>💬 Réglage — Mur des voisins</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-mur-contenu" class="volet-contenu">
+              <form id="form-duree-mur">
+                <label style="font-size:13px;color:var(--roseau);">Durée de vie d'un message avant suppression automatique</label>
+                <select id="duree-mur-input">
+                  <option value="24h">24 heures</option>
+                  <option value="48h">48 heures</option>
+                </select>
+                <button type="submit">Enregistrer</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-rgpd" class="volet-entete">
+              <span>🔒 Réglage — Contact RGPD</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-rgpd-contenu" class="volet-contenu">
+              <form id="form-contact-rgpd">
+                <label style="font-size:13px;color:var(--roseau);">Email de contact pour l'exercice des droits RGPD des citoyens (affiché sur la politique de confidentialité)</label>
+                <input type="email" id="contact-rgpd-input" placeholder="mairie@macommune.fr">
+                <button type="submit">Enregistrer</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-regional" class="volet-entete">
+              <span>🗺️ Réglage — Découverte régionale</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-regional-contenu" class="volet-contenu">
+              <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--roseau);margin-bottom:10px;">
+                <input type="checkbox" id="partage-regional-input" style="width:auto;margin:0;">
+                Partager les événements officiels de ma commune sur la page publique "Autour de moi"
+              </label>
+              <p style="font-size:11.5px;color:var(--roseau);">Seuls les événements marqués "🏛️ Officiel" sont partagés, jamais le contenu créé par les citoyens. Cette page est visible sans connexion, par n'importe qui à proximité.</p>
+              <button type="button" id="btn-enregistrer-regional">Enregistrer</button>
+            </div>
+          </div>
+
+          <div class="volet-reglage">
+            <button type="button" id="toggle-volet-sync-lois" class="volet-entete">
+              <span>⚖️ Synchro Lois (Assemblée nationale)</span>
+              <span class="chevron">▼</span>
+            </button>
+            <div id="volet-sync-lois-contenu" class="volet-contenu">
+              <p style="font-size:11.5px;color:var(--roseau);">Récupère automatiquement les nouveaux projets/propositions de loi toutes les 6h. Teste manuellement ici pour vérifier que ça fonctionne.</p>
+              <button type="button" id="btn-sync-lois-manuel">🔄 Synchroniser maintenant</button>
+              <p id="resultat-sync-lois" style="font-size:12px;color:var(--roseau);margin-top:8px;"></p>
+            </div>
+          </div>
+
+          <div class="roles-gestionnaire-only">
+            <div class="volet-reglage">
+              <button type="button" class="volet-entete-generique">
+                <span>📣 Faire connaître l'appli</span>
+                <span class="chevron">▼</span>
+              </button>
+              <div class="volet-contenu">
+                <p style="font-size:12.5px;margin-bottom:8px;">Documents prêts à imprimer, avec le QR code de la commune :</p>
+                <p style="margin-bottom:6px;"><a id="lien-kit-affiche" href="/backoffice/affiche-citoyens" target="_blank" rel="noopener">🪧 Affiche pour les habitants</a></p>
+                <p style="margin-bottom:6px;"><a id="lien-kit-dossier" href="/backoffice/dossier-conseil" target="_blank" rel="noopener">📜 Dossier pour le conseil municipal</a> <span style="font-size:11.5px;color:var(--roseau);">(présentation, modèle de délibération, plan de lancement)</span></p>
+              </div>
+            </div>
+
+            <div class="volet-reglage">
+              <button type="button" class="volet-entete-generique">
+                <span>👤 Gestion des rôles</span>
+                <span class="chevron">▼</span>
+              </button>
+              <div class="volet-contenu">
+                <div id="liste-utilisateurs"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="badges-superadmin-only">
+            <div class="volet-reglage">
+              <button type="button" class="volet-entete-generique">
+                <span>🏅 Badges citoyens (participation)</span>
+                <span class="chevron">▼</span>
+              </button>
+              <div class="volet-contenu">
+                <p style="font-size:11.5px;color:var(--roseau);">Badges liés au score de participation citoyenne (présence vérifiée aux actions). Distinct des badges d'activité sur l'appli.</p>
+                <button type="button" id="btn-ouvrir-creation-badge-citoyen">+ Créer un badge citoyen</button>
+                <div id="liste-badges-citoyens"></div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
@@ -701,31 +715,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
-  <script src="/js/vendor/jsQR.min.js?v=20261004-11"></script>
-  <script src="/js/config.js?v=20261004-11"></script>
-  <script src="/js/utils.js?v=20261004-11"></script>
-  <script src="/js/api.js?v=20261004-11"></script>
-  <script src="/js/editeur-riche.js?v=20261004-11"></script>
-  <script src="/js/dashboard.js?v=20261004-11"></script>
-  <script src="/js/articles.js?v=20261004-11"></script>
-  <script src="/js/alertes.js?v=20261004-11"></script>
-  <script src="/js/thermometre.js?v=20261004-11"></script>
-  <script src="/js/mur.js?v=20261004-11"></script>
-  <script src="/js/agenda.js?v=20261004-11"></script>
-  <script src="/js/coups-de-main.js?v=20261004-11"></script>
-  <script src="/js/coups-de-main-form.js?v=20261004-11"></script>
-  <script src="/js/chasse-tresor.js?v=20261004-11"></script>
-  <script src="/js/conseil.js?v=20261004-11"></script>
-  <script src="/js/annuaire.js?v=20261004-11"></script>
-  <script src="/js/bulletin.js?v=20261004-11"></script>
-  <script src="/js/photo-du-jour.js?v=20261004-11"></script>
-  <script src="/js/memoire.js?v=20261004-11"></script>
-  <script src="/js/enigmes.js?v=20261004-11"></script>
-  <script src="/js/profil.js?v=20261004-11"></script>
-  <script src="/js/notifications.js?v=20261004-11"></script>
-  <script src="/js/lois.js?v=20261004-11"></script>
-  <script src="/js/moderation.js?v=20261004-11"></script>
-  <script src="/js/participation-citoyenne.js?v=20261004-11"></script>
-  <script src="/js/navigation.js?v=20261004-11"></script>
+  <script src="/js/vendor/jsQR.min.js?v=20261005-1"></script>
+  <script src="/js/config.js?v=20261005-1"></script>
+  <script src="/js/utils.js?v=20261005-1"></script>
+  <script src="/js/api.js?v=20261005-1"></script>
+  <script src="/js/editeur-riche.js?v=20261005-1"></script>
+  <script src="/js/dashboard.js?v=20261005-1"></script>
+  <script src="/js/articles.js?v=20261005-1"></script>
+  <script src="/js/alertes.js?v=20261005-1"></script>
+  <script src="/js/thermometre.js?v=20261005-1"></script>
+  <script src="/js/mur.js?v=20261005-1"></script>
+  <script src="/js/agenda.js?v=20261005-1"></script>
+  <script src="/js/coups-de-main.js?v=20261005-1"></script>
+  <script src="/js/coups-de-main-form.js?v=20261005-1"></script>
+  <script src="/js/chasse-tresor.js?v=20261005-1"></script>
+  <script src="/js/conseil.js?v=20261005-1"></script>
+  <script src="/js/annuaire.js?v=20261005-1"></script>
+  <script src="/js/bulletin.js?v=20261005-1"></script>
+  <script src="/js/photo-du-jour.js?v=20261005-1"></script>
+  <script src="/js/memoire.js?v=20261005-1"></script>
+  <script src="/js/enigmes.js?v=20261005-1"></script>
+  <script src="/js/profil.js?v=20261005-1"></script>
+  <script src="/js/notifications.js?v=20261005-1"></script>
+  <script src="/js/lois.js?v=20261005-1"></script>
+  <script src="/js/moderation.js?v=20261005-1"></script>
+  <script src="/js/participation-citoyenne.js?v=20261005-1"></script>
+  <script src="/js/navigation.js?v=20261005-1"></script>
 </body>
 </html>
