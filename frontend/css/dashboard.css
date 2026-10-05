@@ -1030,15 +1030,19 @@ h1, h2, h3, h4, p, span, a, button {
 .overlay-modale-formulaire.visible {
   opacity: 1; pointer-events: auto; background: rgba(61,53,48,.5); backdrop-filter: blur(2px);
 }
+/* Plein écran sur mobile (voir media query ci-dessous pour le repli en boîte de dialogue
+   centrée dès que l'écran est assez large) : un formulaire long (article avec titre,
+   catégorie, éditeur riche, photos, sondage...) a besoin de toute la hauteur disponible
+   plutôt que d'une feuille basse qui laisse l'arrière-plan visible en haut. */
 .carte-modale-formulaire {
-  background: #fff; border-radius: 20px 20px 0 0; width: 100%; max-width: 480px;
-  max-height: 88vh; overflow-y: auto;
+  background: #fff; width: 100%; max-width: 100%;
+  height: 100%; max-height: 100%; overflow-y: auto;
   transform: translateY(30px); transition: transform .3s cubic-bezier(.32,.72,0,1);
 }
 .overlay-modale-formulaire.visible .carte-modale-formulaire { transform: translateY(0); }
 .entete-modale-formulaire {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 18px; border-bottom: 1px solid var(--eauL);
+  padding: calc(16px + env(safe-area-inset-top)) 18px 16px; border-bottom: 1px solid var(--eauL);
   position: sticky; top: 0; background: #fff; z-index: 1;
 }
 .entete-modale-formulaire h3 { margin: 0; font-size: 17px; font-family: 'Playfair Display', serif; color: var(--eau); }
@@ -1054,7 +1058,8 @@ h1, h2, h3, h4, p, span, a, button {
 }
 @media (min-width: 600px) {
   .overlay-modale-formulaire { align-items: center; }
-  .carte-modale-formulaire { border-radius: 20px; max-height: 80vh; }
+  .carte-modale-formulaire { border-radius: 20px; width: 100%; max-width: 480px; height: auto; max-height: 80vh; }
+  .entete-modale-formulaire { padding: 16px 18px; }
 }
 /* À AJOUTER dans frontend/css/dashboard.css */
 
