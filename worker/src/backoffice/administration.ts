@@ -1116,26 +1116,49 @@ app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
   return c.json({ ok: true, email: u.email, mot_de_passe: motDePasse });
 });
 
-// POST /communes/:id/utilisateurs/:userId/lier — relie ce compte à un autre, dans une autre
-// commune, comme appartenant à la même personne réelle (ex. une secrétaire mutualisée qui
-// administre plusieurs petites communes) : une fois lié, un sélecteur côté app citoyenne
-// permet de basculer instantanément entre les deux, sans ressaisir de mot de passe (voir
-// worker/src/auth.ts, POST /auth/basculer/:id). Aucune preuve de mot de passe demandée ici —
-// le staff backoffice peut déjà créer des comptes et réinitialiser n'importe quel mot de
-// passe (routes ci-dessus) : relier deux comptes existants n'ouvre aucun pouvoir nouveau.
-const lierCompteSchema = z.object({ autre_user_id: z.string().uuid() });
+// POST /communes/:id/utilisateurs/:userId/lier — relie ce compte à celui portant l'email
+// donné sur une autre commune, comme appartenant à la même personne réelle (ex. une
+// secrétaire mutualisée qui administre plusieurs petites communes) : une fois lié, un
+// sélecteur côté app citoyenne permet de basculer instantanément entre les deux, sans
+// ressaisir de mot de passe (voir worker/src/auth.ts, POST /auth/basculer/:id).
+//
+// Si aucun compte n'existe encore avec cet email sur l'autre commune, il est créé à la volée
+// (identité copiée depuis le compte d'origine, mot de passe aléatoire jamais communiqué —
+// elle n'en a pas besoin, la bascule ne le demande jamais). Aucune preuve de mot de passe
+// requise ici : le staff backoffice peut déjà créer des comptes et réinitialiser n'importe
+// quel mot de passe (routes ci-dessus), relier/créer un compte n'ouvre donc aucun pouvoir
+// nouveau.
+const lierCompteSchema = z.object({
+  autre_commune_id: z.string().uuid(),
+  autre_email: z.string().email(),
+  autre_role: z.enum(ROLES_GERABLES).default('admin'),
+});
 
 app.post('/communes/:id/utilisateurs/:userId/lier', async (c) => {
   const userId = c.req.param('userId');
   const body = lierCompteSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
-  const autreUserId = body.data.autre_user_id;
-  if (autreUserId === userId) return c.json({ erreur: 'Un compte ne peut pas être lié à lui-même' }, 400);
+  const { autre_commune_id: autreCommuneId, autre_role: autreRole } = body.data;
+  const autreEmail = body.data.autre_email.trim().toLowerCase();
 
-  const [a] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id', id: `eq.${userId}` });
-  const [b] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id', id: `eq.${autreUserId}` });
-  if (!a || !b) return c.json({ erreur: 'Compte introuvable' }, 404);
-  if (a.commune_id === b.commune_id) return c.json({ erreur: 'Ces deux comptes sont déjà dans la même commune' }, 400);
+  const [a] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id,nom,prenom', id: `eq.${userId}` });
+  if (!a) return c.json({ erreur: 'Compte introuvable' }, 404);
+  if (a.commune_id === autreCommuneId) return c.json({ erreur: 'Choisis une commune différente de celle-ci' }, 400);
+
+  let [b] = await supabaseSelect(c.env, 'users', {
+    select: 'id,personne_id,email,commune_id', commune_id: `eq.${autreCommuneId}`, email: `ilike.${autreEmail}`,
+  });
+  let compteCree = false;
+  if (!b) {
+    const motDePasseAleatoire = crypto.randomUUID() + crypto.randomUUID();
+    const [nouveau] = await supabaseInsert(c.env, 'users', {
+      commune_id: autreCommuneId, nom: a.nom, prenom: a.prenom, email: autreEmail, role: autreRole,
+      password_hash: await hasherMotDePasse(motDePasseAleatoire), consentement_rgpd_le: new Date().toISOString(),
+    });
+    b = nouveau;
+    compteCree = true;
+  }
+
   if (a.personne_id && b.personne_id && a.personne_id !== b.personne_id) {
     return c.json({ erreur: 'Ces deux comptes appartiennent déjà à des groupes différents — déliez-en un d\'abord.' }, 409);
   }
@@ -1144,8 +1167,8 @@ app.post('/communes/:id/utilisateurs/:userId/lier', async (c) => {
   if (!a.personne_id) await supabaseUpdate(c.env, 'users', { personne_id: personneId }, { id: `eq.${a.id}` });
   if (!b.personne_id) await supabaseUpdate(c.env, 'users', { personne_id: personneId }, { id: `eq.${b.id}` });
 
-  await journaliser(c.env, c.get('staff_id'), 'comptes_lies', `${a.email} (commune ${a.commune_id}) <-> ${b.email} (commune ${b.commune_id})`);
-  return c.json({ ok: true });
+  await journaliser(c.env, c.get('staff_id'), 'comptes_lies', `${a.email} (commune ${a.commune_id}) <-> ${autreEmail} (commune ${autreCommuneId})${compteCree ? ' [compte créé]' : ''}`);
+  return c.json({ ok: true, compte_cree: compteCree });
 });
 
 // GET /communes/:id/utilisateurs/:userId/lies — comptes déjà liés à celui-ci, avec le nom de

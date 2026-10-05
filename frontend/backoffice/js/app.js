@@ -76,6 +76,7 @@ function backoffice() {
     comptesLies: [],
     lienCommuneId: '',
     lienEmail: '',
+    lienRole: 'admin',
     msgLienCompte: '',
     coordsEnCours: false,
     coordsMsg: '',
@@ -2607,6 +2608,7 @@ function backoffice() {
       this.msgUtilisateurs = '';
       this.lienCommuneId = '';
       this.lienEmail = '';
+      this.lienRole = 'admin';
       this.msgLienCompte = '';
       this.vue = 'utilisateur';
       this.chargerComptesLies();
@@ -2619,22 +2621,20 @@ function backoffice() {
       } catch { this.comptesLies = []; }
     },
 
-    // Résout l'email saisi en user_id (recherche dans la commune choisie) avant de créer le
-    // lien — le endpoint de liaison attend un id, pas un email, pour ne jamais lier le mauvais
-    // compte en cas d'homonymie entre communes.
+    // Si aucun compte n'a encore cet email sur l'autre commune, le serveur le crée à la volée
+    // (identité copiée, mot de passe aléatoire jamais utilisé) — pas besoin d'en choisir un ici.
     async lierCompte() {
       this.utilisateurEnCours = true;
       this.msgLienCompte = '';
       try {
-        const r = await boFetch('/administration/communes/' + this.lienCommuneId + '/utilisateurs?recherche=' + encodeURIComponent(this.lienEmail));
-        const cible = r.utilisateurs.find((u) => u.email.toLowerCase() === this.lienEmail.trim().toLowerCase());
-        if (!cible) { this.msgLienCompte = 'Aucun compte avec cet email dans cette commune.'; return; }
-
-        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/lier', {
-          method: 'POST', body: JSON.stringify({ autre_user_id: cible.id }),
+        const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/lier', {
+          method: 'POST',
+          body: JSON.stringify({ autre_commune_id: this.lienCommuneId, autre_email: this.lienEmail, autre_role: this.lienRole }),
         });
+        this.msgLienCompte = r.compte_cree ? 'Compte créé et lié.' : 'Compte lié.';
         this.lienCommuneId = '';
         this.lienEmail = '';
+        this.lienRole = 'admin';
         await this.chargerComptesLies();
       } catch (e) {
         this.msgLienCompte = e.message || 'Échec de la liaison';
