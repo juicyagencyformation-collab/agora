@@ -14,6 +14,32 @@
 -- tables Énigme photo, voir mémoire). Ce script fournit explicitement une valeur pour chaque
 -- colonne que les routes applicatives (worker/src/routes/*.ts) renseignent toujours, pour rester
 -- cohérent avec elles sans connaître le DDL exact.
+--
+-- Filet de sécurité supplémentaire (ajouté après un premier échec réel : "column mode of
+-- relation chasses_tresor does not exist") : plusieurs colonnes issues de migrations pourtant
+-- TRACKÉES dans le repo (013, 008, 014, 018, 010, 019, 020) n'ont apparemment jamais été
+-- appliquées sur cette base. ADD COLUMN IF NOT EXISTS pour chacune d'elles avant tout INSERT —
+-- sans danger si elles existent déjà, corrige silencieusement le retard sinon.
+ALTER TABLE alertes ADD COLUMN IF NOT EXISTS urgent BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE alertes ADD COLUMN IF NOT EXISTS reponse_officielle TEXT;
+ALTER TABLE alertes ADD COLUMN IF NOT EXISTS reponse_par UUID REFERENCES users(id);
+ALTER TABLE alertes ADD COLUMN IF NOT EXISTS reponse_le TIMESTAMPTZ;
+ALTER TABLE coups_de_main ADD COLUMN IF NOT EXISTS contact TEXT;
+ALTER TABLE coups_de_main ADD COLUMN IF NOT EXISTS prix TEXT;
+ALTER TABLE coups_de_main ADD COLUMN IF NOT EXISTS disponibilites TEXT;
+ALTER TABLE annuaire ADD COLUMN IF NOT EXISTS site_web TEXT;
+ALTER TABLE annuaire ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE annuaire ADD COLUMN IF NOT EXISTS logo_r2_key TEXT;
+ALTER TABLE chasses_tresor ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'chasse';
+ALTER TABLE chasses_tresor ADD COLUMN IF NOT EXISTS rayon_metres INTEGER NOT NULL DEFAULT 50;
+ALTER TABLE etapes_chasse ADD COLUMN IF NOT EXISTS type_contenu TEXT NOT NULL DEFAULT 'aucun';
+ALTER TABLE etapes_chasse ADD COLUMN IF NOT EXISTS contenu TEXT;
+ALTER TABLE etapes_chasse ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE etapes_chasse ADD COLUMN IF NOT EXISTS photo_r2_key TEXT;
+ALTER TABLE etapes_chasse ADD COLUMN IF NOT EXISTS enigme_reponse TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS type_action TEXT;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS necessite_validation_presence BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS partage_autour BOOLEAN NOT NULL DEFAULT true;
 
 -- ===================== Actualités =====================
 INSERT INTO articles (commune_id, auteur_id, section, categorie, titre, contenu_html, fichier_pv_url, fichier_pv_type, created_at, updated_at)
