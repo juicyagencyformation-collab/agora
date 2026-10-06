@@ -857,6 +857,10 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
       nom: prospect.nom, slug,
       population: prospect.population ?? null,
       lat: prospect.lat ?? null, lng: prospect.lng ?? null,
+      // Sans ça, "Envoyer la présentation" échouait (422) sur la fiche commune pour la quasi-
+      // totalité des communes issues de la prospection : contact_email/email_mairie restaient
+      // nuls tant que personne ne les renseignait à la main.
+      contact_email: prospect.contact_email ?? null,
       forfait: 'Gratuit', niveau_national: false,
     });
     communeId = commune.id;

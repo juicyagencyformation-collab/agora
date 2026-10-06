@@ -48,8 +48,10 @@ app.post('/creer', async (c) => {
   // mairie pourra les renseigner depuis les réglages de la commune.
   let lat: number | null = null;
   let lng: number | null = null;
+  let contactEmailProspect: string | null = null;
   if (prospect_id) {
-    const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'code_insee', id: `eq.${prospect_id}` });
+    const [prospect] = await supabaseSelect(c.env, 'prospects', { select: 'code_insee,contact_email', id: `eq.${prospect_id}` });
+    contactEmailProspect = prospect?.contact_email ?? null;
     if (prospect?.code_insee) {
       try {
         const res = await fetch(`https://geo.api.gouv.fr/communes/${prospect.code_insee}?fields=centre&format=json`);
@@ -65,6 +67,10 @@ app.post('/creer', async (c) => {
     slug, nom,
     population: population ?? null,
     lat, lng,
+    // Sans ça, "Envoyer la présentation" échouait (422) sur la fiche commune : contact_email
+    // restait nul tant que personne ne le renseignait à la main. Repli sur l'email du maire
+    // quand la conversion ne vient pas d'un prospect enrichi (pas de contact_email mairie connu).
+    contact_email: contactEmailProspect ?? maire.email.trim().toLowerCase(),
     niveau_national: false,
     forfait: 'Gratuit',
   });

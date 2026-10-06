@@ -41,7 +41,6 @@ function backoffice() {
     erreurChargement: '',
     frequentation: null,
     doublons: [],
-    historiqueProspection: { prospect: null, interactions: [] },
     rgpd: null,
     qrCommune: '',
     chiffreAffaires: null,
@@ -347,9 +346,26 @@ function backoffice() {
       }
     },
 
-    async ouvrirFiche(id) {
+    // Fiche unifiée (2026-10-06) : il n'existait jusqu'ici qu'une fiche prospect (pipeline
+    // commercial) ET une fiche commune (gestion client), séparées, alors que commune_id se pose
+    // dès le premier email envoyé — bien avant qu'un prospect soit "gagné". Pour la grande
+    // majorité des prospects déjà contactés, les deux fiches décrivaient la même réalité et il
+    // fallait sauter de l'une à l'autre. Un seul point d'entrée désormais, qui charge l'un et/ou
+    // l'autre selon ce qui existe réellement : un prospect sans commune (pas encore activé), une
+    // commune sans prospect (Eaucourt, commune de démo... créées hors prospection), ou les deux.
+    // Les deux tables/routes backend restent inchangées (zéro impact sur CA/churn/onboarding
+    // automatique, qui ne connaissent que commune_id) — seule la présentation est fusionnée.
+    async ouvrirFicheUnifiee({ prospectId = null, communeId = null } = {}) {
       this.chargement = true;
-      this.vue = 'fiche';
+      this.vue = 'fiche_unifiee';
+      this.prospect = null;
+      this.interactions = [];
+      this.fiche = null;
+      this.prospMsg = '';
+      this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
+      this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
+      this.carteVisiteHtml = null;
+      this.carteVisiteMsg = '';
       this.coordsMsg = '';
       this.accesMsg = '';
       this.accesGeneres = null;
@@ -358,37 +374,74 @@ function backoffice() {
       this.presentMsg = '';
       this.frequentation = null;
       this.doublons = [];
-      this.historiqueProspection = { prospect: null, interactions: [] };
       this.rgpd = null;
       this.qrCommune = '';
       this.activiteCommune = [];
       try {
-        this.fiche = await boFetch('/administration/communes/' + id);
-        // Fiable dès l'ouverture de la fiche, pas seulement après avoir ouvert le panneau
-        // Utilisateurs — rafraichirCompteursCommune() (statut, forfait, abonnement...) en dépend
-        // et échouait silencieusement tant que ce panneau n'avait jamais été ouvert.
-        this.communeActiveId = id;
-        this.forfaitNom = this.fiche.commune.forfait || '';
-        this.forfaitQuota = this.fiche.commune.quota_go ?? '';
-        if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
-        if (!this.fiche.commune.formule) this.fiche.commune.formule = '';
-        this.premiumPremiereAnnee = true;
-        this.devisFormule = this.fiche.commune.formule;
-        this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
-        try { this.frequentation = await boFetch('/administration/communes/' + id + '/frequentation'); } catch {}
-        try { this.doublons = (await boFetch('/administration/communes/' + id + '/doublons')).doublons; } catch {}
-        try { this.historiqueProspection = await boFetch('/administration/communes/' + id + '/historique-prospection'); } catch {}
-        try { this.activiteCommune = (await boFetch('/administration/activite?commune_id=' + id + '&depuis=90')).evenements; } catch {}
-        try { this.rgpd = await boFetch('/administration/communes/' + id + '/rgpd'); } catch {}
-        this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
-        this.devisMsg = '';
-        try { await this.chargerDevisFactures(id); } catch {}
-        try { this.ongletsCommune = (await boFetch('/administration/communes/' + id + '/onglets')).onglets; } catch {}
-        this.onboardingDripMsg = '';
-        try { this.onboardingDrip = await boFetch('/administration/onboarding-drip/communes/' + id); } catch { this.onboardingDrip = null; }
+        if (prospectId) {
+          const d = await boFetch('/prospection/prospects/' + prospectId);
+          this.prospect = d.prospect;
+          this.interactions = d.interactions;
+          if (this.prospect.commune_id) communeId = this.prospect.commune_id;
+          // Auto-enrichissement du contact en arrière-plan (sans clic ni blocage de l'affichage).
+          if (!this.prospect.enrichi_le && this.prospect.code_insee) {
+            boFetch('/prospection/prospects/' + prospectId + '/enrichir', { method: 'POST' })
+              .then((r) => { if (this.prospect && this.prospect.id === prospectId) this.prospect = { ...this.prospect, ...r.prospect }; })
+              .catch(() => {});
+          }
+        }
+        if (communeId) {
+          this.fiche = await boFetch('/administration/communes/' + communeId);
+          // Fiable dès l'ouverture de la fiche, pas seulement après avoir ouvert le panneau
+          // Utilisateurs — rafraichirCompteursCommune() (statut, forfait, abonnement...) en
+          // dépend et échouait silencieusement tant que ce panneau n'avait jamais été ouvert.
+          this.communeActiveId = communeId;
+          this.forfaitNom = this.fiche.commune.forfait || '';
+          this.forfaitQuota = this.fiche.commune.quota_go ?? '';
+          if (!this.fiche.commune.statut_client) this.fiche.commune.statut_client = 'active';
+          if (!this.fiche.commune.formule) this.fiche.commune.formule = '';
+          this.premiumPremiereAnnee = true;
+          this.devisFormule = this.fiche.commune.formule;
+          this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
+          try { this.frequentation = await boFetch('/administration/communes/' + communeId + '/frequentation'); } catch {}
+          try { this.doublons = (await boFetch('/administration/communes/' + communeId + '/doublons')).doublons; } catch {}
+          try { this.activiteCommune = (await boFetch('/administration/activite?commune_id=' + communeId + '&depuis=90')).evenements; } catch {}
+          try { this.rgpd = await boFetch('/administration/communes/' + communeId + '/rgpd'); } catch {}
+          this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
+          this.devisMsg = '';
+          try { await this.chargerDevisFactures(communeId); } catch {}
+          try { this.ongletsCommune = (await boFetch('/administration/communes/' + communeId + '/onglets')).onglets; } catch {}
+          this.onboardingDripMsg = '';
+          try { this.onboardingDrip = await boFetch('/administration/onboarding-drip/communes/' + communeId); } catch { this.onboardingDrip = null; }
+          // Entré par la commune (pas par le prospect) : retrouve le prospect lié s'il existe,
+          // pour afficher aussi la section Prospection sur la même fiche.
+          if (!this.prospect) {
+            try {
+              const hp = await boFetch('/administration/communes/' + communeId + '/historique-prospection');
+              if (hp.prospect) {
+                const dp = await boFetch('/prospection/prospects/' + hp.prospect.id);
+                this.prospect = dp.prospect;
+                this.interactions = dp.interactions;
+              }
+            } catch {}
+          }
+          if (this.prospect) {
+            try { this.carteVisiteHtml = (await boFetch('/prospection/prospects/' + this.prospect.id + '/carte-visite')).html; } catch {}
+          }
+        }
+      } catch (e) {
+        // Sans ce catch, un échec (session expirée, réseau...) laissait la vue sur la fiche avec
+        // prospect/fiche à moitié chargés — le template reste affiché malgré son garde x-if le
+        // temps que boFetch redirige, et plante sur des champs absents. On revient proprement à
+        // la liste la plus probable plutôt que de laisser cet état incohérent.
+        this.vue = prospectId ? 'prospection' : 'communes';
+        alert(e.message || 'Impossible d\'ouvrir cette fiche');
       } finally {
         this.chargement = false;
       }
+    },
+    async ouvrirFiche(communeId) {
+      await this.ouvrirFicheUnifiee({ communeId });
     },
 
     // Séquence d'onboarding/upsell (voir backoffice/onboarding-drip.ts) : déclenche MAINTENANT,
@@ -1595,41 +1648,7 @@ function backoffice() {
     },
 
     async ouvrirProspect(id) {
-      this.chargement = true;
-      this.vue = 'prospect';
-      this.prospMsg = '';
-      this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
-      this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
-      this.carteVisiteHtml = null;
-      this.carteVisiteMsg = '';
-      try {
-        const d = await boFetch('/prospection/prospects/' + id);
-        this.prospect = d.prospect;
-        this.interactions = d.interactions;
-        // Prospect déjà client : on récupère le slug de sa commune pour les liens app/fiche.
-        if (this.prospect.commune_id) {
-          try {
-            const c = await boFetch('/administration/communes/' + this.prospect.commune_id);
-            this.conversion.slug = c.commune.slug;
-          } catch {}
-          try { this.carteVisiteHtml = (await boFetch('/prospection/prospects/' + id + '/carte-visite')).html; } catch {}
-        }
-        // Auto-enrichissement du contact en arrière-plan (sans clic ni blocage de l'affichage).
-        if (!this.prospect.enrichi_le && this.prospect.code_insee) {
-          boFetch('/prospection/prospects/' + id + '/enrichir', { method: 'POST' })
-            .then((r) => { if (this.prospect && this.prospect.id === id) this.prospect = { ...this.prospect, ...r.prospect }; })
-            .catch(() => {});
-        }
-      } catch (e) {
-        // Sans ce catch, un échec ici (session expirée, réseau...) laissait vue = 'prospect' avec
-        // prospect toujours à null/périmé — le template de la fiche restait affiché malgré son
-        // garde x-if (le temps que boFetch redirige vers la connexion) et plantait sur
-        // prospect.xxx. On revient proprement à la liste plutôt que de laisser cet état incohérent.
-        this.vue = 'prospection';
-        alert(e.message || 'Impossible d\'ouvrir cette fiche');
-      } finally {
-        this.chargement = false;
-      }
+      await this.ouvrirFicheUnifiee({ prospectId: id });
     },
 
     async prospecter() {
