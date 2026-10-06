@@ -2422,17 +2422,21 @@
               </div>
 
               <!-- Aperçu de la carte de visite : visible dès que la commune est activée, indépendamment
-                   du panneau "Email libre" — pour la copier-coller dans un email tapé ailleurs. -->
-              <div class="bo-carte" style="padding:14px 18px; margin-bottom:18px" x-show="carteVisiteHtml">
-                <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px">
-                  <div class="bo-section-titre" style="margin:0">Carte de visite (aperçu)</div>
-                  <div style="display:flex; align-items:center; gap:10px">
+                   du panneau "Email libre" — pour la copier-coller dans un email tapé ailleurs. Dans un
+                   tiroir fermé par défaut (pas un contenu qu'on consulte à chaque ouverture de fiche). -->
+              <div class="bo-tiroir" x-show="carteVisiteHtml" style="margin-bottom:18px">
+                <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('carte_visite')">
+                  <span>Carte de visite (aperçu)</span>
+                  <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.carte_visite}">▸</span>
+                </button>
+                <div class="bo-tiroir__corps" x-show="tiroirsOuverts.carte_visite">
+                  <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px; margin-bottom:8px">
                     <button class="bo-btn bo-btn--sec bo-btn--compact" @click="copierCarteVisite()">📋 Copier</button>
                     <span class="bo-info" x-text="carteVisiteMsg"></span>
                   </div>
+                  <div class="bo-info" style="margin-bottom:10px">Copie la mise en forme (couleurs, bouton) — colle-la directement dans un email tapé dans ta propre messagerie.</div>
+                  <div style="background:#f4f6f8; border-radius:10px; padding:16px" x-html="carteVisiteHtml"></div>
                 </div>
-                <div class="bo-info" style="margin-bottom:10px">Copie la mise en forme (couleurs, bouton) — colle-la directement dans un email tapé dans ta propre messagerie.</div>
-                <div style="background:#f4f6f8; border-radius:10px; padding:16px" x-html="carteVisiteHtml"></div>
               </div>
 
               <div class="bo-grille-2">
