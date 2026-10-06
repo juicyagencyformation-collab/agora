@@ -114,12 +114,15 @@ app.get('/communes', async (c) => {
   // On lit tous les rôles pour calculer "citoyens" = citoyen + admin + elu (un admin/élu est une
   // vraie personne, souvent un citoyen promu par le maire — demandé par Léandre le 2026-08-19
   // pour que ces comptes comptent dans les calculs d'engagement, pas seulement dans les colonnes
-  // Admin/Élu dédiées ci-dessous). Seuls maire (quasi toujours auto-provisionné à l'activation,
-  // voir prospection.ts) et superadmin restent hors de "citoyens".
+  // Admin/Élu dédiées ci-dessous). Superadmin reste hors de "citoyens".
   // compte_supprime_le: is.null — même raison que sur la fiche : un compte anonymisé garde son
   // ancien rôle mais ne doit plus être compté (sinon désaccord avec "Gérer les utilisateurs").
+  // compte_provisionne: neq.true — le compte générique auto-créé à l'activation (role='admin'
+  // depuis le 2026-10-06, voir activerCommuneGratuite/migration 073) n'est pas une vraie
+  // personne : sans ce filtre, chaque commune activée par la prospection afficherait "1 admin"
+  // fantôme.
   const ROLES_CITOYENS = ['citoyen', 'admin', 'elu'];
-  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id,role', compte_supprime_le: 'is.null' });
+  const users = await supabaseSelectTout(c.env, 'users', { select: 'commune_id,role', compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' });
   const avis = await supabaseSelectTout(c.env, 'avis_application', { select: 'commune_id,note' }).catch(() => []);
 
   const nbCitoyens = new Map<string, number>();
@@ -192,7 +195,8 @@ app.get('/communes/:id', async (c) => {
     // mais ne doit plus compter nulle part : sinon "Répartition des rôles" et le total Équipe
     // restent gonflés d'un fantôme après suppression, en désaccord avec "Gérer les utilisateurs"
     // qui l'exclut déjà (constaté le 2026-08-19 sur Eaucourt : élu=5 affiché ici pour 4 réels).
-    supabaseSelect(c.env, 'users', { select: 'role', commune_id: `eq.${id}`, compte_supprime_le: 'is.null' }),
+    // compte_provisionne: neq.true — voir migration 073, même raison que sur GET /communes.
+    supabaseSelect(c.env, 'users', { select: 'role', commune_id: `eq.${id}`, compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' }),
     supabaseSelect(c.env, 'avis_application', {
       select: 'note,commentaire,created_at', commune_id: `eq.${id}`, order: 'created_at.desc',
     }),
@@ -208,11 +212,13 @@ app.get('/communes/:id', async (c) => {
 
   return c.json({
     commune,
-    // total = citoyen + admin + elu, pas membres.length : sinon le compte maire provisionné
-    // automatiquement à l'activation (toujours présent, même sans aucune vraie inscription)
-    // gonfle "Citoyens inscrits" de 1 sur chaque commune. admin/elu comptent comme citoyens
-    // (une vraie personne, souvent un citoyen promu) depuis le 2026-08-19. par_role garde le
-    // détail complet (maire/elu/admin inclus) pour qui veut la vue d'ensemble par rôle.
+    // total = citoyen + admin + elu, pas membres.length : un maire (une vraie personne, après
+    // conversion) n'est volontairement pas compté dans "Citoyens inscrits", juste affiché dans
+    // par_role — le compte générique auto-provisionné à l'activation (voir compte_provisionne,
+    // migration 073) est lui exclu bien plus tôt, au niveau de la requête ci-dessus. admin/elu
+    // comptent comme citoyens (une vraie personne, souvent un citoyen promu) depuis le
+    // 2026-08-19. par_role garde le détail complet (maire/elu/admin inclus) pour qui veut la vue
+    // d'ensemble par rôle.
     citoyens: { total: (parRole.citoyen ?? 0) + (parRole.admin ?? 0) + (parRole.elu ?? 0), par_role: parRole },
     avis: { note_moyenne, nb: avis.length, liste: avis },
     stockage,
@@ -280,30 +286,32 @@ app.post('/communes/:id/coordonnees', async (c) => {
   return c.json({ ok: true, lat, lng, departement });
 });
 
-// POST /communes/:id/renvoyer-acces — régénère un mot de passe temporaire pour le maire de la
-// commune et lui renvoie l'email de bienvenue avec ses identifiants. Utile si le maire a perdu
-// ses accès initiaux (le mot de passe d'origine n'est jamais stocké en clair, on en régénère un).
+// POST /communes/:id/renvoyer-acces — régénère un mot de passe temporaire pour le compte
+// principal de la commune (le plus ancien créé — secrétariat/admin avant conversion, maire après,
+// voir activerCommuneGratuite) et lui renvoie l'email de bienvenue avec ses identifiants. Utile
+// si l'accès initial a été perdu (le mot de passe d'origine n'est jamais stocké en clair, on en
+// régénère un).
 app.post('/communes/:id/renvoyer-acces', async (c) => {
   const id = c.req.param('id');
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  const [maire] = await supabaseSelect(c.env, 'users', {
-    select: 'id,email', commune_id: `eq.${id}`, role: 'eq.maire', order: 'created_at.asc',
+  const [compte] = await supabaseSelect(c.env, 'users', {
+    select: 'id,email', commune_id: `eq.${id}`, role: 'in.(admin,elu,maire,superadmin)', order: 'created_at.asc', limit: '1',
   });
-  if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
+  if (!compte) return c.json({ erreur: 'Aucun compte sur cette commune.' }, 404);
 
   const motDePasse = genererMotDePasseTemporaire();
-  await supabaseUpdate(c.env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${maire.id}` });
+  await supabaseUpdate(c.env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${compte.id}` });
 
   await envoyerEmailBienvenue(c.env, {
-    nomCommune: commune.nom, slug: commune.slug, maireEmail: maire.email, motDePasse,
-    frontendUrl: c.env.FRONTEND_URL, communeId: id, userId: maire.id,
+    nomCommune: commune.nom, slug: commune.slug, maireEmail: compte.email, motDePasse,
+    frontendUrl: c.env.FRONTEND_URL, communeId: id, userId: compte.id,
   });
-  // Renvoyé aussi au staff (pas seulement au maire par email) : utile pour se connecter
-  // soi-même configurer la commune sans attendre un retour du maire. Affiché une seule fois
-  // côté backoffice, jamais stocké en clair ailleurs que dans cette réponse.
-  return c.json({ ok: true, email: maire.email, mot_de_passe: motDePasse });
+  // Renvoyé aussi au staff (pas seulement par email) : utile pour se connecter soi-même
+  // configurer la commune sans attendre un retour de la mairie. Affiché une seule fois côté
+  // backoffice, jamais stocké en clair ailleurs que dans cette réponse.
+  return c.json({ ok: true, email: compte.email, mot_de_passe: motDePasse });
 });
 
 async function hasherTokenSession(token: string): Promise<string> {
@@ -312,27 +320,27 @@ async function hasherTokenSession(token: string): Promise<string> {
 }
 
 // POST /communes/:id/se-connecter-en-tant-que — ouvre une session côté app citoyenne pour le
-// maire de la commune (mêmes cookies agora_access/agora_refresh que worker/src/auth.ts, coexistent
-// avec les cookies backoffice agora_bo/agora_bo_refresh, noms distincts). Contrairement à
-// /renvoyer-acces, ne touche JAMAIS au mot de passe du maire : réutilisable à volonté sans risquer
-// d'invalider ses vrais accès s'il s'est déjà connecté depuis. Journalisé.
+// compte principal de la commune (mêmes cookies agora_access/agora_refresh que worker/src/auth.ts,
+// coexistent avec les cookies backoffice agora_bo/agora_bo_refresh, noms distincts). Contrairement
+// à /renvoyer-acces, ne touche JAMAIS au mot de passe de ce compte : réutilisable à volonté sans
+// risquer d'invalider ses vrais accès s'il s'est déjà connecté depuis. Journalisé.
 app.post('/communes/:id/se-connecter-en-tant-que', async (c) => {
   const id = c.req.param('id');
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  const [maire] = await supabaseSelect(c.env, 'users', {
-    select: 'id,email,role', commune_id: `eq.${id}`, role: 'eq.maire', order: 'created_at.asc',
+  const [compte] = await supabaseSelect(c.env, 'users', {
+    select: 'id,email,role', commune_id: `eq.${id}`, role: 'in.(admin,elu,maire,superadmin)', order: 'created_at.asc', limit: '1',
   });
-  if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
+  if (!compte) return c.json({ erreur: 'Aucun compte sur cette commune.' }, 404);
 
   const accessToken = await sign(
-    { user_id: maire.id, commune_id: id, role: maire.role, exp: Math.floor(Date.now() / 1000) + 900 },
+    { user_id: compte.id, commune_id: id, role: compte.role, exp: Math.floor(Date.now() / 1000) + 900 },
     c.env.JWT_SECRET,
   );
   const refreshToken = crypto.randomUUID() + crypto.randomUUID();
   await supabaseInsert(c.env, 'refresh_tokens', {
-    commune_id: id, user_id: maire.id,
+    commune_id: id, user_id: compte.id,
     token_hash: await hasherTokenSession(refreshToken),
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
@@ -340,27 +348,27 @@ app.post('/communes/:id/se-connecter-en-tant-que', async (c) => {
   setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
   setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
 
-  await journaliser(c.env, c.get('staff_id'), 'connexion_en_tant_que_maire', `${commune.nom} (${id}) — maire ${maire.email}`);
-  return c.json({ ok: true, slug: commune.slug, email: maire.email });
+  await journaliser(c.env, c.get('staff_id'), 'connexion_en_tant_que_maire', `${commune.nom} (${id}) — compte ${compte.email}`);
+  return c.json({ ok: true, slug: commune.slug, email: compte.email });
 });
 
 // POST /communes/:id/lien-connexion — génère à la demande un lien de connexion directe pour le
-// maire (valable 30 jours, réutilisable pendant cette durée), à coller dans un email. Utile en
-// dépannage ciblé (ex. un maire qui n'arrive pas à se connecter) — le même mécanisme est aussi
-// intégré automatiquement aux emails de bienvenue/présentation (voir email-commune.ts).
-// Contrairement à /renvoyer-acces, ne touche jamais au mot de passe existant.
+// compte principal de la commune (valable 30 jours, réutilisable pendant cette durée), à coller
+// dans un email. Utile en dépannage ciblé — le même mécanisme est aussi intégré automatiquement
+// aux emails de bienvenue/présentation (voir email-commune.ts). Contrairement à /renvoyer-acces,
+// ne touche jamais au mot de passe existant.
 app.post('/communes/:id/lien-connexion', async (c) => {
   const id = c.req.param('id');
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,slug', id: `eq.${id}` });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  const [maire] = await supabaseSelect(c.env, 'users', {
-    select: 'id,email', commune_id: `eq.${id}`, role: 'eq.maire', order: 'created_at.asc',
+  const [compte] = await supabaseSelect(c.env, 'users', {
+    select: 'id,email', commune_id: `eq.${id}`, role: 'in.(admin,elu,maire,superadmin)', order: 'created_at.asc', limit: '1',
   });
-  if (!maire) return c.json({ erreur: 'Aucun compte maire sur cette commune.' }, 404);
+  if (!compte) return c.json({ erreur: 'Aucun compte sur cette commune.' }, 404);
 
-  const lien = await genererLienConnexionDirecte(c.env, c.env.FRONTEND_URL, commune.slug, id, maire.id);
-  return c.json({ ok: true, lien, email: maire.email });
+  const lien = await genererLienConnexionDirecte(c.env, c.env.FRONTEND_URL, commune.slug, id, compte.id);
+  return c.json({ ok: true, lien, email: compte.email });
 });
 
 // POST /email-test — diagnostic d'envoi. Appelle Resend EN DIRECT (pas via envoyerEmail, qui
@@ -897,13 +905,15 @@ app.get('/communes/:id/frequentation', async (c) => {
   const il30 = jourISO(29);
 
   // role: in.(citoyen,admin,elu) — même raison que "Citoyens inscrits" plus haut sur la fiche :
-  // sans ce filtre, le compte maire provisionné automatiquement compte comme "inscrit" et peut
-  // fausser les taux d'activité d'une commune. admin/elu comptent comme citoyens (2026-08-19).
+  // sans ce filtre, le compte générique provisionné automatiquement (compte_provisionne, voir
+  // ci-dessous) compterait comme "inscrit" et peut fausser les taux d'activité d'une commune.
+  // admin/elu comptent comme citoyens (2026-08-19). compte_provisionne: neq.true — exclut
+  // précisément ce compte générique (migration 073), indépendamment du rôle désormais 'admin'.
   // compte_supprime_le: is.null — un compte anonymisé garde sa derniere_connexion_streak d'avant
   // suppression, il ne doit plus compter comme "actif" (même raison que partout ailleurs).
   const [commune, users, connexions] = await Promise.all([
     supabaseSelect(c.env, 'communes', { select: 'population', id: `eq.${id}` }),
-    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null' }),
+    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' }),
     supabaseSelect(c.env, 'connexions_journalieres', {
       select: 'jour', commune_id: `eq.${id}`, jour: `gte.${il30}`, limit: '5000',
     }),
@@ -1613,10 +1623,11 @@ app.get('/activite', async (c) => {
   if (communeId) filtreBase.commune_id = `eq.${communeId}`;
 
   const requetes: Record<string, Promise<any[]>> = {};
-  // role: neq.maire — un compte maire est provisionné automatiquement à l'activation d'une
-  // commune (prospection), ce n'est pas une inscription citoyenne : sans ce filtre, le flux
-  // (des centaines de comptes) noie les vraies inscriptions/publications sous du bruit.
-  if (types.includes('compte')) requetes.compte = supabaseSelect(c.env, 'users', { ...filtreBase, select: 'id,commune_id,prenom,nom,role,created_at', role: 'neq.maire' });
+  // compte_provisionne: neq.true — un compte générique est provisionné automatiquement à
+  // l'activation d'une commune (prospection, voir migration 073), ce n'est pas une inscription
+  // citoyenne : sans ce filtre, le flux (des milliers de comptes) noie les vraies
+  // inscriptions/publications sous du bruit.
+  if (types.includes('compte')) requetes.compte = supabaseSelect(c.env, 'users', { ...filtreBase, select: 'id,commune_id,prenom,nom,role,created_at', compte_provisionne: 'neq.true' });
   if (types.includes('article')) requetes.article = supabaseSelect(c.env, 'articles', { ...filtreBase, select: 'id,commune_id,auteur_id,titre,section,created_at' });
   if (types.includes('alerte')) requetes.alerte = supabaseSelect(c.env, 'alertes', { ...filtreBase, select: 'id,commune_id,user_id,titre,urgent,created_at' });
   if (types.includes('mur')) requetes.mur = supabaseSelect(c.env, 'posts', { ...filtreBase, select: 'id,commune_id,user_id,contenu,created_at' });
@@ -1704,14 +1715,15 @@ app.get('/apercu', async (c) => {
   // Supabase plafonne chaque réponse à 1000 lignes quel que soit le `limit` demandé, donc un
   // .length "mentait" silencieusement dès que communes/users dépassait 1000 (piège découvert le
   // 2026-08-18 — les chiffres semblaient "bloqués" à 1000).
-  // role: in.(citoyen,admin,elu) sur nb_citoyens — sinon chaque compte maire provisionné
-  // automatiquement (des centaines) se compte comme "citoyen inscrit" et gonfle massivement ce
-  // chiffre. admin/elu comptent comme citoyens (une vraie personne) depuis le 2026-08-19.
-  // compte_supprime_le: is.null — un compte anonymisé (RGPD) garde son rôle mais ne doit plus
-  // compter (même raison que sur la fiche commune et le tableau Communes clientes).
+  // role: in.(citoyen,admin,elu) sur nb_citoyens, admin/elu comptant comme citoyens (une vraie
+  // personne) depuis le 2026-08-19. compte_provisionne: neq.true — sinon chaque compte générique
+  // provisionné automatiquement à l'activation (des milliers, voir migration 073) se compte
+  // comme "citoyen inscrit" et gonfle massivement ce chiffre. compte_supprime_le: is.null — un
+  // compte anonymisé (RGPD) garde son rôle mais ne doit plus compter (même raison que sur la
+  // fiche commune et le tableau Communes clientes).
   const [nb_communes, nb_citoyens, nb_avis] = await Promise.all([
     supabaseCount(c.env, 'communes', { niveau_national: 'not.is.true' }),
-    supabaseCount(c.env, 'users', { role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null' }),
+    supabaseCount(c.env, 'users', { role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' }),
     supabaseCount(c.env, 'avis_application', {}),
   ]);
 

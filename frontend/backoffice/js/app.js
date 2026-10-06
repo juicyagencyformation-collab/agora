@@ -1025,7 +1025,7 @@ function backoffice() {
       }
     },
     async renvoyerAcces() {
-      if (!confirm('Régénérer un mot de passe temporaire et renvoyer l\'email au maire ? Écrase son mot de passe actuel (à réserver au cas où il a vraiment perdu ses accès — pour te connecter toi-même, utilise plutôt « Se connecter en tant que »).')) return;
+      if (!confirm('Régénérer un mot de passe temporaire et renvoyer l\'email au compte principal de la commune ? Écrase son mot de passe actuel (à réserver au cas où l\'accès a vraiment été perdu — pour te connecter toi-même, utilise plutôt « Se connecter en tant que »).')) return;
       this.accesEnCours = true;
       this.accesMsg = '';
       this.accesGeneres = null;

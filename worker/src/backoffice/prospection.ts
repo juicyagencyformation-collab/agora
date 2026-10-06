@@ -83,14 +83,6 @@ function formaterNomMaire(nom: string, prenom: string): string {
   return `${prenom.trim()} ${nomForme}`.trim();
 }
 
-// nom_maire est stocké déjà combiné ("Prénom Nom", voir formaterNomMaire ci-dessus) ; retrouve le
-// seul nom de famille en retirant le préfixe prénom — évite une 3e colonne juste pour ça. Utilisé
-// pour créer/corriger le compte maire avec son VRAI prénom/nom (voir activerCommuneGratuite et
-// POST /synchroniser-maires) plutôt que le placeholder "Maire de {commune}".
-function nomFamilleMaire(nomMaire: string, prenomMaire: string): string {
-  return nomMaire.startsWith(prenomMaire) ? nomMaire.slice(prenomMaire.length).trim() : nomMaire;
-}
-
 app.post('/synchroniser-maires', async (c) => {
   const t0 = Date.now();
   const chrono = () => `${Date.now() - t0}ms`;
@@ -146,10 +138,6 @@ app.post('/synchroniser-maires', async (c) => {
   // inchangés dans le payload : voir le commentaire de supabaseUpsert (db.ts) pour pourquoi c'est
   // nécessaire malgré le fait qu'on ne veuille modifier QUE nom_maire/maire_civilite.
   const maj: { code_insee: string; nom: string; departement: string; nom_maire: string; prenom_maire: string; maire_civilite: string | null }[] = [];
-  // Communes déjà activées (compte maire déjà créé) à corriger après coup — voir la boucle
-  // corrective plus bas : le placeholder mis à la création n'a plus lieu d'être maintenant qu'on
-  // identifie le vrai prénom/nom.
-  const aCorrigerCoteUsers: { communeId: string; prenom: string; nom: string }[] = [];
   for (let i = 1; i < lignesTexte.length; i++) {
     if (!lignesTexte[i]) continue;
     const ligne = lignesTexte[i].split(';');
@@ -159,22 +147,14 @@ app.post('/synchroniser-maires', async (c) => {
     const nom = ligne[iNom], prenom = ligne[iPrenom];
     if (!nom || !prenom) continue;
     const sexe = iSexe >= 0 ? ligne[iSexe] : '';
-    const nomMaireForme = formaterNomMaire(nom, prenom);
-    const prenomMaireForme = prenom.trim();
     maj.push({
       code_insee: codeInsee,
       nom: prospect.nom,
       departement: prospect.departement,
-      nom_maire: nomMaireForme,
-      prenom_maire: prenomMaireForme,
+      nom_maire: formaterNomMaire(nom, prenom),
+      prenom_maire: prenom.trim(),
       maire_civilite: sexe === 'F' ? 'Madame' : sexe === 'M' ? 'Monsieur' : null,
     });
-    if (prospect.commune_id) {
-      aCorrigerCoteUsers.push({
-        communeId: prospect.commune_id, prenom: prenomMaireForme,
-        nom: nomFamilleMaire(nomMaireForme, prenomMaireForme),
-      });
-    }
   }
 
   // Par lots : le RNE couvre la quasi-totalité des communes françaises, donc maj peut avoisiner
@@ -197,39 +177,7 @@ app.post('/synchroniser-maires', async (c) => {
     }
   }
 
-  // Corrige les comptes maire déjà créés qui portent encore le placeholder "Maire de {commune}"
-  // (jamais touché depuis, ni par le maire lui-même ni par une correction manuelle — condition
-  // volontairement stricte pour ne jamais écraser un nom que le maire aurait modifié à la main
-  // depuis son profil). Par lots UPSERT (pas un select+update par commune) : même piège de
-  // sous-requêtes déjà rencontré ailleurs sur ce projet — avec des centaines de communes déjà
-  // activées, une boucle d'un select + un update par commune dépassait la limite par invocation
-  // (constaté le 2026-08-31). email/password_hash/commune_id repartent inchangés dans le payload
-  // de l'upsert : même raison que pour l'upsert des prospects plus haut (colonnes NOT NULL sans
-  // défaut requises dans TOUTE ligne d'un upsert PostgREST, même sur une ligne qui n'existera
-  // jamais qu'en UPDATE — voir supabaseUpsert dans db.ts).
-  const TAILLE_LOT_MAIRES = 100; // évite un in.() à des centaines d'UUID dans une seule URL
-  const correctionParCommune = new Map(aCorrigerCoteUsers.map((x) => [x.communeId, x]));
-  const communeIdsACorriger = [...correctionParCommune.keys()];
-  let comptesCorriges = 0;
-  for (let i = 0; i < communeIdsACorriger.length; i += TAILLE_LOT_MAIRES) {
-    const lot = communeIdsACorriger.slice(i, i + TAILLE_LOT_MAIRES);
-    const maires = await supabaseSelect(c.env, 'users', {
-      select: 'id,commune_id,email,password_hash',
-      commune_id: `in.(${lot.join(',')})`, role: 'eq.maire', prenom: 'eq.Maire de',
-    });
-    if (!maires.length) continue;
-    const payload = maires.map((m: any) => {
-      const correction = correctionParCommune.get(m.commune_id)!;
-      return {
-        id: m.id, commune_id: m.commune_id, email: m.email, password_hash: m.password_hash,
-        prenom: correction.prenom, nom: correction.nom,
-      };
-    });
-    await supabaseUpsert(c.env, 'users', payload, 'id');
-    comptesCorriges += payload.length;
-  }
-
-  return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length, comptes_maire_corriges: comptesCorriges });
+  return c.json({ ok: true, mis_a_jour: maj.length, total_prospects: existants.length });
 });
 
 // — Liste (filtres sobres : statut, département, recherche) —
@@ -242,14 +190,17 @@ const TRIS: Record<string, string> = {
 
 const TAILLE_PAGE_PROSPECTS = 100;
 
-// Communes dont le maire s'est réellement connecté au moins une fois (users.role='maire',
-// derniere_connexion_streak posé) — le signal le plus fiable de tous, voir /stats-variantes.
+// Communes dont le compte mairie (secrétariat ou maire — voir activerCommuneGratuite, rôle
+// 'admin' depuis le 2026-10-06, 'maire' pour les comptes créés avant cette date) s'est réellement
+// connecté au moins une fois — le signal le plus fiable de tous, voir /stats-variantes. Pas
+// 'citoyen' : on exclut volontairement les comptes citoyens, ce signal porte sur le contact
+// administratif, pas sur la fréquentation générale de l'app (couverte par ailleurs).
 // Résilient (table users toujours présente, mais on protège quand même comme pour communesInscrites).
 async function chargerCommunesConnectees(env: any): Promise<Set<string>> {
-  const maires = await supabaseSelectTout(env, 'users', {
-    select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
+  const comptes = await supabaseSelectTout(env, 'users', {
+    select: 'commune_id,derniere_connexion_streak', role: 'in.(admin,elu,maire,superadmin)',
   }).catch(() => []);
-  return new Set(maires.filter((m: any) => m.derniere_connexion_streak).map((m: any) => m.commune_id));
+  return new Set(comptes.filter((m: any) => m.derniere_connexion_streak).map((m: any) => m.commune_id));
 }
 
 app.get('/prospects', async (c) => {
@@ -273,8 +224,9 @@ app.get('/prospects', async (c) => {
   }).catch(() => []);
   const idsCommunesInscrites = new Set(communesInscrites.map((cm: any) => cm.id));
 
-  // Signal "🔑 le maire s'est connecté" : le plus fiable de tous, plus fort qu'une simple
-  // ouverture d'email. ?maire_connecte=1 filtre la liste dessus.
+  // Signal "🔑 quelqu'un côté mairie s'est connecté" : le plus fiable de tous, plus fort qu'une
+  // simple ouverture d'email. ?maire_connecte=1 filtre la liste dessus (nom de paramètre conservé
+  // pour ne pas casser le frontend, même si ce n'est plus forcément littéralement le maire).
   const idsCommunesConnectees = await chargerCommunesConnectees(c.env);
 
   let idsFiltreCommune: Set<string> | null = null;
@@ -604,12 +556,14 @@ app.get('/prospects/:id', async (c) => {
   if (prospect.commune_id) {
     const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
     commune_slug = commune?.slug || null;
-    // Signal le plus fiable de tous (voir /stats-variantes) : le maire s'est-il RÉELLEMENT
-    // connecté au moins une fois à la commune activée pour ce prospect.
-    const [maire] = await supabaseSelect(c.env, 'users', {
-      select: 'derniere_connexion_streak', commune_id: `eq.${prospect.commune_id}`, role: 'eq.maire',
+    // Signal le plus fiable de tous (voir /stats-variantes) : quelqu'un côté mairie (secrétariat
+    // ou maire) s'est-il RÉELLEMENT connecté au moins une fois à la commune activée pour ce
+    // prospect. Plusieurs comptes possibles une fois une vraie conversion faite (maire + élus) :
+    // le signal est positif si AU MOINS UN s'est déjà connecté.
+    const comptesMairie = await supabaseSelect(c.env, 'users', {
+      select: 'derniere_connexion_streak', commune_id: `eq.${prospect.commune_id}`, role: 'in.(admin,elu,maire,superadmin)',
     });
-    maire_connecte = !!maire?.derniere_connexion_streak;
+    maire_connecte = comptesMairie.some((m: any) => m.derniere_connexion_streak);
   }
 
   const interactions = await supabaseSelect(c.env, 'prospect_interactions', {
@@ -778,7 +732,7 @@ export async function calculerStatsVariantes(env: any): Promise<StatVariante[]> 
   for (const p of prospectsActives) prospectCommune.set(p.id, p.commune_id);
 
   const maires = await supabaseSelectTout(env, 'users', {
-    select: 'commune_id,derniere_connexion_streak', role: 'eq.maire',
+    select: 'commune_id,derniere_connexion_streak', role: 'in.(admin,elu,maire,superadmin)',
   });
   const communesConnectees = new Set<string>();
   for (const m of maires) if (m.derniere_connexion_streak) communesConnectees.add(m.commune_id);
@@ -843,11 +797,16 @@ async function genererSlugUnique(env: any, nom: string): Promise<string> {
 }
 
 // Active une VRAIE commune gratuite pour ce prospect s'il n'en a pas déjà une (plus de démo
-// partagée), et (re)génère un mot de passe provisoire pour son compte maire à CHAQUE envoi — un
+// partagée), et (re)génère un mot de passe provisoire pour son compte à CHAQUE envoi — un
 // prospect encore en cours de prospection n'a pas de mot de passe « définitif » à préserver ;
 // une fois « gagné », ce flux n'est plus jamais appelé (voir prospecterUn, qui court-circuite
 // avant). Décision business du 2026-08-17 : zéro friction, chaque prospect reçoit son propre
 // espace fonctionnel dès le premier envoi de présentation, gratuitement.
+// Rôle 'admin' (pas 'maire') depuis le 2026-10-06 : en pratique c'est quasi toujours le
+// secrétariat qui lit ces emails en premier, jamais le maire lui-même — lui attribuer un
+// rôle/nom de maire était trompeur. 'maire' reste réservé à un vrai maire désigné manuellement
+// via la conversion (voir onboarding.ts). role: 'in.(admin,maire)' ci-dessous pour retrouver
+// sans doublon les comptes déjà créés sous l'ancien comportement (role='maire').
 async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireId: string; maireEmail: string; motDePasse: string }> {
   let communeId: string = prospect.commune_id || '';
 
@@ -872,7 +831,7 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
 
   const motDePasse = genererMotDePasseTemporaire();
   const [maire] = await supabaseSelect(env, 'users', {
-    select: 'id,email', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc',
+    select: 'id,email', commune_id: `eq.${communeId}`, role: 'in.(admin,maire)', order: 'created_at.asc',
   });
   let maireEmail: string;
   let maireId: string;
@@ -882,17 +841,14 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
     await supabaseUpdate(env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${maire.id}` });
   } else {
     maireEmail = prospect.contact_email;
-    // Vrai prénom/nom quand le maire a été identifié via le RNE (voir POST /synchroniser-maires) ;
-    // repli sur un placeholder générique sinon plutôt que de bloquer l'activation — corrigé
-    // automatiquement dès qu'une synchronisation RNE ultérieure identifie ce maire (voir la boucle
-    // corrective de /synchroniser-maires).
-    const prenom = prospect.prenom_maire || 'Maire de';
-    const nom = prospect.prenom_maire && prospect.nom_maire
-      ? nomFamilleMaire(prospect.nom_maire, prospect.prenom_maire)
-      : prospect.nom;
+    // Nom générique ("Administration" + nom de la commune) plutôt que le nom du maire : on ne
+    // sait jamais, à ce stade, qui lit vraiment cet email (très souvent le secrétariat).
+    // compte_provisionne=true (migration 073) : signale que ce compte est auto-créé, pas un vrai
+    // citoyen/admin inscrit — exclu des compteurs "vrais citoyens" (apercu, activité, fiche
+    // commune, voir administration.ts) indépendamment du rôle.
     const [nouveauMaire] = await supabaseInsert(env, 'users', {
       commune_id: communeId, email: maireEmail, password_hash: await hasherMotDePasse(motDePasse),
-      prenom, nom, role: 'maire',
+      prenom: 'Administration', nom: prospect.nom, role: 'admin', compte_provisionne: true,
       consentement_rgpd_le: new Date().toISOString(),
     });
     maireId = nouveauMaire.id;

@@ -1,0 +1,11 @@
+-- db/migrations/073_users_compte_provisionne.sql
+-- Marque les comptes auto-créés à l'activation d'une commune par la prospection (voir
+-- activerCommuneGratuite dans worker/src/backoffice/prospection.ts), avant toute vraie
+-- conversion client — role='admin', nom générique "Administration <commune>", personne
+-- réelle inconnue (en pratique souvent le secrétariat qui lit l'email en premier, jamais
+-- affirmé être le maire depuis le 2026-10-06).
+-- Avant cette date, ce compte portait role='maire' : les compteurs de "vrais citoyens"
+-- (dashboard, activité récente, fiche commune) l'excluaient simplement via le rôle. Une fois
+-- le rôle passé à 'admin' pour ne plus usurper le maire, le rôle seul ne suffit plus à
+-- distinguer ce compte d'un vrai admin promu par un maire — d'où cette colonne dédiée.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS compte_provisionne BOOLEAN NOT NULL DEFAULT false;

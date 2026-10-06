@@ -57,20 +57,24 @@ async function communesGratuitesCreeesIlYA(env: any, joursAvant: number): Promis
   return communes.filter((cm: any) => cm.created_at < fin);
 }
 
-// Priorité : le maire, SI il s'est déjà connecté au moins une fois (users.derniere_connexion_streak).
-// Sinon (cas vécu : un élu gère l'appli au quotidien sous son propre compte, le maire n'a jamais
-// ouvert le sien) on écrit plutôt à la personne la plus active parmi les rôles gestionnaires
-// (admin/elu/maire/superadmin). inclureCitoyen élargit ce dernier recours à N'IMPORTE QUEL
-// compte connecté (citoyen inclus) — réservé aux emails 2/3/4 (simple encouragement) : jamais
-// pour l'email 5, qui affiche un prix et ne doit aller qu'à quelqu'un qui peut légitimement
-// décider d'un abonnement (sinon : promouvoir ce compte en elu/admin depuis la gestion des
-// rôles, ce qui le fait ressortir naturellement ET lui donne les bons droits dans l'appli).
-// Dernier recours dans tous les cas : l'email du maire même jamais connecté, plutôt que rien.
+// Priorité : le compte principal de la commune (le plus ancien créé — compte générique
+// "Administration" avant conversion, maire après, voir activerCommuneGratuite dans
+// prospection.ts), SI il s'est déjà connecté au moins une fois (users.derniere_connexion_streak).
+// Sinon (cas vécu : un élu gère l'appli au quotidien sous son propre compte, ce compte principal
+// n'a jamais été ouvert) on écrit plutôt à la personne la plus active parmi les rôles
+// gestionnaires (admin/elu/maire/superadmin). inclureCitoyen élargit ce dernier recours à
+// N'IMPORTE QUEL compte connecté (citoyen inclus) — réservé aux emails 2/3/4 (simple
+// encouragement) : jamais pour l'email 5, qui affiche un prix et ne doit aller qu'à quelqu'un
+// qui peut légitimement décider d'un abonnement (sinon : promouvoir ce compte en elu/admin
+// depuis la gestion des rôles, ce qui le fait ressortir naturellement ET lui donne les bons
+// droits dans l'appli). Dernier recours dans tous les cas : l'email du compte principal même
+// jamais connecté, plutôt que rien — avant conversion, c'est en pratique le SEUL compte qui
+// existe sur la commune.
 export async function destinataireCommune(env: any, communeId: string, inclureCitoyen: boolean): Promise<string | null> {
-  const [maire] = await supabaseSelect(env, 'users', {
-    select: 'email,derniere_connexion_streak', commune_id: `eq.${communeId}`, role: 'eq.maire', order: 'created_at.asc', limit: '1',
+  const [principal] = await supabaseSelect(env, 'users', {
+    select: 'email,derniere_connexion_streak', commune_id: `eq.${communeId}`, order: 'created_at.asc', limit: '1',
   });
-  if (maire?.email && maire.derniere_connexion_streak) return maire.email;
+  if (principal?.email && principal.derniere_connexion_streak) return principal.email;
 
   const filtresRole: Record<string, string> = { commune_id: `eq.${communeId}` };
   if (!inclureCitoyen) filtresRole.role = 'in.(admin,elu,maire,superadmin)';
@@ -80,7 +84,7 @@ export async function destinataireCommune(env: any, communeId: string, inclureCi
   });
   if (plusActif?.email) return plusActif.email;
 
-  return maire?.email || null;
+  return principal?.email || null;
 }
 
 // communeIds reste toujours une petite cohorte (les communes créées EXACTEMENT hier, ou avant-

@@ -132,8 +132,9 @@ export async function declencherBienvenuePremiereInscription(
     });
     if (!commune || commune.premiere_inscription_citoyen_le) return; // déjà déclenché, ou commune introuvable
 
-    // Un autre compte citoyen existait-il déjà dans cette commune (le compte Maire ne compte
-    // pas, role='maire') ? Si oui, ce n'est pas la première inscription.
+    // Un autre compte citoyen existait-il déjà dans cette commune (le compte administratif —
+    // maire ou générique auto-provisionné — ne compte pas, filtré par role='citoyen' ci-dessous)
+    // ? Si oui, ce n'est pas la première inscription.
     const autresCitoyens = await supabaseSelect(env, 'users', {
       select: 'id', commune_id: `eq.${commune_id}`, role: 'eq.citoyen', id: `neq.${nouvelUtilisateur.id}`, limit: '1',
     });
