@@ -91,7 +91,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       [data-reveal] { opacity: 1; transform: none; transition: none; }
-      .hero-badge::before, .demo-live-badge::before, .btn-cta-green, .btn-cta-outline, .hero-brand-block {
+      .hero-badge::before, .demo-live-badge::before, .btn-cta-green, .btn-cta-outline, .hero-brand-block, .demo-cta {
         animation: none;
       }
     }
@@ -1056,21 +1056,26 @@
       font-size: 0.8rem;
     }
 
+    /* Bouton plein (pas un simple lien discret) + même halo pulsant que les CTA principaux du
+       bas de page (pulse-ring-green, défini plus haut) — on veut que ce lien saute aux yeux
+       immédiatement, pas qu'on le découvre en lisant la liste des fonctionnalités. */
     .demo-cta {
       margin-top: 2rem;
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      color: var(--green);
-      font-size: 0.85rem;
+      background: var(--green);
+      color: white;
+      font-size: 0.9rem;
       font-weight: 600;
       text-decoration: none;
-      border-bottom: 1px solid rgba(46,171,123,0.3);
-      padding-bottom: 2px;
-      transition: border-color 0.2s;
+      padding: 0.85rem 1.6rem;
+      border-radius: 100px;
+      transition: background 0.2s, transform 0.15s;
+      animation: pulse-ring-green 2.6s ease-in-out infinite;
     }
 
-    .demo-cta:hover { border-color: var(--green); }
+    .demo-cta:hover { background: #26976c; transform: translateY(-1px); }
 
     /* iPhone mockup */
     .iphone-wrap {
