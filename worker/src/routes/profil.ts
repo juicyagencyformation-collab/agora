@@ -103,6 +103,16 @@ app.put('/identite', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
 
+  // Compte visiteur démo (voir migration 076) : partagé entre tous les visiteurs anonymes d'une
+  // commune en acces_libre — le renommer affecterait tout le monde, pas seulement la personne
+  // qui a cliqué.
+  const [cible] = await supabaseSelect(c.env, 'users', {
+    select: 'compte_visiteur_demo', id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (cible?.compte_visiteur_demo) {
+    return c.json({ erreur: 'Ce compte de démonstration partagé ne peut pas être modifié.' }, 403);
+  }
+
   const schema = z.object({
     prenom: z.string().min(1).max(80),
     nom: z.string().min(1).max(80),
@@ -162,8 +172,13 @@ app.post('/photo', async (c) => {
   }
 
   const [user] = await supabaseSelect(c.env, 'users', {
-    select: 'photo_profil_r2_key', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
+    select: 'photo_profil_r2_key,compte_visiteur_demo', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
+  // Compte visiteur démo (voir migration 076) : partagé entre tous les visiteurs — même raison
+  // que PUT /identite ci-dessus.
+  if (user?.compte_visiteur_demo) {
+    return c.json({ erreur: 'Ce compte de démonstration partagé ne peut pas être modifié.' }, 403);
+  }
 
   const extension = contentType.split('/')[1];
   const key = `${commune_id}/profils/${user_id}/photo-${crypto.randomUUID()}.${extension}`;

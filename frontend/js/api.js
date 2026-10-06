@@ -1,5 +1,6 @@
 // frontend/js/api.js
 let rafraichissementEnCours = null;
+let tentativeDemoEnCours = null;
 
 // Un seul rafraîchissement de session à la fois. Au réveil de l'app, une bonne dizaine
 // d'appels partent en parallèle (voir dashboard.js) : si le jeton de 15 minutes vient
@@ -18,6 +19,20 @@ function rafraichirSession() {
   return rafraichissementEnCours;
 }
 
+// Pour une commune de démo publique (acces_libre=true en base, voir migration 076) : si la
+// session a expiré/n'existe pas, on ouvre une session "visiteur" partagée plutôt que de renvoyer
+// vers connexion.html — voir POST /:slug/auth/entrer-demo. Sans effet (403, demo.ok === false)
+// sur une commune normale, qui retombe alors sur le renvoi habituel ci-dessous. Mutualisé comme
+// rafraichirSession() : mêmes rafales d'appels concurrents au réveil de l'app.
+function entrerEnModeDemo() {
+  if (!tentativeDemoEnCours) {
+    tentativeDemoEnCours = fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/auth/entrer-demo`, {
+      method: 'POST', credentials: 'include',
+    }).finally(() => { tentativeDemoEnCours = null; });
+  }
+  return tentativeDemoEnCours;
+}
+
 async function appelApi(url, options = {}) {
   const urlComplete = url.toString().startsWith('http') ? url : `${window.API_BASE}${url}`;
   const reponse = await fetch(urlComplete, { ...options, credentials: 'include' });
@@ -25,8 +40,12 @@ async function appelApi(url, options = {}) {
 
   const refresh = await rafraichirSession();
   if (!refresh.ok) {
-    document.location.href = 'connexion.html';
-    throw new Error('Session expirée');
+    const demo = await entrerEnModeDemo();
+    if (!demo.ok) {
+      document.location.href = 'connexion.html';
+      throw new Error('Session expirée');
+    }
+    return fetch(urlComplete, { ...options, credentials: 'include' });
   }
   return fetch(urlComplete, { ...options, credentials: 'include' });
 }

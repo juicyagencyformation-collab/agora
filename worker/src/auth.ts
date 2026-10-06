@@ -146,6 +146,40 @@ app.post('/login', async (c) => {
   });
 });
 
+// POST /entrer-demo — ouvre une session "visiteur" sans identifiants, réservée aux communes de
+// démonstration publique (acces_libre=true en base, jamais via l'interface — voir migration
+// 076). Utilisé par frontend/js/api.js à la place du renvoi habituel vers connexion.html quand
+// une session a expiré/n'existe pas sur une telle commune. Le compte attribué
+// (compte_visiteur_demo, role='citoyen' strict, partagé entre tous les visiteurs) n'a ni mot de
+// passe exploitable ni pouvoir de modération — jamais un vrai compte créé pour l'occasion.
+app.post('/entrer-demo', async (c) => {
+  const commune_id = c.get('commune_id_resolue');
+
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'acces_libre', id: `eq.${commune_id}` });
+  if (!commune?.acces_libre) return c.json({ erreur: 'Accès libre non activé pour cette commune' }, 403);
+
+  const [visiteur] = await supabaseSelect(c.env, 'users', {
+    select: 'id,role', commune_id: `eq.${commune_id}`, compte_visiteur_demo: 'eq.true', limit: '1',
+  });
+  if (!visiteur) return c.json({ erreur: 'Aucun compte visiteur configuré pour cette commune' }, 404);
+
+  const accessToken = await sign(
+    { user_id: visiteur.id, commune_id, role: visiteur.role, exp: Math.floor(Date.now() / 1000) + 900 },
+    c.env.JWT_SECRET,
+  );
+  const refreshToken = genererRefreshToken();
+  await supabaseInsert(c.env, 'refresh_tokens', {
+    commune_id, user_id: visiteur.id,
+    token_hash: await hasherToken(refreshToken),
+    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+  });
+
+  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+
+  return c.json({ ok: true, role: visiteur.role });
+});
+
 const emailSchema = z.object({ email: z.string().email() });
 
 app.post('/mot-de-passe-oublie', async (c) => {
@@ -447,6 +481,16 @@ app.post('/basculer/:autreUserId', jwtMiddleware, async (c) => {
 app.delete('/moi', jwtMiddleware, async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
+
+  // Compte visiteur démo (voir migration 076) : partagé entre tous les visiteurs anonymes d'une
+  // commune en acces_libre — le supprimer casserait la démo pour tout le monde, pas seulement
+  // pour la personne qui a cliqué.
+  const [utilisateur] = await supabaseSelect(c.env, 'users', {
+    select: 'compte_visiteur_demo', id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (utilisateur?.compte_visiteur_demo) {
+    return c.json({ erreur: 'Ce compte de démonstration ne peut pas être supprimé.' }, 403);
+  }
 
   await supabaseDelete(c.env, 'push_subscriptions', { user_id: `eq.${user_id}` });
   await supabaseDelete(c.env, 'refresh_tokens', { user_id: `eq.${user_id}` });
