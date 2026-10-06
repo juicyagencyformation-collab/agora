@@ -91,7 +91,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       [data-reveal] { opacity: 1; transform: none; transition: none; }
-      .hero-badge::before, .demo-live-badge::before, .btn-cta-green, .btn-cta-outline, .hero-brand-block, .demo-cta, .demo-cta-fleche {
+      .hero-badge::before, .demo-live-badge::before, .btn-cta-green, .btn-cta-outline, .hero-brand-block, .demo-cta {
         animation: none;
       }
     }
@@ -1059,6 +1059,15 @@
     /* Bouton plein (pas un simple lien discret) + même halo pulsant que les CTA principaux du
        bas de page (pulse-ring-green, défini plus haut) — on veut que ce lien saute aux yeux
        immédiatement, pas qu'on le découvre en lisant la liste des fonctionnalités. */
+    /* Le bouton entier glisse de droite à gauche sur la moitié de sa propre largeur (translateX
+       en %, relatif à sa propre boîte) en plus de son halo pulsant — deux animations combinées
+       sur le même élément, chacune sur sa propre propriété (box-shadow / transform). En pause
+       au survol : on ne veut pas de mouvement qui gêne pendant qu'on vise le bouton. */
+    @keyframes bouton-glisse {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(-50%); }
+    }
+
     .demo-cta {
       margin-top: 2rem;
       display: inline-flex;
@@ -1071,23 +1080,11 @@
       text-decoration: none;
       padding: 0.85rem 1.6rem;
       border-radius: 100px;
-      transition: background 0.2s, transform 0.15s;
-      animation: pulse-ring-green 2.6s ease-in-out infinite;
+      transition: background 0.2s;
+      animation: pulse-ring-green 2.6s ease-in-out infinite, bouton-glisse 2.2s ease-in-out infinite;
     }
 
-    .demo-cta:hover { background: #26976c; transform: translateY(-1px); }
-
-    /* La flèche glisse de droite à gauche sur environ la moitié de sa propre largeur — un
-       mouvement propre à la flèche, pas à tout le bouton (qui a déjà son halo pulsant). */
-    @keyframes fleche-glisse {
-      0%, 100% { transform: translateX(0); }
-      50% { transform: translateX(-6px); }
-    }
-
-    .demo-cta-fleche {
-      display: inline-block;
-      animation: fleche-glisse 1.4s ease-in-out infinite;
-    }
+    .demo-cta:hover { background: #26976c; animation-play-state: paused; }
 
     /* iPhone mockup */
     .iphone-wrap {
@@ -1475,7 +1472,7 @@
         </div>
 
         <a href="https://plateforme-agora.fr/bonvivre/" target="_blank" class="demo-cta">
-          Ouvrir en plein écran <span class="demo-cta-fleche">→</span>
+          Ouvrir en plein écran →
         </a>
       </div>
 
