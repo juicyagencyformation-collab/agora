@@ -75,8 +75,6 @@ function renderArticle(article) {
   el.className = 'carte-article-compacte';
   el.dataset.articleId = article.id;
 
-  const extraitBrut = texteBrutDepuisHtml(article.contenu_html).replace(/\s+/g, ' ').trim();
-  const extrait = extraitBrut.slice(0, 110);
   const miniature = article.images?.[0]?.url;
   const dateAffichee = new Date(article.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
@@ -98,7 +96,6 @@ function renderArticle(article) {
       <div class="texte-entete-article">
         <span class="badge-categorie-article">${libelleCategorie}</span>
         <h3 class="titre-article-compact">${escapeAttr(article.titre)}</h3>
-        <p class="extrait-article-compact">${escapeAttr(extrait)}${extraitBrut.length > 110 ? '…' : ''}</p>
         <span class="date-article-compact">${dateAffichee}${article.deja_lu ? ' · lu ✓' : ''}</span>
       </div>
     </button>
