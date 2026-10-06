@@ -224,3 +224,84 @@ export async function synchroniserEmailsRecusProspection(env: any) {
   await synchroniserEmailsRecus(env);
 }
 
+// Rafraîchissement quotidien du contenu de démo de "Bonvivre" (voir migrations 075 et 077) —
+// ce contenu a été semé avec des décalages relatifs ("il y a 2 jours", "dans 4 jours"...) mais
+// reste figé en absolu une fois en base : sans ce correctif, la démo vieillit comme un vrai
+// contenu et finit par paraître abandonnée (retour utilisateur du 2026-10-06, actus de juin
+// vues en octobre). On recale chaque nuit les mêmes décalages par rapport à "maintenant", pour
+// une démo toujours fraîche, sans jamais avoir à y retoucher à la main. Les décalages ci-dessous
+// doivent rester synchronisés avec ceux des deux migrations de seed — elles ne tournent qu'une
+// fois (à la création des lignes), ce correctif tourne toutes les nuits et fait foi ensuite.
+//
+// Sécurité : on exige acces_libre = true en plus du slug, pas l'un ou l'autre — si "bonvivre"
+// était un jour repurposé en vraie commune cliente (slug conservé mais acces_libre repassé à
+// false), ce correctif doit s'arrêter de lui-même plutôt que d'écraser silencieusement les
+// dates de contenus réels qu'un élu aurait pu nommer à l'identique par coïncidence. Toujours
+// scopé par commune_id sur chaque requête (comme toute écriture de ce projet), donc même en cas
+// de bug ici, aucune autre commune ne peut être affectée. Entouré d'un try/catch : une panne
+// Supabase sur ce correctif cosmétique ne doit jamais faire échouer les tâches plus critiques
+// du même cron (relances de facturation, prospection...) qui s'exécutent avant lui.
+export async function rafraichirContenuDemoBonvivre(env: any) {
+  try {
+    await rafraichirContenuDemoBonvivreInterne(env);
+  } catch (err) {
+    console.error('rafraichirContenuDemoBonvivre a échoué (sans impact sur le reste du cron) :', err);
+  }
+}
+
+async function rafraichirContenuDemoBonvivreInterne(env: any) {
+  const [commune] = await supabaseSelect(env, 'communes', { select: 'id,acces_libre', slug: 'eq.bonvivre' });
+  if (!commune || !commune.acces_libre) return;
+  const commune_id = commune.id;
+
+  const jours = (n: number) => new Date(Date.now() + n * 24 * 3600 * 1000).toISOString();
+  const heures = (n: number) => new Date(Date.now() + n * 3600 * 1000).toISOString();
+  const plusHeures = (iso: string, h: number) => new Date(new Date(iso).getTime() + h * 3600 * 1000).toISOString();
+
+  // Actualités : created_at = updated_at (jamais modifiées après publication dans ce seed).
+  const actus: Array<[string, number]> = [
+    ['Le marché du samedi fait son grand retour !', -2],
+    ["Travaux de réfection de la rue principale : ce qu'il faut savoir", -5],
+    ['Un nouveau composteur collectif au quartier des Tilleuls', -9],
+    ['Fête de la musique : le programme complet', -1],
+    ['Nouveaux horaires de la mairie à partir de septembre', -12],
+    ['Collecte de jouets solidaire : donnez une seconde vie à vos jouets', -1],
+  ];
+  for (const [titre, decalageJours] of actus) {
+    const date = jours(decalageJours);
+    await supabaseUpdate(env, 'articles', { created_at: date, updated_at: date }, { commune_id: `eq.${commune_id}`, titre: `eq.${titre}` });
+  }
+
+  // Alertes
+  await supabaseUpdate(env, 'alertes', { created_at: heures(-3) }, { commune_id: `eq.${commune_id}`, titre: "eq.Fuite d'eau rue des Lilas" });
+  await supabaseUpdate(env, 'alertes', { created_at: jours(-1) }, { commune_id: `eq.${commune_id}`, titre: "eq.Nid de frelons près de l'école" });
+  await supabaseUpdate(env, 'alertes', { created_at: jours(-10), reponse_le: jours(-7) }, { commune_id: `eq.${commune_id}`, titre: "eq.Éclairage public défaillant place de l'Église" });
+
+  // Coups de main : [titre, décalage création (jours), décalage expiration (jours)]
+  const coupsDeMain: Array<[string, number, number]> = [
+    ['Je prête ma perceuse et mon établi', -4, 85],
+    ["Besoin d'aide pour tailler une haie", -2, 20],
+    ['Disponible pour du babysitting occasionnel', -6, 60],
+    ['Covoiturage recherché pour le marché de Noël', -1, 25],
+  ];
+  for (const [titre, creation, expiration] of coupsDeMain) {
+    await supabaseUpdate(env, 'coups_de_main', { created_at: jours(creation), expires_at: jours(expiration) }, { commune_id: `eq.${commune_id}`, titre: `eq.${titre}` });
+  }
+
+  // Agenda : [titre, décalage création (jours), décalage début (jours), durée (heures)]
+  const agenda: Array<[string, number, number, number]> = [
+    ['Marché hebdomadaire', -2, 4, 5],
+    ['Conseil municipal ouvert au public', -3, 9, 2],
+    ['Fête de la musique', -1, 14, 6],
+    ['Atelier compostage', -5, 6, 2],
+    ['Repas des aînés', -4, 22, 3],
+    ['Commémoration du 11 Novembre', -6, 18, 1],
+  ];
+  for (const [titre, creation, debut, dureeHeures] of agenda) {
+    const dateDebut = jours(debut);
+    await supabaseUpdate(env, 'events', {
+      created_at: jours(creation), date_debut: dateDebut, date_fin: plusHeures(dateDebut, dureeHeures),
+    }, { commune_id: `eq.${commune_id}`, titre: `eq.${titre}` });
+  }
+}
+

@@ -4,7 +4,7 @@ import { cors } from 'hono/cors';
 import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection } from './cron';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 
@@ -156,6 +156,7 @@ export default {
       await verifierRelancesInactiviteProspection(env);
       await verifierSequenceOnboardingCommunes(env);
       await synchroniserEmailsRecusProspection(env);
+      await rafraichirContenuDemoBonvivre(env);
     } else if (event.cron === '0 */6 * * *') {
       await synchroniserToutesLesLois(env);
     } else if (event.cron === '0 6 * * *') {
