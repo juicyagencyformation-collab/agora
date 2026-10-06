@@ -44,19 +44,19 @@ Formulaire "Département" (ex. `80`) + "Population max" (optionnel) → source o
 
 ### 2.2 Synchroniser les noms des maires
 
-Bouton **"👤 Synchroniser les noms des maires"** — télécharge le Répertoire National des Élus (RNE, data.gouv.fr) et met à jour le nom du maire sur tous les prospects importés. Corrige aussi automatiquement les comptes maire déjà créés qui portent encore le nom générique "Maire de {commune}" — **jamais** si le nom a déjà été corrigé à la main.
+Bouton **"👤 Synchroniser les noms des maires"** — télécharge le Répertoire National des Élus (RNE, data.gouv.fr) et met à jour le nom du maire affiché sur la fiche prospect (champ "Contact mairie"). Ne touche plus aux comptes de connexion depuis le 2026-10-06 (voir ci-dessous).
 
 ### 2.3 Filtrer et trier la liste
 
 Filtres disponibles : statut, département, recherche texte, tri (nom/département/population), et deux signaux d'intérêt à surveiller en priorité :
 - 🔥 **"S'est inscrit"** — un citoyen s'est inscrit lui-même (signal fort).
-- 🔑 **"Le maire s'est connecté"** — le signal le plus fiable de tous, à privilégier pour prioriser les relances.
+- 🔑 **"Quelqu'un s'est connecté"** — le signal le plus fiable de tous, à privilégier pour prioriser les relances (pas forcément le maire en personne — voir §2.4).
 
 Trois vues : **Liste** (tableau), **Carte** (Leaflet, prospects géolocalisés), **Réponses reçues** (voir §3).
 
 ### 2.4 Envoyer une présentation
 
-- **Unitaire** (fiche prospect) : bouton **"✉ Envoyer la présentation"** — active automatiquement une commune gratuite si elle n'existe pas encore (crée la commune + un compte maire provisoire), envoie l'email avec identifiants, passe le statut en "contacté", programme une relance à +7 jours.
+- **Unitaire** (fiche prospect) : bouton **"✉ Envoyer la présentation"** — active automatiquement une commune gratuite si elle n'existe pas encore (crée la commune + un compte de connexion provisoire, nom générique "Administration" — **pas** un compte "maire" : en pratique c'est quasi toujours le secrétariat qui lit cet email en premier), envoie l'email avec identifiants, passe le statut en "contacté", programme une relance à +7 jours.
 - **En lot** (sélection multiple dans la liste) : **max 40 par envoi**, traités un par un pour qu'un échec isolé n'interrompe pas les suivants. ⚠️ Aucun renvoi automatique aux prospects déjà contactés — utilise plutôt le bouton unitaire ✉ ou "Activer et renvoyer" (§2.6) pour ceux-là.
 - En cas d'échecs sur un envoi groupé : bouton **"↻ Relancer les échecs"** ne reprend que les échecs.
 
@@ -173,8 +173,8 @@ Bouton "👥 Gérer les utilisateurs" sur la fiche.
 
 | Action | Effet | Quand l'utiliser |
 |---|---|---|
-| 🔑 Se connecter en tant que | Ouvre une session sans toucher au mot de passe du maire | Cas général, réutilisable à volonté |
-| Renvoyer les accès | **Écrase le mot de passe actuel** du maire | Uniquement si la personne a vraiment perdu ses accès |
+| 🔑 Se connecter en tant que | Ouvre une session sans toucher au mot de passe du compte principal de la commune | Cas général, réutilisable à volonté |
+| Renvoyer les accès | **Écrase le mot de passe actuel** du compte principal | Uniquement si la personne a vraiment perdu ses accès |
 | 🔗 Lien de connexion directe | Lien à usage unique, valable 48h | Pour l'envoyer par email à quelqu'un qui n'a pas encore de mot de passe en tête |
 
 ### 6.7 Statut client
