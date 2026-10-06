@@ -97,6 +97,7 @@ async function initCommune() {
     window.COMMUNE_LNG = commune.lng ?? 1.4442;
     window.COMMUNE_COORDS_MANQUANTES = commune.lat === null;
     window.COMMUNE_LOGO_URL = commune.logo_url ?? null;
+    window.COMMUNE_ACCES_LIBRE = !!commune.acces_libre;
     if (commune.nom) document.getElementById('nom-commune').textContent = commune.nom;
     appliquerTheme(commune);
   } catch {}
@@ -122,13 +123,23 @@ const CHARGEURS = {
 };
 const dejaCharges = new Set();
 
+// Seuls ces onglets restent directement visibles dans la barre du bas mobile (voir index.html,
+// .barre-onglets) — le reste se trouve derrière le bouton "Plus", pour ne pas donner ~15
+// onglets à digérer d'un coup à quelqu'un qui découvre l'appli.
+const ONGLETS_BARRE_PRINCIPALE = ['accueil', 'actualites', 'agenda', 'alertes', 'coups-de-main'];
+
 function activerOnglet(cle) {
   document.querySelectorAll('.onglet-contenu').forEach((s) => s.hidden = true);
   document.getElementById(`onglet-${cle}`).hidden = false;
 
-  document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach((b) => {
+  document.querySelectorAll('.barre-onglets button, .sidebar-nav button, .feuille-plus-onglets button').forEach((b) => {
     b.classList.toggle('active', b.dataset.onglet === cle);
   });
+  // L'onglet actif vit dans la feuille "Plus" (pas dans les 5 boutons principaux) : le bouton
+  // "Plus" lui-même reste visuellement marqué actif, sinon la barre du bas semble ne rien
+  // signaler du tout une fois la feuille refermée.
+  document.getElementById('btn-ouvrir-plus-onglets')?.classList.toggle('active', !ONGLETS_BARRE_PRINCIPALE.includes(cle));
+  document.getElementById('feuille-plus-onglets').hidden = true;
 
   // Bouton retour du téléphone (voir aussi le popstate dans utils.js) : depuis un onglet ≠
   // Accueil, un seul niveau d'historique suffit (Accueil ↔ onglet courant), qu'on pousse en
@@ -170,11 +181,21 @@ async function ouvrirModaleModuleVerrouille(cleHtml) {
   }
 }
 
-document.querySelectorAll('.barre-onglets button, .sidebar-nav button').forEach((btn) => {
+document.querySelectorAll('.barre-onglets button[data-onglet], .sidebar-nav button, .feuille-plus-onglets button[data-onglet]').forEach((btn) => {
   btn.addEventListener('click', () => {
     if (btn.classList.contains('onglet-verrouille')) { ouvrirModaleModuleVerrouille(btn.dataset.onglet); return; }
     activerOnglet(btn.dataset.onglet);
   });
+});
+
+document.getElementById('btn-ouvrir-plus-onglets')?.addEventListener('click', () => {
+  document.getElementById('feuille-plus-onglets').hidden = false;
+});
+document.getElementById('btn-fermer-plus-onglets')?.addEventListener('click', () => {
+  document.getElementById('feuille-plus-onglets').hidden = true;
+});
+document.getElementById('fond-feuille-plus')?.addEventListener('click', () => {
+  document.getElementById('feuille-plus-onglets').hidden = true;
 });
 
 (async function initApp() {

@@ -13,7 +13,7 @@ const app = new Hono();
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id_resolue') ?? c.get('commune_id');
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,departement,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date,horaires_ouverture,permanences,telephone_mairie,email_mairie',
+    select: 'id,slug,nom,population,departement,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date,horaires_ouverture,permanences,telephone_mairie,email_mairie,acces_libre',
     id: `eq.${commune_id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);

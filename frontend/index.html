@@ -9,14 +9,15 @@
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20261005-6">
+  <link rel="stylesheet" href="/css/base.css?v=20261006-3">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261006-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261006-3">
 </head>
 <body>
 
   <div id="banniere-onboarding-pwa" hidden></div>
+  <div id="bandeau-demo" hidden></div>
 
   <header class="entete-app">
     <h1 id="nom-commune">Ag<em>o</em>ra</h1>
@@ -699,21 +700,34 @@
   <nav class="barre-onglets">
     <button class="active" data-onglet="accueil"><span class="ic">🏠</span><span>Accueil</span></button>
     <button data-onglet="actualites"><span class="ic">📰</span><span>Actus</span></button>
-    <button data-onglet="alertes"><span class="ic">🔔</span><span>Alertes</span></button>
-    <button data-onglet="thermometre"><span class="ic">🌡️</span><span>Thermo</span></button>
-    <button data-onglet="mur"><span class="ic">💬</span><span>Voisins</span></button>
     <button data-onglet="agenda"><span class="ic">📅</span><span>Agenda</span></button>
+    <button data-onglet="alertes"><span class="ic">🔔</span><span>Alertes</span></button>
     <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Entraide</span></button>
-    <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse</span></button>
-    <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
-    <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
-    <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
-    <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
-    <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo</span></button>
-    <button data-onglet="memoire"><span class="ic">📖</span><span>Mémoire</span></button>
-    <button data-onglet="profil"><span class="ic">⭐</span><span>Profil</span></button>
-    <button data-onglet="moderation"><span class="ic">👑</span><span>Modération</span></button>
+    <button type="button" id="btn-ouvrir-plus-onglets"><span class="ic">⋯</span><span>Plus</span></button>
   </nav>
+
+  <div id="feuille-plus-onglets" class="feuille-plus-onglets" hidden>
+    <div id="fond-feuille-plus" class="fond-feuille-plus"></div>
+    <div class="contenu-feuille-plus">
+      <div class="entete-feuille-plus">
+        <strong>Plus</strong>
+        <button type="button" id="btn-fermer-plus-onglets">✕</button>
+      </div>
+      <div class="grille-feuille-plus">
+        <button data-onglet="thermometre"><span class="ic">🌡️</span><span>Thermomètre</span></button>
+        <button data-onglet="mur"><span class="ic">💬</span><span>Mur des voisins</span></button>
+        <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse au trésor</span></button>
+        <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
+        <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
+        <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
+        <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
+        <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo du jour</span></button>
+        <button data-onglet="memoire"><span class="ic">📖</span><span>Mémoire</span></button>
+        <button data-onglet="profil"><span class="ic">⭐</span><span>Mon profil</span></button>
+        <button data-onglet="moderation"><span class="ic">👑</span><span>Modération</span></button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -739,10 +753,10 @@
   <script src="/js/memoire.js?v=20261005-6"></script>
   <script src="/js/enigmes.js?v=20261005-6"></script>
   <script src="/js/profil.js?v=20261005-6"></script>
-  <script src="/js/notifications.js?v=20261005-6"></script>
+  <script src="/js/notifications.js?v=20261006-3"></script>
   <script src="/js/lois.js?v=20261005-6"></script>
   <script src="/js/moderation.js?v=20261005-6"></script>
   <script src="/js/participation-citoyenne.js?v=20261005-6"></script>
-  <script src="/js/navigation.js?v=20261005-6"></script>
+  <script src="/js/navigation.js?v=20261006-3"></script>
 </body>
 </html>

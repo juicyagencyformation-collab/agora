@@ -168,6 +168,13 @@ function initSectionInstallationProfil() {
 const TROIS_JOURS_MS = 3 * 24 * 3600 * 1000;
 
 function initOnboardingPwa() {
+  // Commune de démo publique (acces_libre, voir migration 076) : un visiteur qui découvre
+  // l'appli n'a rien demandé (installation, notifications) — remplace le message d'accueil
+  // habituel par un simple rappel que c'est une démonstration, sans action à faire.
+  if (window.COMMUNE_ACCES_LIBRE) {
+    afficherBanniereDemo();
+    return;
+  }
   if (estDejaInstallee()) {
     // Déjà installée : plus besoin de rappel d'installation, jamais.
     if (Notification?.permission === 'default') afficherBanniereOnboarding();
@@ -180,6 +187,20 @@ function initOnboardingPwa() {
   if (Date.now() - dernierRappel >= TROIS_JOURS_MS) {
     afficherBanniereOnboarding();
   }
+}
+
+// Bandeau fin et non bloquant (contrairement à afficherBanniereOnboarding, une vraie fenêtre
+// modale plein écran) : un visiteur de démo doit pouvoir explorer tout de suite, pas se voir
+// bloqué par une fenêtre avant d'avoir rien vu de l'appli.
+function afficherBanniereDemo() {
+  const zone = document.getElementById('bandeau-demo');
+  if (!zone) return;
+  zone.innerHTML = `
+    🔍 Vous visitez une commune de démonstration — naviguez librement, rien n'est enregistré.
+    <button type="button" id="btn-fermer-bandeau-demo">✕</button>
+  `;
+  zone.hidden = false;
+  zone.querySelector('#btn-fermer-bandeau-demo').addEventListener('click', () => { zone.hidden = true; });
 }
 
 function afficherBanniereOnboarding() {

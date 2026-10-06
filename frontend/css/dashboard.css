@@ -521,6 +521,19 @@ h1, h2, h3, h4, p, span, a, button {
   margin-bottom: 10px; cursor: zoom-in; display: block;
 }
 
+/* ─── Bandeau commune de démo (acces_libre) : fin, non bloquant, en haut de l'écran ─── */
+#bandeau-demo {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: var(--eauXL, #eef6f7); color: var(--eau); border-bottom: 1px solid var(--eauL, #cfe6e8);
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; text-align: center;
+  padding: 8px 36px 8px 12px; position: relative;
+}
+#bandeau-demo[hidden] { display: none; }
+#bandeau-demo #btn-fermer-bandeau-demo {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--eau); font-size: 13px; cursor: pointer; padding: 4px;
+}
+
 /* ─── Bannière d'onboarding (installation + notifications) ─── */
 #banniere-onboarding-pwa {
   position: fixed; inset: 0; z-index: 950;
