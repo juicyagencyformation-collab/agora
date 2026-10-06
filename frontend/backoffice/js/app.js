@@ -157,7 +157,7 @@ function backoffice() {
     modeleFicheMsg: '',
     contenuTexte: {
       popup_verrouille_titre: '', popup_verrouille_corps: '',
-      checklist_titre: '', checklist_item_article: '', checklist_item_dechets: '', checklist_item_collegue: '',
+      checklist_titre: '', checklist_item_profil: '', checklist_item_agenda: '', checklist_item_article: '', checklist_item_dechets: '', checklist_item_collegue: '',
     },
     contenuTexteEnCours: false,
     contenuTexteMsg: '',

@@ -152,12 +152,18 @@ async function chargerChecklistOnboarding() {
   const cleMasquee = `agora_checklist_masquee_${window.COMMUNE_SLUG}`;
   if (localStorage.getItem(cleMasquee)) { zone.hidden = true; return; }
 
-  const [resActus, resDechets, resUtilisateurs, textes] = await Promise.all([
+  const [resProfil, resAgenda, resActus, resDechets, resUtilisateurs, textes] = await Promise.all([
+    appelApi(`/${window.COMMUNE_SLUG}/profil`),
+    appelApi(`/${window.COMMUNE_SLUG}/agenda`),
     appelApi(`/${window.COMMUNE_SLUG}/actus?section=actualites`),
     appelApi(`/${window.COMMUNE_SLUG}/dechets`),
     appelApi(`/${window.COMMUNE_SLUG}/moderation/utilisateurs`),
     chargerContenuTexteCitoyen(),
   ]);
+  // "Administration" = nom générique posé automatiquement à l'activation par la prospection
+  // (voir activerCommuneGratuite côté Worker) — pas encore personnalisé par qui que ce soit.
+  const aProfil = resProfil.ok && (await resProfil.json()).prenom !== 'Administration';
+  const aEvenement = resAgenda.ok && ((await resAgenda.json()).events?.length > 0);
   const aArticle = resActus.ok && ((await resActus.json()).articles?.length > 0);
   const aDechets = resDechets.ok && ((await resDechets.json()).collectes?.length > 0);
   let aCollegue = false;
@@ -166,7 +172,7 @@ async function chargerChecklistOnboarding() {
     aCollegue = utilisateurs.filter((u) => ['admin', 'elu', 'maire', 'superadmin'].includes(u.role)).length > 1;
   }
 
-  if (aArticle && aDechets && aCollegue) { zone.hidden = true; return; } // tout est déjà fait
+  if (aProfil && aEvenement && aArticle && aDechets && aCollegue) { zone.hidden = true; return; } // tout est déjà fait
 
   const etape = (fait, texte, cibleOnglet) => `
     <li class="${fait ? 'etape-checklist-faite' : ''}" ${!fait ? `data-onglet-cible="${cibleOnglet}"` : ''}>
@@ -180,6 +186,8 @@ async function chargerChecklistOnboarding() {
       <button type="button" class="btn-fermer-checklist" title="Masquer">✕</button>
       <strong>${textes.checklist_titre || '👋 Bien démarrer avec Plateforme-Agora'}</strong>
       <ul class="liste-checklist-onboarding">
+        ${etape(aProfil, textes.checklist_item_profil || 'Changer le nom et prénom dans Mon profil', 'profil')}
+        ${etape(aEvenement, textes.checklist_item_agenda || 'Ajouter des dates d\'événements dans Agenda', 'agenda')}
         ${etape(aArticle, textes.checklist_item_article || 'Publier un premier article', 'actualites')}
         ${etape(aDechets, textes.checklist_item_dechets || 'Renseigner le calendrier des déchets', 'moderation')}
         ${etape(aCollegue, textes.checklist_item_collegue || 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'moderation')}

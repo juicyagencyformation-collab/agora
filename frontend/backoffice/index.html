@@ -1989,14 +1989,18 @@
               <textarea x-model="contenuTexte.popup_verrouille_corps" rows="5" style="font-family:monospace; font-size:12.5px"></textarea>
 
               <div class="bo-section-titre">Checklist de démarrage (page Accueil)</div>
-              <div class="bo-info" style="margin:-4px 0 8px">Affichée aux gestionnaires (admin/élu/maire) d'une commune tant que les 3 étapes ne sont pas toutes faites.</div>
+              <div class="bo-info" style="margin:-4px 0 8px">Affichée aux gestionnaires (admin/élu/maire) d'une commune tant que les 5 étapes ne sont pas toutes faites.</div>
               <label style="margin-top:0">Titre</label>
               <input type="text" x-model="contenuTexte.checklist_titre" maxlength="200" />
-              <label>Étape 1 — publier un article</label>
+              <label>Étape 1 — changer nom/prénom dans Mon profil</label>
+              <input type="text" x-model="contenuTexte.checklist_item_profil" maxlength="200" />
+              <label>Étape 2 — ajouter un événement dans Agenda</label>
+              <input type="text" x-model="contenuTexte.checklist_item_agenda" maxlength="200" />
+              <label>Étape 3 — publier un article</label>
               <input type="text" x-model="contenuTexte.checklist_item_article" maxlength="200" />
-              <label>Étape 2 — calendrier des déchets</label>
+              <label>Étape 4 — calendrier des déchets</label>
               <input type="text" x-model="contenuTexte.checklist_item_dechets" maxlength="200" />
-              <label>Étape 3 — ajouter un collègue</label>
+              <label>Étape 5 — ajouter un collègue</label>
               <input type="text" x-model="contenuTexte.checklist_item_collegue" maxlength="200" />
 
               <div style="display:flex; align-items:center; gap:12px; margin-top:12px">
@@ -3550,7 +3554,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261006-2"></script>
+  <script src="/backoffice/js/app.js?v=20261006-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>

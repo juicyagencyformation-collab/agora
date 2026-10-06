@@ -18,6 +18,8 @@ export const DEFAUTS_CONTENU_TEXTE: Record<string, string> = {
     + 'l\'email de bienvenue ou appelez Léandre au <a href="tel:0648061097">06 48 06 10 97</a> — '
     + 'pas de formulaire à remplir, juste une conversation.</p>',
   checklist_titre: '👋 Bien démarrer avec Plateforme-Agora',
+  checklist_item_profil: 'Changer le nom et prénom dans Mon profil',
+  checklist_item_agenda: 'Ajouter des dates d\'événements dans Agenda',
   checklist_item_article: 'Publier un premier article',
   checklist_item_dechets: 'Renseigner le calendrier des déchets',
   checklist_item_collegue: 'Donner un accès à un collègue (Modération → Gestion des rôles)',
