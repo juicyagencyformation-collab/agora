@@ -156,7 +156,8 @@ export default {
       await verifierRelancesInactiviteProspection(env);
       await verifierSequenceOnboardingCommunes(env);
       await synchroniserEmailsRecusProspection(env);
-      await rafraichirContenuDemoBonvivre(env);
+      // rafraichirContenuDemoBonvivre(env) désactivé le 2026-10-07 sur demande explicite — voir
+      // la mémoire "Cron dates démo bonvivre" pour le pourquoi et comment le réactiver proprement.
     } else if (event.cron === '0 */6 * * *') {
       await synchroniserToutesLesLois(env);
     } else if (event.cron === '0 6 * * *') {

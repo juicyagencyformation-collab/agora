@@ -249,6 +249,45 @@ export async function rafraichirContenuDemoBonvivre(env: any) {
   }
 }
 
+// Décalage UTC (en minutes) d'un fuseau à un instant donné — gère automatiquement l'heure d'été/
+// hiver, sans dépendance externe (Intl à heure fixe, dispo nativement dans le runtime Workers).
+function decalageUTCMinutes(date: Date, zone: string): number {
+  const parts: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat('en-US', {
+    timeZone: zone, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(date)) parts[p.type] = p.value;
+  const commeUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second);
+  return Math.round((commeUTC - date.getTime()) / 60000);
+}
+
+// Instant UTC correspondant à heure:minute LOCAL PARIS le jour calendaire de `jourCalendaire`
+// (seule sa partie année/mois/jour UTC est utilisée). Centralise la gestion CET/CEST : ne jamais
+// faire `new Date(... + n * 24h)` puis afficher l'heure attendue sans passer par cette fonction,
+// sous peine de revivre le bug des heures "14:39"/"08:14" (décalage CEST/CET non pris en compte).
+function instantParis(jourCalendaire: Date, heure: number, minute: number): Date {
+  const aaaaMmJj = jourCalendaire.toISOString().slice(0, 10);
+  const approx = new Date(`${aaaaMmJj}T${String(heure).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`);
+  return new Date(approx.getTime() - decalageUTCMinutes(approx, 'Europe/Paris') * 60000);
+}
+
+// Contenu "evergreen" sans date réelle (marché, atelier...) : toujours dans `nbJours` jours à
+// partir d'aujourd'hui, à une heure ronde fixe (heure de Paris).
+function dansJoursA(nbJours: number, heure: number, minute = 0): Date {
+  return instantParis(new Date(Date.now() + nbJours * 24 * 3600 * 1000), heure, minute);
+}
+
+// Contenu ancré sur une vraie date calendaire récurrente (11 Novembre, Halloween...) : la
+// PROCHAINE occurrence de jour/mois à heure fixe (heure de Paris) — bascule automatiquement sur
+// l'année suivante une fois la date dépassée, pour ne jamais sembler périmé ni dans le passé
+// (contrairement à un décalage relatif comme "+18 jours", qui n'a pas de sens pour une date fixe
+// — bug corrigé le 2026-10-07 : "Commémoration du 11 Novembre" placée au 25 octobre).
+function prochaineOccurrence(mois: number, jourDuMois: number, heure: number, minute = 0): Date {
+  const annee = new Date().getUTCFullYear();
+  const cetteAnnee = instantParis(new Date(Date.UTC(annee, mois - 1, jourDuMois)), heure, minute);
+  return cetteAnnee.getTime() > Date.now() ? cetteAnnee : instantParis(new Date(Date.UTC(annee + 1, mois - 1, jourDuMois)), heure, minute);
+}
+
 async function rafraichirContenuDemoBonvivreInterne(env: any) {
   const [commune] = await supabaseSelect(env, 'communes', { select: 'id,acces_libre', slug: 'eq.bonvivre' });
   if (!commune || !commune.acces_libre) return;
@@ -256,14 +295,13 @@ async function rafraichirContenuDemoBonvivreInterne(env: any) {
 
   const jours = (n: number) => new Date(Date.now() + n * 24 * 3600 * 1000).toISOString();
   const heures = (n: number) => new Date(Date.now() + n * 3600 * 1000).toISOString();
-  const plusHeures = (iso: string, h: number) => new Date(new Date(iso).getTime() + h * 3600 * 1000).toISOString();
 
   // Actualités : created_at = updated_at (jamais modifiées après publication dans ce seed).
   const actus: Array<[string, number]> = [
     ['Le marché du samedi fait son grand retour !', -2],
     ["Travaux de réfection de la rue principale : ce qu'il faut savoir", -5],
     ['Un nouveau composteur collectif au quartier des Tilleuls', -9],
-    ['Fête de la musique : le programme complet', -1],
+    ['Halloween des enfants : le programme complet', -1],
     ['Nouveaux horaires de la mairie à partir de septembre', -12],
     ['Collecte de jouets solidaire : donnez une seconde vie à vos jouets', -1],
   ];
@@ -288,19 +326,37 @@ async function rafraichirContenuDemoBonvivreInterne(env: any) {
     await supabaseUpdate(env, 'coups_de_main', { created_at: jours(creation), expires_at: jours(expiration) }, { commune_id: `eq.${commune_id}`, titre: `eq.${titre}` });
   }
 
-  // Agenda : [titre, décalage création (jours), décalage début (jours), durée (heures)]
-  const agenda: Array<[string, number, number, number]> = [
-    ['Marché hebdomadaire', -2, 4, 5],
-    ['Conseil municipal ouvert au public', -3, 9, 2],
-    ['Fête de la musique', -1, 14, 6],
-    ['Atelier compostage', -5, 6, 2],
-    ['Repas des aînés', -4, 22, 3],
-    ['Commémoration du 11 Novembre', -6, 18, 1],
+  // Agenda — contenu "evergreen" : toujours à N jours d'aujourd'hui, heure ronde fixe (Paris).
+  // [titre, décalage création (jours), décalage début (jours), heure début, minute début, durée (h)]
+  const agendaRelatif: Array<[string, number, number, number, number, number]> = [
+    ['Marché hebdomadaire', -2, 4, 8, 0, 5],
+    ['Conseil municipal ouvert au public', -3, 9, 18, 30, 2],
+    ['Atelier compostage', -5, 6, 10, 0, 2],
+    ['Repas des aînés', -4, 22, 12, 0, 3],
   ];
-  for (const [titre, creation, debut, dureeHeures] of agenda) {
-    const dateDebut = jours(debut);
+  for (const [titre, creation, debutJours, heureDebut, minuteDebut, dureeHeures] of agendaRelatif) {
+    const dateDebut = dansJoursA(debutJours, heureDebut, minuteDebut);
+    const dateFin = new Date(dateDebut.getTime() + dureeHeures * 3600 * 1000);
     await supabaseUpdate(env, 'events', {
-      created_at: jours(creation), date_debut: dateDebut, date_fin: plusHeures(dateDebut, dureeHeures),
+      created_at: dansJoursA(creation, 9, 0).toISOString(),
+      date_debut: dateDebut.toISOString(), date_fin: dateFin.toISOString(),
+    }, { commune_id: `eq.${commune_id}`, titre: `eq.${titre}` });
+  }
+
+  // Agenda — ancré sur une vraie date calendaire récurrente (jamais de décalage relatif ici,
+  // voir prochaineOccurrence). [titre, mois, jour, heure début, minute début, durée (h),
+  // décalage de création avant l'événement (jours)]
+  const agendaAncre: Array<[string, number, number, number, number, number, number]> = [
+    ['Halloween des enfants', 10, 31, 18, 0, 2, 4],
+    ['Commémoration du 11 Novembre', 11, 11, 11, 0, 1, 6],
+  ];
+  for (const [titre, mois, jourDuMois, heureDebut, minuteDebut, dureeHeures, creationAvant] of agendaAncre) {
+    const dateDebut = prochaineOccurrence(mois, jourDuMois, heureDebut, minuteDebut);
+    const dateFin = new Date(dateDebut.getTime() + dureeHeures * 3600 * 1000);
+    const dateCreation = new Date(dateDebut.getTime() - creationAvant * 24 * 3600 * 1000);
+    await supabaseUpdate(env, 'events', {
+      created_at: dateCreation.toISOString(),
+      date_debut: dateDebut.toISOString(), date_fin: dateFin.toISOString(),
     }, { commune_id: `eq.${commune_id}`, titre: `eq.${titre}` });
   }
 }
