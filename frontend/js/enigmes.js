@@ -172,7 +172,11 @@ function ouvrirModaleCreationEnigme() {
         const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/enigmes/upload`, {
           method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
         });
-        if (!resUpload.ok) { afficherToastMessage('Upload refusé par le serveur.', 'erreur'); return; }
+        if (!resUpload.ok) {
+          const data = await resUpload.json().catch(() => ({}));
+          afficherToastMessage(data.erreur || 'Upload refusé par le serveur.', 'erreur');
+          return;
+        }
         const { key } = await resUpload.json();
 
         const res = await appelApi(`/${window.COMMUNE_SLUG}/enigmes`, {

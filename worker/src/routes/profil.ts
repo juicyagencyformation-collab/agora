@@ -7,6 +7,7 @@ import { hasherMotDePasse, verifierMotDePasse } from '../lib/password';
 import { uploaderFichier, deleteObject } from '../storage';
 import { xpRequisPourNiveau } from '../lib/gamification';
 import { calculerPalierCourant } from '../lib/points-citoyens';
+import { photoSuspecte } from '../lib/moderation-image';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -170,6 +171,9 @@ app.post('/photo', async (c) => {
   if (donnees.byteLength > 8 * 1024 * 1024) {
     return c.json({ erreur: 'Image trop lourde (8 Mo maximum)' }, 400);
   }
+  if (await photoSuspecte(c.env, commune_id, donnees, contentType)) {
+    return c.json({ erreur: 'Cette photo ne respecte pas nos règles de contenu et n\'a pas été acceptée.' }, 422);
+  }
 
   const [user] = await supabaseSelect(c.env, 'users', {
     select: 'photo_profil_r2_key,compte_visiteur_demo', commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
@@ -201,6 +205,9 @@ app.post('/banniere', async (c) => {
   const donnees = await c.req.arrayBuffer();
   if (donnees.byteLength > 8 * 1024 * 1024) {
     return c.json({ erreur: 'Image trop lourde (8 Mo maximum)' }, 400);
+  }
+  if (await photoSuspecte(c.env, commune_id, donnees, contentType)) {
+    return c.json({ erreur: 'Cette photo ne respecte pas nos règles de contenu et n\'a pas été acceptée.' }, 422);
   }
 
   const [user] = await supabaseSelect(c.env, 'users', {

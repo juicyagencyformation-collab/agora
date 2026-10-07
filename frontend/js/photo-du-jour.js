@@ -142,7 +142,11 @@ function ouvrirModaleCreationPhotoJour() {
       const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour/upload`, {
         method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
       });
-      if (!resUpload.ok) { alert('Upload refusé par le serveur.'); return; }
+      if (!resUpload.ok) {
+        const data = await resUpload.json().catch(() => ({}));
+        alert(data.erreur || 'Upload refusé par le serveur.');
+        return;
+      }
       const { key } = await resUpload.json();
 
       const res = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour`, {

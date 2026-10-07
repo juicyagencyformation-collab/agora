@@ -1,0 +1,31 @@
+# worker/wrangler.test.toml
+# Copie de wrangler.toml pour vitest UNIQUEMENT (voir vitest.config.mts), sans le binding [ai].
+#
+# Pourquoi ce fichier existe : @cloudflare/vitest-pool-workers résout TOUS les bindings déclarés
+# dans le wrangler.toml référencé dès l'initialisation du pool de tests (pour toute la suite,
+# même les fichiers de test qui ne touchent jamais à l'IA) — contrairement à R2/KV/etc., le
+# binding AI ne peut pas être simulé localement (impossible de faire tourner un modèle de vision
+# de plusieurs Go sur une machine de dev) : Miniflare exige donc une session Cloudflare distante
+# authentifiée (wrangler login valide) rien que pour DÉMARRER le pool, et toute la suite de tests
+# échoue si ce n'est pas le cas. Aucun test de ce projet n'appelle le vrai binding AI de toute
+# façon (voir test/moderation-image.test.ts : un faux `{ AI: { run: ... } }` est injecté
+# directement dans photoSuspecte(), jamais résolu depuis l'environnement du pool).
+#
+# Toute nouvelle entrée ajoutée à wrangler.toml (var, binding...) doit être répercutée ici aussi,
+# SAUF le binding ai lui-même.
+name = "agora-worker"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+
+[vars]
+R2_PUBLIC_BASE = "https://cdn.plateforme-agora.fr"
+FRONTEND_URL = "https://plateforme-agora.fr"
+EMAIL_FROM = "Agora <contact@plateforme-agora.fr>"
+EMAIL_REPLY_TO_PROSPECTION = "prospection@replies.plateforme-agora.fr"
+
+[[r2_buckets]]
+binding = "BUCKET_R2"
+bucket_name = "newappcitoyenne-uploads"
+
+[triggers]
+crons = ["0 3 1 * *", "0 4 * * *", "0 */6 * * *", "0 6 * * *", "0 * * * *"]

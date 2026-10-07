@@ -391,8 +391,14 @@ function ouvrirModaleCreationAlerte() {
         const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/alertes/upload`, {
           method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
         });
-        if (resUpload.ok) { const { key } = await resUpload.json(); image_r2_keys = [key]; }
-      } catch { console.warn('Upload image échoué, signalement publié sans photo.'); }
+        if (!resUpload.ok) {
+          const data = await resUpload.json().catch(() => ({}));
+          alert(data.erreur || 'Échec de l\'envoi de la photo.');
+          return;
+        }
+        const { key } = await resUpload.json();
+        image_r2_keys = [key];
+      } catch { alert('Échec de l\'envoi de la photo.'); return; }
     }
 
     const res = await appelApi(`/${window.COMMUNE_SLUG}/alertes`, {

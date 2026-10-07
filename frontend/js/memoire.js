@@ -312,15 +312,23 @@ function ouvrirModaleSouvenir(souvenir = null) {
 
     // Upload des photos.
     const image_r2_keys = [];
+    const photosRefusees = [];
     for (const fichier of [...corps.querySelector('#photos-souvenir').files].slice(0, 10)) {
       try {
         const compresse = await compresserImage(fichier);
         const up = await appelApi(`/${window.COMMUNE_SLUG}/memoire/upload-photo`, {
           method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
         });
-        if (up.ok) { const { key } = await up.json(); image_r2_keys.push(key); }
-      } catch { console.warn('Upload photo souvenir échoué.'); }
+        if (up.ok) {
+          const { key } = await up.json();
+          image_r2_keys.push(key);
+        } else {
+          const data = await up.json().catch(() => ({}));
+          photosRefusees.push(data.erreur || fichier.name);
+        }
+      } catch { photosRefusees.push(fichier.name); }
     }
+    if (photosRefusees.length) alert(`${photosRefusees.length} photo(s) non ajoutée(s) :\n${photosRefusees.join('\n')}`);
 
     // Upload de l'audio.
     let audio_r2_key;

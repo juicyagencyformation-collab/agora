@@ -9,6 +9,7 @@ import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur } from '../lib/gamification';
+import { photoSuspecte } from '../lib/moderation-image';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -63,6 +64,9 @@ app.post('/upload-photo', async (c) => {
   }
   const donnees = await c.req.arrayBuffer();
   if (donnees.byteLength > 8 * 1024 * 1024) return c.json({ erreur: 'Image trop lourde (max 8 Mo)' }, 400);
+  if (await photoSuspecte(c.env, commune_id, donnees, contentType)) {
+    return c.json({ erreur: 'Cette photo ne respecte pas nos règles de contenu et n\'a pas été acceptée.' }, 422);
+  }
   const extension = contentType.split('/')[1];
   const key = `${commune_id}/memoire/${crypto.randomUUID()}.${extension}`;
   const url = await uploaderFichier(c.env, key, donnees, contentType);
