@@ -8,6 +8,7 @@ import { gererVariantesProspectionAutomatiquement } from './backoffice/prospecti
 import { verifierRelanceInactivite } from './backoffice/onboarding';
 import { verifierSequenceOnboarding } from './backoffice/onboarding-drip';
 import { synchroniserEmailsRecus } from './backoffice/emails-recus';
+import { envoyerBilansMensuels } from './lib/bilan-mensuel';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -222,6 +223,13 @@ export async function verifierSequenceOnboardingCommunes(env: any) {
 // (constaté le 2026-08-27, réponses d'absence des mairies jamais capturées).
 export async function synchroniserEmailsRecusProspection(env: any) {
   await synchroniserEmailsRecus(env);
+}
+
+// Bilan mensuel envoyé au maire des communes en formule Accompagné/Premium — voir
+// lib/bilan-mensuel.ts pour le détail et le pourquoi (argument de vente, remplace l'idée
+// initiale de sondage hebdo automatique). Branché sur le cron du 1er du mois à 3h.
+export async function envoyerBilansMensuelsCommunes(env: any) {
+  await envoyerBilansMensuels(env);
 }
 
 // Rafraîchissement quotidien du contenu de démo de "Bonvivre" (voir migrations 075 et 077) —
