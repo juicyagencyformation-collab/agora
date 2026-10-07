@@ -35,8 +35,8 @@ const CLES_BAREME = [
 // Repli si la migration n'a pas encore tourné ou qu'une clé manque — mêmes valeurs que le seed,
 // pour que la landing page ne se retrouve jamais avec un prix à 0€ ou une erreur affichée.
 const BAREME_DEFAUT: BaremeTarifaire = {
-  taux_base: 1, seuil_degressif: 1000, taux_degressif: 0.5,
-  prix_plancher: 250, supplement_accompagne: 200, prix_patrimoine_premium: 749,
+  taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2,
+  prix_plancher: 290, supplement_accompagne: 200, prix_patrimoine_premium: 749,
 };
 
 export async function chargerBareme(env: any): Promise<BaremeTarifaire> {
