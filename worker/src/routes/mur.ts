@@ -38,8 +38,7 @@ app.get('/', async (c) => {
   if (!ids.length) return c.json({ posts: [] });
 
   const user_id = c.get('user_id');
-  const idsAuteurs = [...new Set(posts.map((p: any) => p.user_id))];
-  const [commentaires, reactions, mesSignalements, auteurs] = await Promise.all([
+  const [commentaires, reactions, mesSignalements] = await Promise.all([
     supabaseSelect(c.env, 'comments', {
       select: 'id,post_id,user_id,contenu,created_at',
       commune_id: `eq.${commune_id}`,
@@ -57,12 +56,15 @@ app.get('/', async (c) => {
       post_id: `in.(${ids.join(',')})`,
       user_id: `eq.${user_id}`,
     }),
-    supabaseSelect(c.env, 'users', {
-      select: 'id,prenom,nom',
-      commune_id: `eq.${commune_id}`,
-      id: `in.(${idsAuteurs.join(',')})`,
-    }),
   ]);
+  // Auteurs des posts ET des commentaires (les commentaires ne sont connus qu'une fois
+  // commentaires résolu ci-dessus, d'où cette requête séparée plutôt qu'en parallèle).
+  const idsAuteurs = [...new Set([...posts.map((p: any) => p.user_id), ...commentaires.map((cm: any) => cm.user_id)])];
+  const auteurs = await supabaseSelect(c.env, 'users', {
+    select: 'id,prenom,nom',
+    commune_id: `eq.${commune_id}`,
+    id: `in.(${idsAuteurs.join(',')})`,
+  });
   const mesPostsSignales = new Set(mesSignalements.map((s: any) => s.post_id));
 
   const result = posts.map((p: any) => {
@@ -71,7 +73,14 @@ app.get('/', async (c) => {
       ...p,
       auteur_prenom: auteur?.prenom ?? '?',
       auteur_nom: auteur?.nom ?? '',
-      commentaires: commentaires.filter((cm: any) => cm.post_id === p.id),
+      commentaires: commentaires.filter((cm: any) => cm.post_id === p.id).map((cm: any) => {
+        const auteurCommentaire = auteurs.find((a: any) => a.id === cm.user_id);
+        return {
+          ...cm,
+          auteur_prenom: auteurCommentaire?.prenom ?? '?',
+          auteur_nom: auteurCommentaire?.nom ?? '',
+        };
+      }),
       reactions: ['jaime', 'jadore', 'utile'].map((type) => ({
         type,
         total: reactions.filter((r: any) => r.post_id === p.id && r.type === type).length,

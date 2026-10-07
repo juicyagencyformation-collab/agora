@@ -65,7 +65,7 @@ function renderPost(post) {
   post.commentaires.forEach((cm) => {
     const p = document.createElement('p');
     p.className = 'commentaire';
-    p.innerHTML = texteAvecLiensCliquables(cm.contenu);
+    p.innerHTML = `<strong>${escapeAttr(cm.auteur_prenom)} ${escapeAttr(cm.auteur_nom)}</strong> ${texteAvecLiensCliquables(cm.contenu)}`;
     zoneCommentaires.appendChild(p);
   });
 
