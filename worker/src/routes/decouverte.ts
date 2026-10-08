@@ -6,15 +6,18 @@
 // qui n'utilisent pas encore Agora).
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { sign } from '@tsndr/cloudflare-worker-jwt';
+import { setCookie } from 'hono/cookie';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { distanceMetres } from '../lib/geo';
 import { hasherMotDePasse } from '../lib/password';
+import { hasherToken, genererRefreshToken } from '../auth';
 import { genererSlugUnique } from '../backoffice/prospection';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from '../backoffice/administration';
-import {
-  genererMotDePasseTemporaire, genererLienConnexionDirecte, emailActivationLibreHtml,
-} from '../backoffice/email-commune';
+import { emailConfirmationActivationHtml } from '../backoffice/email-commune';
 import { envoyerEmail } from '../lib/email';
+
+const DUREE_TOKEN_ACTIVATION_MS = 48 * 3600 * 1000;
 
 const app = new Hono();
 
@@ -132,12 +135,13 @@ const demandeAccesSchema = z.object({
 });
 
 // POST /decouverte/communes/:prospectId/demander-acces — le visiteur ne fait que renseigner son
-// email (zéro mot de passe choisi sur le site, contrairement à la prospection par email vers les
-// mairies où le "zéro friction" s'applique à l'activation elle-même, voir activerCommuneGratuite
-// dans prospection.ts — décision explicite de Léandre, 2026-10-08 : sur le site public, on
-// confirme toujours par email avant de donner l'accès). Il reçoit par email son lien de
-// connexion directe, un remerciement, et les deux conseils essentiels (installer l'app, activer
-// les notifications) — voir emailActivationLibreHtml.
+// email. AUCUN compte n'est créé ici (zéro mot de passe choisi à ce stade, contrairement à la
+// prospection par email vers les mairies où le "zéro friction" s'applique à l'activation
+// elle-même, voir activerCommuneGratuite dans prospection.ts) : juste un jeton de confirmation
+// (table activations_libres, migration 079) et un email avec un lien — décision explicite de
+// Léandre le 2026-10-08, après une 1re version qui créait le compte trop tôt avec un nom
+// générique. Le vrai compte n'est créé qu'au clic + à la validation du formulaire (voir
+// POST /communes/activation/:token/creer-compte plus bas).
 app.post('/communes/:prospectId/demander-acces', async (c) => {
   const body = demandeAccesSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
@@ -152,10 +156,9 @@ app.post('/communes/:prospectId/demander-acces', async (c) => {
   if (!prospect) return c.json({ erreur: 'Commune introuvable' }, 404);
 
   let communeId: string = prospect.commune_id || '';
-  let slug: string;
 
   if (!communeId) {
-    slug = await genererSlugUnique(c.env, prospect.nom);
+    const slug = await genererSlugUnique(c.env, prospect.nom);
     const [commune] = await supabaseInsert(c.env, 'communes', {
       nom: prospect.nom, slug,
       population: prospect.population ?? null,
@@ -167,12 +170,11 @@ app.post('/communes/:prospectId/demander-acces', async (c) => {
     await appliquerOngletsSurCommune(c.env, communeId, await chargerOngletsGratuits(c.env));
     await supabaseUpdate(c.env, 'prospects', { commune_id: communeId }, { id: `eq.${prospect.id}` });
   } else {
-    const [communeExistante] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${communeId}` });
+    const [communeExistante] = await supabaseSelect(c.env, 'communes', { select: 'id', id: `eq.${communeId}` });
     if (!communeExistante) return c.json({ erreur: 'Commune introuvable' }, 404);
-    slug = communeExistante.slug;
   }
 
-  // Garde-fou : une commune déjà réclamée par un vrai utilisateur ne peut pas être reprise.
+  // Garde-fou : une commune déjà réclamée par un vrai utilisateur ne peut pas être redemandée.
   const [compteReel] = await supabaseSelect(c.env, 'users', {
     select: 'id', commune_id: `eq.${communeId}`, compte_provisionne: 'neq.true', limit: '1',
   });
@@ -181,41 +183,117 @@ app.post('/communes/:prospectId/demander-acces', async (c) => {
   }
 
   const email = data.email.trim().toLowerCase();
-  const motDePasse = genererMotDePasseTemporaire();
-  const password_hash = await hasherMotDePasse(motDePasse);
+  const token = genererRefreshToken();
+  await supabaseInsert(c.env, 'activations_libres', {
+    commune_id: communeId, email,
+    token_hash: await hasherToken(token),
+    expires_at: new Date(Date.now() + DUREE_TOKEN_ACTIVATION_MS).toISOString(),
+  });
 
-  // Réutilise le compte générique provisionné à l'activation (voir activerCommuneGratuite,
-  // prospection.ts) s'il y en a un, plutôt que d'en créer un deuxième en double. Dans les deux
-  // cas, compte_provisionne passe à false ICI (pas à une connexion ultérieure) : c'est cette
-  // demande elle-même, faite par un vrai visiteur identifié par son email, qui "réclame" la
-  // commune — sans ça, rien n'empêcherait un second visiteur de refaire la même demande
-  // ensuite et d'écraser silencieusement l'email/mot de passe du premier (compte_provisionne
-  // ne bascule jamais tout seul à la connexion, voir auth.ts /lien-connexion).
+  const lienConfirmation = `${c.env.FRONTEND_URL}/rejoindre.html?token=${token}`;
+  const html = emailConfirmationActivationHtml(prospect.nom, lienConfirmation);
+  await envoyerEmail(c.env, email, `Confirmez la création de votre compte — ${prospect.nom}`, html);
+
+  return c.json({ ok: true });
+});
+
+// GET /decouverte/communes/activation/:token — appelée par rejoindre.html quand elle est ouverte
+// avec ?token=... : vérifie le jeton et renvoie de quoi afficher le formulaire de création
+// (nom de la commune), sans jamais révéler l'email en clair dans l'URL.
+app.get('/communes/activation/:token', async (c) => {
+  const token = c.req.param('token');
+  const [activation] = await supabaseSelect(c.env, 'activations_libres', {
+    select: 'id,commune_id,email,expires_at,utilise_le',
+    token_hash: `eq.${await hasherToken(token)}`,
+  });
+  if (!activation || activation.utilise_le || new Date(activation.expires_at) < new Date()) {
+    return c.json({ erreur: 'Ce lien n\'est plus valable. Refaites une demande depuis la page Rejoindre.' }, 410);
+  }
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'nom', id: `eq.${activation.commune_id}` });
+  return c.json({ nom_commune: commune?.nom, email: activation.email });
+});
+
+const creationCompteSchema = z.object({
+  prenom: z.string().min(1).max(100),
+  nom: z.string().min(1).max(100),
+  mot_de_passe: z.string().min(6),
+  consentement_rgpd: z.literal(true),
+  site_web: z.string().optional(),
+});
+
+// POST /decouverte/communes/activation/:token/creer-compte — seule route de tout ce flux qui crée
+// réellement un compte, avec le prénom/nom/mot de passe choisis par la personne elle-même (jamais
+// un compte "Administration" générique). Connexion automatique immédiate à la validation, comme
+// POST /:slug/auth/register — légitime ici car l'email a déjà été confirmé par le clic du lien.
+app.post('/communes/activation/:token/creer-compte', async (c) => {
+  const token = c.req.param('token');
+  const body = creationCompteSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+  if (data.site_web) return c.json({ ok: true, slug: '' }, 201); // honeypot
+
+  const [activation] = await supabaseSelect(c.env, 'activations_libres', {
+    select: 'id,commune_id,email,expires_at,utilise_le',
+    token_hash: `eq.${await hasherToken(token)}`,
+  });
+  if (!activation || activation.utilise_le || new Date(activation.expires_at) < new Date()) {
+    return c.json({ erreur: 'Ce lien n\'est plus valable. Refaites une demande depuis la page Rejoindre.' }, 410);
+  }
+
+  const communeId = activation.commune_id;
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${communeId}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  // Re-vérifié ici (pas seulement à la demande) : protège contre deux confirmations concurrentes
+  // sur la même commune (deux onglets, deux emails différents demandés coup sur coup...).
+  const [compteReel] = await supabaseSelect(c.env, 'users', {
+    select: 'id', commune_id: `eq.${communeId}`, compte_provisionne: 'neq.true', limit: '1',
+  });
+  if (compteReel) {
+    return c.json({ erreur: 'Cette commune utilise déjà Agora. Contactez-nous si vous pensez qu\'il s\'agit d\'une erreur.' }, 409);
+  }
+
+  const password_hash = await hasherMotDePasse(data.mot_de_passe);
+
+  // Réutilise le compte générique provisionné à la prospection (voir activerCommuneGratuite,
+  // prospection.ts) s'il y en a un, plutôt que d'en créer un deuxième en double à côté.
   const [compteProvisionne] = await supabaseSelect(c.env, 'users', {
     select: 'id', commune_id: `eq.${communeId}`, compte_provisionne: 'eq.true', role: 'in.(admin,maire)',
   });
 
   let userId: string;
   if (compteProvisionne) {
-    await supabaseUpdate(c.env, 'users', { email, password_hash, compte_provisionne: false }, { id: `eq.${compteProvisionne.id}` });
+    await supabaseUpdate(c.env, 'users', {
+      email: activation.email, password_hash, prenom: data.prenom, nom: data.nom,
+      compte_provisionne: false, consentement_rgpd_le: new Date().toISOString(),
+    }, { id: `eq.${compteProvisionne.id}` });
     userId = compteProvisionne.id;
   } else {
     const [nouveauCompte] = await supabaseInsert(c.env, 'users', {
-      commune_id: communeId, email, password_hash, compte_provisionne: false,
-      prenom: 'Administration', nom: prospect.nom, role: 'admin',
+      commune_id: communeId, email: activation.email, password_hash,
+      prenom: data.prenom, nom: data.nom, role: 'admin',
       consentement_rgpd_le: new Date().toISOString(),
     });
     userId = nouveauCompte.id;
   }
 
-  const lienConnexion = await genererLienConnexionDirecte(c.env, c.env.FRONTEND_URL, slug, communeId, userId);
-  const html = emailActivationLibreHtml({
-    nomCommune: prospect.nom, slug, maireEmail: email, motDePasse,
-    frontendUrl: c.env.FRONTEND_URL, lienConnexion,
-  });
-  await envoyerEmail(c.env, email, `Votre commune ${prospect.nom} est prête sur Agora`, html);
+  await supabaseUpdate(c.env, 'activations_libres', { utilise_le: new Date().toISOString() }, { id: `eq.${activation.id}` });
 
-  return c.json({ ok: true });
+  // Connexion automatique, même mécanisme que POST /:slug/auth/register.
+  const accessToken = await sign(
+    { user_id: userId, commune_id: communeId, role: 'admin', exp: Math.floor(Date.now() / 1000) + 900 },
+    c.env.JWT_SECRET,
+  );
+  const refreshToken = genererRefreshToken();
+  await supabaseInsert(c.env, 'refresh_tokens', {
+    commune_id: communeId, user_id: userId,
+    token_hash: await hasherToken(refreshToken),
+    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+  });
+  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+
+  return c.json({ ok: true, slug: commune.slug }, 201);
 });
 
 const demandeManquanteSchema = z.object({

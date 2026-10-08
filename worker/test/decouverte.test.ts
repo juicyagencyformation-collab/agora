@@ -1,11 +1,14 @@
 // worker/test/decouverte.test.ts
 // Couvre l'inscription en self-service (worker/src/routes/decouverte.ts, voir
-// frontend/rejoindre.html) : recherche publique dans les prospects, création de compte avec
-// connexion automatique, et surtout le garde-fou de sécurité — une commune déjà réclamée par un
-// vrai utilisateur ne doit JAMAIS pouvoir être reprise par un visiteur anonyme. Fausse base
-// Supabase pilotée par fetch(), même esprit que test/emails-recus.test.ts.
+// frontend/rejoindre.html) : recherche publique dans les prospects, demande d'accès par email
+// (aucun compte créé à ce stade), confirmation par le lien reçu puis création réelle du compte
+// avec le prénom/nom/mot de passe choisis par la personne. Point le plus important à vérifier :
+// une commune déjà réclamée par un vrai utilisateur ne doit JAMAIS pouvoir être reprise par un
+// visiteur anonyme, à AUCUNE des deux étapes. Fausse base Supabase pilotée par fetch(), même
+// esprit que test/emails-recus.test.ts.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import decouverte from '../src/routes/decouverte';
+import { hasherToken } from '../src/auth';
 
 type Ligne = Record<string, any>;
 let db: Record<string, Ligne[]>;
@@ -13,11 +16,19 @@ let emailsEnvoyes: Array<{ to: string; subject: string; html: string }>;
 
 function reinitialiser() {
   db = {
-    prospects: [], communes: [], users: [], refresh_tokens: [], login_tokens: [],
+    prospects: [], communes: [], users: [], refresh_tokens: [], activations_libres: [],
     onglets_gratuits: [{ cle: 'actualites' }, { cle: 'agenda' }],
     onglets_config: [],
   };
   emailsEnvoyes = [];
+}
+
+// Le token n'apparaît qu'en clair dans le lien de l'email (jamais stocké en clair en base,
+// voir token_hash) — on le récupère là où un vrai utilisateur le récupérerait.
+function tokenDepuisEmail(html: string): string {
+  const match = html.match(/[?&]token=([^"&\s]+)/);
+  if (!match) throw new Error('Aucun token trouvé dans l\'email : ' + html);
+  return match[1];
 }
 
 function correspond(valeur: any, filtre: string): boolean {
@@ -140,7 +151,7 @@ describe('POST /communes/:id/demander-acces', () => {
     expect(res.status).toBe(404);
   });
 
-  it('crée la commune + le compte, n\'ouvre AUCUNE session (pas de cookie) et envoie un email avec un lien de connexion', async () => {
+  it('crée la commune mais AUCUN compte, n\'ouvre AUCUNE session, et envoie juste un email de confirmation', async () => {
     const prospect = ajouterProspect({ nom: 'Testville' });
     const res = await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsValide),
@@ -150,30 +161,13 @@ describe('POST /communes/:id/demander-acces', () => {
 
     expect(db.communes).toHaveLength(1);
     expect(db.communes[0].forfait).toBe('Gratuit');
-    expect(db.users).toHaveLength(1);
-    expect(db.users[0].email).toBe('jean@testville.fr');
-    // compte_provisionne doit basculer à false DÈS cette demande (pas seulement à la connexion),
-    // sinon rien n'empêche un second visiteur de refaire la même demande et d'écraser le premier.
-    expect(db.users[0].compte_provisionne).toBe(false);
-    expect(db.login_tokens).toHaveLength(1); // lien de connexion directe généré
+    expect(db.users).toHaveLength(0); // le compte n'existe pas encore à ce stade
+    expect(db.activations_libres).toHaveLength(1);
+    expect(db.activations_libres[0].email).toBe('jean@testville.fr');
 
     expect(emailsEnvoyes).toHaveLength(1);
     expect(emailsEnvoyes[0].to).toBe('jean@testville.fr');
-    expect(emailsEnvoyes[0].html).toContain('Installez l\'application');
-  });
-
-  it('réutilise le compte générique provisionné plutôt que d\'en créer un second', async () => {
-    db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
-    db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'admin', compte_provisionne: true, email: 'generique@testville.fr' });
-    const prospect = ajouterProspect({ nom: 'Testville', commune_id: 'commune-1' });
-
-    const res = await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsValide),
-    }, ENV);
-    expect(res.status).toBe(200);
-    expect(db.users).toHaveLength(1); // toujours un seul compte, pas de doublon
-    expect(db.users[0].email).toBe('jean@testville.fr');
-    expect(db.users[0].compte_provisionne).toBe(false);
+    expect(emailsEnvoyes[0].html).toContain('Créer mon compte'); // lien, pas d'identifiants
   });
 
   it('refuse (409) si la commune est déjà réclamée par un vrai compte — garde-fou anti-détournement', async () => {
@@ -185,22 +179,8 @@ describe('POST /communes/:id/demander-acces', () => {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsValide),
     }, ENV);
     expect(res.status).toBe(409);
-    expect(db.users).toHaveLength(1); // aucun compte supplémentaire créé
+    expect(db.activations_libres).toHaveLength(0);
     expect(emailsEnvoyes).toHaveLength(0);
-  });
-
-  it('une 2e demande sur la même commune échoue aussi (déjà réclamée par la 1re demande)', async () => {
-    const prospect = ajouterProspect({ nom: 'Testville' });
-    await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsValide),
-    }, ENV);
-
-    const res2 = await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'intrus@autre-domaine.fr', consentement_rgpd: true }),
-    }, ENV);
-    expect(res2.status).toBe(409);
-    expect(db.users[0].email).toBe('jean@testville.fr'); // jamais écrasé par l'intrus
   });
 
   it('piège à robots (honeypot) : faux succès, rien n\'est créé', async () => {
@@ -211,8 +191,120 @@ describe('POST /communes/:id/demander-acces', () => {
     }, ENV);
     expect(res.status).toBe(200);
     expect(db.communes).toHaveLength(0);
-    expect(db.users).toHaveLength(0);
+    expect(db.activations_libres).toHaveLength(0);
     expect(emailsEnvoyes).toHaveLength(0);
+  });
+});
+
+describe('GET /communes/activation/:token', () => {
+  it('renvoie le nom de la commune pour un jeton valide', async () => {
+    const prospect = ajouterProspect({ nom: 'Testville' });
+    await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'jean@testville.fr', consentement_rgpd: true }),
+    }, ENV);
+    const token = tokenDepuisEmail(emailsEnvoyes[0].html);
+
+    const res = await decouverte.request(`/communes/activation/${token}`, {}, ENV);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.nom_commune).toBe('Testville');
+  });
+
+  it('410 pour un jeton inconnu', async () => {
+    const res = await decouverte.request('/communes/activation/jeton-bidon', {}, ENV);
+    expect(res.status).toBe(410);
+  });
+
+  it('410 pour un jeton expiré', async () => {
+    db.activations_libres.push({
+      id: 'a1', commune_id: 'c1', email: 'x@x.fr', token_hash: await hasherToken('mon-token'),
+      expires_at: new Date(Date.now() - 1000).toISOString(), utilise_le: null,
+    });
+    const res = await decouverte.request('/communes/activation/mon-token', {}, ENV);
+    expect(res.status).toBe(410);
+  });
+});
+
+describe('POST /communes/activation/:token/creer-compte', () => {
+  async function demanderEtRecupererToken(nomCommune = 'Testville', email = 'jean@testville.fr') {
+    const prospect = ajouterProspect({ nom: nomCommune });
+    await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, consentement_rgpd: true }),
+    }, ENV);
+    return tokenDepuisEmail(emailsEnvoyes[emailsEnvoyes.length - 1].html);
+  }
+
+  const corpsCreation = { prenom: 'Jean', nom: 'Dupont', mot_de_passe: 'motdepasse123', consentement_rgpd: true };
+
+  it('crée le vrai compte (prénom/nom/mot de passe choisis), connecte automatiquement, et le jeton devient inutilisable', async () => {
+    const token = await demanderEtRecupererToken();
+    const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
+    }, ENV);
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.slug).toBeTruthy();
+    expect(res.headers.get('set-cookie')).toContain('agora_access');
+
+    expect(db.users).toHaveLength(1);
+    expect(db.users[0].prenom).toBe('Jean');
+    expect(db.users[0].nom).toBe('Dupont');
+    expect(db.users[0].email).toBe('jean@testville.fr');
+    expect(db.activations_libres[0].utilise_le).toBeTruthy();
+
+    // Rejouer le même jeton doit maintenant échouer.
+    const res2 = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
+    }, ENV);
+    expect(res2.status).toBe(410);
+  });
+
+  it('réutilise le compte générique provisionné par la prospection plutôt que d\'en créer un second', async () => {
+    db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
+    db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'admin', compte_provisionne: true, email: 'generique@testville.fr' });
+    const token = await demanderEtRecupererToken();
+    // demanderEtRecupererToken crée son propre prospect/commune ; on relie plutôt la commune existante.
+    db.activations_libres[db.activations_libres.length - 1].commune_id = 'commune-1';
+
+    const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
+    }, ENV);
+    expect(res.status).toBe(201);
+    expect(db.users).toHaveLength(1); // toujours un seul compte
+    expect(db.users[0].email).toBe('jean@testville.fr');
+    expect(db.users[0].compte_provisionne).toBe(false);
+  });
+
+  it('refuse (409) si la commune a été réclamée entre-temps par une autre confirmation', async () => {
+    const token = await demanderEtRecupererToken();
+    // Une autre confirmation (ou la prospection) a entre-temps créé un vrai compte sur cette commune.
+    const communeId = db.activations_libres[0].commune_id;
+    db.users.push({ id: 'intrus', commune_id: communeId, role: 'admin', compte_provisionne: false, email: 'autre@testville.fr' });
+
+    const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
+    }, ENV);
+    expect(res.status).toBe(409);
+    expect(db.users).toHaveLength(1); // seul l'intrus existe, rien ajouté
+  });
+
+  it('410 pour un jeton inconnu ou déjà utilisé', async () => {
+    const res = await decouverte.request('/communes/activation/jeton-bidon/creer-compte', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
+    }, ENV);
+    expect(res.status).toBe(410);
+  });
+
+  it('piège à robots (honeypot) : faux succès, rien n\'est créé', async () => {
+    const token = await demanderEtRecupererToken();
+    const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...corpsCreation, site_web: 'http://spam.example' }),
+    }, ENV);
+    expect(res.status).toBe(201);
+    expect(db.users).toHaveLength(0);
   });
 });
 

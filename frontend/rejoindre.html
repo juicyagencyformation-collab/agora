@@ -30,6 +30,9 @@
     .lien-retour { text-align: center; margin-top: 14px; font-size: 13px; }
     .lien-retour a { color: var(--eau); font-weight: 600; cursor: pointer; }
     .lien-confidentialite { display: block; text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.85); text-decoration: underline; }
+    .bloc-conseil { background: var(--eauXL, #eef6f7); border-radius: 10px; padding: 14px 16px; margin: 12px 0; font-size: 13.5px; line-height: 1.6; color: var(--roseau); }
+    .bloc-conseil strong { color: #1b2a1c; }
+    .email-fige { background: var(--grisXL, #f2f2f2); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -56,28 +59,60 @@
       <p class="lien-retour"><a id="vers-recherche-depuis-introuvable">← Refaire une recherche</a></p>
     </div>
 
-    <div id="etape-creation" hidden>
-      <p id="titre-creation" style="font-size:15px;font-weight:600;margin-bottom:12px"></p>
-      <form id="form-creation">
-        <input type="text" name="site_web" id="piege-bot-creation" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
+    <div id="etape-demande" hidden>
+      <p id="titre-demande" style="font-size:15px;font-weight:600;margin-bottom:12px"></p>
+      <form id="form-demande">
+        <input type="text" name="site_web" id="piege-bot-demande" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
         <input type="email" name="email" placeholder="Votre email" required>
         <label class="case-rgpd">
           <input type="checkbox" name="consentement_rgpd" required>
           J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
         </label>
-        <p id="erreur-creation"></p>
-        <button type="submit">Recevoir mon accès gratuit</button>
+        <p id="erreur-demande"></p>
+        <button type="submit">Recevoir le lien de création</button>
       </form>
-      <p class="lien-retour"><a id="vers-recherche-depuis-creation">← Refaire une recherche</a></p>
+      <p class="lien-retour"><a id="vers-recherche-depuis-demande">← Refaire une recherche</a></p>
     </div>
 
     <div id="etape-envoye" hidden>
       <p style="font-size:14.5px;color:var(--roseau);line-height:1.6">
-        📬 Un email vient de partir à <strong id="email-confirme"></strong> avec votre lien
-        d'accès et quelques conseils pour bien démarrer — pensez à vérifier vos spams s'il
-        n'arrive pas d'ici quelques minutes.
+        📬 Un email vient de partir à <strong id="email-confirme"></strong> avec un lien pour
+        créer votre compte — pensez à vérifier vos spams s'il n'arrive pas d'ici quelques minutes.
       </p>
       <p class="lien-retour"><a id="vers-recherche-depuis-envoye">← Refaire une recherche</a></p>
+    </div>
+
+    <div id="etape-finalisation" hidden>
+      <p id="titre-finalisation" style="font-size:15px;font-weight:600;margin-bottom:12px"></p>
+      <div class="email-fige">✉️ <span id="email-finalisation"></span></div>
+      <form id="form-finalisation">
+        <input type="text" name="site_web" id="piege-bot-finalisation" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input type="text" name="prenom" placeholder="Prénom" required>
+        <input type="text" name="nom" placeholder="Nom" required>
+        <input type="password" name="mot_de_passe" placeholder="Choisissez un mot de passe (6 caractères min.)" minlength="6" required>
+        <label class="case-rgpd">
+          <input type="checkbox" name="consentement_rgpd" required>
+          J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
+        </label>
+        <p id="erreur-finalisation"></p>
+        <button type="submit">Créer mon compte</button>
+      </form>
+    </div>
+
+    <div id="etape-bienvenue" hidden>
+      <p style="font-size:15px;font-weight:600;margin-bottom:10px">🎉 Votre compte est prêt !</p>
+      <div class="bloc-conseil">
+        <strong>1. Installez l'application sur votre téléphone.</strong><br>
+        Vous ne la trouverez pas sur le Play Store ou l'App Store — un choix assumé : nous ne
+        partageons jamais vos données avec Google ou Apple. Ouvrez l'application sur votre
+        téléphone, puis « Partager → Sur l'écran d'accueil » (iPhone) ou le menu « Ajouter à
+        l'écran d'accueil » (Android).
+      </div>
+      <div class="bloc-conseil">
+        <strong>2. Activez les notifications.</strong><br>
+        Depuis l'onglet « Profil » de l'application, pour ne manquer aucune alerte ni actualité.
+      </div>
+      <button type="button" id="btn-ouvrir-application" style="margin-top:6px">Ouvrir mon application</button>
     </div>
 
     <p class="lien-retour" id="vers-connexion-ligne"><a href="connexion.html">J'ai déjà un compte</a></p>
@@ -93,15 +128,19 @@
     const zoneMessage = document.getElementById('zone-message');
     const etapeRecherche = document.getElementById('etape-recherche');
     const etapeIntrouvable = document.getElementById('etape-introuvable');
-    const etapeCreation = document.getElementById('etape-creation');
+    const etapeDemande = document.getElementById('etape-demande');
     const etapeEnvoye = document.getElementById('etape-envoye');
+    const etapeFinalisation = document.getElementById('etape-finalisation');
+    const etapeBienvenue = document.getElementById('etape-bienvenue');
     const versConnexionLigne = document.getElementById('vers-connexion-ligne');
 
     function afficherEtape(etape) {
       etapeRecherche.hidden = etape !== 'recherche';
       etapeIntrouvable.hidden = etape !== 'introuvable';
-      etapeCreation.hidden = etape !== 'creation';
+      etapeDemande.hidden = etape !== 'demande';
       etapeEnvoye.hidden = etape !== 'envoye';
+      etapeFinalisation.hidden = etape !== 'finalisation';
+      etapeBienvenue.hidden = etape !== 'bienvenue';
       versConnexionLigne.hidden = etape !== 'recherche';
     }
 
@@ -157,30 +196,30 @@
           ${r.peut_demander_acces ? '' : '<span class="etiquette-reclamee">Déjà sur Agora</span>'}
         `;
         if (r.peut_demander_acces) {
-          li.addEventListener('click', () => ouvrirCreation(r));
+          li.addEventListener('click', () => ouvrirDemande(r));
         }
         listeResultats.appendChild(li);
       });
     }
 
     let prospectChoisi = null;
-    function ouvrirCreation(r) {
+    function ouvrirDemande(r) {
       prospectChoisi = r;
-      document.getElementById('titre-creation').textContent = `Recevoir l'accès pour ${r.nom}`;
-      document.getElementById('erreur-creation').textContent = '';
-      afficherEtape('creation');
+      document.getElementById('titre-demande').textContent = `Rejoindre ${r.nom}`;
+      document.getElementById('erreur-demande').textContent = '';
+      afficherEtape('demande');
     }
 
-    document.getElementById('vers-recherche-depuis-creation').addEventListener('click', () => afficherEtape('recherche'));
+    document.getElementById('vers-recherche-depuis-demande').addEventListener('click', () => afficherEtape('recherche'));
     document.getElementById('vers-recherche-depuis-introuvable').addEventListener('click', () => afficherEtape('recherche'));
     document.getElementById('vers-recherche-depuis-envoye').addEventListener('click', () => afficherEtape('recherche'));
 
-    document.getElementById('form-creation').addEventListener('submit', async (e) => {
+    document.getElementById('form-demande').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!prospectChoisi) return;
       const donnees = Object.fromEntries(new FormData(e.target));
       donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
-      const zoneErreur = document.getElementById('erreur-creation');
+      const zoneErreur = document.getElementById('erreur-demande');
       zoneErreur.textContent = '';
 
       try {
@@ -199,6 +238,67 @@
       } catch {
         zoneErreur.textContent = 'Serveur inaccessible, réessayez.';
       }
+    });
+
+    // Page ouverte depuis le lien reçu par email (?token=...) : saute directement à la création
+    // du compte, sans repasser par la recherche.
+    let slugCree = null;
+    const tokenActivation = new URLSearchParams(window.location.search).get('token');
+    if (tokenActivation) {
+      etapeRecherche.hidden = true;
+      versConnexionLigne.hidden = true;
+      (async () => {
+        try {
+          const res = await fetch(`${window.API_BASE}/decouverte/communes/activation/${encodeURIComponent(tokenActivation)}`);
+          const data = await res.json();
+          if (!res.ok) {
+            etapeRecherche.hidden = false;
+            versConnexionLigne.hidden = false;
+            zoneMessage.textContent = data.erreur || 'Ce lien n\'est plus valable.';
+            zoneMessage.className = 'erreur';
+            return;
+          }
+          document.getElementById('titre-finalisation').textContent = `Créer le compte de ${data.nom_commune}`;
+          document.getElementById('email-finalisation').textContent = data.email;
+          afficherEtape('finalisation');
+        } catch {
+          etapeRecherche.hidden = false;
+          versConnexionLigne.hidden = false;
+          zoneMessage.textContent = 'Serveur inaccessible, réessayez.';
+          zoneMessage.className = 'erreur';
+        }
+      })();
+    }
+
+    document.getElementById('form-finalisation').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const donnees = Object.fromEntries(new FormData(e.target));
+      donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
+      const zoneErreur = document.getElementById('erreur-finalisation');
+      zoneErreur.textContent = '';
+
+      try {
+        const res = await fetch(`${window.API_BASE}/decouverte/communes/activation/${encodeURIComponent(tokenActivation)}/creer-compte`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(donnees),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          zoneErreur.textContent = data.erreur || 'Création impossible';
+          return;
+        }
+        slugCree = data.slug;
+        localStorage.setItem('agora_derniere_commune', slugCree);
+        afficherEtape('bienvenue');
+      } catch {
+        zoneErreur.textContent = 'Serveur inaccessible, réessayez.';
+      }
+    });
+
+    document.getElementById('btn-ouvrir-application').addEventListener('click', () => {
+      if (slugCree) document.location.href = `/${slugCree}/`;
     });
 
     document.getElementById('form-introuvable').addEventListener('submit', async (e) => {
