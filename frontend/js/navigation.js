@@ -69,15 +69,20 @@ async function initVisibiliteOnglets() {
     if (!res.ok) return;
     const { onglets } = await res.json();
 
+    // Seuls élu/maire/superadmin peuvent réellement demander un upgrade (voir la hiérarchie des
+    // rôles, CLAUDE.md) : eux seuls voient l'onglet grisé-cliquable avec la popup d'upsell (voir
+    // POST /moderation/onglets/:cle/verrouille-clique et onboarding-drip.ts). Citoyen ET admin
+    // n'ont aucun pouvoir sur un upgrade — un onglet grisé n'est pour eux que de la confusion,
+    // donc entièrement caché, sans popup.
+    const estDecideur = ['elu', 'maire', 'superadmin'].includes(window.ROLE);
+
     onglets.forEach(({ cle, actif }) => {
       const cleHtml = CORRESPONDANCE_ONGLETS[cle];
       if (!cleHtml || actif) return;
       ongletsVerrouilles.add(cleHtml);
-      // Volontairement PAS caché (display:none) : un module verrouillé reste visible mais
-      // grisé, pour que le clic dessus (signal d'intention fort, voir moderation.js) reste
-      // possible — c'est le déclencheur le plus efficace de la séquence d'onboarding/upsell.
       document.querySelectorAll(`[data-onglet="${cleHtml}"], [data-sousonglet="${cleHtml}"]`).forEach((btn) => {
-        btn.classList.add('onglet-verrouille');
+        if (estDecideur) btn.classList.add('onglet-verrouille');
+        else btn.style.display = 'none';
       });
     });
   } catch {}
