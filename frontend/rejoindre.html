@@ -5,60 +5,127 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rejoindre ma commune — Agora</title>
   <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6" />
-  <meta name="theme-color" content="#2C5F6E">
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20261006-3">
+  <meta name="theme-color" content="#1B2A4A">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;0,900;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 40px 16px; background: linear-gradient(135deg, var(--eau), var(--eauM)); }
-    .carte-rejoindre { background: #fff; padding: 28px 24px; border-radius: 18px; width: 100%; max-width: 420px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
-    .carte-rejoindre h2 { text-align: center; font-size: 26px; margin-bottom: 4px; }
-    .carte-rejoindre h2 em { font-style: italic; font-weight: 400; color: var(--aube); }
-    .sous-titre { text-align: center; font-size: 13.5px; color: var(--roseau); margin-bottom: 20px; }
-    #champ-recherche { margin-bottom: 4px; }
-    .liste-resultats { list-style: none; padding: 0; margin: 10px 0 0; max-height: 260px; overflow-y: auto; }
-    .liste-resultats li { border: 1px solid var(--grisL, #e3e3e3); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .liste-resultats li:hover { border-color: var(--eau); }
-    .nom-commune-resultat { font-weight: 600; font-size: 14.5px; }
-    .meta-commune-resultat { font-size: 12px; color: var(--roseau); }
-    #zone-message { font-size: 13px; color: var(--roseau); min-height: 18px; margin-top: 6px; }
-    #zone-message.erreur { color: var(--rouge); }
-    .case-rgpd { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--roseau); margin: 10px 0; line-height: 1.4; }
+    :root {
+      --navy: #1B2A4A; --navy-light: #2d4270;
+      --green: #2EAB7B; --green-light: #e8f7f1;
+      --orange: #F4A529; --orange-light: #fef5e4;
+      --coral: #E8623A; --coral-light: #fdeee9;
+      --white: #FFFFFF; --cream: #F8F7F4;
+      --text-muted: #6b7280; --border-light: #e8e6e1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--navy);
+      background: var(--cream);
+      margin: 0;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .carte-rejoindre {
+      background: var(--white);
+      padding: 36px 30px;
+      border-radius: 20px;
+      width: 100%; max-width: 420px;
+      box-shadow: 0 16px 40px rgba(27,42,74,0.12);
+      border: 1px solid var(--border-light);
+    }
+    .marque { display: flex; align-items: center; gap: 12px; justify-content: center; margin-bottom: 22px; }
+    .marque img { width: 44px; height: 44px; object-fit: contain; }
+    .marque-texte { text-align: left; line-height: 1.15; }
+    .marque-texte .nom { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.2rem; color: var(--navy); }
+    .marque-texte .souslogo { font-size: 0.68rem; color: var(--text-muted); letter-spacing: .03em; text-transform: uppercase; }
+    h1.titre-page {
+      font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.5rem; line-height: 1.25;
+      text-align: center; margin: 0 0 8px;
+    }
+    .sous-titre { text-align: center; font-size: 14px; color: var(--text-muted); margin: 0 0 22px; line-height: 1.5; }
+    .badge-gratuit {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      background: var(--green-light); color: var(--green);
+      border-radius: 100px; padding: 6px 14px; font-size: 12px; font-weight: 600;
+      width: fit-content; margin: 0 auto 22px;
+    }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%; font-family: 'Inter', sans-serif; font-size: 14.5px; color: var(--navy);
+      border: 1px solid var(--border-light); border-radius: 10px; padding: 12px 14px;
+      margin-bottom: 10px; background: var(--white); outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus {
+      border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light);
+    }
+    form button, button.btn-principal {
+      width: 100%; background: var(--navy); color: var(--white); border: none;
+      padding: 13px 20px; border-radius: 10px; font-family: 'Inter', sans-serif;
+      font-size: 14.5px; font-weight: 600; cursor: pointer; margin-top: 4px;
+      transition: background .15s, transform .1s;
+    }
+    form button:hover, button.btn-principal:hover { background: var(--navy-light); }
+    form button:active, button.btn-principal:active { transform: scale(.98); }
+    .liste-resultats { list-style: none; padding: 0; margin: 6px 0 0; max-height: 260px; overflow-y: auto; }
+    .liste-resultats li {
+      border: 1px solid var(--border-light); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px;
+      cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .liste-resultats li:hover { border-color: var(--green); box-shadow: 0 2px 10px rgba(46,171,123,.1); }
+    .nom-commune-resultat { font-weight: 600; font-size: 14.5px; color: var(--navy); }
+    .meta-commune-resultat { font-size: 12px; color: var(--text-muted); }
+    #zone-message { font-size: 13px; color: var(--text-muted); min-height: 18px; margin: 8px 0 0; line-height: 1.5; }
+    #zone-message.erreur { color: var(--coral); }
+    .case-rgpd { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-muted); margin: 10px 0 14px; line-height: 1.45; }
     .case-rgpd input { width: auto; margin: 2px 0 0; }
-    form button { width: 100%; }
-    .lien-retour { text-align: center; margin-top: 14px; font-size: 13px; }
-    .lien-retour a { color: var(--eau); font-weight: 600; cursor: pointer; }
-    .lien-confidentialite { display: block; text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.85); text-decoration: underline; }
-    .bloc-conseil { background: var(--eauXL, #eef6f7); border-radius: 10px; padding: 14px 16px; margin: 12px 0; font-size: 13.5px; line-height: 1.6; color: var(--roseau); }
-    .bloc-conseil strong { color: #1b2a1c; }
-    .email-fige { background: var(--grisXL, #f2f2f2); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 10px; }
+    .case-rgpd a { color: var(--navy); }
+    .lien-retour { text-align: center; margin-top: 16px; font-size: 13px; }
+    .lien-retour a { color: var(--green); font-weight: 600; cursor: pointer; text-decoration: none; }
+    .lien-retour a:hover { text-decoration: underline; }
+    .lien-confidentialite { display: block; text-align: center; margin-top: 18px; font-size: 12px; color: var(--text-muted); text-decoration: underline; }
+    .bloc-conseil { background: var(--orange-light); border-radius: 12px; padding: 14px 16px; margin: 0 0 12px; font-size: 13.5px; line-height: 1.6; color: #6b5a2a; }
+    .bloc-conseil strong { color: var(--navy); display: block; margin-bottom: 2px; }
+    .email-fige { background: var(--cream); border: 1px solid var(--border-light); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; margin-bottom: 12px; color: var(--navy); }
+    .titre-etape { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.1rem; color: var(--navy); margin: 0 0 14px; text-align: center; }
   </style>
 </head>
 <body>
   <div class="carte-rejoindre">
-    <h2>Ag<em>o</em>ra</h2>
-    <p class="sous-titre">Trouvez votre commune et recevez votre accès gratuit par email</p>
+    <div class="marque">
+      <img src="/icons/icon-192.png?v=20261005-6" alt="Agora" />
+      <div class="marque-texte">
+        <div class="nom">Agora</div>
+        <div class="souslogo">Plateforme citoyenne</div>
+      </div>
+    </div>
 
     <div id="etape-recherche">
+      <h1 class="titre-page">Rejoignez votre commune</h1>
+      <p class="sous-titre">Trouvez votre village et recevez votre accès gratuit par email</p>
+      <div class="badge-gratuit">🌿 Gratuit · 100 % français</div>
       <input type="text" id="champ-recherche" placeholder="Nom de votre commune…" autocomplete="off">
       <ul class="liste-resultats" id="liste-resultats" hidden></ul>
       <p id="zone-message"></p>
     </div>
 
     <div id="etape-introuvable" hidden>
-      <p style="font-size:14px;color:var(--roseau);margin-bottom:12px">
-        Votre commune n'est pas encore sur Agora ? Laissez-nous votre email, on s'en occupe.
-      </p>
+      <p class="titre-etape">Votre commune n'est pas encore là ?</p>
+      <p class="sous-titre" style="margin-bottom:16px">Laissez-nous votre email, on s'en occupe.</p>
       <form id="form-introuvable">
         <input type="text" name="site_web" id="piege-bot-introuvable" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
         <input type="email" name="email_demandeur" placeholder="Votre email (facultatif)">
-        <p id="message-introuvable" style="font-size:12.5px;color:var(--roseau);"></p>
+        <p id="message-introuvable" style="font-size:12.5px;color:var(--text-muted);margin:0 0 4px;"></p>
         <button type="submit">Envoyer la demande</button>
       </form>
       <p class="lien-retour"><a id="vers-recherche-depuis-introuvable">← Refaire une recherche</a></p>
     </div>
 
     <div id="etape-demande" hidden>
-      <p id="titre-demande" style="font-size:15px;font-weight:600;margin-bottom:12px"></p>
+      <p class="titre-etape" id="titre-demande"></p>
       <form id="form-demande">
         <input type="text" name="site_web" id="piege-bot-demande" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
         <input type="email" name="email" placeholder="Votre email" required>
@@ -66,22 +133,24 @@
           <input type="checkbox" name="consentement_rgpd" required>
           J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
         </label>
-        <p id="erreur-demande"></p>
+        <p id="erreur-demande" style="font-size:13px;color:var(--coral);margin:0 0 6px;"></p>
         <button type="submit">Recevoir le lien de création</button>
       </form>
       <p class="lien-retour"><a id="vers-recherche-depuis-demande">← Refaire une recherche</a></p>
     </div>
 
     <div id="etape-envoye" hidden>
-      <p style="font-size:14.5px;color:var(--roseau);line-height:1.6">
-        📬 Un email vient de partir à <strong id="email-confirme"></strong> avec un lien pour
-        créer votre compte — pensez à vérifier vos spams s'il n'arrive pas d'ici quelques minutes.
+      <p class="titre-etape">📬 Un email vous attend</p>
+      <p class="sous-titre">
+        Un email vient de partir à <strong id="email-confirme" style="color:var(--navy)"></strong>
+        avec un lien pour créer votre compte — pensez à vérifier vos spams s'il n'arrive pas
+        d'ici quelques minutes.
       </p>
       <p class="lien-retour"><a id="vers-recherche-depuis-envoye">← Refaire une recherche</a></p>
     </div>
 
     <div id="etape-finalisation" hidden>
-      <p id="titre-finalisation" style="font-size:15px;font-weight:600;margin-bottom:12px"></p>
+      <p class="titre-etape" id="titre-finalisation"></p>
       <div class="email-fige">✉️ <span id="email-finalisation"></span></div>
       <form id="form-finalisation">
         <input type="text" name="site_web" id="piege-bot-finalisation" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
@@ -92,25 +161,25 @@
           <input type="checkbox" name="consentement_rgpd" required>
           J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
         </label>
-        <p id="erreur-finalisation"></p>
+        <p id="erreur-finalisation" style="font-size:13px;color:var(--coral);margin:0 0 6px;"></p>
         <button type="submit">Créer mon compte</button>
       </form>
     </div>
 
     <div id="etape-bienvenue" hidden>
-      <p style="font-size:15px;font-weight:600;margin-bottom:10px">🎉 Votre compte est prêt !</p>
+      <p class="titre-etape">🎉 Votre compte est prêt !</p>
       <div class="bloc-conseil">
-        <strong>1. Installez l'application sur votre téléphone.</strong><br>
+        <strong>1. Installez l'application sur votre téléphone</strong>
         Vous ne la trouverez pas sur le Play Store ou l'App Store — un choix assumé : nous ne
         partageons jamais vos données avec Google ou Apple. Ouvrez l'application sur votre
         téléphone, puis « Partager → Sur l'écran d'accueil » (iPhone) ou le menu « Ajouter à
         l'écran d'accueil » (Android).
       </div>
       <div class="bloc-conseil">
-        <strong>2. Activez les notifications.</strong><br>
+        <strong>2. Activez les notifications</strong>
         Depuis l'onglet « Profil » de l'application, pour ne manquer aucune alerte ni actualité.
       </div>
-      <button type="button" id="btn-ouvrir-application" style="margin-top:6px">Ouvrir mon application</button>
+      <button type="button" id="btn-ouvrir-application" class="btn-principal">Ouvrir mon application</button>
     </div>
 
     <p class="lien-retour" id="vers-connexion-ligne"><a href="connexion.html">J'ai déjà un compte</a></p>
@@ -175,7 +244,7 @@
     function afficherResultats(resultats, q) {
       if (!resultats.length) {
         listeResultats.hidden = true;
-        zoneMessage.innerHTML = `Aucune commune trouvée pour « ${echapperTexte(q)} ». <a id="lien-village-introuvable" style="color:var(--eau);font-weight:600;cursor:pointer">Faire une demande</a>`;
+        zoneMessage.innerHTML = `Aucune commune trouvée pour « ${echapperTexte(q)} ». <a id="lien-village-introuvable" style="color:var(--green);font-weight:600;cursor:pointer">Faire une demande</a>`;
         zoneMessage.className = '';
         document.getElementById('lien-village-introuvable').addEventListener('click', () => afficherEtape('introuvable'));
         return;
