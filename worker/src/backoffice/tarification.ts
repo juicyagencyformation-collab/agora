@@ -84,7 +84,7 @@ export const DEFAUTS_OFFRES_TEXTE: Record<string, string> = {
   offre_accompagne_label: 'Accompagné',
   offre_accompagne_titre: 'On s\'occupe du quotidien',
   offre_accompagne_badge: 'Le plus demandé',
-  offre_accompagne_features: 'Tout Autonomie, plus :\nModération automatique des photos\nQuestionnaires « thermomètre » publiés chaque semaine\nSupport prioritaire',
+  offre_accompagne_features: 'Tout Autonomie, plus :\nModération automatique des photos\nSupport prioritaire',
   offre_premium_label: 'Premium',
   offre_premium_titre: 'Patrimoine & découverte',
   offre_premium_features: 'Tout Accompagné, plus :\nChasse au trésor numérique de valorisation du patrimoine local',
