@@ -53,7 +53,7 @@ function backoffice() {
     pageActivite: 1,
     tailleActivite: 50,
     totalActivite: 0,
-    filtreActiviteDepuis: 30,
+    filtreActiviteDepuis: 1,
     filtreActiviteTypes: [],
     filtreActiviteCommune: '',
     activiteCommune: [],       // flux borné à la commune ouverte, pour le tiroir de la fiche

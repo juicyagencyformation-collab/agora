@@ -2301,6 +2301,7 @@
 
           <div class="bo-outils">
             <select x-model.number="filtreActiviteDepuis" @change="appliquerFiltresActivite()">
+              <option :value="1">Aujourd'hui</option>
               <option :value="7">7 derniers jours</option>
               <option :value="30">30 derniers jours</option>
               <option :value="90">90 derniers jours</option>
@@ -3558,7 +3559,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261006-3"></script>
+  <script src="/backoffice/js/app.js?v=20261008-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20260818-1" defer></script>
 </body>
 </html>
