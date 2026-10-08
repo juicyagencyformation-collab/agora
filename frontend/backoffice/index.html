@@ -68,8 +68,10 @@
 
       <!-- Vue : "Aujourd'hui" — tableau de bord qui regroupe tout ce qui est actionnable/en retard,
            jusqu'ici éparpillé sur 3 écrans (Communes clientes, Prospection, Réponses reçues).
-           Sections toujours dépliées (pas de tiroir) : le but est un coup d'œil du matin, pas une
-           page de référence à explorer. -->
+           Sections dépliées par défaut (le but est un coup d'œil du matin, pas une page de
+           référence à explorer), sauf "Prospects à relancer" et "Emails rejetés" : en tiroir
+           repliable (clés aj_prospects_relance / aj_emails_rejetes, distinctes du tiroir
+           emails_rejetes de l'onglet Prospection qui affiche la même donnée ailleurs). -->
       <template x-if="!chargement && vue === 'aujourdhui'">
         <div>
           <div class="bo-entete">
@@ -79,33 +81,36 @@
             </div>
           </div>
 
-          <div class="bo-carte" style="margin-bottom:20px">
-            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
-              <strong>📞 Prospects à relancer<span class="bo-tiroir__compte" x-show="ajProspectsRelance.length" x-text="' — ' + ajProspectsRelance.length"></span></strong>
-              <div style="display:flex; align-items:center; gap:10px" x-show="ajProspectsRelance.length > 0">
-                <button class="bo-btn bo-btn--compact" @click="relancerTousLesProspects()" :disabled="relanceLotEnCours"
+          <div class="bo-tiroir" style="margin-bottom:20px">
+            <div class="bo-tiroir__entete" style="cursor:pointer" @click="toggleTiroir('aj_prospects_relance')">
+              <span>📞 Prospects à relancer<span class="bo-tiroir__compte" x-show="ajProspectsRelance.length" x-text="' — ' + ajProspectsRelance.length"></span></span>
+              <span style="display:flex; align-items:center; gap:10px">
+                <button class="bo-btn bo-btn--compact" @click.stop="relancerTousLesProspects()" :disabled="relanceLotEnCours" x-show="ajProspectsRelance.length > 0"
                         x-text="relanceLotEnCours ? 'Envoi…' : 'Tout traiter (' + Math.min(ajProspectsRelance.length, 40) + ')'"></button>
-                <span class="bo-info" x-text="relanceLotMsg"></span>
-              </div>
+                <span class="bo-info" x-show="relanceLotMsg" x-text="relanceLotMsg"></span>
+                <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.aj_prospects_relance}">▸</span>
+              </span>
             </div>
-            <template x-if="ajProspectsRelance.length === 0">
-              <div class="bo-vide" style="padding:16px 18px">Rien à relancer aujourd'hui.</div>
-            </template>
-            <table x-show="ajProspectsRelance.length > 0">
-              <thead><tr><th>Commune</th><th>Statut</th><th>Relance</th></tr></thead>
-              <tbody>
-                <template x-for="p in ajProspectsRelance" :key="p.id">
-                  <tr @click="ouvrirProspect(p.id)">
-                    <td class="bo-nom-commune" x-text="p.nom"></td>
-                    <td x-text="libelleStatut(p.statut)"></td>
-                    <td>
-                      <span :class="p.prochaine_relance_le < ajDateAujourdhui ? 'bo-note--basse' : 'bo-note--moyenne'"
-                            x-text="p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)"></span>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.aj_prospects_relance">
+              <template x-if="ajProspectsRelance.length === 0">
+                <div class="bo-vide" style="padding:16px 18px">Rien à relancer aujourd'hui.</div>
+              </template>
+              <table x-show="ajProspectsRelance.length > 0">
+                <thead><tr><th>Commune</th><th>Statut</th><th>Relance</th></tr></thead>
+                <tbody>
+                  <template x-for="p in ajProspectsRelance" :key="p.id">
+                    <tr @click="ouvrirProspect(p.id)">
+                      <td class="bo-nom-commune" x-text="p.nom"></td>
+                      <td x-text="libelleStatut(p.statut)"></td>
+                      <td>
+                        <span :class="p.prochaine_relance_le < ajDateAujourdhui ? 'bo-note--basse' : 'bo-note--moyenne'"
+                              x-text="p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div class="bo-carte" style="margin-bottom:20px">
@@ -194,24 +199,29 @@
             </table>
           </div>
 
-          <div class="bo-carte">
-            <div style="padding:14px 18px; border-bottom:1px solid var(--bo-border)"><strong>✉ Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="' — ' + emailsRejetes.length"></span></strong></div>
-            <template x-if="emailsRejetes.length === 0">
-              <div class="bo-vide" style="padding:16px 18px">Aucun email rejeté capté.</div>
-            </template>
-            <table x-show="emailsRejetes.length > 0">
-              <thead><tr><th>Adresse</th><th>Commune</th><th>Raison</th><th>Date</th></tr></thead>
-              <tbody>
-                <template x-for="(e, i) in emailsRejetes" :key="i">
-                  <tr style="cursor:default">
-                    <td x-text="e.email"></td>
-                    <td><span :class="{ 'bo-vide': !e.commune_nom }" x-text="e.commune_nom || '—'"></span></td>
-                    <td><span :class="{ 'bo-vide': !e.raison }" x-text="e.raison || '—'"></span></td>
-                    <td x-text="formatDate(e.created_at)"></td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
+          <div class="bo-tiroir">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('aj_emails_rejetes')">
+              <span>✉ Emails rejetés (bounces)<span class="bo-tiroir__compte" x-show="emailsRejetes.length" x-text="' — ' + emailsRejetes.length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.aj_emails_rejetes}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.aj_emails_rejetes">
+              <template x-if="emailsRejetes.length === 0">
+                <div class="bo-vide" style="padding:16px 18px">Aucun email rejeté capté.</div>
+              </template>
+              <table x-show="emailsRejetes.length > 0">
+                <thead><tr><th>Adresse</th><th>Commune</th><th>Raison</th><th>Date</th></tr></thead>
+                <tbody>
+                  <template x-for="(e, i) in emailsRejetes" :key="i">
+                    <tr style="cursor:default">
+                      <td x-text="e.email"></td>
+                      <td><span :class="{ 'bo-vide': !e.commune_nom }" x-text="e.commune_nom || '—'"></span></td>
+                      <td><span :class="{ 'bo-vide': !e.raison }" x-text="e.raison || '—'"></span></td>
+                      <td x-text="formatDate(e.created_at)"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </template>
