@@ -132,6 +132,61 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
   </div>`;
 }
 
+// Email envoyé après une auto-activation en self-service depuis frontend/rejoindre.html (voir
+// POST /decouverte/communes/:id/demander-acces) — distinct de emailBienvenueHtml ci-dessus
+// (utilisé par la prospection/conversion manuelle, orienté vente : affiche, dossier conseil).
+// Ici le visiteur a trouvé sa commune lui-même et n'a donné que son email : priorité à deux
+// conseils pratiques demandés explicitement par Léandre (2026-10-08), l'app n'étant JAMAIS
+// publiée sur les stores (choix de souveraineté/protection des données, pas un oubli) :
+// 1. Installer l'application (PWA, étape qui ne va pas de soi sans un store) ;
+// 2. Activer les notifications.
+export function emailActivationLibreHtml(d: DonneesBienvenue): string {
+  const url = `${d.frontendUrl}/${d.slug}/`;
+  const urlBouton = d.lienConnexion || url;
+  const nom = echapper(d.nomCommune);
+  return `
+  <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
+
+    <h1 style="font-size:22px;line-height:1.3">Merci d'avoir activé Agora pour <span style="color:#2c5f2d">${nom}</span> 🎉</h1>
+    <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
+      Votre espace est prêt. Il ne reste qu'à vous connecter pour commencer à informer et faire
+      participer vos habitants.
+    </p>
+
+    <p style="margin:24px 0">
+      <a href="${urlBouton}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Ouvrir mon application</a>
+    </p>
+
+    ${blocIdentifiants(url, d.maireEmail, d.motDePasse)}
+
+    <div style="background:#f4f8f4;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <p style="font-size:14px;color:#1b2a1c;font-weight:600;margin-bottom:8px">✅ Deux choses à faire maintenant</p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6;margin-bottom:10px">
+        <strong>1. Installez l'application sur votre téléphone.</strong><br />
+        Vous ne la trouverez pas sur le Play Store ou l'App Store — un choix assumé&nbsp;: nous ne
+        partageons jamais vos données avec Google ou Apple. L'installation se fait directement
+        depuis votre navigateur, aussi simplement&nbsp;: ouvrez le lien ci-dessus sur votre
+        téléphone, puis « Partager → Sur l'écran d'accueil » (iPhone) ou le menu « Ajouter à
+        l'écran d'accueil » (Android).
+      </p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6">
+        <strong>2. Activez les notifications.</strong><br />
+        Depuis l'onglet « Profil » de l'application, pour ne manquer aucune alerte ni actualité
+        importante de votre commune.
+      </p>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
+    <div style="font-size:12px;color:#5b6b5c">
+      Juicy Solutions — Léandre Sallé · plateforme-agora.fr<br />
+      Une question&nbsp;? Répondez simplement à cet email.
+    </div>
+    ${blocPsModules()}
+  </div>`;
+}
+
 export async function envoyerEmailBienvenue(env: any, d: DonneesBienvenue): Promise<void> {
   const lienConnexion = (d.communeId && d.userId)
     ? await genererLienConnexionDirecte(env, d.frontendUrl, d.slug, d.communeId, d.userId)

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rejoindre ma commune — Agora</title>
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6" />
+  <meta name="theme-color" content="#2C5F6E">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/base.css?v=20261006-3">
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 40px 16px; background: linear-gradient(135deg, var(--eau), var(--eauM)); }
+    .carte-rejoindre { background: #fff; padding: 28px 24px; border-radius: 18px; width: 100%; max-width: 420px; box-shadow: 0 8px 30px rgba(0,0,0,.2); }
+    .carte-rejoindre h2 { text-align: center; font-size: 26px; margin-bottom: 4px; }
+    .carte-rejoindre h2 em { font-style: italic; font-weight: 400; color: var(--aube); }
+    .sous-titre { text-align: center; font-size: 13.5px; color: var(--roseau); margin-bottom: 20px; }
+    #champ-recherche { margin-bottom: 4px; }
+    .liste-resultats { list-style: none; padding: 0; margin: 10px 0 0; max-height: 260px; overflow-y: auto; }
+    .liste-resultats li { border: 1px solid var(--grisL, #e3e3e3); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .liste-resultats li:hover { border-color: var(--eau); }
+    .liste-resultats li.deja-reclamee { opacity: .6; cursor: default; }
+    .nom-commune-resultat { font-weight: 600; font-size: 14.5px; }
+    .meta-commune-resultat { font-size: 12px; color: var(--roseau); }
+    .etiquette-reclamee { font-size: 11px; color: var(--roseau); background: var(--grisXL, #f2f2f2); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+    #zone-message { font-size: 13px; color: var(--roseau); min-height: 18px; margin-top: 6px; }
+    #zone-message.erreur { color: var(--rouge); }
+    .case-rgpd { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--roseau); margin: 10px 0; line-height: 1.4; }
+    .case-rgpd input { width: auto; margin: 2px 0 0; }
+    form button { width: 100%; }
+    .lien-retour { text-align: center; margin-top: 14px; font-size: 13px; }
+    .lien-retour a { color: var(--eau); font-weight: 600; cursor: pointer; }
+    .lien-confidentialite { display: block; text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.85); text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="carte-rejoindre">
+    <h2>Ag<em>o</em>ra</h2>
+    <p class="sous-titre">Trouvez votre commune et recevez votre accès gratuit par email</p>
+
+    <div id="etape-recherche">
+      <input type="text" id="champ-recherche" placeholder="Nom de votre commune…" autocomplete="off">
+      <ul class="liste-resultats" id="liste-resultats" hidden></ul>
+      <p id="zone-message"></p>
+    </div>
+
+    <div id="etape-introuvable" hidden>
+      <p style="font-size:14px;color:var(--roseau);margin-bottom:12px">
+        Votre commune n'est pas encore sur Agora ? Laissez-nous votre email, on s'en occupe.
+      </p>
+      <form id="form-introuvable">
+        <input type="text" name="site_web" id="piege-bot-introuvable" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input type="email" name="email_demandeur" placeholder="Votre email (facultatif)">
+        <p id="message-introuvable" style="font-size:12.5px;color:var(--roseau);"></p>
+        <button type="submit">Envoyer la demande</button>
+      </form>
+      <p class="lien-retour"><a id="vers-recherche-depuis-introuvable">← Refaire une recherche</a></p>
+    </div>
+
+    <div id="etape-creation" hidden>
+      <p id="titre-creation" style="font-size:15px;font-weight:600;margin-bottom:12px"></p>
+      <form id="form-creation">
+        <input type="text" name="site_web" id="piege-bot-creation" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input type="email" name="email" placeholder="Votre email" required>
+        <label class="case-rgpd">
+          <input type="checkbox" name="consentement_rgpd" required>
+          J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
+        </label>
+        <p id="erreur-creation"></p>
+        <button type="submit">Recevoir mon accès gratuit</button>
+      </form>
+      <p class="lien-retour"><a id="vers-recherche-depuis-creation">← Refaire une recherche</a></p>
+    </div>
+
+    <div id="etape-envoye" hidden>
+      <p style="font-size:14.5px;color:var(--roseau);line-height:1.6">
+        📬 Un email vient de partir à <strong id="email-confirme"></strong> avec votre lien
+        d'accès et quelques conseils pour bien démarrer — pensez à vérifier vos spams s'il
+        n'arrive pas d'ici quelques minutes.
+      </p>
+      <p class="lien-retour"><a id="vers-recherche-depuis-envoye">← Refaire une recherche</a></p>
+    </div>
+
+    <p class="lien-retour" id="vers-connexion-ligne"><a href="connexion.html">J'ai déjà un compte</a></p>
+  </div>
+
+  <a href="confidentialite.html" class="lien-confidentialite">Politique de confidentialité (RGPD)</a>
+  <a href="mentions-legales.html" class="lien-confidentialite">Mentions légales</a>
+
+  <script src="/js/config.js?v=20261008-3"></script>
+  <script>
+    const champRecherche = document.getElementById('champ-recherche');
+    const listeResultats = document.getElementById('liste-resultats');
+    const zoneMessage = document.getElementById('zone-message');
+    const etapeRecherche = document.getElementById('etape-recherche');
+    const etapeIntrouvable = document.getElementById('etape-introuvable');
+    const etapeCreation = document.getElementById('etape-creation');
+    const etapeEnvoye = document.getElementById('etape-envoye');
+    const versConnexionLigne = document.getElementById('vers-connexion-ligne');
+
+    function afficherEtape(etape) {
+      etapeRecherche.hidden = etape !== 'recherche';
+      etapeIntrouvable.hidden = etape !== 'introuvable';
+      etapeCreation.hidden = etape !== 'creation';
+      etapeEnvoye.hidden = etape !== 'envoye';
+      versConnexionLigne.hidden = etape !== 'recherche';
+    }
+
+    function echapperTexte(s) {
+      const d = document.createElement('div');
+      d.textContent = s ?? '';
+      return d.innerHTML;
+    }
+
+    let minuteur;
+    champRecherche.addEventListener('input', () => {
+      clearTimeout(minuteur);
+      const q = champRecherche.value.trim();
+      if (q.length < 2) {
+        listeResultats.hidden = true;
+        zoneMessage.textContent = '';
+        return;
+      }
+      zoneMessage.textContent = 'Recherche…';
+      minuteur = setTimeout(() => rechercher(q), 300);
+    });
+
+    async function rechercher(q) {
+      try {
+        const res = await fetch(`${window.API_BASE}/decouverte/communes/rechercher?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        afficherResultats(data.resultats || [], q);
+      } catch {
+        zoneMessage.textContent = 'Serveur inaccessible, réessayez.';
+        zoneMessage.className = 'erreur';
+      }
+    }
+
+    function afficherResultats(resultats, q) {
+      if (!resultats.length) {
+        listeResultats.hidden = true;
+        zoneMessage.innerHTML = `Aucune commune trouvée pour « ${echapperTexte(q)} ». <a id="lien-village-introuvable" style="color:var(--eau);font-weight:600;cursor:pointer">Faire une demande</a>`;
+        zoneMessage.className = '';
+        document.getElementById('lien-village-introuvable').addEventListener('click', () => afficherEtape('introuvable'));
+        return;
+      }
+      zoneMessage.textContent = '';
+      listeResultats.hidden = false;
+      listeResultats.innerHTML = '';
+      resultats.forEach((r) => {
+        const li = document.createElement('li');
+        li.className = r.peut_demander_acces ? '' : 'deja-reclamee';
+        li.innerHTML = `
+          <span>
+            <span class="nom-commune-resultat">${echapperTexte(r.nom)}</span>
+            <span class="meta-commune-resultat"> · ${echapperTexte(r.code_postal || r.departement || '')}</span>
+          </span>
+          ${r.peut_demander_acces ? '' : '<span class="etiquette-reclamee">Déjà sur Agora</span>'}
+        `;
+        if (r.peut_demander_acces) {
+          li.addEventListener('click', () => ouvrirCreation(r));
+        }
+        listeResultats.appendChild(li);
+      });
+    }
+
+    let prospectChoisi = null;
+    function ouvrirCreation(r) {
+      prospectChoisi = r;
+      document.getElementById('titre-creation').textContent = `Recevoir l'accès pour ${r.nom}`;
+      document.getElementById('erreur-creation').textContent = '';
+      afficherEtape('creation');
+    }
+
+    document.getElementById('vers-recherche-depuis-creation').addEventListener('click', () => afficherEtape('recherche'));
+    document.getElementById('vers-recherche-depuis-introuvable').addEventListener('click', () => afficherEtape('recherche'));
+    document.getElementById('vers-recherche-depuis-envoye').addEventListener('click', () => afficherEtape('recherche'));
+
+    document.getElementById('form-creation').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!prospectChoisi) return;
+      const donnees = Object.fromEntries(new FormData(e.target));
+      donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
+      const zoneErreur = document.getElementById('erreur-creation');
+      zoneErreur.textContent = '';
+
+      try {
+        const res = await fetch(`${window.API_BASE}/decouverte/communes/${prospectChoisi.id}/demander-acces`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(donnees),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          zoneErreur.textContent = data.erreur || 'Demande impossible';
+          return;
+        }
+        document.getElementById('email-confirme').textContent = donnees.email;
+        afficherEtape('envoye');
+      } catch {
+        zoneErreur.textContent = 'Serveur inaccessible, réessayez.';
+      }
+    });
+
+    document.getElementById('form-introuvable').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const donnees = Object.fromEntries(new FormData(e.target));
+      donnees.nom_commune = champRecherche.value.trim();
+      const zoneMsg = document.getElementById('message-introuvable');
+      zoneMsg.textContent = 'Envoi en cours…';
+      try {
+        const res = await fetch(`${window.API_BASE}/decouverte/communes/demande-manquante`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(donnees),
+        });
+        if (res.ok) {
+          zoneMsg.textContent = 'Merci ! On revient vers vous rapidement.';
+          e.target.reset();
+        } else {
+          zoneMsg.textContent = 'Erreur, réessayez.';
+        }
+      } catch {
+        zoneMsg.textContent = 'Serveur inaccessible.';
+      }
+    });
+  </script>
+</body>
+</html>

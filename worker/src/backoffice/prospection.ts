@@ -786,7 +786,7 @@ function genererSlugBase(nom: string): string {
     .slice(0, 50) || 'commune';
 }
 
-async function genererSlugUnique(env: any, nom: string): Promise<string> {
+export async function genererSlugUnique(env: any, nom: string): Promise<string> {
   const base = genererSlugBase(nom);
   const existants = await supabaseSelect(env, 'communes', { select: 'slug', slug: `like.${base}*` });
   const pris = new Set(existants.map((c: any) => c.slug));
