@@ -39,7 +39,7 @@
   <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune.</p>
 
   <h2>Hébergement et sous-traitants</h2>
-  <p>L'application est hébergée sur l'infrastructure de <strong>Cloudflare</strong> (Workers, Pages, R2) et <strong>Supabase</strong> (base de données). Ces prestataires agissent en tant que sous-traitants techniques et n'utilisent pas vos données à d'autres fins.</p>
+  <p>L'application est hébergée sur l'infrastructure de <strong>Cloudflare</strong> (Workers, Pages, R2) et <strong>Supabase</strong> (base de données). Les emails (confirmation de compte, notifications, bilans d'activité) sont envoyés via <strong>Resend</strong>. Pour les communes ayant activé la modération automatique des photos, chaque photo soumise est analysée par un modèle d'intelligence artificielle hébergé par <strong>Cloudflare (Workers AI)</strong> afin de détecter un contenu inapproprié avant publication — l'image n'est conservée par ce service que le temps de l'analyse, jamais utilisée pour l'entraîner ni partagée à d'autres fins. Ces prestataires agissent en tant que sous-traitants techniques et n'utilisent pas vos données à d'autres fins.</p>
 
   <h2>Durée de conservation</h2>
   <p>Certains contenus sont éphémères par nature et supprimés automatiquement (messages du Mur des voisins après 24-48h, photos de la galerie "Photo du jour" et "Énigme photo" selon la durée définie par la mairie). Les autres données sont conservées tant que votre compte est actif.</p>
