@@ -134,14 +134,14 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
 
 // Email de CONFIRMATION envoyé en self-service depuis frontend/rejoindre.html (voir
 // POST /decouverte/communes/:id/demander-acces) — distinct de emailBienvenueHtml ci-dessus
-// (prospection/conversion manuelle, orienté vente : affiche, dossier conseil). Volontairement
-// minimal : à ce stade AUCUN compte n'existe encore (voir migration 079_activations_libres),
-// cet email a un seul but — vérifier que la personne contrôle bien cette adresse avant de la
-// laisser créer un compte. Le lien mène vers une page de création de compte (prénom/nom/mot de
-// passe choisis par la personne elle-même), jamais vers un compte déjà créé pour elle — décision
-// explicite de Léandre le 2026-10-08, après une 1re version qui créait le compte trop tôt.
-// Les conseils pratiques (installer l'app, activer les notifications) sont affichés à l'écran
-// juste après la création du compte (voir rejoindre.html), pas dans cet email.
+// (prospection/conversion manuelle vers une mairie, orienté vente : affiche, dossier conseil).
+// Ici c'est un HABITANT qui télécharge l'appli pour sa commune (compte citoyen, jamais admin —
+// décision explicite de Léandre le 2026-10-08), que sa mairie utilise déjà Agora ou non. À ce
+// stade AUCUN compte n'existe encore (voir migration 079_activations_libres) : cet email vérifie
+// que la personne contrôle bien cette adresse avant de la laisser créer son compte (prénom/nom/
+// mot de passe choisis par elle-même sur la page de destination, jamais pré-remplis). Les 2
+// conseils pratiques les plus importants (installer l'app, activer les notifications) sont ICI,
+// pas seulement sur l'écran de bienvenue après création — demande explicite de Léandre.
 export function emailConfirmationActivationHtml(nomCommune: string, lienConfirmation: string): string {
   const nom = echapper(nomCommune);
   return `
@@ -149,20 +149,35 @@ export function emailConfirmationActivationHtml(nomCommune: string, lienConfirma
     <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
 
-    <h1 style="font-size:22px;line-height:1.3">Plus qu'une étape pour <span style="color:#2c5f2d">${nom}</span></h1>
+    <h1 style="font-size:22px;line-height:1.3">Plus qu'une étape pour rejoindre <span style="color:#2c5f2d">${nom}</span></h1>
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
-      Cliquez sur le bouton ci-dessous pour créer votre compte gratuit et commencer à informer et
-      faire participer vos habitants.
+      Merci de votre intérêt ! Cliquez sur le bouton ci-dessous pour créer votre compte gratuit
+      et suivre la vie de votre commune.
     </p>
 
     <p style="margin:24px 0">
       <a href="${lienConfirmation}" style="background:#2c5f2d;color:#fff;text-decoration:none;padding:13px 26px;border-radius:8px;font-weight:600;font-size:15px;display:inline-block">Créer mon compte</a>
     </p>
 
-    <p style="font-size:12.5px;color:#5b6b5c">
+    <p style="font-size:12.5px;color:#5b6b5c;margin-bottom:20px">
       Ce lien est valable 48 heures. Si vous n'êtes pas à l'origine de cette demande, ignorez
       simplement cet email — aucun compte ne sera créé.
     </p>
+
+    <div style="background:#f4f8f4;border-radius:10px;padding:16px 18px;margin:20px 0">
+      <p style="font-size:14px;color:#1b2a1c;font-weight:600;margin-bottom:8px">✅ Une fois votre compte créé</p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6;margin-bottom:10px">
+        <strong>1. Installez l'application sur votre téléphone.</strong><br />
+        Vous ne la trouverez pas sur le Play Store ou l'App Store — un choix assumé&nbsp;: nous ne
+        partageons jamais vos données avec Google ou Apple. Depuis votre téléphone, ouvrez
+        l'application puis « Partager → Sur l'écran d'accueil » (iPhone) ou le menu « Ajouter à
+        l'écran d'accueil » (Android).
+      </p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6">
+        <strong>2. Activez les notifications.</strong><br />
+        Depuis l'onglet « Profil » de l'application, pour ne manquer aucune alerte ni actualité.
+      </p>
+    </div>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c">

@@ -1,11 +1,11 @@
 // worker/test/decouverte.test.ts
-// Couvre l'inscription en self-service (worker/src/routes/decouverte.ts, voir
+// Couvre l'inscription CITOYENNE en self-service (worker/src/routes/decouverte.ts, voir
 // frontend/rejoindre.html) : recherche publique dans les prospects, demande d'accès par email
 // (aucun compte créé à ce stade), confirmation par le lien reçu puis création réelle du compte
-// avec le prénom/nom/mot de passe choisis par la personne. Point le plus important à vérifier :
-// une commune déjà réclamée par un vrai utilisateur ne doit JAMAIS pouvoir être reprise par un
-// visiteur anonyme, à AUCUNE des deux étapes. Fausse base Supabase pilotée par fetch(), même
-// esprit que test/emails-recus.test.ts.
+// — toujours role='citoyen', avec le prénom/nom/mot de passe choisis par la personne. Un compte
+// citoyen n'ayant aucun pouvoir, pas de "garde-fou anti-détournement" à tester ici (contrairement
+// à une 1re version qui créait un compte admin) — seul le dédoublonnage par email compte. Fausse
+// base Supabase pilotée par fetch(), même esprit que test/emails-recus.test.ts.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import decouverte from '../src/routes/decouverte';
 import { hasherToken } from '../src/auth';
@@ -114,30 +114,14 @@ describe('GET /communes/rechercher', () => {
     expect(await res.json()).toEqual({ resultats: [] });
   });
 
-  it('trouve une commune jamais activée : peut_demander_acces = true', async () => {
-    ajouterProspect({ nom: 'Testville' });
-    const res = await decouverte.request('/communes/rechercher?q=testville', {}, ENV);
-    const { resultats } = await res.json();
-    expect(resultats).toHaveLength(1);
-    expect(resultats[0].peut_demander_acces).toBe(true);
-  });
-
-  it('trouve une commune activée mais jamais réclamée : peut_demander_acces = true', async () => {
-    db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
-    db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'admin', compte_provisionne: true });
-    ajouterProspect({ nom: 'Testville', commune_id: 'commune-1' });
-    const res = await decouverte.request('/communes/rechercher?q=testville', {}, ENV);
-    const { resultats } = await res.json();
-    expect(resultats[0].peut_demander_acces).toBe(true);
-  });
-
-  it('trouve une commune déjà réclamée par un vrai compte : peut_demander_acces = false', async () => {
+  it('trouve une commune par son nom, qu\'elle soit déjà active sur Agora ou non', async () => {
     db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
     db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'admin', compte_provisionne: false });
     ajouterProspect({ nom: 'Testville', commune_id: 'commune-1' });
     const res = await decouverte.request('/communes/rechercher?q=testville', {}, ENV);
     const { resultats } = await res.json();
-    expect(resultats[0].peut_demander_acces).toBe(false);
+    expect(resultats).toHaveLength(1);
+    expect(resultats[0].nom).toBe('Testville');
   });
 });
 
@@ -170,7 +154,7 @@ describe('POST /communes/:id/demander-acces', () => {
     expect(emailsEnvoyes[0].html).toContain('Créer mon compte'); // lien, pas d'identifiants
   });
 
-  it('refuse (409) si la commune est déjà réclamée par un vrai compte — garde-fou anti-détournement', async () => {
+  it('fonctionne aussi pour une commune qui a déjà un vrai compte (mairie active) — un citoyen de plus n\'a rien d\'anormal', async () => {
     db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
     db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'maire', compte_provisionne: false, email: 'vrai-maire@testville.fr' });
     const prospect = ajouterProspect({ nom: 'Testville', commune_id: 'commune-1' });
@@ -178,9 +162,9 @@ describe('POST /communes/:id/demander-acces', () => {
     const res = await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsValide),
     }, ENV);
-    expect(res.status).toBe(409);
-    expect(db.activations_libres).toHaveLength(0);
-    expect(emailsEnvoyes).toHaveLength(0);
+    expect(res.status).toBe(200);
+    expect(db.activations_libres).toHaveLength(1);
+    expect(emailsEnvoyes).toHaveLength(1);
   });
 
   it('piège à robots (honeypot) : faux succès, rien n\'est créé', async () => {
@@ -238,7 +222,7 @@ describe('POST /communes/activation/:token/creer-compte', () => {
 
   const corpsCreation = { prenom: 'Jean', nom: 'Dupont', mot_de_passe: 'motdepasse123', consentement_rgpd: true };
 
-  it('crée le vrai compte (prénom/nom/mot de passe choisis), connecte automatiquement, et le jeton devient inutilisable', async () => {
+  it('crée le vrai compte CITOYEN (prénom/nom/mot de passe choisis), connecte automatiquement, et le jeton devient inutilisable', async () => {
     const token = await demanderEtRecupererToken();
     const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
@@ -249,6 +233,7 @@ describe('POST /communes/activation/:token/creer-compte', () => {
     expect(res.headers.get('set-cookie')).toContain('agora_access');
 
     expect(db.users).toHaveLength(1);
+    expect(db.users[0].role).toBe('citoyen');
     expect(db.users[0].prenom).toBe('Jean');
     expect(db.users[0].nom).toBe('Dupont');
     expect(db.users[0].email).toBe('jean@testville.fr');
@@ -261,33 +246,30 @@ describe('POST /communes/activation/:token/creer-compte', () => {
     expect(res2.status).toBe(410);
   });
 
-  it('réutilise le compte générique provisionné par la prospection plutôt que d\'en créer un second', async () => {
+  it('fonctionne aussi quand la commune a déjà un vrai compte admin (mairie active)', async () => {
     db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
-    db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'admin', compte_provisionne: true, email: 'generique@testville.fr' });
+    db.users.push({ id: 'u1', commune_id: 'commune-1', role: 'maire', compte_provisionne: false, email: 'vrai-maire@testville.fr' });
     const token = await demanderEtRecupererToken();
-    // demanderEtRecupererToken crée son propre prospect/commune ; on relie plutôt la commune existante.
     db.activations_libres[db.activations_libres.length - 1].commune_id = 'commune-1';
 
     const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
     }, ENV);
     expect(res.status).toBe(201);
-    expect(db.users).toHaveLength(1); // toujours un seul compte
-    expect(db.users[0].email).toBe('jean@testville.fr');
-    expect(db.users[0].compte_provisionne).toBe(false);
+    expect(db.users).toHaveLength(2); // le maire existant + le nouveau citoyen
+    expect(db.users.find((u: any) => u.id !== 'u1').role).toBe('citoyen');
   });
 
-  it('refuse (409) si la commune a été réclamée entre-temps par une autre confirmation', async () => {
+  it('refuse (400) si un compte existe déjà avec cet email sur cette commune', async () => {
     const token = await demanderEtRecupererToken();
-    // Une autre confirmation (ou la prospection) a entre-temps créé un vrai compte sur cette commune.
     const communeId = db.activations_libres[0].commune_id;
-    db.users.push({ id: 'intrus', commune_id: communeId, role: 'admin', compte_provisionne: false, email: 'autre@testville.fr' });
+    db.users.push({ id: 'existant', commune_id: communeId, role: 'citoyen', email: 'jean@testville.fr' });
 
     const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
     }, ENV);
-    expect(res.status).toBe(409);
-    expect(db.users).toHaveLength(1); // seul l'intrus existe, rien ajouté
+    expect(res.status).toBe(400);
+    expect(db.users).toHaveLength(1); // rien ajouté
   });
 
   it('410 pour un jeton inconnu ou déjà utilisé', async () => {

@@ -18,10 +18,8 @@
     .liste-resultats { list-style: none; padding: 0; margin: 10px 0 0; max-height: 260px; overflow-y: auto; }
     .liste-resultats li { border: 1px solid var(--grisL, #e3e3e3); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .liste-resultats li:hover { border-color: var(--eau); }
-    .liste-resultats li.deja-reclamee { opacity: .6; cursor: default; }
     .nom-commune-resultat { font-weight: 600; font-size: 14.5px; }
     .meta-commune-resultat { font-size: 12px; color: var(--roseau); }
-    .etiquette-reclamee { font-size: 11px; color: var(--roseau); background: var(--grisXL, #f2f2f2); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
     #zone-message { font-size: 13px; color: var(--roseau); min-height: 18px; margin-top: 6px; }
     #zone-message.erreur { color: var(--rouge); }
     .case-rgpd { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--roseau); margin: 10px 0; line-height: 1.4; }
@@ -187,17 +185,13 @@
       listeResultats.innerHTML = '';
       resultats.forEach((r) => {
         const li = document.createElement('li');
-        li.className = r.peut_demander_acces ? '' : 'deja-reclamee';
         li.innerHTML = `
           <span>
             <span class="nom-commune-resultat">${echapperTexte(r.nom)}</span>
             <span class="meta-commune-resultat"> · ${echapperTexte(r.code_postal || r.departement || '')}</span>
           </span>
-          ${r.peut_demander_acces ? '' : '<span class="etiquette-reclamee">Déjà sur Agora</span>'}
         `;
-        if (r.peut_demander_acces) {
-          li.addEventListener('click', () => ouvrirDemande(r));
-        }
+        li.addEventListener('click', () => ouvrirDemande(r));
         listeResultats.appendChild(li);
       });
     }
