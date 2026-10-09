@@ -129,7 +129,8 @@ worker/src/
   `frontend/css/*.css` change : bumper le paramètre `?v=AAAAMMJJ` sur TOUTES les balises
   `<script src="/js/...">` / `<link href="/css/...">` de TOUS les fichiers HTML
   (`index.html`, `connexion.html`, `decouverte.html`, `mentions-legales.html`,
-  `confidentialite.html`, `reinitialiser.html`) — une URL différente est un cache différent,
+  `confidentialite.html`, `reinitialiser.html`, `conditions-utilisation.html`, `rejoindre.html`)
+  — une URL différente est un cache différent,
   sans dépendre d'un comportement Cloudflare qu'on ne maîtrise pas (voir le piège
   `_redirects` ci-dessous, même catégorie de surprise sur ce domaine personnalisé).
   Nuance vécue le 2026-08-06 : le `?v=` ne suffit pas toujours à lui seul sur un appareil

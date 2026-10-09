@@ -175,13 +175,20 @@ app.post('/commentaires/:id/signaler', async (c) => {
   const user_id = c.get('user_id');
   const commentaire_id = c.req.param('id');
 
+  const [commentaire] = await supabaseSelect(c.env, 'lois_commentaires', {
+    select: 'id', id: `eq.${commentaire_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!commentaire) return c.json({ erreur: 'Commentaire introuvable' }, 404);
+
   const [dejaSignale] = await supabaseSelect(c.env, 'lois_signalements', {
     select: 'id', commentaire_id: `eq.${commentaire_id}`, user_id: `eq.${user_id}`,
   });
   if (dejaSignale) return c.json({ erreur: 'Déjà signalé' }, 400);
 
   await supabaseInsert(c.env, 'lois_signalements', { commentaire_id, commune_id, user_id });
-  await supabaseUpdate(c.env, 'lois_commentaires', { masque: true }, { id: `eq.${commentaire_id}` });
+  await supabaseUpdate(c.env, 'lois_commentaires', { masque: true }, {
+    id: `eq.${commentaire_id}`, commune_id: `eq.${commune_id}`,
+  });
   return c.json({ ok: true });
 });
 

@@ -110,7 +110,7 @@ app.post('/', async (c) => {
     await supabaseUpdate(c.env, 'dechets_config', {
       jour_semaine: data.jour_semaine, frequence: data.frequence,
       couleur: data.couleur ?? '#8B7355',
-    }, { id: `eq.${existant.id}` });
+    }, { id: `eq.${existant.id}`, commune_id: `eq.${commune_id}` });
   } else {
     await supabaseInsert(c.env, 'dechets_config', {
       commune_id, type: data.type, jour_semaine: data.jour_semaine,

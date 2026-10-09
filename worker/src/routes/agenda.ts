@@ -340,7 +340,7 @@ app.post('/:id/participer', async (c) => {
     if (contact.contact_telephone !== undefined) patch.contact_telephone = contact.contact_telephone;
     if (contact.contact_email !== undefined) patch.contact_email = contact.contact_email;
   }
-  await supabaseUpdate(c.env, 'event_attendees', patch, { id: `eq.${existant.id}` });
+  await supabaseUpdate(c.env, 'event_attendees', patch, { id: `eq.${existant.id}`, commune_id: `eq.${commune_id}` });
 
   if (event.necessite_validation_presence) {
     const [participation] = await supabaseSelect(c.env, 'participations_citoyennes', {
@@ -351,14 +351,14 @@ app.post('/:id/participer', async (c) => {
       if (participation && participation.statut === 'inscrit') {
         const heuresAvant = (new Date(event.date_debut).getTime() - Date.now()) / 3600000;
         if (heuresAvant >= 24) {
-          await supabaseUpdate(c.env, 'participations_citoyennes', { statut: 'desiste_a_temps' }, { id: `eq.${participation.id}` });
+          await supabaseUpdate(c.env, 'participations_citoyennes', { statut: 'desiste_a_temps' }, { id: `eq.${participation.id}`, commune_id: `eq.${commune_id}` });
         } else {
           await romprePresenceCitoyenne(c.env, commune_id, user_id, participation, 'desiste_tardif');
         }
       }
     } else if (participation && participation.statut === 'desiste_a_temps') {
       // Ré-inscription après un désistement à temps.
-      await supabaseUpdate(c.env, 'participations_citoyennes', { statut: 'inscrit' }, { id: `eq.${participation.id}` });
+      await supabaseUpdate(c.env, 'participations_citoyennes', { statut: 'inscrit' }, { id: `eq.${participation.id}`, commune_id: `eq.${commune_id}` });
     } else if (!participation) {
       await supabaseInsert(c.env, 'participations_citoyennes', { commune_id, event_id, user_id, statut: 'inscrit' });
     }
@@ -474,7 +474,7 @@ app.post('/:id/scanner', async (c) => {
   };
 
   if (existant) {
-    await supabaseUpdate(c.env, 'participations_citoyennes', patch, { id: `eq.${existant.id}` });
+    await supabaseUpdate(c.env, 'participations_citoyennes', patch, { id: `eq.${existant.id}`, commune_id: `eq.${commune_id}` });
   } else {
     // Marcheur spontané (walk-in), pas de ligne "inscrit" préalable.
     await supabaseInsert(c.env, 'participations_citoyennes', { commune_id, event_id, user_id, ...patch });
@@ -560,10 +560,10 @@ app.patch('/:id/participations-citoyennes/:pid/valider', async (c) => {
 
   await supabaseUpdate(c.env, 'participations_citoyennes', {
     statut: 'confirme', valide_par: user_id, valide_le: new Date().toISOString(),
-  }, { id: `eq.${pid}` });
+  }, { id: `eq.${pid}`, commune_id: `eq.${commune_id}` });
 
   const resultat = await attribuerPointsParticipation(c.env, commune_id, participation.user_id, event as any, role, user_id);
-  await supabaseUpdate(c.env, 'participations_citoyennes', { points_attribues: resultat.points_gagnes }, { id: `eq.${pid}` });
+  await supabaseUpdate(c.env, 'participations_citoyennes', { points_attribues: resultat.points_gagnes }, { id: `eq.${pid}`, commune_id: `eq.${commune_id}` });
 
   return c.json({ ok: true, points_gagnes: resultat.points_gagnes, nouveaux_badges: resultat.nouveaux_badges });
 });
@@ -591,7 +591,7 @@ app.post('/:id/participations-citoyennes/valider-tous', async (c) => {
   let pointsTotaux = 0;
   for (const p of valides) {
     const resultat = await attribuerPointsParticipation(c.env, commune_id, p.user_id, event as any, role, user_id);
-    await supabaseUpdate(c.env, 'participations_citoyennes', { points_attribues: resultat.points_gagnes }, { id: `eq.${p.id}` });
+    await supabaseUpdate(c.env, 'participations_citoyennes', { points_attribues: resultat.points_gagnes }, { id: `eq.${p.id}`, commune_id: `eq.${commune_id}` });
     pointsTotaux += resultat.points_gagnes;
   }
 
@@ -614,7 +614,7 @@ app.post('/:id/contester', async (c) => {
     return c.json({ erreur: 'Seule une présence "non confirmée" peut être contestée' }, 400);
   }
 
-  await supabaseUpdate(c.env, 'participations_citoyennes', { contestee_le: new Date().toISOString() }, { id: `eq.${participation.id}` });
+  await supabaseUpdate(c.env, 'participations_citoyennes', { contestee_le: new Date().toISOString() }, { id: `eq.${participation.id}`, commune_id: `eq.${commune_id}` });
   return c.json({ ok: true });
 });
 

@@ -88,7 +88,7 @@ app.patch('/:id', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (!Object.keys(body.data).length) return c.json({ erreur: 'Aucune modification fournie' }, 400);
 
-  const [alerte] = await supabaseUpdate(c.env, 'alertes_meteo', body.data, { id: `eq.${id}` });
+  const [alerte] = await supabaseUpdate(c.env, 'alertes_meteo', body.data, { id: `eq.${id}`, commune_id: `eq.${commune_id}` });
   return c.json({ alerte });
 });
 
@@ -105,7 +105,7 @@ app.delete('/:id', async (c) => {
   if (!existante) return c.json({ erreur: 'Introuvable' }, 404);
   if (existante.origine !== 'manuel') return c.json({ erreur: 'Une alerte officielle ne peut pas être supprimée' }, 403);
 
-  await supabaseDelete(c.env, 'alertes_meteo', { id: `eq.${id}` });
+  await supabaseDelete(c.env, 'alertes_meteo', { id: `eq.${id}`, commune_id: `eq.${commune_id}` });
   return c.json({ ok: true });
 });
 

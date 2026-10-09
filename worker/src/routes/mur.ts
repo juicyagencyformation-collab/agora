@@ -215,6 +215,9 @@ app.post('/:id/commentaires', async (c) => {
   const body = creationCommentaireSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
+  const [post] = await supabaseSelect(c.env, 'posts', { select: 'id', id: `eq.${post_id}`, commune_id: `eq.${commune_id}` });
+  if (!post) return c.json({ erreur: 'Message introuvable' }, 404);
+
   const [commentaire] = await supabaseInsert(c.env, 'comments', {
     commune_id, post_id, user_id, contenu: body.data.contenu,
   });
@@ -230,17 +233,20 @@ app.post('/:id/reactions', async (c) => {
   const body = reactionSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
+  const [post] = await supabaseSelect(c.env, 'posts', { select: 'id', id: `eq.${post_id}`, commune_id: `eq.${commune_id}` });
+  if (!post) return c.json({ erreur: 'Message introuvable' }, 404);
+
   const [existante] = await supabaseSelect(c.env, 'reactions', {
     select: 'id,type',
     commune_id: `eq.${commune_id}`, post_id: `eq.${post_id}`, user_id: `eq.${user_id}`,
   });
 
   if (existante && existante.type === body.data.type) {
-    await supabaseDelete(c.env, 'reactions', { id: `eq.${existante.id}` });
+    await supabaseDelete(c.env, 'reactions', { id: `eq.${existante.id}`, commune_id: `eq.${commune_id}` });
     return c.json({ ok: true, action: 'retirée' });
   }
   if (existante) {
-    await supabaseUpdate(c.env, 'reactions', { type: body.data.type }, { id: `eq.${existante.id}` });
+    await supabaseUpdate(c.env, 'reactions', { type: body.data.type }, { id: `eq.${existante.id}`, commune_id: `eq.${commune_id}` });
     return c.json({ ok: true, action: 'modifiée' });
   }
   await supabaseInsert(c.env, 'reactions', {
