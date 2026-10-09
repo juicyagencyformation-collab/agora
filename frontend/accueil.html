@@ -66,6 +66,9 @@
     .pillars-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
     .pillars-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
     .pillars-grid > [data-reveal]:nth-child(4) { transition-delay: .24s; }
+    .steps-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
+    .steps-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
+    .steps-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
     .modules-grid > [data-reveal]:nth-child(n) { transition-delay: calc((var(--i, 0)) * 0.05s); }
     .values-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
     .values-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
@@ -428,6 +431,12 @@
     .pillars-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
       gap: 1.5rem;
     }
 
@@ -1331,7 +1340,7 @@
       .stats-bar { padding: 2rem 1.5rem; }
       .stats-bar .wrap { gap: 2.5rem; }
       .section { padding: 3.5rem 1.5rem; }
-      .pillars-grid, .pricing-grid, .faq-grid { grid-template-columns: 1fr; }
+      .pillars-grid, .pricing-grid, .faq-grid, .steps-grid { grid-template-columns: 1fr; }
       .modules-grid { grid-template-columns: repeat(2, 1fr); }
       .values-grid { grid-template-columns: repeat(2, 1fr); }
       .section-title { font-size: 1.9rem; }
@@ -1388,7 +1397,7 @@
           </div>
           <div class="hero-proof">
             <div class="hero-proof-dot"></div>
-            <span>Gratuit pour commencer · Conçue en France · Données hébergées en Europe</span>
+            <span>Gratuit pour commencer · Conçue en France · Données hébergées en Europe · Par un élu, pour des élus</span>
           </div>
         </div>
       </div>
@@ -1531,6 +1540,36 @@
             ></iframe>
           </div>
           <div class="iphone-glare"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- — 3 ÉTAPES — -->
+  <section class="section steps">
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">Comment ça marche</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">En ligne en 2 minutes, sans aide extérieure</h2>
+      </div>
+      <div class="steps-grid">
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--green-light);">🔍</div>
+          <div class="pillar-num">01 — Trouvez votre commune</div>
+          <div class="pillar-title">Elle est déjà prête</div>
+          <p class="pillar-desc">Cherchez le nom de votre village sur la page d'inscription : son espace existe déjà, il n'attend que vous.</p>
+        </div>
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--orange-light);">✍️</div>
+          <div class="pillar-num">02 — Créez votre compte</div>
+          <div class="pillar-title">Gratuit, sans carte bancaire</div>
+          <p class="pillar-desc">Un email, un mot de passe : votre compte est créé et connecté immédiatement, sans attendre personne.</p>
+        </div>
+        <div class="pillar-card" data-reveal>
+          <div class="pillar-icon" style="background:var(--coral-light);">🚀</div>
+          <div class="pillar-num">03 — C'est en ligne</div>
+          <div class="pillar-title">Vous activez à votre rythme</div>
+          <p class="pillar-desc">Agenda et Alertes sont actifs tout de suite. Les autres modules s'ajoutent quand votre commune est prête.</p>
         </div>
       </div>
     </div>
@@ -1967,6 +2006,10 @@
         <div class="faq-item" data-reveal>
           <div class="faq-q">Comment régler la facture ?</div>
           <p class="faq-a">Par virement bancaire, sur facture annuelle — exactement comme n'importe quel prestataire communal. Mandat administratif accepté.</p>
+        </div>
+        <div class="faq-item" data-reveal>
+          <div class="faq-q">Et si on veut arrêter ?</div>
+          <p class="faq-a">Sans engagement : une commune peut arrêter à tout moment, quelle que soit la formule choisie.</p>
         </div>
       </div>
     </div>
