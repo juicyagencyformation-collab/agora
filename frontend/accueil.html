@@ -748,8 +748,14 @@
     }
 
     /* Prix ramené à l'habitant + encart « commune fondatrice » sous chaque prix */
-    .pricing-par-hab { font-size: 0.85rem; color: var(--text-muted); margin: -0.4rem 0 1rem; }
-    .pricing-card.featured .pricing-par-hab { color: rgba(255,255,255,0.7); }
+    .pricing-facturation { font-size: 0.78rem; color: var(--text-muted); opacity: 0.75; margin: -1.1rem 0 0.9rem; }
+    .pricing-card.featured .pricing-facturation { color: rgba(255,255,255,0.65); }
+    .pricing-par-hab {
+      display: inline-block; font-size: 0.92rem; font-weight: 700; color: var(--orange);
+      background: var(--orange-light); border-radius: 10px; padding: 0.4rem 0.75rem;
+      margin: 0 0 1rem;
+    }
+    .pricing-card.featured .pricing-par-hab { color: white; background: rgba(255,255,255,0.16); }
     .pricing-fondatrice {
       background: var(--green-light); color: #1d6e4f; border-radius: 12px;
       padding: 0.7rem 0.9rem; font-size: 0.85rem; line-height: 1.45; margin: 0 0 1.2rem;
@@ -1756,9 +1762,9 @@
       <div class="pricing-slider-box" data-reveal>
         <div class="pricing-slider-head">
           <span>Nombre d'habitants de votre commune</span>
-          <span class="pricing-slider-valeur"><span id="nombre-habitants">800</span> hab.</span>
+          <span class="pricing-slider-valeur"><span id="nombre-habitants">480</span> hab.</span>
         </div>
-        <input type="range" id="curseur-habitants" class="pricing-slider" min="50" max="8000" step="10" value="800" aria-label="Nombre d'habitants" />
+        <input type="range" id="curseur-habitants" class="pricing-slider" min="50" max="8000" step="10" value="480" aria-label="Nombre d'habitants" />
         <div class="pricing-slider-bornes">
           <span>50 hab.</span>
           <span>Au-delà de 8 000 habitants, nous consulter</span>
@@ -1775,11 +1781,12 @@
           <div class="pricing-label" id="label-autonomie">Autonomie</div>
           <div class="pricing-title" id="titre-autonomie">Vous pilotez seul</div>
           <div class="pricing-amount">
-            <span class="amount"><span id="prix-autonomie">360 €</span></span>
-            <span class="period"> / an</span>
+            <span class="amount"><span id="prix-autonomie">24 €</span></span>
+            <span class="period"> / mois</span>
           </div>
+          <p class="pricing-facturation">Facturé annuellement</p>
           <div class="pricing-par-hab" id="parhab-autonomie"></div>
-          <div class="pricing-fondatrice"><strong>Commune fondatrice :</strong> <strong id="fondateur-autonomie">—</strong> / an, à vie (−35 %)</div>
+          <div class="pricing-fondatrice"><strong>Commune fondatrice :</strong> <strong id="fondateur-autonomie">—</strong> / mois, à vie (−35 %)</div>
           <ul class="pricing-features" id="features-autonomie">
             <li>Tous les modules citoyens</li>
             <li>Modération assurée par la mairie</li>
@@ -1794,11 +1801,12 @@
           <div class="pricing-label" id="label-accompagne">Accompagné</div>
           <div class="pricing-title" id="titre-accompagne">On s'occupe du quotidien</div>
           <div class="pricing-amount">
-            <span class="amount"><span id="prix-accompagne">560 €</span></span>
-            <span class="period"> / an</span>
+            <span class="amount"><span id="prix-accompagne">41 €</span></span>
+            <span class="period"> / mois</span>
           </div>
+          <p class="pricing-facturation">Facturé annuellement</p>
           <div class="pricing-par-hab" id="parhab-accompagne"></div>
-          <div class="pricing-fondatrice"><strong>Commune fondatrice :</strong> <strong id="fondateur-accompagne">—</strong> / an, à vie (−35 %)</div>
+          <div class="pricing-fondatrice"><strong>Commune fondatrice :</strong> <strong id="fondateur-accompagne">—</strong> / mois, à vie (−35 %)</div>
           <ul class="pricing-features" id="features-accompagne">
             <li>Tout Autonomie, plus :</li>
             <li>Modération automatique des photos</li>
@@ -1903,8 +1911,11 @@
         return Math.max(brut, bareme.prix_plancher);
       }
 
-      function formaterPrix(n) {
-        return Math.round(n).toLocaleString('fr-FR') + ' €';
+      // Le tarif reste annuel côté facturation (voir FAQ "Comment régler la facture") — on
+      // affiche seulement un équivalent mensuel, plus lisible pour un budget communal, d'où
+      // la mention "Facturé annuellement" sous le prix.
+      function formaterPrixMensuel(prixAnnuel) {
+        return Math.round(prixAnnuel / 12).toLocaleString('fr-FR') + ' €';
       }
 
       // Prix par habitant affiché seulement quand il est parlant (≤ 1 €) : sous le plancher, une
@@ -1919,7 +1930,7 @@
 
       function afficherFondateur(id, prix) {
         var el = document.getElementById(id);
-        if (el) el.textContent = formaterPrix(prix * (1 - REMISE_FONDATRICE));
+        if (el) el.textContent = formaterPrixMensuel(prix * (1 - REMISE_FONDATRICE));
       }
 
       function actualiser() {
@@ -1927,8 +1938,8 @@
         champHabitants.textContent = habitants.toLocaleString('fr-FR');
         var autonomie = calculerAutonomie(habitants);
         var accompagne = autonomie + bareme.supplement_accompagne;
-        elAutonomie.textContent = formaterPrix(autonomie);
-        elAccompagne.textContent = formaterPrix(accompagne);
+        elAutonomie.textContent = formaterPrixMensuel(autonomie);
+        elAccompagne.textContent = formaterPrixMensuel(accompagne);
         afficherParHabitant(document.getElementById('parhab-autonomie'), autonomie, habitants);
         afficherParHabitant(document.getElementById('parhab-accompagne'), accompagne, habitants);
         afficherFondateur('fondateur-autonomie', autonomie);
