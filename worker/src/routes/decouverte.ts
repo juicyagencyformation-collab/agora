@@ -202,6 +202,7 @@ const creationCompteSchema = z.object({
   nom: z.string().min(1).max(100),
   mot_de_passe: z.string().min(6),
   consentement_rgpd: z.literal(true),
+  age_minimum: z.literal(true),
   site_web: z.string().optional(),
 });
 

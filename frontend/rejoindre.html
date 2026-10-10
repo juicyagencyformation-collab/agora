@@ -158,6 +158,10 @@
         <input type="text" name="nom" placeholder="Nom" required>
         <input type="password" name="mot_de_passe" placeholder="Choisissez un mot de passe (6 caractères min.)" minlength="6" required>
         <label class="case-rgpd">
+          <input type="checkbox" name="age_minimum" required>
+          Je certifie avoir au moins 15 ans (en-dessous, demandez à un parent de créer le compte pour vous).
+        </label>
+        <label class="case-rgpd">
           <input type="checkbox" name="consentement_rgpd" required>
           J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
         </label>
@@ -337,6 +341,7 @@
       e.preventDefault();
       const donnees = Object.fromEntries(new FormData(e.target));
       donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
+      donnees.age_minimum = e.target.age_minimum.checked;
       const zoneErreur = document.getElementById('erreur-finalisation');
       zoneErreur.textContent = '';
 

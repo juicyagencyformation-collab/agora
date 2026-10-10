@@ -220,7 +220,7 @@ describe('POST /communes/activation/:token/creer-compte', () => {
     return tokenDepuisEmail(emailsEnvoyes[emailsEnvoyes.length - 1].html);
   }
 
-  const corpsCreation = { prenom: 'Jean', nom: 'Dupont', mot_de_passe: 'motdepasse123', consentement_rgpd: true };
+  const corpsCreation = { prenom: 'Jean', nom: 'Dupont', mot_de_passe: 'motdepasse123', consentement_rgpd: true, age_minimum: true };
 
   it('crée le vrai compte CITOYEN (prénom/nom/mot de passe choisis), connecte automatiquement, et le jeton devient inutilisable', async () => {
     const token = await demanderEtRecupererToken();
