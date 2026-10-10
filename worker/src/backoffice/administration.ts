@@ -882,6 +882,53 @@ app.post('/reparer-images-r2', async (c) => {
   return c.json({ repares });
 });
 
+// POST /reparer-anciennes-urls-r2 — même bascule que /reparer-images-r2 ci-dessus, mais pour
+// toutes les tables de contenu citoyen qui enregistrent une URL d'image/audio R2 en dur (voir
+// storage.ts : l'URL est construite une fois à l'upload à partir de R2_PUBLIC_BASE, jamais
+// recalculée à la lecture). Celles-ci n'avaient jamais été couvertes par la bascule du
+// 2026-08-27 (qui n'avait réparé que modeles_email) : toute photo envoyée entre le 30 juillet
+// et le 27 août 2026 y pointe donc encore vers l'ancienne URL .r2.dev. Nécessaire avant de
+// supprimer l'ancien bucket R2, sous peine d'images cassées de façon permanente.
+const TABLES_URLS_R2: { table: string; colonnes: string[] }[] = [
+  { table: 'events', colonnes: ['photo_url'] },
+  { table: 'article_images', colonnes: ['url'] },
+  { table: 'annuaire', colonnes: ['logo_url'] },
+  { table: 'annuaire_documents', colonnes: ['url'] },
+  { table: 'alerte_images', colonnes: ['url'] },
+  { table: 'etapes_chasse', colonnes: ['photo_url'] },
+  { table: 'photos_enigmes', colonnes: ['url'] },
+  { table: 'souvenirs', colonnes: ['audio_url'] },
+  { table: 'souvenir_images', colonnes: ['url'] },
+  { table: 'photos_du_jour', colonnes: ['url'] },
+  { table: 'conseil_membres', colonnes: ['photo_url'] },
+];
+
+app.post('/reparer-anciennes-urls-r2', async (c) => {
+  const nouvelleBase = c.env.R2_PUBLIC_BASE;
+  const resultats: { table: string; id: string; commune_id: string | null; champs: string[] }[] = [];
+
+  for (const { table, colonnes } of TABLES_URLS_R2) {
+    const lignes = await supabaseSelectTout(c.env, table, {
+      select: ['id', 'commune_id', ...colonnes].join(','),
+    });
+    for (const l of lignes as any[]) {
+      const patch: Record<string, string> = {};
+      const champs: string[] = [];
+      for (const champ of colonnes) {
+        const valeur = l[champ];
+        if (typeof valeur === 'string' && valeur.includes(ANCIENNE_BASE_R2)) {
+          patch[champ] = valeur.split(ANCIENNE_BASE_R2).join(nouvelleBase);
+          champs.push(champ);
+        }
+      }
+      if (!champs.length) continue;
+      await supabaseUpdate(c.env, table, patch, { id: `eq.${l.id}` });
+      resultats.push({ table, id: l.id, commune_id: l.commune_id ?? null, champs });
+    }
+  }
+  return c.json({ total_repares: resultats.length, repares: resultats });
+});
+
 // GET /emails-rejetes — bounces/plaintes captés via le webhook Resend (les plus récents).
 app.get('/emails-rejetes', async (c) => {
   const emails = await supabaseSelect(c.env, 'emails_rejetes', {
