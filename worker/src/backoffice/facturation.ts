@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { versCsv } from '../lib/csv';
+import { genererContratDpaHtml } from './contrat-dpa';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -46,6 +47,39 @@ app.put('/parametres-entreprise', async (c) => {
     await supabaseUpdate(c.env, 'parametres_facturation', { valeur }, { cle: `eq.${cle}` });
   }
   return c.json({ ok: true });
+});
+
+// GET /contrat-dpa/:communeId — contrat de sous-traitance RGPD (art. 28) pré-rempli pour une
+// commune, à la demande (bouton sur sa fiche), jamais généré ni envoyé automatiquement. Le nom
+// du maire est repris du vrai compte (role='maire') s'il existe déjà, sinon du prospect lié
+// (nom_maire/prenom_maire/maire_civilite, renseignés via le RNE en prospection) — voir
+// docs/dpa-contrat-sous-traitance.md pour la version de référence, à tenir synchronisée.
+app.get('/contrat-dpa/:communeId', async (c) => {
+  const communeId = c.req.param('communeId');
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,population', id: `eq.${communeId}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const lignesEntreprise = await supabaseSelect(c.env, 'parametres_facturation', {
+    select: 'cle,valeur', cle: `in.(${CLES_ENTREPRISE.join(',')})`,
+  });
+  const entreprise: Record<string, string> = {};
+  for (const cle of CLES_ENTREPRISE) entreprise[cle] = lignesEntreprise.find((r: any) => r.cle === cle)?.valeur || '';
+
+  const [maireCompte] = await supabaseSelect(c.env, 'users', {
+    select: 'prenom,nom', commune_id: `eq.${communeId}`, role: 'eq.maire', limit: '1',
+  });
+  // nom_maire est déjà "Prénom Nom" formé (voir formaterNomMaire dans prospection.ts) —
+  // jamais à recombiner avec prenom_maire, qui ne sert qu'à la création de compte séparément.
+  let maire = maireCompte ? { civilite: null, nomComplet: `${maireCompte.prenom} ${maireCompte.nom}` } : null;
+  if (!maire) {
+    const [prospect] = await supabaseSelect(c.env, 'prospects', {
+      select: 'nom_maire,maire_civilite', commune_id: `eq.${communeId}`, limit: '1',
+    });
+    if (prospect?.nom_maire) maire = { civilite: prospect.maire_civilite, nomComplet: prospect.nom_maire };
+  }
+
+  const html = genererContratDpaHtml(commune, entreprise as any, maire);
+  return c.json({ html });
 });
 
 // Numéro séquentiel SANS TROU par table et par année (ex. F-2026-0001) — obligation légale pour

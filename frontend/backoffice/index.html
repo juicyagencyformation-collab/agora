@@ -2938,6 +2938,14 @@
           </div>
 
           <div class="bo-section-titre">Devis &amp; facturation</div>
+          <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px">
+            <div>
+              <div style="font-weight:600">Contrat de sous-traitance RGPD (DPA)</div>
+              <div class="bo-info">Pré-rempli avec les infos connues de la commune — à relire et compléter avant tout envoi.</div>
+            </div>
+            <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=contrat-dpa&id=' + fiche.commune.id" target="_blank">📄 Générer le contrat DPA</a>
+          </div>
+
           <div class="bo-carte" style="padding:16px 18px">
             <div class="bo-info" style="margin-bottom:12px">
               Une facture adressée à cette commune doit être déposée sur <strong>Chorus Pro</strong> (obligatoire

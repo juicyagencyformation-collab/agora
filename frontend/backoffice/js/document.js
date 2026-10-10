@@ -5,7 +5,7 @@
 // (une facture adressée à une commune doit ensuite être déposée sur Chorus Pro).
 (async function () {
   const params = new URLSearchParams(location.search);
-  const type = params.get('type') === 'facture' ? 'facture' : 'devis';
+  const type = ['facture', 'contrat-dpa'].includes(params.get('type')) ? params.get('type') : 'devis';
   const id = params.get('id');
 
   const echapper = (s) => (s || '').replace(/[&<>"']/g, (m) => (
@@ -16,6 +16,19 @@
 
   const feuille = document.getElementById('feuille');
   if (!id) { feuille.textContent = 'Document introuvable (id manquant).'; return; }
+
+  // Le contrat DPA est déjà entièrement rendu côté Worker (voir contrat-dpa.ts) — pas de table
+  // montants/mentions à construire ici, juste l'afficher tel quel.
+  if (type === 'contrat-dpa') {
+    try {
+      const { html } = await boFetch('/administration/contrat-dpa/' + id);
+      document.title = 'Contrat DPA — Backoffice Plateforme-Agora';
+      feuille.innerHTML = html;
+    } catch (e) {
+      feuille.textContent = 'Impossible de charger le contrat : ' + (e.message || 'erreur inconnue');
+    }
+    return;
+  }
 
   let entreprise, doc;
   try {
