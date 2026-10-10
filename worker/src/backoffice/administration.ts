@@ -903,28 +903,47 @@ const TABLES_URLS_R2: { table: string; colonnes: string[] }[] = [
   { table: 'conseil_membres', colonnes: ['photo_url'] },
 ];
 
-app.post('/reparer-anciennes-urls-r2', async (c) => {
-  const nouvelleBase = c.env.R2_PUBLIC_BASE;
-  const resultats: { table: string; id: string; commune_id: string | null; champs: string[] }[] = [];
-
+// Détecte, sans rien modifier, les lignes qui référencent encore l'ancienne URL — sert au
+// comptage GET ci-dessous comme à la mise à jour POST plus bas. Renvoie aussi la valeur
+// actuelle des champs concernés pour éviter une deuxième lecture lors de la réparation.
+async function detecterAnciennesUrls(env: any) {
+  const trouvees: { table: string; id: string; commune_id: string | null; valeurs: Record<string, string> }[] = [];
   for (const { table, colonnes } of TABLES_URLS_R2) {
-    const lignes = await supabaseSelectTout(c.env, table, {
+    const lignes = await supabaseSelectTout(env, table, {
       select: ['id', 'commune_id', ...colonnes].join(','),
     });
     for (const l of lignes as any[]) {
-      const patch: Record<string, string> = {};
-      const champs: string[] = [];
+      const valeurs: Record<string, string> = {};
       for (const champ of colonnes) {
-        const valeur = l[champ];
-        if (typeof valeur === 'string' && valeur.includes(ANCIENNE_BASE_R2)) {
-          patch[champ] = valeur.split(ANCIENNE_BASE_R2).join(nouvelleBase);
-          champs.push(champ);
-        }
+        if (typeof l[champ] === 'string' && l[champ].includes(ANCIENNE_BASE_R2)) valeurs[champ] = l[champ];
       }
-      if (!champs.length) continue;
-      await supabaseUpdate(c.env, table, patch, { id: `eq.${l.id}` });
-      resultats.push({ table, id: l.id, commune_id: l.commune_id ?? null, champs });
+      if (Object.keys(valeurs).length) trouvees.push({ table, id: l.id, commune_id: l.commune_id ?? null, valeurs });
     }
+  }
+  return trouvees;
+}
+
+// GET /compter-anciennes-urls-r2 — comptage en lecture seule, à appeler avant ET après la
+// réparation POST ci-dessous (doit tomber à 0 après coup).
+app.get('/compter-anciennes-urls-r2', async (c) => {
+  const trouvees = await detecterAnciennesUrls(c.env);
+  const par_table: Record<string, number> = {};
+  for (const t of trouvees) par_table[t.table] = (par_table[t.table] ?? 0) + 1;
+  return c.json({ total: trouvees.length, par_table });
+});
+
+app.post('/reparer-anciennes-urls-r2', async (c) => {
+  const nouvelleBase = c.env.R2_PUBLIC_BASE;
+  const aTraiter = await detecterAnciennesUrls(c.env);
+  const resultats: { table: string; id: string; commune_id: string | null; champs: string[] }[] = [];
+
+  for (const { table, id, commune_id, valeurs } of aTraiter) {
+    const patch: Record<string, string> = {};
+    for (const [champ, valeur] of Object.entries(valeurs)) {
+      patch[champ] = valeur.split(ANCIENNE_BASE_R2).join(nouvelleBase);
+    }
+    await supabaseUpdate(c.env, table, patch, { id: `eq.${id}` });
+    resultats.push({ table, id, commune_id, champs: Object.keys(valeurs) });
   }
   return c.json({ total_repares: resultats.length, repares: resultats });
 });
