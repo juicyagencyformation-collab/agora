@@ -40,7 +40,12 @@ soumis par les citoyens — voir règle 4 ci-dessous.
 - Backend : Cloudflare Workers + Hono.js (TypeScript)
 - Base de données : Supabase PostgreSQL — **REST uniquement, zéro SDK client, zéro RLS**
   (toute la sécurité est gérée dans le Worker via commune_id extrait du JWT)
-- Stockage fichiers : Cloudflare R2, via URL présignées générées par le Worker
+- Stockage fichiers : Cloudflare R2, bucket de production `agora-uploads-eu` (juridiction
+  « Union européenne », migré le 2026-10-10 depuis `newappcitoyenne-uploads` — ancien bucket
+  sans garantie contractuelle UE malgré un emplacement en Europe de l'Ouest). URL présignées
+  générées par le Worker ; les URL publiques passent UNIQUEMENT par le domaine personnalisé
+  `cdn.plateforme-agora.fr` (= `R2_PUBLIC_BASE`), jamais par une adresse `pub-*.r2.dev` —
+  voir le piège ci-dessous.
 - Auth : JWT maison (@tsndr/cloudflare-worker-jwt), cookies httpOnly SameSite=None;Secure
 - Frontend : HTML/CSS/JS vanilla, zéro framework, zéro build step
 - Cartes : Leaflet.js + tuiles IGN Géoplateforme (pas OpenStreetMap, pas Google Maps)
@@ -159,6 +164,19 @@ worker/src/
 - **wrangler.toml ne doit jamais être écrasé en entier** par un fichier généré — il contient
   des valeurs réelles (R2_PUBLIC_BASE, etc.) qui diffèrent de tout exemple. Donner des
   instructions de ligne précise à ajouter/modifier, pas le fichier complet.
+- **Ne jamais faire référence en dur à une URL `pub-*.r2.dev`** (ancienne adresse publique de
+  développement du bucket R2) — ni dans le code, ni dans un exemple, ni dans un document type
+  DPA. Toute URL de fichier R2 doit être construite à partir de `R2_PUBLIC_BASE`
+  (= `cdn.plateforme-agora.fr`), jamais une valeur `.r2.dev` tapée à la main, même pour un
+  exemple ou un test. Contexte : le bucket de prod est `agora-uploads-eu` (juridiction UE,
+  migré le 2026-10-10 depuis `newappcitoyenne-uploads`) ; l'URL `.r2.dev` de l'ancien bucket a
+  été désactivée côté Cloudflare après la migration. Piège vécu : comme l'URL est construite
+  UNE FOIS à l'upload et stockée telle quelle en base (jamais recalculée à la lecture — voir
+  `storage.ts`), un précédent changement de `R2_PUBLIC_BASE` (2026-08-27) avait laissé des
+  URL `.r2.dev` figées dans 9 tables de contenu pendant plus d'un mois, invisible jusqu'à ce
+  qu'on prépare la migration de bucket suivante. Script de rattrapage si ça devait se
+  reproduire : `POST /backoffice/administration/reparer-anciennes-urls-r2` (comptage en
+  lecture seule via le `GET` équivalent).
 - **frontend/js/config.js** contient l'URL réelle du Worker en prod — ne jamais l'écraser
   avec une valeur de test (localhost:8787) sans vérifier d'abord la valeur réelle actuelle.
 - **Safari/iOS bloquait les cookies tiers par défaut**, dans tous les modes de navigation,
