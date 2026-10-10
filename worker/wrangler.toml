@@ -10,7 +10,8 @@ EMAIL_REPLY_TO_PROSPECTION = "prospection@replies.plateforme-agora.fr"
 
 [[r2_buckets]]
 binding = "BUCKET_R2"
-bucket_name = "newappcitoyenne-uploads"
+bucket_name = "agora-uploads-eu"
+jurisdiction = "eu"
 
 [ai]
 binding = "AI"
