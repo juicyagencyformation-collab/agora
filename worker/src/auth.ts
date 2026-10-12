@@ -396,18 +396,45 @@ app.get('/me', jwtMiddleware, async (c) => {
   // que l'app les célèbre.
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
+  const role = c.get('role');
   const resultatConnexion = await gererConnexionQuotidienne(c.env, commune_id, user_id);
+
+  // Clauses de sous-traitance RGPD (art. 28) intégrées aux CGU : seuls les rôles décideurs
+  // engagent juridiquement la commune, un citoyen n'a rien à accepter ici (voir migration
+  // 080_cgu_soustraitance.sql — les comptes admin-niveau déjà actifs au 2026-10-12 sont
+  // dispensés, seuls les nouveaux comptes sont concernés).
+  let cguSousTraitanceAAccepter = false;
+  if (['admin', 'elu', 'maire', 'superadmin'].includes(role)) {
+    const [moi] = await supabaseSelect(c.env, 'users', {
+      select: 'cgu_sous_traitance_acceptee_le', id: `eq.${user_id}`,
+    });
+    cguSousTraitanceAAccepter = !moi?.cgu_sous_traitance_acceptee_le;
+  }
 
   return c.json({
     user_id,
     commune_id,
-    role: c.get('role'),
+    role,
     nouveaux_badges: resultatConnexion.nouveaux_badges,
     niveau: resultatConnexion.niveau,
     monte_de_niveau: resultatConnexion.monte_de_niveau,
     streak_actuel: resultatConnexion.streak_actuel,
     streak_du_jour: resultatConnexion.streak_du_jour,
+    cgu_sous_traitance_a_accepter: cguSousTraitanceAAccepter,
   });
+});
+
+// POST /accepter-cgu-soustraitance — acceptation explicite, par un rôle décideur, des clauses
+// de sous-traitance RGPD intégrées aux CGU (voir conditions-utilisation.html). Réservé aux
+// rôles qui engagent juridiquement la commune ; un citoyen n'a rien à y faire.
+app.post('/accepter-cgu-soustraitance', jwtMiddleware, async (c) => {
+  const role = c.get('role');
+  if (!['admin', 'elu', 'maire', 'superadmin'].includes(role)) {
+    return c.json({ erreur: 'Non applicable à ce rôle' }, 403);
+  }
+  const user_id = c.get('user_id');
+  await supabaseUpdate(c.env, 'users', { cgu_sous_traitance_acceptee_le: new Date().toISOString() }, { id: `eq.${user_id}` });
+  return c.json({ ok: true });
 });
 
 // ── Comptes liés : une secrétaire mutualisée administrant plusieurs communes a un compte par

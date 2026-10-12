@@ -576,6 +576,27 @@ h1, h2, h3, h4, p, span, a, button {
 }
 
 .confettis { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+
+/* Acceptation obligatoire des clauses de sous-traitance RGPD (admin/élu/maire/superadmin,
+   nouveaux comptes uniquement — voir navigation.js initUtilisateur). Pas de clic en dehors
+   pour fermer : contrairement aux autres overlays de cette page, l'acceptation est requise. */
+.overlay-cgu-soustraitance {
+  position: fixed; inset: 0; background: rgba(61,53,48,.55); backdrop-filter: blur(2px);
+  display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px;
+}
+.carte-cgu-soustraitance {
+  background: #fff; border-radius: 16px; padding: 28px 26px; max-width: 520px; max-height: 85vh;
+  overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.3);
+}
+.carte-cgu-soustraitance h2 { font-family: 'Playfair Display', serif; font-size: 19px; color: var(--eau); margin-bottom: 10px; }
+.carte-cgu-soustraitance p { font-size: 13.5px; line-height: 1.6; color: var(--roseau); margin-bottom: 10px; }
+.carte-cgu-soustraitance label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--roseau); margin: 14px 0; }
+.carte-cgu-soustraitance input[type="checkbox"] { width: auto; margin: 2px 0 0; }
+.carte-cgu-soustraitance .btn-accepter-cgu {
+  width: 100%; padding: 12px; border-radius: 100px; border: none; background: var(--eau); color: #fff;
+  font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer;
+}
+.carte-cgu-soustraitance .btn-accepter-cgu:disabled { opacity: .5; cursor: not-allowed; }
 .confetti {
   position: absolute; top: -10px; width: 8px; height: 8px; border-radius: 2px;
   animation: chute-confetti 1.6s ease-in forwards;

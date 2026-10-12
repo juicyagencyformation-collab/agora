@@ -1,4 +1,43 @@
 // frontend/js/navigation.js
+
+// Acceptation obligatoire, une seule fois, des clauses de sous-traitance RGPD (art. 28)
+// intégrées aux CGU — uniquement pour les rôles qui engagent juridiquement la commune
+// (admin/élu/maire/superadmin) et seulement pour les comptes créés après le 2026-10-12 (voir
+// migration 080_cgu_soustraitance.sql, qui dispense les comptes déjà actifs à cette date).
+// Pas de bouton pour fermer sans accepter : contrairement aux autres overlays de cette page.
+function afficherGateCguSousTraitance() {
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay-cgu-soustraitance';
+  overlay.innerHTML = `
+    <div class="carte-cgu-soustraitance">
+      <h2>Avant de continuer</h2>
+      <p>Votre compte permet d'administrer cette commune sur Agora. Avant de poursuivre, nous avons
+      besoin de votre accord sur la manière dont vos données et celles des habitants sont traitées.</p>
+      <p>Les conditions générales d'utilisation incluent désormais les clauses de sous-traitance de
+      données personnelles prévues par l'article 28 du RGPD (instructions, sécurité, sous-traitants
+      ultérieurs, assistance pour l'exercice des droits, sort des données en fin de contrat).</p>
+      <label>
+        <input type="checkbox" id="case-accepter-cgu-soustraitance">
+        J'ai lu et j'accepte les <a href="conditions-utilisation.html" target="_blank">conditions générales d'utilisation</a>, y compris les clauses de sous-traitance RGPD.
+      </label>
+      <button class="btn-accepter-cgu" id="btn-accepter-cgu-soustraitance" disabled>Continuer</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const case_ = overlay.querySelector('#case-accepter-cgu-soustraitance');
+  const bouton = overlay.querySelector('#btn-accepter-cgu-soustraitance');
+  case_.addEventListener('change', () => { bouton.disabled = !case_.checked; });
+  bouton.addEventListener('click', async () => {
+    bouton.disabled = true;
+    bouton.textContent = 'Enregistrement…';
+    try {
+      await appelApi(`/${window.COMMUNE_SLUG}/auth/accepter-cgu-soustraitance`, { method: 'POST' });
+    } catch { /* la case reste cochée ; on laisse passer plutôt que de bloquer sur un souci réseau */ }
+    overlay.remove();
+  });
+}
+
 async function initUtilisateur() {
   try {
     const res = await appelApi(`/${window.COMMUNE_SLUG}/auth/me`);
@@ -32,6 +71,7 @@ async function initUtilisateur() {
     document.body.classList.toggle('est-admin', ['admin', 'elu', 'maire', 'superadmin'].includes(data.role));
     document.body.classList.toggle('est-gestionnaire-roles', ['elu', 'maire', 'superadmin'].includes(data.role));
     document.body.classList.toggle('est-superadmin', data.role === 'superadmin');
+    if (data.cgu_sous_traitance_a_accepter) afficherGateCguSousTraitance();
 
     const peutVoirModeration = ['admin', 'elu', 'maire', 'superadmin'].includes(data.role);
     document.querySelectorAll('[data-onglet="moderation"]').forEach((btn) => {
