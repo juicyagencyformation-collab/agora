@@ -889,7 +889,15 @@ app.post('/reparer-images-r2', async (c) => {
 // 2026-08-27 (qui n'avait réparé que modeles_email) : toute photo envoyée entre le 30 juillet
 // et le 27 août 2026 y pointe donc encore vers l'ancienne URL .r2.dev. Nécessaire avant de
 // supprimer l'ancien bucket R2, sous peine d'images cassées de façon permanente.
-const TABLES_URLS_R2: { table: string; colonnes: string[] }[] = [
+// idColonneCommune : nom de la colonne servant de commune_id dans le rapport — 'commune_id'
+// partout, SAUF sur la table communes elle-même, qui n'a pas cette colonne (elle EST la
+// commune, voir id). Liste complétée le 2026-10-12 après un signalement réel (bannière/photo
+// de profil cassées pour un élu) : events/article_images/.../conseil_membres avaient déjà été
+// couverts le 10/10, mais users (photo_profil_url, banniere_url — profil.ts), communes
+// (logo_url — commune.ts) et badges_citoyens (visuel_url — moderation.ts) avaient été oubliés,
+// car ces 3 routes passent par uploaderFichier() sans jamais écrire littéralement
+// "R2_PUBLIC_BASE" dans le fichier (ce qui avait servi de repère la première fois).
+const TABLES_URLS_R2: { table: string; colonnes: string[]; idColonneCommune?: string }[] = [
   { table: 'events', colonnes: ['photo_url'] },
   { table: 'article_images', colonnes: ['url'] },
   { table: 'annuaire', colonnes: ['logo_url'] },
@@ -901,6 +909,9 @@ const TABLES_URLS_R2: { table: string; colonnes: string[] }[] = [
   { table: 'souvenir_images', colonnes: ['url'] },
   { table: 'photos_du_jour', colonnes: ['url'] },
   { table: 'conseil_membres', colonnes: ['photo_url'] },
+  { table: 'users', colonnes: ['photo_profil_url', 'banniere_url'] },
+  { table: 'communes', colonnes: ['logo_url'], idColonneCommune: 'id' },
+  { table: 'badges_citoyens', colonnes: ['visuel_url'] },
 ];
 
 // Détecte, sans rien modifier, les lignes qui référencent encore l'ancienne URL — sert au
@@ -908,16 +919,16 @@ const TABLES_URLS_R2: { table: string; colonnes: string[] }[] = [
 // actuelle des champs concernés pour éviter une deuxième lecture lors de la réparation.
 async function detecterAnciennesUrls(env: any) {
   const trouvees: { table: string; id: string; commune_id: string | null; valeurs: Record<string, string> }[] = [];
-  for (const { table, colonnes } of TABLES_URLS_R2) {
+  for (const { table, colonnes, idColonneCommune = 'commune_id' } of TABLES_URLS_R2) {
     const lignes = await supabaseSelectTout(env, table, {
-      select: ['id', 'commune_id', ...colonnes].join(','),
+      select: [...new Set(['id', idColonneCommune, ...colonnes])].join(','),
     });
     for (const l of lignes as any[]) {
       const valeurs: Record<string, string> = {};
       for (const champ of colonnes) {
         if (typeof l[champ] === 'string' && l[champ].includes(ANCIENNE_BASE_R2)) valeurs[champ] = l[champ];
       }
-      if (Object.keys(valeurs).length) trouvees.push({ table, id: l.id, commune_id: l.commune_id ?? null, valeurs });
+      if (Object.keys(valeurs).length) trouvees.push({ table, id: l.id, commune_id: l[idColonneCommune] ?? null, valeurs });
     }
   }
   return trouvees;
