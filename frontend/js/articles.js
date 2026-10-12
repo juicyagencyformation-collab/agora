@@ -139,6 +139,16 @@ function remplirContenuDeplie(zone, article) {
     zoneImages.appendChild(imgEl);
   });
 
+  if (article.fichier_pv_url && article.fichier_pv_type === 'pdf') {
+    const lien = document.createElement('a');
+    lien.href = article.fichier_pv_url;
+    lien.target = '_blank';
+    lien.rel = 'noopener';
+    lien.className = 'lien-fichier-pv-pdf';
+    lien.textContent = '📄 Ouvrir le document (PDF)';
+    zone.appendChild(lien);
+  }
+
   if (article.sondage) {
     zone.querySelector('.sondage-article').appendChild(renderSondageArticle(article.sondage, article.id));
   }
@@ -222,6 +232,9 @@ function htmlFormulaireArticle() {
       <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Photos (optionnel — jusqu'à 10)</label>
       <input type="file" id="image-article-modale" accept="image/*" multiple>
       <div id="apercu-images-article-modale" class="apercu-images-modale"></div>
+      <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Document PDF (optionnel — 15 Mo max.)</label>
+      <input type="file" id="pdf-article-modale" accept="application/pdf">
+      <p id="nom-pdf-article-modale" style="font-size:12.5px;color:var(--roseau);margin:4px 0 0;"></p>
       ${htmlBlocSondageArticle()}
       <button type="submit" style="margin-top:12px;">Publier</button>
     </form>
@@ -245,6 +258,11 @@ function ouvrirModaleCreationArticle() {
       img.onload = () => URL.revokeObjectURL(img.src);
       apercu.appendChild(img);
     });
+  });
+
+  const inputPdf = corps.querySelector('#pdf-article-modale');
+  inputPdf.addEventListener('change', () => {
+    corps.querySelector('#nom-pdf-article-modale').textContent = inputPdf.files[0]?.name || '';
   });
 
   initBlocSondageArticle(corps);
@@ -337,6 +355,28 @@ function lireSondageDuFormulaire(corps) {
   return { question, multi_choix, choix, closes_at: closesAtSaisi ? new Date(closesAtSaisi).toISOString() : null };
 }
 
+// Réutilise la route déjà en place pour le compte-rendu de conseil (worker/src/routes/actus.ts,
+// /actus/pv-upload — PDF/JPEG/PNG jusqu'à 15 Mo), étendue ici au formulaire d'article classique.
+// undefined (pas null) si aucun fichier choisi, pour ne jamais écraser un PDF déjà joint lors
+// d'une édition où l'utilisateur n'a rien changé sur ce champ.
+async function uploaderPdfArticle(fichier) {
+  if (!fichier) return undefined;
+  if (fichier.size > 15 * 1024 * 1024) {
+    afficherToastMessage('PDF trop volumineux (15 Mo maximum) — article publié sans.', 'erreur');
+    return undefined;
+  }
+  try {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/actus/pv-upload`, {
+      method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+    });
+    if (!res.ok) throw new Error();
+    return await res.json();
+  } catch {
+    afficherToastMessage('Échec de l\'envoi du PDF — article publié sans.', 'erreur');
+    return undefined;
+  }
+}
+
 async function soumettreArticleModale(corps, overlay) {
   const titre = corps.querySelector('#titre-article-modale').value.trim();
   const categorie = corps.querySelector('#categorie-article-modale').value;
@@ -359,11 +399,15 @@ async function soumettreArticleModale(corps, overlay) {
   }
 
   const sondage = lireSondageDuFormulaire(corps);
+  const fichierPv = await uploaderPdfArticle(corps.querySelector('#pdf-article-modale').files[0]);
 
   const res = await appelApi(`/${window.COMMUNE_SLUG}/actus`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ section: 'actualites', categorie, titre, contenu_html: contenuHtml, image_r2_keys: imageR2Keys, sondage }),
+    body: JSON.stringify({
+      section: 'actualites', categorie, titre, contenu_html: contenuHtml, image_r2_keys: imageR2Keys, sondage,
+      fichier_pv_url: fichierPv?.url, fichier_pv_type: fichierPv?.type,
+    }),
   });
   boutonSubmit.disabled = false;
 
@@ -393,6 +437,10 @@ function ouvrirModaleEditionArticle(article) {
       <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Ajouter des photos (jusqu'à 10)</label>
       <input type="file" id="image-edition-article-modale" accept="image/*" multiple>
       <div id="apercu-images-edition-modale" class="apercu-images-modale"></div>
+      <label style="display:block;margin:10px 0 4px;font-size:13px;color:var(--roseau);">Document PDF (optionnel — 15 Mo max.)</label>
+      <div id="pdf-existant-edition"></div>
+      <input type="file" id="pdf-edition-article-modale" accept="application/pdf">
+      <p id="nom-pdf-edition-modale" style="font-size:12.5px;color:var(--roseau);margin:4px 0 0;"></p>
       ${htmlBlocSondageArticle()}
       <button type="submit" style="margin-top:12px;">Enregistrer</button>
     </form>
@@ -441,6 +489,30 @@ function ouvrirModaleEditionArticle(article) {
     });
   });
 
+  // PDF existant : un bouton "retirer" le marque pour suppression à l'enregistrement (comme
+  // les photos ci-dessus) — pas de suppression effective avant la validation du formulaire.
+  let pvRetire = false;
+  const zonePvExistant = corps.querySelector('#pdf-existant-edition');
+  const rendrePvExistant = () => {
+    if (!article.fichier_pv_url || pvRetire) { zonePvExistant.innerHTML = ''; return; }
+    zonePvExistant.innerHTML = `
+      <div class="vignette-image-editable" style="display:inline-flex;align-items:center;gap:8px;">
+        <a href="${article.fichier_pv_url}" target="_blank" rel="noopener" class="lien-fichier-pv-pdf">📄 Document actuel</a>
+        <button type="button" class="btn-retirer-image" title="Retirer">×</button>
+      </div>
+    `;
+    zonePvExistant.querySelector('.btn-retirer-image').addEventListener('click', () => {
+      pvRetire = true;
+      rendrePvExistant();
+    });
+  };
+  rendrePvExistant();
+
+  const inputPdf = corps.querySelector('#pdf-edition-article-modale');
+  inputPdf.addEventListener('change', () => {
+    corps.querySelector('#nom-pdf-edition-modale').textContent = inputPdf.files[0]?.name || '';
+  });
+
   corps.querySelector('#form-modale-edition-article').addEventListener('submit', async (e) => {
     e.preventDefault();
     const titre = corps.querySelector('#titre-edition-article-modale').value.trim();
@@ -462,6 +534,13 @@ function ouvrirModaleEditionArticle(article) {
       } catch { console.warn('Upload image échoué.'); }
     }
 
+    const nouveauPv = await uploaderPdfArticle(inputPdf.files[0]);
+    // nouveauPv prime sur un retrait explicite si les deux sont vrais (remplacer = garder) ;
+    // undefined (pas touché) sinon, pour ne pas écraser le PDF existant sans raison.
+    const fichierPvPatch = nouveauPv
+      ? { fichier_pv_url: nouveauPv.url, fichier_pv_type: nouveauPv.type }
+      : (pvRetire ? { fichier_pv_url: null, fichier_pv_type: null } : {});
+
     const res = await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -470,6 +549,7 @@ function ouvrirModaleEditionArticle(article) {
         image_r2_keys: imageR2Keys,
         image_ids_supprimees: [...idsSupprimees],
         sondage: lireSondageDuFormulaire(corps),
+        ...fichierPvPatch,
       }),
     });
     boutonSubmit.disabled = false;

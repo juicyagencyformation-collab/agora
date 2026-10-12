@@ -42,8 +42,10 @@ const articleSchema = z.object({
   image_ids_supprimees: z.array(z.string().uuid()).max(20).optional(),
   archive: z.boolean().optional(),
   sondage: sondageSchema.optional().nullable(),
-  fichier_pv_url: z.string().url().optional(),
-  fichier_pv_type: z.enum(['pdf', 'image']).optional(),
+  // .nullable() en plus de .optional() : permet d'explicitement retirer un PDF déjà joint à
+  // l'édition (PATCH envoie alors null), sans quoi il n'y aurait aucun moyen de l'enlever.
+  fichier_pv_url: z.string().url().nullable().optional(),
+  fichier_pv_type: z.enum(['pdf', 'image']).nullable().optional(),
 });
 
 app.get('/', async (c) => {
@@ -207,6 +209,8 @@ app.patch('/:id', async (c) => {
   if (body.data.contenu_html) patch.contenu_html = sanitizeHtml(body.data.contenu_html);
   if (body.data.categorie) patch.categorie = body.data.categorie;
   if (body.data.archive !== undefined) patch.archive = body.data.archive;
+  if (body.data.fichier_pv_url !== undefined) patch.fichier_pv_url = body.data.fichier_pv_url;
+  if (body.data.fichier_pv_type !== undefined) patch.fichier_pv_type = body.data.fichier_pv_type;
   patch.updated_at = new Date().toISOString();
 
   await supabaseUpdate(c.env, 'articles', patch, {
