@@ -32,16 +32,53 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
       <input name="disponibilites" placeholder="Disponibilités (optionnel — ex: week-ends, soirées)" value="${annonce ? escapeAttr(annonce.disponibilites || '') : ''}">
       <label class="label-champ-edition">${annonce ? 'Prolonger de (jours, optionnel)' : 'Durée de l\'annonce (jours)'}</label>
       <input name="duree_jours" type="number" ${annonce ? 'placeholder="Laisser vide pour ne pas changer"' : 'value="30"'}>
+      <label class="label-champ-edition">Photo (optionnel)</label>
+      <div id="photo-existante-annonce"></div>
+      <input type="file" id="photo-annonce-modale" accept="image/jpeg,image/png,image/webp">
       <button type="submit" style="margin-top:12px;">${annonce ? 'Mettre à jour' : 'Publier'}</button>
     </form>
   `;
   const overlay = ouvrirModaleFormulaire(annonce ? 'Modifier l\'annonce' : 'Publier une annonce', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
 
+  // Photo existante (édition) : un bouton × la marque pour retrait à l'enregistrement — même
+  // logique que la bannière/photo de profil (profil.js), pas de suppression avant validation.
+  let photoRetiree = false;
+  const zonePhotoExistante = corps.querySelector('#photo-existante-annonce');
+  const rendrePhotoExistante = () => {
+    if (!annonce?.photo_url || photoRetiree) { zonePhotoExistante.innerHTML = ''; return; }
+    zonePhotoExistante.innerHTML = `
+      <div class="vignette-image-editable" style="display:inline-flex;">
+        <img src="${annonce.photo_url}" class="apercu-image-modale">
+        <button type="button" class="btn-retirer-image" title="Retirer">×</button>
+      </div>
+    `;
+    zonePhotoExistante.querySelector('.btn-retirer-image').addEventListener('click', () => {
+      photoRetiree = true;
+      rendrePhotoExistante();
+    });
+  };
+  rendrePhotoExistante();
+
   corps.querySelector('#form-modale-annonce').addEventListener('submit', async (e) => {
     e.preventDefault();
     const donnees = Object.fromEntries(new FormData(e.target));
     const dureeSaisie = Number(donnees.duree_jours);
+
+    const fichierPhoto = corps.querySelector('#photo-annonce-modale').files[0];
+    let photo_r2_key;
+    if (fichierPhoto) {
+      try {
+        const compresse = await compresserImage(fichierPhoto);
+        const resUpload = await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main/upload`, {
+          method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+        });
+        if (resUpload.ok) { ({ key: photo_r2_key } = await resUpload.json()); }
+        else { const d = await resUpload.json().catch(() => ({})); alert(d.erreur || 'Échec de l\'envoi de la photo.'); return; }
+      } catch { alert('Échec de l\'envoi de la photo.'); return; }
+    } else if (photoRetiree) {
+      photo_r2_key = null;
+    }
 
     const res = annonce
       ? await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main/${annonce.id}`, {
@@ -50,6 +87,7 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
             type: donnees.type, titre: donnees.titre, description: donnees.description,
             categorie: donnees.categorie, prix: donnees.prix, contact: donnees.contact, disponibilites: donnees.disponibilites,
             ...(dureeSaisie > 0 ? { duree_jours: dureeSaisie } : {}),
+            ...(photo_r2_key !== undefined ? { photo_r2_key } : {}),
           }),
         })
       : await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main`, {
@@ -58,6 +96,7 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
             type: donnees.type, titre: donnees.titre, description: donnees.description,
             categorie: donnees.categorie, prix: donnees.prix, contact: donnees.contact, disponibilites: donnees.disponibilites,
             duree_jours: dureeSaisie > 0 ? dureeSaisie : 30,
+            ...(photo_r2_key ? { photo_r2_key } : {}),
           }),
         });
 

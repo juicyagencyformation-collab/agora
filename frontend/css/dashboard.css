@@ -943,6 +943,18 @@ h1, h2, h3, h4, p, span, a, button {
 .reponse-mairie-entete { font-size: 12px; font-weight: 700; color: var(--eau); margin-bottom: 4px; }
 .reponse-mairie p { font-size: 13px; color: var(--boue); margin: 0; }
 
+/* Coups de main : annonce pourvue reléguée visuellement (reste visible, preuve que l'entraide
+   fonctionne) + zone d'intérêt privé + liste des intéressés réservée à l'auteur. */
+.annonce-pourvue { opacity: .55; }
+.zone-interet-coup-de-main { margin-top: 12px; }
+.formulaire-interet-coup-de-main textarea { width: 100%; min-height: 60px; }
+.zone-interets-recus { margin-top: 14px; }
+.carte-interet-coup-de-main {
+  background: var(--eauXL); border-radius: 10px; padding: 8px 12px; margin-top: 6px;
+}
+.carte-interet-coup-de-main strong { font-size: 13px; color: var(--eau); }
+.carte-interet-coup-de-main p { font-size: 13px; color: var(--boue); margin: 2px 0 0; }
+
 .ligne-soutien-alerte { margin-top: 12px; }
 .btn-soutenir {
   padding: 8px 16px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
