@@ -102,8 +102,8 @@ async function chargerProfil() {
     </div>
 
     <div class="carte-categorie-profil">
-      <button type="button" class="entete-categorie-profil"><span>🏆 Progression</span><span class="chevron">▲</span></button>
-      <div class="corps-categorie-profil">
+      <button type="button" class="entete-categorie-profil"><span>🏆 Progression</span><span class="chevron">▾</span></button>
+      <div class="corps-categorie-profil" hidden>
         <div class="carte-dashboard streak-carte">
           <div><span class="streak-nombre">🔥 ${data.streak_actuel}</span><span class="streak-label">jour(s) d'affilée</span></div>
           <div><span class="streak-nombre">🏆 ${data.streak_record}</span><span class="streak-label">record personnel</span></div>
