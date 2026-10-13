@@ -136,9 +136,13 @@ function renderCarteAlerteCompacte(alerte) {
   el.className = `carte-article-compacte carte-alerte-${alerte.statut}`;
   const dateAffichee = new Date(alerte.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
+  const miniature = alerte.images?.[0]
+    ? `<img src="${alerte.images[0]}" class="miniature-liste-article" loading="lazy" alt="">`
+    : `<div class="miniature-liste-article miniature-vide" style="${alerte.urgent ? 'background:rgba(192,57,43,.15);' : ''}">${alerte.urgent ? '🚨' : '⚠️'}</div>`;
+
   el.innerHTML = `
     <button type="button" class="entete-article-compact">
-      <div class="miniature-liste-article miniature-vide" style="${alerte.urgent ? 'background:rgba(192,57,43,.15);' : ''}">${alerte.urgent ? '🚨' : '⚠️'}</div>
+      ${miniature}
       <div class="texte-entete-article">
         <div class="badges-event-compact">
           ${alerte.urgent ? '<span class="badge-categorie-article badge-urgent-alerte" style="margin:0;">Urgent</span>' : ''}
