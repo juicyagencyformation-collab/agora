@@ -2755,6 +2755,9 @@
                   <template x-if="rapport.reactivite_mairie.sondages.actif">
                     <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.sondages.votes_periode"></div><div class="bo-stat__lib">Votes exprimés</div></div>
                   </template>
+                  <template x-if="rapport.reactivite_mairie.sondages.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.sondages.votes_moyens_par_sondage ?? '—'"></div><div class="bo-stat__lib">Votes moy. par sondage</div></div>
+                  </template>
                   <template x-if="!rapport.reactivite_mairie.sondages.actif">
                     <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Sondages (module non activé)</div></div>
                   </template>
@@ -2771,6 +2774,12 @@
                   <template x-if="rapport.vie_citoyenne.mur.actif">
                     <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur.reactions_periode"></div><div class="bo-stat__lib">Réactions</div></div>
                   </template>
+                  <template x-if="rapport.vie_citoyenne.mur.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur.commentaires_moyens_par_message ?? '—'"></div><div class="bo-stat__lib">Commentaires moy. par message</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.mur.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur.reactions_moyennes_par_message ?? '—'"></div><div class="bo-stat__lib">Réactions moy. par message</div></div>
+                  </template>
                   <template x-if="!rapport.vie_citoyenne.mur.actif">
                     <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Mur (module non activé)</div></div>
                   </template>
@@ -2780,6 +2789,9 @@
                   </template>
                   <template x-if="rapport.vie_citoyenne.coups_de_main.actif">
                     <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.coups_de_main.pourvus_actuellement"></div><div class="bo-stat__lib">Annonces pourvues (actuellement)</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.coups_de_main.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.coups_de_main.taux_pourvoi_approximatif ?? '—'"></div><div class="bo-stat__lib">Taux de pourvoi (approx.)</div></div>
                   </template>
                   <template x-if="!rapport.vie_citoyenne.coups_de_main.actif">
                     <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Entraide (module non activé)</div></div>
@@ -2791,6 +2803,9 @@
                   <template x-if="rapport.vie_citoyenne.agenda.actif">
                     <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.agenda.inscriptions_actuellement"></div><div class="bo-stat__lib">Inscriptions agenda (actuellement)</div></div>
                   </template>
+                  <template x-if="rapport.vie_citoyenne.agenda.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.agenda.inscriptions_moyennes_par_evenement_approximatif ?? '—'"></div><div class="bo-stat__lib">Inscriptions moy. par événement (approx.)</div></div>
+                  </template>
                   <template x-if="!rapport.vie_citoyenne.agenda.actif">
                     <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Agenda (module non activé)</div></div>
                   </template>
@@ -2800,6 +2815,9 @@
                   </template>
                   <template x-if="rapport.vie_citoyenne.chasse_tresor.actif">
                     <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.chasse_tresor.etapes_validees_periode"></div><div class="bo-stat__lib">Étapes validées</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.chasse_tresor.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.chasse_tresor.etapes_moyennes_par_participant ?? '—'"></div><div class="bo-stat__lib">Étapes moy. par participant</div></div>
                   </template>
                   <template x-if="!rapport.vie_citoyenne.chasse_tresor.actif">
                     <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Chasse au trésor (module non activé)</div></div>

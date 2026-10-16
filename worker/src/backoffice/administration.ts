@@ -1109,6 +1109,13 @@ app.get('/communes/:id/rapport', async (c) => {
     ? Math.round(delaisTries.length % 2 ? delaisTries[milieu] : (delaisTries[milieu - 1] + delaisTries[milieu]) / 2)
     : null;
 
+  // Arrondi à 1 décimale, null si le dénominateur est nul (jamais de division par zéro ni de
+  // "0 en moyenne" trompeur quand il n'y a tout simplement rien à moyenner).
+  const ratio = (numerateur: number, denominateur: number) =>
+    denominateur > 0 ? Math.round((numerateur / denominateur) * 10) / 10 : null;
+
+  const participantsChasse = new Set(progressionsChasse.map((p: any) => p.user_id)).size;
+
   return c.json({
     commune: { nom: commune[0]?.nom ?? null, population: commune[0]?.population ?? null },
     periode: { debut: debut.toISOString().slice(0, 10), fin: fin.toISOString().slice(0, 10) },
@@ -1122,13 +1129,34 @@ app.get('/communes/:id/rapport', async (c) => {
       signalements_avec_reponse_periode: signalementsAvecReponse.length,
       delai_moyen_premiere_reponse_heures: delaiMoyenReponseHeures,
       delai_median_premiere_reponse_heures: delaiMedianReponseHeures,
-      sondages: { actif: estActif('thermometre'), crees_periode: sondagesCrees, votes_periode: votesTotal },
+      sondages: {
+        actif: estActif('thermometre'), crees_periode: sondagesCrees, votes_periode: votesTotal,
+        votes_moyens_par_sondage: ratio(votesTotal, sondagesCrees),
+      },
     },
     vie_citoyenne: {
-      mur: { actif: estActif('mur'), posts_periode: murPosts, commentaires_periode: murCommentaires, reactions_periode: murReactions },
-      coups_de_main: { actif: estActif('coups_de_main'), crees_periode: coupsDeMainCrees, pourvus_actuellement: coupsDeMainPourvus },
-      agenda: { actif: estActif('agenda'), evenements_crees_periode: agendaEvenementsCrees, inscriptions_actuellement: agendaInscriptionsActuelles },
-      chasse_tresor: { actif: estActif('chasse_tresor'), participants_periode: new Set(progressionsChasse.map((p: any) => p.user_id)).size, etapes_validees_periode: progressionsChasse.length },
+      mur: {
+        actif: estActif('mur'), posts_periode: murPosts, commentaires_periode: murCommentaires, reactions_periode: murReactions,
+        commentaires_moyens_par_message: ratio(murCommentaires, murPosts),
+        reactions_moyennes_par_message: ratio(murReactions, murPosts),
+      },
+      coups_de_main: {
+        actif: estActif('coups_de_main'), crees_periode: coupsDeMainCrees, pourvus_actuellement: coupsDeMainPourvus,
+        // Mélange un total actuel (pourvus_actuellement) et un compteur de période (crees_periode) :
+        // directionnel seulement, pas rigoureusement comparable d'une période à l'autre — voir
+        // discussion du 2026-10-16 avec Léandre, annoté explicitement côté frontend pour ça.
+        taux_pourvoi_approximatif: ratio(coupsDeMainPourvus, coupsDeMainCrees),
+      },
+      agenda: {
+        actif: estActif('agenda'), evenements_crees_periode: agendaEvenementsCrees, inscriptions_actuellement: agendaInscriptionsActuelles,
+        // Même nuance que taux_pourvoi_approximatif ci-dessus : inscriptions_actuellement est un
+        // total actuel, pas borné à la période.
+        inscriptions_moyennes_par_evenement_approximatif: ratio(agendaInscriptionsActuelles, agendaEvenementsCrees),
+      },
+      chasse_tresor: {
+        actif: estActif('chasse_tresor'), participants_periode: participantsChasse, etapes_validees_periode: progressionsChasse.length,
+        etapes_moyennes_par_participant: ratio(progressionsChasse.length, participantsChasse),
+      },
       annuaire: { actif: estActif('annuaire'), fiches_actuellement: annuaireFiches },
       photo_du_jour: { actif: estActif('photo_du_jour'), publications_periode: photosDuJour },
       enigmes: { actif: estActif('enigmes'), trouvees_au_total: enigmesTrouvees },
@@ -1137,7 +1165,7 @@ app.get('/communes/:id/rapport', async (c) => {
     travail_mairie: {
       actus_publiees_periode: actusPubliees,
       actus_lectures_periode: actusLectures,
-      actus_lectures_moyennes_par_article: actusPubliees > 0 ? Math.round((actusLectures / actusPubliees) * 10) / 10 : null,
+      actus_lectures_moyennes_par_article: ratio(actusLectures, actusPubliees),
     },
   });
 });
