@@ -1055,7 +1055,7 @@ app.get('/communes/:id/rapport', async (c) => {
     agendaEvenementsCrees, agendaInscriptionsActuelles,
     progressionsChasse, annuaireFiches,
     photosDuJour, enigmesTrouvees, memoireTemoignages,
-    actusPubliees,
+    actusPubliees, actusLectures,
   ] = await Promise.all([
     supabaseSelect(c.env, 'communes', { select: 'nom,population', id: `eq.${id}` }),
     supabaseCount(c.env, 'users', { commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS }),
@@ -1079,6 +1079,12 @@ app.get('/communes/:id/rapport', async (c) => {
     supabaseCount(c.env, 'enigme_reussites', { commune_id: `eq.${id}` }),
     supabaseCount(c.env, 'souvenirs', { commune_id: `eq.${id}`, ...periode }),
     supabaseCount(c.env, 'articles', { commune_id: `eq.${id}`, section: 'eq.actualites', ...periode }),
+    // Lectures enregistrées PENDANT la période (articles_lus_par_utilisateur, 1 ligne par
+    // habitant et par article) — pas forcément des articles publiés sur cette même période,
+    // mesure l'activité de lecture de la période plutôt que le succès des seuls nouveaux
+    // articles (sinon il faudrait d'abord récupérer les ids des articles publiés, 2 requêtes
+    // séquentielles pour un gain de précision marginal sur un prototype).
+    supabaseCount(c.env, 'articles_lus_par_utilisateur', { commune_id: `eq.${id}`, ...periode }),
   ]);
 
   // actif=true par défaut si l'onglet n'a jamais de ligne en base pour cette commune (ancien
@@ -1130,6 +1136,8 @@ app.get('/communes/:id/rapport', async (c) => {
     },
     travail_mairie: {
       actus_publiees_periode: actusPubliees,
+      actus_lectures_periode: actusLectures,
+      actus_lectures_moyennes_par_article: actusPubliees > 0 ? Math.round((actusLectures / actusPubliees) * 10) / 10 : null,
     },
   });
 });
