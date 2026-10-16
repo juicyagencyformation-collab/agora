@@ -2740,7 +2740,7 @@
                 <div class="bo-grille-stats">
                   <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.couverture.citoyens_total"></div><div class="bo-stat__lib">Citoyens inscrits (total)</div></div>
                   <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.couverture.nouveaux_citoyens_periode"></div><div class="bo-stat__lib">Nouveaux sur la période</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.couverture.actifs_periode"></div><div class="bo-stat__lib" x-text="'Actifs sur la période' + pctPop(rapport.couverture.actifs_periode)"></div></div>
+                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.couverture.actifs_30_jours"></div><div class="bo-stat__lib" x-text="'Actifs (30 derniers jours)' + pctPop(rapport.couverture.actifs_30_jours)"></div></div>
                 </div>
 
                 <div style="font-weight:600; font-size:13px; margin:16px 0 6px">Réactivité de la mairie</div>
@@ -2748,25 +2748,90 @@
                   <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.signalements_crees_periode"></div><div class="bo-stat__lib">Signalements créés</div></div>
                   <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.signalements_avec_reponse_periode"></div><div class="bo-stat__lib">Avec réponse de la mairie</div></div>
                   <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.delai_moyen_premiere_reponse_heures ?? '—'"></div><div class="bo-stat__lib">Délai moyen de 1re réponse (h)</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.sondages_crees_periode"></div><div class="bo-stat__lib">Sondages lancés</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.votes_periode"></div><div class="bo-stat__lib">Votes exprimés</div></div>
+                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.delai_median_premiere_reponse_heures ?? '—'"></div><div class="bo-stat__lib">Délai médian de 1re réponse (h)</div></div>
+                  <template x-if="rapport.reactivite_mairie.sondages.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.sondages.crees_periode"></div><div class="bo-stat__lib">Sondages lancés</div></div>
+                  </template>
+                  <template x-if="rapport.reactivite_mairie.sondages.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.reactivite_mairie.sondages.votes_periode"></div><div class="bo-stat__lib">Votes exprimés</div></div>
+                  </template>
+                  <template x-if="!rapport.reactivite_mairie.sondages.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Sondages (module non activé)</div></div>
+                  </template>
                 </div>
 
                 <div style="font-weight:600; font-size:13px; margin:16px 0 6px">Vie citoyenne</div>
                 <div class="bo-grille-stats">
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur_posts_periode"></div><div class="bo-stat__lib">Messages sur le Mur</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur_commentaires_periode"></div><div class="bo-stat__lib">Commentaires</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur_reactions_periode"></div><div class="bo-stat__lib">Réactions</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.coups_de_main_crees_periode"></div><div class="bo-stat__lib">Annonces d'entraide créées</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.coups_de_main_pourvus_actuellement"></div><div class="bo-stat__lib">Annonces pourvues (actuellement)</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.agenda_evenements_crees_periode"></div><div class="bo-stat__lib">Événements créés</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.agenda_inscriptions_actuellement"></div><div class="bo-stat__lib">Inscriptions agenda (actuellement)</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.chasse_participants_periode"></div><div class="bo-stat__lib">Participants chasse au trésor</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.chasse_etapes_validees_periode"></div><div class="bo-stat__lib">Étapes validées</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.annuaire_fiches_actuellement"></div><div class="bo-stat__lib">Fiches annuaire (actuellement)</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.photo_du_jour_publications_periode"></div><div class="bo-stat__lib">Photos du jour publiées</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.enigmes_trouvees_au_total"></div><div class="bo-stat__lib">Énigmes trouvées (total)</div></div>
-                  <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.memoire_temoignages_periode"></div><div class="bo-stat__lib">Témoignages Mémoire du village</div></div>
+                  <template x-if="rapport.vie_citoyenne.mur.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur.posts_periode"></div><div class="bo-stat__lib">Messages sur le Mur</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.mur.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur.commentaires_periode"></div><div class="bo-stat__lib">Commentaires</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.mur.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.mur.reactions_periode"></div><div class="bo-stat__lib">Réactions</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.mur.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Mur (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.coups_de_main.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.coups_de_main.crees_periode"></div><div class="bo-stat__lib">Annonces d'entraide créées</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.coups_de_main.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.coups_de_main.pourvus_actuellement"></div><div class="bo-stat__lib">Annonces pourvues (actuellement)</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.coups_de_main.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Entraide (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.agenda.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.agenda.evenements_crees_periode"></div><div class="bo-stat__lib">Événements créés</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.agenda.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.agenda.inscriptions_actuellement"></div><div class="bo-stat__lib">Inscriptions agenda (actuellement)</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.agenda.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Agenda (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.chasse_tresor.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.chasse_tresor.participants_periode"></div><div class="bo-stat__lib">Participants chasse au trésor</div></div>
+                  </template>
+                  <template x-if="rapport.vie_citoyenne.chasse_tresor.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.chasse_tresor.etapes_validees_periode"></div><div class="bo-stat__lib">Étapes validées</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.chasse_tresor.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Chasse au trésor (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.annuaire.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.annuaire.fiches_actuellement"></div><div class="bo-stat__lib">Fiches annuaire (actuellement)</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.annuaire.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Annuaire (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.photo_du_jour.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.photo_du_jour.publications_periode"></div><div class="bo-stat__lib">Photos du jour publiées</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.photo_du_jour.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Photo du jour (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.enigmes.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.enigmes.trouvees_au_total"></div><div class="bo-stat__lib">Énigmes trouvées (total)</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.enigmes.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Énigmes (module non activé)</div></div>
+                  </template>
+
+                  <template x-if="rapport.vie_citoyenne.memoire.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" x-text="rapport.vie_citoyenne.memoire.temoignages_periode"></div><div class="bo-stat__lib">Témoignages Mémoire du village</div></div>
+                  </template>
+                  <template x-if="!rapport.vie_citoyenne.memoire.actif">
+                    <div class="bo-stat"><div class="bo-stat__val" style="opacity:.5">—</div><div class="bo-stat__lib">Mémoire du village (module non activé)</div></div>
+                  </template>
                 </div>
 
                 <div style="font-weight:600; font-size:13px; margin:16px 0 6px">Travail de la mairie</div>

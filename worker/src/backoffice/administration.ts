@@ -1039,9 +1039,15 @@ app.get('/communes/:id/rapport', async (c) => {
   // (500) à cause de cette seule colonne inexistante.
   const periodeValideeAt = { and: `(validee_at.gte.${debut.toISOString()},validee_at.lt.${fin.toISOString()})` };
   const FILTRE_VRAIS_UTILISATEURS = { role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' };
+  // "Actifs" en fenêtre fixe de 30 jours, JAMAIS indexée sur la période choisie pour le reste du
+  // rapport (bug de conception trouvé le 2026-10-16 sur Eaucourt : avec une période de 5 mois,
+  // "actif" ne voulait quasiment plus rien dire — il suffit de s'être connecté une seule fois en
+  // 5 mois. Une fenêtre large élargit le rapport, mais ne doit jamais diluer ce que "actif" veut
+  // dire — même logique que /frequentation juste au-dessus.
+  const il30Jours = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 
   const [
-    commune, citoyensTotal, usersPourActifs, nouveauxCitoyens,
+    commune, citoyensTotal, usersPourActifs, nouveauxCitoyens, ongletsConfig,
     signalementsCrees, signalementsAvecReponse,
     sondagesCrees, votesTotal,
     murPosts, murCommentaires, murReactions,
@@ -1055,6 +1061,7 @@ app.get('/communes/:id/rapport', async (c) => {
     supabaseCount(c.env, 'users', { commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS }),
     supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS }),
     supabaseCount(c.env, 'users', { commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS, ...periode }),
+    supabaseSelect(c.env, 'onglets_config', { select: 'cle,actif', commune_id: `eq.${id}` }),
     supabaseCount(c.env, 'alertes', { commune_id: `eq.${id}`, ...periode }),
     supabaseSelect(c.env, 'alertes', { select: 'created_at,reponse_le', commune_id: `eq.${id}`, reponse_le: 'not.is.null', ...periode }),
     supabaseCount(c.env, 'sondages', { commune_id: `eq.${id}`, ...periode }),
@@ -1074,13 +1081,26 @@ app.get('/communes/:id/rapport', async (c) => {
     supabaseCount(c.env, 'articles', { commune_id: `eq.${id}`, section: 'eq.actualites', ...periode }),
   ]);
 
-  const actifsPeriode = usersPourActifs.filter((u: any) =>
-    u.derniere_connexion_streak && u.derniere_connexion_streak >= debut.toISOString().slice(0, 10)).length;
+  // actif=true par défaut si l'onglet n'a jamais de ligne en base pour cette commune (ancien
+  // compte créé avant l'introduction d'un module) : un module manquant n'est pas forcément
+  // désactivé, voir appliquerOngletsSurCommune plus haut dans ce fichier.
+  const estActif = (cle: string) => {
+    const ligne = ongletsConfig.find((o: any) => o.cle === cle);
+    return ligne ? ligne.actif !== false : true;
+  };
+
+  const actifs30j = usersPourActifs.filter((u: any) =>
+    u.derniere_connexion_streak && u.derniere_connexion_streak >= il30Jours).length;
 
   const delaisReponseHeures = signalementsAvecReponse.map((a: any) =>
     (new Date(a.reponse_le).getTime() - new Date(a.created_at).getTime()) / 3600000);
   const delaiMoyenReponseHeures = delaisReponseHeures.length
     ? Math.round(delaisReponseHeures.reduce((s: number, h: number) => s + h, 0) / delaisReponseHeures.length)
+    : null;
+  const delaisTries = [...delaisReponseHeures].sort((a, b) => a - b);
+  const milieu = Math.floor(delaisTries.length / 2);
+  const delaiMedianReponseHeures = delaisTries.length
+    ? Math.round(delaisTries.length % 2 ? delaisTries[milieu] : (delaisTries[milieu - 1] + delaisTries[milieu]) / 2)
     : null;
 
   return c.json({
@@ -1089,29 +1109,24 @@ app.get('/communes/:id/rapport', async (c) => {
     couverture: {
       citoyens_total: citoyensTotal,
       nouveaux_citoyens_periode: nouveauxCitoyens,
-      actifs_periode: actifsPeriode,
+      actifs_30_jours: actifs30j,
     },
     reactivite_mairie: {
       signalements_crees_periode: signalementsCrees,
       signalements_avec_reponse_periode: signalementsAvecReponse.length,
       delai_moyen_premiere_reponse_heures: delaiMoyenReponseHeures,
-      sondages_crees_periode: sondagesCrees,
-      votes_periode: votesTotal,
+      delai_median_premiere_reponse_heures: delaiMedianReponseHeures,
+      sondages: { actif: estActif('thermometre'), crees_periode: sondagesCrees, votes_periode: votesTotal },
     },
     vie_citoyenne: {
-      mur_posts_periode: murPosts,
-      mur_commentaires_periode: murCommentaires,
-      mur_reactions_periode: murReactions,
-      coups_de_main_crees_periode: coupsDeMainCrees,
-      coups_de_main_pourvus_actuellement: coupsDeMainPourvus,
-      agenda_evenements_crees_periode: agendaEvenementsCrees,
-      agenda_inscriptions_actuellement: agendaInscriptionsActuelles,
-      chasse_participants_periode: new Set(progressionsChasse.map((p: any) => p.user_id)).size,
-      chasse_etapes_validees_periode: progressionsChasse.length,
-      annuaire_fiches_actuellement: annuaireFiches,
-      photo_du_jour_publications_periode: photosDuJour,
-      enigmes_trouvees_au_total: enigmesTrouvees,
-      memoire_temoignages_periode: memoireTemoignages,
+      mur: { actif: estActif('mur'), posts_periode: murPosts, commentaires_periode: murCommentaires, reactions_periode: murReactions },
+      coups_de_main: { actif: estActif('coups_de_main'), crees_periode: coupsDeMainCrees, pourvus_actuellement: coupsDeMainPourvus },
+      agenda: { actif: estActif('agenda'), evenements_crees_periode: agendaEvenementsCrees, inscriptions_actuellement: agendaInscriptionsActuelles },
+      chasse_tresor: { actif: estActif('chasse_tresor'), participants_periode: new Set(progressionsChasse.map((p: any) => p.user_id)).size, etapes_validees_periode: progressionsChasse.length },
+      annuaire: { actif: estActif('annuaire'), fiches_actuellement: annuaireFiches },
+      photo_du_jour: { actif: estActif('photo_du_jour'), publications_periode: photosDuJour },
+      enigmes: { actif: estActif('enigmes'), trouvees_au_total: enigmesTrouvees },
+      memoire: { actif: estActif('memoire'), temoignages_periode: memoireTemoignages },
     },
     travail_mairie: {
       actus_publiees_periode: actusPubliees,
