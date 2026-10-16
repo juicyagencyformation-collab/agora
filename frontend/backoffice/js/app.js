@@ -363,9 +363,6 @@ function backoffice() {
     async ouvrirFicheUnifiee({ prospectId = null, communeId = null } = {}) {
       this.chargement = true;
       this.vue = 'fiche_unifiee';
-      // Laisse Alpine retirer la fiche affichée AVANT de vider prospect/fiche : sinon ses
-      // expressions internes déjà planifiées s'exécutent une dernière fois sur null (erreurs en cascade).
-      await this.$nextTick();
       this.prospect = null;
       this.interactions = [];
       this.fiche = null;
@@ -1108,9 +1105,8 @@ function backoffice() {
       }
     },
 
-    async allerCommunes() {
+    allerCommunes() {
       this.vue = 'communes';
-      await this.$nextTick();
       this.fiche = null;
     },
 
@@ -1252,7 +1248,6 @@ function backoffice() {
     // — Prospection —
     async allerProspection() {
       this.vue = 'prospection';
-      await this.$nextTick();
       this.prospect = null;
       this.sousVueProspection = 'liste';
       this.pageProspects = 1;
