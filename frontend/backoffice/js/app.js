@@ -40,6 +40,11 @@ function backoffice() {
     fiche: null,
     erreurChargement: '',
     frequentation: null,
+    rapport: null,
+    rapportDebut: '',
+    rapportFin: '',
+    rapportEnCours: false,
+    rapportMsg: '',
     doublons: [],
     rgpd: null,
     qrCommune: '',
@@ -373,6 +378,11 @@ function backoffice() {
       this.forfaitMsg = '';
       this.presentMsg = '';
       this.frequentation = null;
+      this.rapport = null;
+      this.rapportMsg = '';
+      const aujourdhuiIso = new Date().toISOString().slice(0, 10);
+      this.rapportFin = aujourdhuiIso;
+      this.rapportDebut = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10);
       this.doublons = [];
       this.rgpd = null;
       this.qrCommune = '';
@@ -1079,6 +1089,19 @@ function backoffice() {
         this.coordsMsg = e.message || 'Introuvables';
       } finally {
         this.coordsEnCours = false;
+      }
+    },
+
+    async genererRapport() {
+      this.rapportEnCours = true;
+      this.rapportMsg = '';
+      try {
+        const params = new URLSearchParams({ debut: this.rapportDebut, fin: this.rapportFin });
+        this.rapport = await boFetch('/administration/communes/' + this.fiche.commune.id + '/rapport?' + params);
+      } catch (e) {
+        this.rapportMsg = e.message || 'Échec de la génération du rapport';
+      } finally {
+        this.rapportEnCours = false;
       }
     },
 

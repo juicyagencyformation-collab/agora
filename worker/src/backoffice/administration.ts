@@ -1017,6 +1017,104 @@ app.get('/communes/:id/frequentation', async (c) => {
   });
 });
 
+// GET /communes/:id/rapport?debut=YYYY-MM-DD&fin=YYYY-MM-DD — rapport d'activité complet pour
+// une commune, sur une période donnée (30 derniers jours par défaut). Prototype interne
+// backoffice (2026-10-16, suite à discussion avec Léandre sur les statistiques exploitables
+// comme argument de vente "Accompagné" — voir aussi lib/bilan-mensuel.ts, bien plus minimal,
+// pensé pour un email court). Certains compteurs sont volontairement des totaux actuels plutôt
+// que bornés à la période quand aucun horodatage fiable n'existe pour le faire proprement
+// (coups_de_main.pourvu, event_attendees.actif, enigme_reussites — cette dernière créée hors
+// migration, voir memoire "Tables Énigme photo non migrées", prudence sur ses colonnes) :
+// précisé dans le libellé de chaque champ ci-dessous, jamais présenté comme "sur la période"
+// si ce n'est pas le cas.
+app.get('/communes/:id/rapport', async (c) => {
+  const id = c.req.param('id');
+  const finParam = c.req.query('fin');
+  const debutParam = c.req.query('debut');
+  const fin = finParam ? new Date(`${finParam}T23:59:59Z`) : new Date();
+  const debut = debutParam ? new Date(`${debutParam}T00:00:00Z`) : new Date(fin.getTime() - 30 * 24 * 3600 * 1000);
+  const periode = { and: `(created_at.gte.${debut.toISOString()},created_at.lt.${fin.toISOString()})` };
+  const FILTRE_VRAIS_UTILISATEURS = { role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' };
+
+  const [
+    commune, citoyensTotal, usersPourActifs, nouveauxCitoyens,
+    signalementsCrees, signalementsAvecReponse,
+    sondagesCrees, votesTotal,
+    murPosts, murCommentaires, murReactions,
+    coupsDeMainCrees, coupsDeMainPourvus,
+    agendaEvenementsCrees, agendaInscriptionsActuelles,
+    progressionsChasse, annuaireFiches,
+    photosDuJour, enigmesTrouvees, memoireTemoignages,
+    actusPubliees,
+  ] = await Promise.all([
+    supabaseSelect(c.env, 'communes', { select: 'nom,population', id: `eq.${id}` }),
+    supabaseCount(c.env, 'users', { commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS }),
+    supabaseSelect(c.env, 'users', { select: 'derniere_connexion_streak', commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS }),
+    supabaseCount(c.env, 'users', { commune_id: `eq.${id}`, ...FILTRE_VRAIS_UTILISATEURS, ...periode }),
+    supabaseCount(c.env, 'alertes', { commune_id: `eq.${id}`, ...periode }),
+    supabaseSelect(c.env, 'alertes', { select: 'created_at,reponse_le', commune_id: `eq.${id}`, reponse_le: 'not.is.null', ...periode }),
+    supabaseCount(c.env, 'sondages', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'votes', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'posts', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'comments', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'reactions', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'coups_de_main', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'coups_de_main', { commune_id: `eq.${id}`, pourvu: 'eq.true' }),
+    supabaseCount(c.env, 'events', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'event_attendees', { commune_id: `eq.${id}`, actif: 'eq.true' }),
+    supabaseSelect(c.env, 'progressions_chasse', { select: 'user_id', commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'annuaire', { commune_id: `eq.${id}` }),
+    supabaseCount(c.env, 'photos_du_jour', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'enigme_reussites', { commune_id: `eq.${id}` }),
+    supabaseCount(c.env, 'souvenirs', { commune_id: `eq.${id}`, ...periode }),
+    supabaseCount(c.env, 'articles', { commune_id: `eq.${id}`, section: 'eq.actualites', ...periode }),
+  ]);
+
+  const actifsPeriode = usersPourActifs.filter((u: any) =>
+    u.derniere_connexion_streak && u.derniere_connexion_streak >= debut.toISOString().slice(0, 10)).length;
+
+  const delaisReponseHeures = signalementsAvecReponse.map((a: any) =>
+    (new Date(a.reponse_le).getTime() - new Date(a.created_at).getTime()) / 3600000);
+  const delaiMoyenReponseHeures = delaisReponseHeures.length
+    ? Math.round(delaisReponseHeures.reduce((s: number, h: number) => s + h, 0) / delaisReponseHeures.length)
+    : null;
+
+  return c.json({
+    commune: { nom: commune[0]?.nom ?? null, population: commune[0]?.population ?? null },
+    periode: { debut: debut.toISOString().slice(0, 10), fin: fin.toISOString().slice(0, 10) },
+    couverture: {
+      citoyens_total: citoyensTotal,
+      nouveaux_citoyens_periode: nouveauxCitoyens,
+      actifs_periode: actifsPeriode,
+    },
+    reactivite_mairie: {
+      signalements_crees_periode: signalementsCrees,
+      signalements_avec_reponse_periode: signalementsAvecReponse.length,
+      delai_moyen_premiere_reponse_heures: delaiMoyenReponseHeures,
+      sondages_crees_periode: sondagesCrees,
+      votes_periode: votesTotal,
+    },
+    vie_citoyenne: {
+      mur_posts_periode: murPosts,
+      mur_commentaires_periode: murCommentaires,
+      mur_reactions_periode: murReactions,
+      coups_de_main_crees_periode: coupsDeMainCrees,
+      coups_de_main_pourvus_actuellement: coupsDeMainPourvus,
+      agenda_evenements_crees_periode: agendaEvenementsCrees,
+      agenda_inscriptions_actuellement: agendaInscriptionsActuelles,
+      chasse_participants_periode: new Set(progressionsChasse.map((p: any) => p.user_id)).size,
+      chasse_etapes_validees_periode: progressionsChasse.length,
+      annuaire_fiches_actuellement: annuaireFiches,
+      photo_du_jour_publications_periode: photosDuJour,
+      enigmes_trouvees_au_total: enigmesTrouvees,
+      memoire_temoignages_periode: memoireTemoignages,
+    },
+    travail_mairie: {
+      actus_publiees_periode: actusPubliees,
+    },
+  });
+});
+
 // GET /communes/:id/historique-prospection — retrace le parcours commercial : le prospect qui a
 // donné naissance à cette commune (prospects.commune_id -> communes.id, posé à l'activation ou
 // à la conversion manuelle) et sa timeline d'échanges (prospect_interactions), autrement
