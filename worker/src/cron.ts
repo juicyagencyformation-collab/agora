@@ -1,5 +1,5 @@
 // worker/src/cron.ts
-import { supabaseDelete, supabaseSelect, supabaseUpdate } from './db';
+import { supabaseDelete, supabaseSelect, supabaseSelectTout, supabaseUpdate } from './db';
 import { deleteObject } from './storage';
 import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
 import { envoyerEmailEcheance } from './backoffice/email-commune';
@@ -18,7 +18,13 @@ export async function nettoyerCoupsDeMainExpires(env: any) {
 // Purge quotidienne de "Photo du jour" — chaque commune a sa propre durée de rétention
 // (1 jour / 1 semaine / 1 mois), donc on ne peut plus se contenter d'un seul jour fixe.
 export async function purgerPhotosDuJour(env: any) {
-  const communes = await supabaseSelect(env, 'communes', { select: 'id,photo_jour_duree' });
+  // supabaseSelectTout (pas supabaseSelect) : la table communes dépasse les 1000 lignes
+  // plafonnées par défaut par PostgREST (14 000+ lignes, dont des prospects auto-activés sans
+  // inscription complète — voir activerCommuneGratuite) — un simple supabaseSelect ne purgeait
+  // qu'une tranche arbitraire de communes chaque nuit, jamais garanti de couvrir toutes les
+  // communes réelles. Bug trouvé le 2026-10-16 suite à un signalement sur le Mur des voisins
+  // (voir purgerMur plus bas, même cause) ; même motif corrigé ici par précaution.
+  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,photo_jour_duree' });
 
   for (const commune of communes) {
     const duree = commune.photo_jour_duree ?? 'semaine';
@@ -39,7 +45,9 @@ export async function purgerPhotosDuJour(env: any) {
 // (48h / 1 semaine / 1 mois / 6 mois / 1 an), puisqu'il faut le temps de se déplacer physiquement
 // pour résoudre une énigme, contrairement à un flux social quotidien.
 export async function purgerEnigmes(env: any) {
-  const communes = await supabaseSelect(env, 'communes', { select: 'id,enigme_duree' });
+  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour ci-dessus (communes > 1000
+  // lignes, plafond PostgREST).
+  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,enigme_duree' });
 
   for (const commune of communes) {
     const duree = commune.enigme_duree ?? 'mois';
@@ -63,7 +71,11 @@ export async function purgerEnigmes(env: any) {
 // Purge quotidienne du Mur des voisins — messages éphémères (24h ou 48h selon la commune).
 // Les messages n'ont pas de photo (module simplifié), pas de nettoyage R2 nécessaire.
 export async function purgerMur(env: any) {
-  const communes = await supabaseSelect(env, 'communes', { select: 'id,mur_duree' });
+  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour ci-dessus. C'est ce bug
+  // précis qui a été repéré en premier (messages du Mur des voisins ne se purgeant jamais
+  // pour certaines communes, dont potentiellement Eaucourt, selon la tranche de 1000 communes
+  // renvoyée arbitrairement par PostgREST d'une exécution à l'autre).
+  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,mur_duree' });
 
   for (const commune of communes) {
     const duree = commune.mur_duree ?? '48h';
@@ -107,7 +119,8 @@ export async function purgerOrphelinsMemoire(env: any) {
 
   const graceMs = 2 * 24 * 3600 * 1000;
   const maintenant = Date.now();
-  const communes = await supabaseSelect(env, 'communes', { select: 'id' });
+  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour plus haut.
+  const communes = await supabaseSelectTout(env, 'communes', { select: 'id' });
 
   for (const commune of communes) {
     let cursor: string | undefined;
@@ -132,7 +145,8 @@ export async function purgerOrphelinsMemoire(env: any) {
 // 2. Inscrit mais jamais scanné -> no-show (pénalité + vérification de suspension).
 // 3. Organisateur récompensé une fois l'action terminée (idempotent par événement).
 export async function cloturerActionsCiviques(env: any) {
-  const communes = await supabaseSelect(env, 'communes', { select: 'id' });
+  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour plus haut.
+  const communes = await supabaseSelectTout(env, 'communes', { select: 'id' });
   const seuil48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
   const maintenant = new Date().toISOString();
 
