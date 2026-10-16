@@ -1034,6 +1034,10 @@ app.get('/communes/:id/rapport', async (c) => {
   const fin = finParam ? new Date(`${finParam}T23:59:59Z`) : new Date();
   const debut = debutParam ? new Date(`${debutParam}T00:00:00Z`) : new Date(fin.getTime() - 30 * 24 * 3600 * 1000);
   const periode = { and: `(created_at.gte.${debut.toISOString()},created_at.lt.${fin.toISOString()})` };
+  // progressions_chasse n'a pas de created_at — sa date est validee_at (voir migration
+  // 001_schema_initial.sql). Bug trouvé le 2026-10-16 : la requête groupée entière plantait
+  // (500) à cause de cette seule colonne inexistante.
+  const periodeValideeAt = { and: `(validee_at.gte.${debut.toISOString()},validee_at.lt.${fin.toISOString()})` };
   const FILTRE_VRAIS_UTILISATEURS = { role: 'in.(citoyen,admin,elu)', compte_supprime_le: 'is.null', compte_provisionne: 'neq.true' };
 
   const [
@@ -1062,7 +1066,7 @@ app.get('/communes/:id/rapport', async (c) => {
     supabaseCount(c.env, 'coups_de_main', { commune_id: `eq.${id}`, pourvu: 'eq.true' }),
     supabaseCount(c.env, 'events', { commune_id: `eq.${id}`, ...periode }),
     supabaseCount(c.env, 'event_attendees', { commune_id: `eq.${id}`, actif: 'eq.true' }),
-    supabaseSelect(c.env, 'progressions_chasse', { select: 'user_id', commune_id: `eq.${id}`, ...periode }),
+    supabaseSelect(c.env, 'progressions_chasse', { select: 'user_id', commune_id: `eq.${id}`, ...periodeValideeAt }),
     supabaseCount(c.env, 'annuaire', { commune_id: `eq.${id}` }),
     supabaseCount(c.env, 'photos_du_jour', { commune_id: `eq.${id}`, ...periode }),
     supabaseCount(c.env, 'enigme_reussites', { commune_id: `eq.${id}` }),
