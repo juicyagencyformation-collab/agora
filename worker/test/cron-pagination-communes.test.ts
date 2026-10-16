@@ -81,4 +81,18 @@ describe('purgerMur — pagination au-delà de 1000 communes', () => {
     expect(db.posts.find((p) => p.commune_id === 'c1004')).toBeUndefined();
     expect(db.posts).toHaveLength(0);
   }, 20000);
+
+  it('ne fait pas une requête par commune et respecte la durée propre à chaque commune', async () => {
+    for (let i = 0; i < 3000; i++) db.communes.push({ id: 'vide' + i, mur_duree: '24h' });
+    const il30h = new Date(Date.now() - 30 * 3600 * 1000).toISOString();
+    db.communes.push({ id: 'c48', mur_duree: '48h' }, { id: 'c24', mur_duree: '24h' });
+    db.posts.push({ id: 'garde', commune_id: 'c48', created_at: il30h }, { id: 'purge', commune_id: 'c24', created_at: il30h });
+
+    let requetes = 0;
+    vi.stubGlobal('fetch', (input: any, init?: any) => { requetes++; return fetchFake(input, init); });
+    await purgerMur(ENV);
+
+    expect(db.posts.map((p) => p.id)).toEqual(['garde']);
+    expect(requetes).toBeLessThan(10);
+  });
 });

@@ -141,21 +141,22 @@ app.onError((err, c) => {
   return c.json({ erreur: 'Erreur interne du serveur, réessaie dans un instant.' }, 500);
 });
 
+// Chaque tâche est isolée : une purge qui plante ne doit pas priver les communes de leurs relances.
+async function executerIsolement(env: any, taches: ((env: any) => Promise<unknown>)[]) {
+  for (const tache of taches) {
+    try { await tache(env); } catch (e) { console.error(`Cron : échec de ${tache.name}`, e); }
+  }
+}
+
 export default {
   fetch: app.fetch,
   async scheduled(event: any, env: any) {
     if (event.cron === '0 4 * * *') {
-      await purgerPhotosDuJour(env);
-      await purgerEnigmes(env);
-      await purgerMur(env);
-      await cloturerActionsCiviques(env);
-      await purgerOrphelinsMemoire(env);
-      await relancerEcheancesFacturation(env);
-      await corrigerEmailsProspectsInvalides(env);
-      await verifierVariantesProspection(env);
-      await verifierRelancesInactiviteProspection(env);
-      await verifierSequenceOnboardingCommunes(env);
-      await synchroniserEmailsRecusProspection(env);
+      await executerIsolement(env, [
+        purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire,
+        relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection,
+        verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection,
+      ]);
       // rafraichirContenuDemoBonvivre(env) désactivé le 2026-10-07 sur demande explicite — voir
       // la mémoire "Cron dates démo bonvivre" pour le pourquoi et comment le réactiver proprement.
     } else if (event.cron === '0 */6 * * *') {
@@ -165,8 +166,7 @@ export default {
     } else if (event.cron === '0 * * * *') {
       await synchroniserVigilanceMeteoFrance(env);
     } else if (event.cron === '0 3 1 * *') {
-      await nettoyerCoupsDeMainExpires(env);
-      await envoyerBilansMensuelsCommunes(env);
+      await executerIsolement(env, [nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
     } else {
       await nettoyerCoupsDeMainExpires(env);
     }

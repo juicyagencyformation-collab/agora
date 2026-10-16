@@ -17,78 +17,87 @@ export async function nettoyerCoupsDeMainExpires(env: any) {
 
 // Purge quotidienne de "Photo du jour" — chaque commune a sa propre durée de rétention
 // (1 jour / 1 semaine / 1 mois), donc on ne peut plus se contenter d'un seul jour fixe.
-export async function purgerPhotosDuJour(env: any) {
-  // supabaseSelectTout (pas supabaseSelect) : la table communes dépasse les 1000 lignes
-  // plafonnées par défaut par PostgREST (14 000+ lignes, dont des prospects auto-activés sans
-  // inscription complète — voir activerCommuneGratuite) — un simple supabaseSelect ne purgeait
-  // qu'une tranche arbitraire de communes chaque nuit, jamais garanti de couvrir toutes les
-  // communes réelles. Bug trouvé le 2026-10-16 suite à un signalement sur le Mur des voisins
-  // (voir purgerMur plus bas, même cause) ; même motif corrigé ici par précaution.
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,photo_jour_duree' });
+// Les purges partent des LIGNES à purger (filtrées sur la durée la plus courte possible), puis ne
+// chargent que les communes concernées. Ne jamais revenir à une boucle sur toutes les communes :
+// la table en compte 14 000+ (prospects auto-activés), soit au moins une requête par commune et par
+// routine — bien au-delà de la limite de sous-requêtes Cloudflare par exécution du cron, ce qui
+// faisait planter la routine ET toutes celles qui la suivent. À l'inverse, un supabaseSelect simple
+// sur communes n'en voit que 1000 (plafond PostgREST) — le bug initial du Mur des voisins (2026-10-16).
+function parPaquets<T>(liste: T[], taille = 100): T[][] {
+  const paquets: T[][] = [];
+  for (let i = 0; i < liste.length; i += taille) paquets.push(liste.slice(i, i + taille));
+  return paquets;
+}
 
-  for (const commune of communes) {
-    const duree = commune.photo_jour_duree ?? 'semaine';
-    const jours = duree === 'jour' ? 1 : duree === 'mois' ? 30 : 7;
-    const seuil = new Date(Date.now() - jours * 24 * 3600 * 1000).toISOString().slice(0, 10);
-
-    const photos = await supabaseSelect(env, 'photos_du_jour', {
-      select: 'id,r2_key', commune_id: `eq.${commune.id}`, date_publication: `lt.${seuil}`,
-    });
-    if (!photos.length) continue;
-
-    await Promise.all(photos.map((p: any) => deleteObject(env, p.r2_key)));
-    await supabaseDelete(env, 'photos_du_jour', { id: `in.(${photos.map((p: any) => p.id).join(',')})` });
+async function chargerCommunesConcernees(env: any, lignes: any[], select: string): Promise<Map<string, any>> {
+  const ids = [...new Set(lignes.map((l) => l.commune_id))];
+  const communes = new Map<string, any>();
+  for (const paquet of parPaquets(ids)) {
+    for (const c of await supabaseSelect(env, 'communes', { select, id: `in.(${paquet.join(',')})` })) communes.set(c.id, c);
   }
+  return communes;
+}
+
+async function supprimerParIds(env: any, table: string, ids: string[]) {
+  for (const paquet of parPaquets(ids)) await supabaseDelete(env, table, { id: `in.(${paquet.join(',')})` });
+}
+
+const ilYa = (heures: number) => Date.now() - heures * 3600 * 1000;
+
+export async function purgerPhotosDuJour(env: any) {
+  const plusCourt = new Date(ilYa(24)).toISOString().slice(0, 10);
+  const photos = await supabaseSelectTout(env, 'photos_du_jour', {
+    select: 'id,r2_key,commune_id,date_publication', date_publication: `lt.${plusCourt}`, order: 'id.asc',
+  });
+  if (!photos.length) return;
+  const communes = await chargerCommunesConcernees(env, photos, 'id,photo_jour_duree');
+
+  const aPurger = photos.filter((p: any) => {
+    const duree = communes.get(p.commune_id)?.photo_jour_duree ?? 'semaine';
+    const jours = duree === 'jour' ? 1 : duree === 'mois' ? 30 : 7;
+    return p.date_publication < new Date(ilYa(jours * 24)).toISOString().slice(0, 10);
+  });
+  await Promise.all(aPurger.map((p: any) => deleteObject(env, p.r2_key)));
+  await supprimerParIds(env, 'photos_du_jour', aPurger.map((p: any) => p.id));
 }
 
 // Purge quotidienne de "Énigme photo" — durée bien plus généreuse que Photo du jour
 // (48h / 1 semaine / 1 mois / 6 mois / 1 an), puisqu'il faut le temps de se déplacer physiquement
 // pour résoudre une énigme, contrairement à un flux social quotidien.
 export async function purgerEnigmes(env: any) {
-  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour ci-dessus (communes > 1000
-  // lignes, plafond PostgREST).
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,enigme_duree' });
+  const enigmes = await supabaseSelectTout(env, 'photos_enigmes', {
+    select: 'id,r2_key,commune_id,created_at', created_at: `lt.${new Date(ilYa(48)).toISOString()}`, order: 'id.asc',
+  });
+  if (!enigmes.length) return;
+  const communes = await chargerCommunesConcernees(env, enigmes, 'id,enigme_duree');
 
-  for (const commune of communes) {
-    const duree = commune.enigme_duree ?? 'mois';
+  const aPurger = enigmes.filter((e: any) => {
+    const duree = communes.get(e.commune_id)?.enigme_duree ?? 'mois';
     const heures = duree === '48h' ? 48
       : duree === 'semaine' ? 24 * 7
       : duree === '6mois' ? 24 * 30 * 6
       : duree === 'an' ? 24 * 365
       : 24 * 30; // 'mois' par défaut
-    const seuil = new Date(Date.now() - heures * 3600 * 1000).toISOString();
-
-    const enigmes = await supabaseSelect(env, 'photos_enigmes', {
-      select: 'id,r2_key', commune_id: `eq.${commune.id}`, created_at: `lt.${seuil}`,
-    });
-    if (!enigmes.length) continue;
-
-    await Promise.all(enigmes.map((e: any) => deleteObject(env, e.r2_key)));
-    await supabaseDelete(env, 'photos_enigmes', { id: `in.(${enigmes.map((e: any) => e.id).join(',')})` });
-  }
+    return new Date(e.created_at).getTime() < ilYa(heures);
+  });
+  await Promise.all(aPurger.map((e: any) => deleteObject(env, e.r2_key)));
+  await supprimerParIds(env, 'photos_enigmes', aPurger.map((e: any) => e.id));
 }
 
 // Purge quotidienne du Mur des voisins — messages éphémères (24h ou 48h selon la commune).
 // Les messages n'ont pas de photo (module simplifié), pas de nettoyage R2 nécessaire.
 export async function purgerMur(env: any) {
-  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour ci-dessus. C'est ce bug
-  // précis qui a été repéré en premier (messages du Mur des voisins ne se purgeant jamais
-  // pour certaines communes, dont potentiellement Eaucourt, selon la tranche de 1000 communes
-  // renvoyée arbitrairement par PostgREST d'une exécution à l'autre).
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,mur_duree' });
+  const posts = await supabaseSelectTout(env, 'posts', {
+    select: 'id,commune_id,created_at', created_at: `lt.${new Date(ilYa(24)).toISOString()}`, order: 'id.asc',
+  });
+  if (!posts.length) return;
+  const communes = await chargerCommunesConcernees(env, posts, 'id,mur_duree');
 
-  for (const commune of communes) {
-    const duree = commune.mur_duree ?? '48h';
-    const heures = duree === '24h' ? 24 : 48;
-    const seuil = new Date(Date.now() - heures * 3600 * 1000).toISOString();
-
-    const posts = await supabaseSelect(env, 'posts', {
-      select: 'id', commune_id: `eq.${commune.id}`, created_at: `lt.${seuil}`,
-    });
-    if (!posts.length) continue;
-
-    await supabaseDelete(env, 'posts', { id: `in.(${posts.map((p: any) => p.id).join(',')})` });
-  }
+  const aPurger = posts.filter((p: any) => {
+    const heures = (communes.get(p.commune_id)?.mur_duree ?? '48h') === '24h' ? 24 : 48;
+    return new Date(p.created_at).getTime() < ilYa(heures);
+  });
+  await supprimerParIds(env, 'posts', aPurger.map((p: any) => p.id));
 }
 
 // Récupère TOUTES les clés R2 référencées dans une colonne d'une table, en paginant pour
@@ -119,22 +128,20 @@ export async function purgerOrphelinsMemoire(env: any) {
 
   const graceMs = 2 * 24 * 3600 * 1000;
   const maintenant = Date.now();
-  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour plus haut.
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id' });
-
-  for (const commune of communes) {
-    let cursor: string | undefined;
-    for (;;) {
-      const res: any = await env.BUCKET_R2.list({ prefix: `${commune.id}/memoire/`, cursor, limit: 1000 });
-      for (const obj of res.objects) {
-        const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
-        if (maintenant - uploaded < graceMs) continue;      // trop récent, peut-être en cours d'attache
-        if (clesReferencees.has(obj.key)) continue;          // référencé en base → on garde
-        await deleteObject(env, obj.key);
-      }
-      if (!res.truncated) break;
-      cursor = res.cursor;
+  // Un seul parcours du bucket (clés "<commune_id>/memoire/..."), pas un list() par commune :
+  // 14 000+ communes dépasseraient la limite de sous-requêtes du cron (voir parPaquets).
+  let cursor: string | undefined;
+  for (;;) {
+    const res: any = await env.BUCKET_R2.list({ cursor, limit: 1000 });
+    for (const obj of res.objects) {
+      if (obj.key.split('/')[1] !== 'memoire') continue;
+      const uploaded = obj.uploaded ? new Date(obj.uploaded).getTime() : 0;
+      if (maintenant - uploaded < graceMs) continue;      // trop récent, peut-être en cours d'attache
+      if (clesReferencees.has(obj.key)) continue;          // référencé en base → on garde
+      await deleteObject(env, obj.key);
     }
+    if (!res.truncated) break;
+    cursor = res.cursor;
   }
 }
 
@@ -145,17 +152,17 @@ export async function purgerOrphelinsMemoire(env: any) {
 // 2. Inscrit mais jamais scanné -> no-show (pénalité + vérification de suspension).
 // 3. Organisateur récompensé une fois l'action terminée (idempotent par événement).
 export async function cloturerActionsCiviques(env: any) {
-  // supabaseSelectTout : voir le commentaire de purgerPhotosDuJour plus haut.
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id' });
+  // Part des événements terminés, pas des communes (voir le commentaire de parPaquets).
   const seuil48h = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
   const maintenant = new Date().toISOString();
+  const tousEvents = await supabaseSelectTout(env, 'events', {
+    select: 'id,user_id,date_fin,commune_id', necessite_validation_presence: 'eq.true', date_fin: `lt.${maintenant}`, order: 'id.asc',
+  });
+  const parCommune = new Map<string, any[]>();
+  for (const e of tousEvents) parCommune.set(e.commune_id, [...(parCommune.get(e.commune_id) || []), e]);
 
-  for (const commune of communes) {
-    const eventsTermines = await supabaseSelect(env, 'events', {
-      select: 'id,user_id,date_fin', commune_id: `eq.${commune.id}`,
-      necessite_validation_presence: 'eq.true', date_fin: `lt.${maintenant}`,
-    });
-    if (!eventsTermines.length) continue;
+  for (const [communeId, eventsTermines] of parCommune) {
+    const commune = { id: communeId };
     const idsEvents = eventsTermines.map((e: any) => e.id);
 
     const idsAssezVieux = eventsTermines.filter((e: any) => e.date_fin < seuil48h).map((e: any) => e.id);
