@@ -2325,15 +2325,20 @@ function backoffice() {
       if (this.triCommunes.cle !== cle) return '';
       return this.triCommunes.sens === 'asc' ? ' ▲' : ' ▼';
     },
+    // Seules les communes avec de vrais comptes (ou un forfait payant, pour qu'un client fraîchement
+    // signé ne disparaisse pas) : les 14 000+ prospects auto-activés n'ont rien à faire ici.
+    communesAvecUtilisateurs() {
+      return this.communes.filter((c) => c.nb_citoyens > 0 || (c.forfait && c.forfait !== 'Gratuit'));
+    },
     communesTriees() {
       const { cle, sens } = this.triCommunes;
-      if (!cle) return this.communes;
+      if (!cle) return this.communesAvecUtilisateurs();
       const valeur = (c) => {
         if (cle === 'sante') return this.rangSante(c);
         if (cle === 'statut_client') return this.libelleStatutClient(c.statut_client);
         return c[cle];
       };
-      const copie = [...this.communes];
+      const copie = this.communesAvecUtilisateurs();
       copie.sort((a, b) => {
         let va = valeur(a), vb = valeur(b);
         // Valeurs manquantes toujours en fin de liste, quel que soit le sens.
