@@ -2408,6 +2408,8 @@
                   <a class="bo-btn bo-btn--sec bo-btn--compact" x-show="prospect.commune_slug"
                      :href="'/backoffice/affiche-citoyens?slug=' + encodeURIComponent(prospect.commune_slug || '')" target="_blank" style="margin-left:8px">🪧 Affiche habitants</a>
                   <a class="bo-btn bo-btn--sec bo-btn--compact" x-show="prospect.commune_slug"
+                     :href="'/backoffice/stickers?slug=' + encodeURIComponent(prospect.commune_slug || '')" target="_blank" style="margin-left:8px">🏷 Stickers</a>
+                  <a class="bo-btn bo-btn--sec bo-btn--compact" x-show="prospect.commune_slug"
                      :href="'/backoffice/dossier-conseil?programme=fondatrice&slug=' + encodeURIComponent(prospect.commune_slug || '')" target="_blank" style="margin-left:8px">📜 Dossier conseil</a>
                   <div class="bo-info" style="margin-top:6px" x-text="prospMsg"></div>
                   <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug">Fiche personnalisée disponible après l'envoi de la présentation (commune activée à ce moment-là).</div>
@@ -2628,6 +2630,7 @@
               <div style="font-weight:600; margin-bottom:2px">Accès à l'application</div>
               <div class="bo-info" x-text="'plateforme-agora.fr/' + fiche?.commune.slug + '/'"></div>
               <a class="bo-btn bo-btn--compact" :href="'/' + fiche?.commune.slug + '/'" target="_blank" rel="noopener" style="margin-top:10px; text-decoration:none; display:inline-block">Visiter l'app ↗</a>
+              <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/stickers?slug=' + encodeURIComponent(fiche?.commune.slug || '')" target="_blank" rel="noopener" style="margin-top:10px; margin-left:6px; text-decoration:none; display:inline-block">🏷 Stickers</a>
             </div>
           </div>
 
