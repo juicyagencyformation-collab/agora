@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#2C5F6E">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/base.css?v=20261006-3">
+  <link rel="stylesheet" href="/css/base.css?v=20261017-1">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
   <link rel="stylesheet" href="/css/dashboard.css?v=20261013-1">
@@ -503,6 +503,7 @@
             </div>
           </div>
 
+          <div class="superadmin-only">
           <div class="volet-reglage">
             <button type="button" id="toggle-volet-photo" class="volet-entete">
               <span>⚙️ Réglage — Photo du jour</span>
@@ -545,6 +546,7 @@
                 <button type="submit">Enregistrer</button>
               </form>
             </div>
+          </div>
           </div>
 
           <div class="volet-reglage">
@@ -594,7 +596,7 @@
             </div>
           </div>
 
-          <div class="volet-reglage">
+          <div class="volet-reglage superadmin-only">
             <button type="button" id="toggle-volet-mur" class="volet-entete">
               <span>💬 Réglage — Mur des voisins</span>
               <span class="chevron">▼</span>
@@ -625,6 +627,7 @@
             </div>
           </div>
 
+          <div class="superadmin-only">
           <div class="volet-reglage">
             <button type="button" id="toggle-volet-regional" class="volet-entete">
               <span>🗺️ Réglage — Découverte régionale</span>
@@ -651,6 +654,7 @@
               <p id="resultat-sync-lois" style="font-size:12px;color:var(--roseau);margin-top:8px;"></p>
             </div>
           </div>
+          </div>
 
           <div class="roles-gestionnaire-only">
             <div class="volet-reglage">
@@ -676,7 +680,7 @@
             </div>
           </div>
 
-          <div class="badges-superadmin-only">
+          <div class="superadmin-only">
             <div class="volet-reglage">
               <button type="button" class="volet-entete-generique">
                 <span>🏅 Badges citoyens (participation)</span>
