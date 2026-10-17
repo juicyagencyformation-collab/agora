@@ -23,6 +23,7 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'toutes_factures' }" @click="allerToutesFactures()">📑 Toutes les factures</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'facturation_libre' }" @click="allerFacturationLibre()">🧾 Facturation libre</div>
+      <a class="bo-nav__lien" href="/backoffice/stickers" target="_blank" rel="noopener" style="text-decoration:none; color:inherit">🏷 Stickers</a>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__favoris" x-show="favoris.length > 0">
