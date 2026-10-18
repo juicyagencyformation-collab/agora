@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261017-1">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261013-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261018-2">
 </head>
 <body>
 
@@ -47,7 +47,10 @@
     <section id="onglet-accueil" class="onglet-contenu">
       <div id="banniere-vigilance-meteo"></div>
 
-      <p id="salut-utilisateur" class="salut-utilisateur"></p>
+      <div class="ligne-salut-accueil">
+        <p id="salut-utilisateur" class="salut-utilisateur"></p>
+        <button type="button" id="pastille-meteo" class="pastille-meteo" aria-haspopup="dialog" hidden></button>
+      </div>
 
       <div id="actions-rapides-accueil"></div>
 
@@ -55,31 +58,21 @@
 
       <div id="carte-alerte-dechets" hidden></div>
 
-      <div id="carte-jour-hero" class="carte-jour-hero">
-        <svg class="arc-astre-svg" viewBox="0 0 300 58" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M8,52 Q150,4 292,52" class="arc-astre-trace"></path>
-          <text id="point-astre-emoji" class="point-astre" x="150" y="4" text-anchor="middle" dominant-baseline="middle">☀️</text>
-        </svg>
-        <div id="carte-meteo" class="ligne-meteo-jour"></div>
-        <div class="separateur-carte-jour"></div>
-        <div id="carte-lune" class="ligne-lune-jour"></div>
-      </div>
-
-      <div id="carte-photo-vedette" class="carte-photo-vedette" hidden></div>
-
-      <div id="carte-prochain-conseil" class="carte-dashboard carte-prochain-conseil carte-cliquable" hidden></div>
-
-      <div id="carte-dechets" class="zone-dechets-accueil"></div>
-
-      <h3 id="titre-coup-oeil" style="font-size:15px;margin-top:18px;">En un coup d'œil</h3>
-      <div id="bandeau-resumes" class="rangee-coup-oeil"></div>
+      <h3 id="titre-coup-oeil" style="font-size:15px;margin-top:6px;">En un coup d'œil</h3>
+      <div id="bandeau-resumes" class="grille-coup-oeil"></div>
+      <div id="carte-dechets" class="zone-dechets-accueil" hidden></div>
 
       <h3 style="font-size:15px;margin-top:18px;">Dernière actualité</h3>
       <div id="carte-derniere-actu" class="carte-dashboard"></div>
 
       <div id="carte-dernier-pv" class="carte-dashboard carte-cliquable" hidden></div>
 
+      <div id="carte-photo-vedette" class="carte-photo-vedette" hidden></div>
+
       <div id="carte-infos-mairie" class="carte-infos-mairie" hidden></div>
+
+      <div id="voile-meteo" class="voile-meteo" hidden></div>
+      <div id="panneau-meteo" class="panneau-meteo" role="dialog" aria-modal="true" aria-label="Météo du jour" hidden></div>
     </section>
 
     <section id="onglet-actualites" class="onglet-contenu" hidden>
@@ -741,7 +734,7 @@
   <script src="/js/utils.js?v=20261005-6"></script>
   <script src="/js/api.js?v=20261006-2"></script>
   <script src="/js/editeur-riche.js?v=20261005-6"></script>
-  <script src="/js/dashboard.js?v=20261006-1"></script>
+  <script src="/js/dashboard.js?v=20261018-2"></script>
   <script src="/js/articles.js?v=20261012-3"></script>
   <script src="/js/alertes.js?v=20261013-1"></script>
   <script src="/js/thermometre.js?v=20261005-6"></script>

@@ -46,27 +46,26 @@ const LABELS_JOUR_DECHET = { 1: 'Lundi', 2: 'Mardi', 3: 'Mercredi', 4: 'Jeudi', 
 const LABELS_FREQUENCE_DECHET = { chaque_semaine: 'chaque semaine', semaines_paires: 'semaines paires', semaines_impaires: 'semaines impaires' };
 
 async function chargerDashboard() {
-  const meteo = document.getElementById('carte-meteo');
-  const dechets = document.getElementById('carte-dechets');
   const derniereActu = document.getElementById('carte-derniere-actu');
   const resumes = document.getElementById('bandeau-resumes');
-  if (meteo) meteo.innerHTML = `<p class="meteo-erreur">Chargement de la météo…</p>`;
-  if (dechets) dechets.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
   if (derniereActu) derniereActu.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
   if (resumes) resumes.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
+
+  // Une seule requête déchets, partagée entre l'alerte "veille de collecte" et la tuile du coup d'œil.
+  const promesseDechets = appelApi(`/${window.COMMUNE_SLUG}/dechets`)
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
   afficherSalut();
   chargerAlertesMeteoAccueil();
   initActionsRapidesAccueil();
   chargerChecklistOnboarding();
-  chargerCielJour();
-  chargerDechetsDashboard();
+  chargerMeteoAccueil();
+  chargerDechetsDashboard(promesseDechets);
   chargerDerniereActu();
-  chargerResumes();
+  chargerResumes(promesseDechets);
   chargerMiniXp();
   chargerPhotoVedette();
   chargerDernierPv();
-  chargerProchainConseil();
   chargerInfosMairie();
 }
 
@@ -247,21 +246,6 @@ function calculerPhaseLune(date = new Date()) {
   return { ...phase, illumination, fractionCycle: fraction, texteEcheance };
 }
 
-// Point (emoji ☀️/🌙) qui glisse sur l'arc en tête de la carte "Ciel du jour", à la position
-// correspondant à la fraction écoulée de la période jour (lever→coucher) ou nuit
-// (coucher→lever suivant) — courbe de Bézier quadratique, mêmes points de contrôle que le
-// chemin SVG "arc-astre-trace" défini dans index.html.
-function positionnerAstreSurArc(t, icone) {
-  const point = document.getElementById('point-astre-emoji');
-  if (!point) return;
-  const p0 = { x: 8, y: 52 }, p1 = { x: 150, y: 4 }, p2 = { x: 292, y: 52 };
-  const x = (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x;
-  const y = (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y;
-  point.setAttribute('x', x);
-  point.setAttribute('y', y);
-  point.textContent = icone;
-}
-
 async function chargerPhotoVedette() {
   const zone = document.getElementById('carte-photo-vedette');
   if (!zone) return;
@@ -313,156 +297,178 @@ function initBadgeEntete() {
   document.getElementById('btn-badge-entete')?.addEventListener('click', () => activerOnglet('profil'));
 }
 
-// "Ciel du jour" — fusion météo + lune en une seule carte vivante : le fond glisse entre
-// teintes d'aube/jour/crépuscule/nuit selon l'heure réelle (calculé localement à partir du
-// lever/coucher du soleil renvoyés par Open-Meteo, même appel que la météo, aucune requête
-// en plus), et un petit ☀️/🌙 se déplace sur un arc pour indiquer où on en est dans la
-// journée ou la nuit en cours.
-async function chargerCielJour() {
-  const carte = document.getElementById('carte-jour-hero');
-  const zoneMeteo = document.getElementById('carte-meteo');
-  const zoneLune = document.getElementById('carte-lune');
-  const phaseLune = calculerPhaseLune();
+// Météo de l'accueil : une simple pastille (icône + température) à côté du bonjour, et tout le
+// détail (heures, vent, humidité, pluie, UV, soleil, lune) dans un panneau qui s'ouvre au clic.
+// Remplace l'ancienne grande carte "Ciel du jour", jugée trop encombrante en haut de l'accueil.
+// Même appel Open-Meteo qu'avant (gratuit, sans clé), avec quelques champs en plus.
+const DIRECTIONS_VENT = ['du nord', 'du nord-est', 'd\'est', 'du sud-est', 'du sud', 'du sud-ouest', 'd\'ouest', 'du nord-ouest'];
+const directionVent = (deg) => DIRECTIONS_VENT[Math.round(deg / 45) % 8];
+const niveauUv = (uv) => (uv < 3 ? 'faible' : uv < 6 ? 'modéré' : uv < 8 ? 'élevé' : uv < 11 ? 'très élevé' : 'extrême');
+const heureMinute = (d) => `${d.getHours()}h${String(d.getMinutes()).padStart(2, '0')}`;
 
+function initPanneauMeteo(pastille, panneau, voile) {
+  if (pastille.dataset.pret) return;
+  pastille.dataset.pret = '1';
+  const fermer = () => { panneau.hidden = true; voile.hidden = true; };
+  pastille.addEventListener('click', () => {
+    panneau.hidden = false; voile.hidden = false;
+    panneau.scrollTop = 0;
+    panneau.querySelector('.fermer-panneau-meteo')?.focus();
+  });
+  voile.addEventListener('click', fermer);
+  panneau.addEventListener('click', (e) => { if (e.target.closest('.fermer-panneau-meteo')) { fermer(); pastille.focus(); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panneau.hidden) { fermer(); pastille.focus(); } });
+  // Glisser vers le bas pour fermer, comme les panneaux natifs du téléphone.
+  let departY = null;
+  panneau.addEventListener('touchstart', (e) => { departY = panneau.scrollTop === 0 ? e.touches[0].clientY : null; }, { passive: true });
+  panneau.addEventListener('touchend', (e) => {
+    if (departY !== null && e.changedTouches[0].clientY - departY > 80) fermer();
+    departY = null;
+  });
+}
+
+// Arc du soleil : courbe de Bézier quadratique, portion déjà parcourue tracée jusqu'au point t
+// (découpage de De Casteljau : le point de contrôle du premier segment est P0 + t·(P1 − P0)).
+function arcSoleil(t) {
+  const p0 = { x: 8, y: 48 }, p1 = { x: 150, y: 0 }, p2 = { x: 292, y: 48 };
+  const trace = '<path d="M8,48 Q150,0 292,48" class="arc-soleil-trace"/>';
+  if (t === null) return `<svg class="arc-soleil" viewBox="0 0 300 52" preserveAspectRatio="none" aria-hidden="true">${trace}</svg>`;
+  const c = { x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t };
+  const b = {
+    x: (1 - t) ** 2 * p0.x + 2 * (1 - t) * t * p1.x + t ** 2 * p2.x,
+    y: (1 - t) ** 2 * p0.y + 2 * (1 - t) * t * p1.y + t ** 2 * p2.y,
+  };
+  return `<svg class="arc-soleil" viewBox="0 0 300 52" preserveAspectRatio="none" aria-hidden="true">${trace}
+    <path d="M8,48 Q${c.x},${c.y} ${b.x},${b.y}" class="arc-soleil-parcouru"/>
+    <circle cx="${b.x}" cy="${b.y}" r="7" class="arc-soleil-astre"/></svg>`;
+}
+
+async function chargerMeteoAccueil() {
+  const pastille = document.getElementById('pastille-meteo');
+  const panneau = document.getElementById('panneau-meteo');
+  const voile = document.getElementById('voile-meteo');
+  if (!pastille || !panneau || !voile) return;
+  initPanneauMeteo(pastille, panneau, voile);
+  const lune = calculerPhaseLune();
+
+  let d;
   try {
     const lat = window.COMMUNE_LAT ?? 43.6047;
     const lng = window.COMMUNE_LNG ?? 1.4442;
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}` +
-      `&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m` +
-      `&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=Europe%2FParis&forecast_days=2`;
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weathercode,wind_speed_10m,wind_direction_10m,wind_gusts_10m' +
+      '&hourly=temperature_2m,weathercode,precipitation_probability' +
+      '&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max' +
+      '&timezone=Europe%2FParis&forecast_days=2';
     const res = await fetch(url);
     if (!res.ok) throw new Error();
-    const data = await res.json();
-    const code = data.current.weathercode;
-    const infos = CODES_METEO[code] ?? { label: 'Météo indisponible', icone: '🌡️' };
-
-    const maintenant = new Date();
-    const leverAuj = new Date(data.daily.sunrise[0]);
-    const coucherAuj = new Date(data.daily.sunset[0]);
-    const leverDemain = new Date(data.daily.sunrise[1] ?? data.daily.sunrise[0]);
-    const estJour = maintenant >= leverAuj && maintenant <= coucherAuj;
-
-    // Fenêtre de transition (teintes d'aube/crépuscule) : ±40 min autour du lever/coucher.
-    const TRANSITION_MS = 40 * 60 * 1000;
-    let phaseCiel = estJour ? 'jour' : 'nuit';
-    if (Math.abs(maintenant - leverAuj) < TRANSITION_MS) phaseCiel = 'aube';
-    else if (Math.abs(maintenant - coucherAuj) < TRANSITION_MS) phaseCiel = 'crepuscule';
-    if (carte) {
-      carte.classList.remove('ciel--jour', 'ciel--nuit', 'ciel--aube', 'ciel--crepuscule');
-      carte.classList.add(`ciel--${phaseCiel}`);
-    }
-
-    // Position de l'astre sur l'arc : fraction de la période jour (lever→coucher) ou nuit
-    // (coucher→lever du lendemain) déjà écoulée, bornée à [0,1] pour rester sur l'arc même
-    // dans les cas limites (ex. app ouverte juste avant le lever calculé).
-    let fraction, astre;
-    if (estJour) {
-      fraction = (maintenant - leverAuj) / (coucherAuj - leverAuj);
-      astre = '☀️';
-    } else {
-      const debutNuit = maintenant < leverAuj ? new Date(leverAuj.getTime() - 24 * 3600 * 1000) : coucherAuj;
-      const finNuit = maintenant < leverAuj ? leverAuj : leverDemain;
-      fraction = (maintenant - debutNuit) / (finNuit - debutNuit);
-      astre = phaseLune.icone;
-    }
-    positionnerAstreSurArc(Math.max(0, Math.min(1, fraction)), astre);
-
-    if (zoneMeteo) {
-      zoneMeteo.innerHTML = `
-        <div class="meteo-icone-hero">${infos.icone}</div>
-        <div class="meteo-corps-hero">
-          <div class="meteo-temp-hero">${Math.round(data.current.temperature_2m)}°</div>
-          <div class="meteo-label-hero">${infos.label} · ↓${Math.round(data.daily.temperature_2m_min[0])}° ↑${Math.round(data.daily.temperature_2m_max[0])}°</div>
-          <div class="ciel-puces-meteo">
-            <span class="puce-meteo">💧 ${Math.round(data.current.relative_humidity_2m)}%</span>
-            <span class="puce-meteo">🤔 ${Math.round(data.current.apparent_temperature)}°</span>
-            <span class="puce-meteo">🌬️ ${Math.round(data.current.wind_speed_10m)} km/h</span>
-          </div>
-        </div>
-      `;
-    }
+    d = await res.json();
   } catch {
-    if (zoneMeteo) zoneMeteo.innerHTML = `<p class="meteo-erreur">Météo indisponible.</p>`;
-    positionnerAstreSurArc(0.5, phaseLune.icone);
+    pastille.hidden = true; // pas de pastille plutôt qu'une pastille vide
+    return;
   }
 
-  if (zoneLune) {
-    const diametreLune = 36;
-    const illumFrac = phaseLune.illumination / 100;
-    const croissante = phaseLune.fractionCycle <= 0.5;
-    const decalage = Math.round(diametreLune * (croissante ? -illumFrac : illumFrac));
-    zoneLune.innerHTML = `
-      <div class="lune-disque"><div class="lune-ombre" style="transform:translateX(${decalage}px)"></div></div>
-      <div>
-        <div class="lune-label-hero">${phaseLune.nom}</div>
-        <div class="lune-detail-hero">${phaseLune.illumination}% illuminée · ${phaseLune.texteEcheance}</div>
-        <div class="lune-conseil-hero">🌱 ${phaseLune.conseil}</div>
+  const infos = CODES_METEO[d.current.weathercode] ?? { label: 'Météo', icone: '🌡️' };
+  const temp = Math.round(d.current.temperature_2m);
+  pastille.innerHTML = `<span class="pastille-meteo-icone">${infos.icone}</span>${temp}°<span class="pastille-meteo-chevron">▾</span>`;
+  pastille.setAttribute('aria-label', `Météo : ${temp} degrés, ${infos.label}. Voir le détail`);
+  pastille.hidden = false;
+
+  // Les 6 prochaines heures (Open-Meteo renvoie l'heure locale, même format pour current et hourly).
+  const i0 = d.hourly.time.findIndex((t) => t.slice(0, 13) === d.current.time.slice(0, 13));
+  const heures = i0 < 0 ? [] : [1, 2, 3, 4, 5, 6].map((k) => i0 + k).filter((i) => i < d.hourly.time.length);
+  const htmlHeures = heures.map((i) => `
+    <div>${new Date(d.hourly.time[i]).getHours()}h<b>${(CODES_METEO[d.hourly.weathercode[i]] ?? { icone: '🌡️' }).icone}</b><strong>${Math.round(d.hourly.temperature_2m[i])}°</strong></div>
+  `).join('');
+
+  const iPluie = heures.find((i) => (d.hourly.precipitation_probability[i] ?? 0) >= 50);
+  const textePluie = iPluie !== undefined ? `averses possibles vers ${new Date(d.hourly.time[iPluie]).getHours()}h` : 'pas dans les 6 prochaines heures';
+  const uv = Math.round(d.daily.uv_index_max[0] ?? 0);
+  const dirVent = d.current.wind_direction_10m;
+
+  const maintenant = new Date();
+  const lever = new Date(d.daily.sunrise[0]);
+  const coucher = new Date(d.daily.sunset[0]);
+  const leverDemain = new Date(d.daily.sunrise[1] ?? d.daily.sunrise[0]);
+  const dureeJourMin = Math.round((coucher - lever) / 60000);
+  const estJour = maintenant >= lever && maintenant <= coucher;
+  const milieuArc = estJour
+    ? `${Math.floor(dureeJourMin / 60)}h${String(dureeJourMin % 60).padStart(2, '0')} de jour`
+    : (maintenant < lever ? `lever à ${heureMinute(lever)}` : `lever demain à ${heureMinute(leverDemain)}`);
+
+  const diametreLune = 36; // = largeur de .lune-disque
+  const illum = lune.illumination / 100;
+  const decalageLune = Math.round(diametreLune * (lune.fractionCycle <= 0.5 ? -illum : illum));
+
+  panneau.innerHTML = `
+    <div class="poignee-panneau-meteo"></div>
+    <div class="tete-panneau-meteo">
+      <span class="icone-panneau-meteo">${infos.icone}</span>
+      <span class="temp-panneau-meteo">${temp}°</span>
+      <span class="desc-panneau-meteo">${infos.label}<small>Ressenti ${Math.round(d.current.apparent_temperature)}° · ↓${Math.round(d.daily.temperature_2m_min[0])}° ↑${Math.round(d.daily.temperature_2m_max[0])}°</small></span>
+      <button type="button" class="fermer-panneau-meteo" aria-label="Fermer">✕</button>
+    </div>
+    ${htmlHeures ? `<div class="heures-meteo">${htmlHeures}</div>` : ''}
+    <div class="stats-meteo">
+      <div class="stat-meteo"><span class="etiquette-meteo">Vent</span>
+        <span class="valeur-meteo"><span class="fleche-vent" style="transform:rotate(${dirVent + 180}deg)">↑</span>${Math.round(d.current.wind_speed_10m)} km/h</span>
+        <span class="sous-meteo">${directionVent(dirVent)} · rafales ${Math.round(d.current.wind_gusts_10m)} km/h</span></div>
+      <div class="stat-meteo"><span class="etiquette-meteo">Humidité</span>
+        <span class="valeur-meteo">${Math.round(d.current.relative_humidity_2m)} %</span>
+        <span class="jauge-meteo"><i style="width:${Math.round(d.current.relative_humidity_2m)}%"></i></span></div>
+      <div class="stat-meteo"><span class="etiquette-meteo">Pluie aujourd'hui</span>
+        <span class="valeur-meteo">${Math.round(d.daily.precipitation_probability_max[0] ?? 0)} %</span>
+        <span class="sous-meteo">${textePluie}</span></div>
+      <div class="stat-meteo"><span class="etiquette-meteo">Indice UV</span>
+        <span class="valeur-meteo">${uv}</span>
+        <span class="sous-meteo">${niveauUv(uv)}</span></div>
+    </div>
+    <div class="bloc-panneau-meteo">
+      <span class="etiquette-meteo">Soleil</span>
+      ${arcSoleil(estJour ? (maintenant - lever) / (coucher - lever) : null)}
+      <div class="heures-soleil"><span>Lever <b>${heureMinute(lever)}</b></span><span>${milieuArc}</span><span>Coucher <b>${heureMinute(coucher)}</b></span></div>
+    </div>
+    <div class="bloc-panneau-meteo">
+      <div class="ligne-lune-panneau">
+        <div class="lune-disque"><div class="lune-ombre" style="transform:translateX(${decalageLune}px)"></div></div>
+        <div><b>${lune.nom}</b><span>${lune.illumination} % éclairée · ${lune.texteEcheance}</span></div>
       </div>
-    `;
-  }
+      <p class="conseil-lune">🌱 ${lune.conseil}</p>
+    </div>
+    <p class="source-meteo">Données Open-Meteo · relevé de ${heureMinute(new Date(d.current.time))}</p>
+  `;
 }
 
 // ── Déchets : traitement spécial et visible la veille du ramassage ──
 
-async function chargerDechetsDashboard() {
+async function chargerDechetsDashboard(promesseDechets) {
   const zoneAlerte = document.getElementById('carte-alerte-dechets');
   const zone = document.getElementById('carte-dechets');
-  if (!zone) return;
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/dechets`);
-  if (!res.ok) { zone.innerHTML = ''; return; }
-  const { collectes, exceptions } = await res.json();
+  const donnees = await promesseDechets;
+  if (!donnees) { if (zoneAlerte) zoneAlerte.hidden = true; return; }
+  const { collectes, exceptions } = donnees;
 
-  // Les dates exceptionnelles (jour férié, ramassage ponctuel...) suivent exactement la même
-  // logique de rappel que les collectes récurrentes — sans ça, la mairie pourrait les saisir
-  // sans que personne ne soit jamais averti la veille, ce qui viderait la fonctionnalité de son
-  // intérêt. Un simple libellé (${LABELS_DECHET[c.type] ?? c.libelle}) sert pour les deux cas.
-  const toutes = [...collectes, ...exceptions ?? []];
-
-  if (!toutes.length) {
-    if (zoneAlerte) zoneAlerte.hidden = true;
-    zone.innerHTML = `<p class="dechets-vide">Aucun calendrier de collecte configuré. (Modération → Déchets)</p>`;
-    return;
-  }
-
-  const aujourdhui = toutes.filter((c) => c.aujourdhui);
-  const veille = toutes.filter((c) => !c.aujourdhui && c.dans_jours === 1);
+  // Les dates exceptionnelles (jour férié, ramassage ponctuel...) suivent la même logique de
+  // rappel que les collectes récurrentes — sinon la mairie les saisirait sans que personne ne
+  // soit jamais averti la veille.
+  const veille = [...collectes, ...exceptions ?? []].filter((c) => !c.aujourdhui && c.dans_jours === 1);
 
   // Carte d'alerte bien visible, en haut de l'accueil, uniquement la veille du ramassage.
   if (zoneAlerte) {
-    if (veille.length) {
-      zoneAlerte.hidden = false;
-      zoneAlerte.innerHTML = veille.map((c) => `
-        <div class="alerte-dechets-veille" style="border-left-color:${c.couleur}">
-          <span style="font-size:26px;">🗑️</span>
-          <div>
-            <strong>Sortez vos poubelles ce soir !</strong>
-            <p>Collecte "${LABELS_DECHET[c.type] ?? escapeAttr(c.libelle)}" demain matin</p>
-          </div>
+    zoneAlerte.hidden = !veille.length;
+    zoneAlerte.innerHTML = veille.map((c) => `
+      <div class="alerte-dechets-veille" style="border-left-color:${c.couleur}">
+        <span style="font-size:26px;">🗑️</span>
+        <div>
+          <strong>Sortez vos poubelles ce soir !</strong>
+          <p>Collecte "${LABELS_DECHET[c.type] ?? escapeAttr(c.libelle)}" demain matin</p>
         </div>
-      `).join('');
-    } else {
-      zoneAlerte.hidden = true;
-    }
-  }
-
-  // Volontairement, on n'affiche PLUS la "prochaine collecte" quand elle est à ≥2 jours :
-  // seul le jour même (ci-dessous) ou la veille (grande alerte du haut) sont pertinents au
-  // quotidien. Sinon on garde l'accueil sobre avec un simple "Rien à sortir aujourd'hui".
-  let html = '';
-  if (aujourdhui.length) {
-    html += aujourdhui.map((c) => `
-      <div class="ligne-dechet ligne-dechet-today" style="border-left-color:${c.couleur}">
-        <strong>🗑️ Aujourd'hui : ${LABELS_DECHET[c.type] ?? escapeAttr(c.libelle)}</strong>
       </div>
     `).join('');
-  } else if (!veille.length) {
-    html += `<p class="dechets-rien">Rien à sortir aujourd'hui.</p>`;
   }
 
-  // Volontairement replié par défaut (voir commentaire ci-dessus) : mais un citoyen qui veut
-  // savoir quand aura lieu le PROCHAIN tri sélectif (pas juste demain) doit pouvoir le
-  // consulter sans attendre la veille — sans ce détail, le calendrier complet saisi en
-  // Modération ne serait consultable nulle part côté citoyen.
+  // Calendrier complet, replié : ouvert depuis la tuile Déchets du coup d'œil (chargerResumes).
+  if (!zone) return;
   const detailCollectes = [...collectes].sort((a, b) => a.jour_semaine - b.jour_semaine).map((c) => `
     <div class="ligne-dechet" style="border-left-color:${c.couleur}">
       ${LABELS_DECHET[c.type] ?? c.type} — ${LABELS_JOUR_DECHET[c.jour_semaine]} (${LABELS_FREQUENCE_DECHET[c.frequence] ?? c.frequence})
@@ -473,19 +479,7 @@ async function chargerDechetsDashboard() {
       ${new Date(e.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} — ${escapeAttr(e.libelle)}
     </div>
   `).join('');
-
-  html += `
-    <button type="button" id="btn-toggle-calendrier-dechets" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12.5px;padding:6px 12px;border-radius:100px;margin-top:6px;">📆 Voir tout le calendrier</button>
-    <div id="detail-calendrier-dechets" hidden style="margin-top:8px;">${detailCollectes}${detailExceptions}</div>
-  `;
-  zone.innerHTML = html;
-
-  const btnToggle = zone.querySelector('#btn-toggle-calendrier-dechets');
-  const detail = zone.querySelector('#detail-calendrier-dechets');
-  btnToggle?.addEventListener('click', () => {
-    detail.hidden = !detail.hidden;
-    btnToggle.textContent = detail.hidden ? '📆 Voir tout le calendrier' : '📆 Masquer le calendrier';
-  });
+  zone.innerHTML = `<h4 class="titre-calendrier-dechets">📆 Calendrier des collectes</h4>${detailCollectes}${detailExceptions}`;
 }
 
 async function chargerDerniereActu() {
@@ -542,118 +536,143 @@ async function chargerDernierPv() {
   zone.onclick = () => activerOnglet('conseil');
 }
 
-// ── Prochain conseil municipal ──
-
-async function chargerProchainConseil() {
-  const zone = document.getElementById('carte-prochain-conseil');
-  if (!zone) return;
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/commune`);
-  if (!res.ok) { zone.hidden = true; return; }
-  const { commune } = await res.json();
-  if (!commune.prochain_conseil_date) { zone.hidden = true; return; }
-
-  const date = new Date(commune.prochain_conseil_date);
-  if (date.getTime() < Date.now()) { zone.hidden = true; return; }
-
-  zone.hidden = false;
-  const dateAffichee = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const heureAffichee = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  zone.innerHTML = `
-    <div style="display:flex;gap:10px;align-items:center;">
-      <div class="puce-icone-carte">🏛️</div>
-      <div>
-        <div style="font-size:11px;color:var(--roseau);font-weight:600;">Prochain conseil municipal</div>
-        <div style="font-size:15px;font-weight:700;color:var(--boue);text-transform:capitalize;">${dateAffichee}</div>
-        <div style="font-size:12.5px;color:var(--roseau);">à ${heureAffichee}</div>
-      </div>
-    </div>
-  `;
-  zone.onclick = () => activerOnglet('conseil');
-}
-
-// Une tuile = une icône ronde + un titre (Playfair, gras) + un sous-titre (contexte).
-// Sans onClick, la tuile devient un simple repère statique (ex. "Tout est calme").
-function creerTuileCoupOeil(couleur, icone, titreTuile, sousTitre, onClick) {
-  const tuile = document.createElement('button');
-  tuile.type = 'button';
-  tuile.className = `tuile-coup-oeil tuile-coup-oeil--${couleur}`;
+// "En un coup d'œil" : grille de tuiles qui donnent chacune l'information utile (pas un simple
+// compteur). Une tuile n'apparaît que si elle a quelque chose à dire ; repli "Tout est calme"
+// sinon. Le prochain événement occupe toute la largeur ; s'il reste un nombre impair de petites
+// tuiles, la dernière s'étire aussi, pour ne jamais laisser de trou dans la grille.
+function creerTuileCoupOeil({ couleur, etiquette, valeur, sous = '', action = '', date = null, large = false, onClick = null }) {
+  const tuile = document.createElement(onClick ? 'button' : 'div');
+  if (onClick) { tuile.type = 'button'; tuile.addEventListener('click', onClick); }
+  tuile.className = `tuile-oeil${large ? ' tuile-oeil--large' : ''}`;
+  tuile.style.setProperty('--c', couleur);
   tuile.innerHTML = `
-    <span class="tuile-coup-oeil-icone">${icone}</span>
-    <span class="tuile-coup-oeil-texte">
-      <strong class="tuile-coup-oeil-titre">${titreTuile}</strong>
-      <span class="tuile-coup-oeil-sous">${sousTitre}</span>
+    ${date ? `<span class="bloc-date-oeil"><b>${date.jour}</b><small>${date.mois}</small></span>` : ''}
+    <span class="tuile-oeil-texte">
+      <span class="tuile-oeil-etiquette">${etiquette}</span>
+      <strong class="tuile-oeil-valeur">${valeur}</strong>
+      ${sous ? `<span class="tuile-oeil-sous">${sous}</span>` : ''}
+      ${action ? `<span class="tuile-oeil-action">${action}</span>` : ''}
     </span>
   `;
-  if (onClick) tuile.addEventListener('click', onClick);
   return tuile;
 }
 
-// "En un coup d'œil" : mini-synthèse vivante de la commune (agenda du jour, alertes actives,
-// sondage en cours, entraide ouverte). Toujours au moins une tuile affichée — un repli "Tout
-// est calme" plutôt qu'une section vide, pour que ce soit un vrai reflet de vie locale et pas
-// un bloc qui disparaît la plupart des jours (ancien comportement, agenda-seul).
-async function chargerResumes() {
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+const majuscule = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// Nom du jour d'une échéance proche : "Aujourd'hui", "Demain", "Mardi"... puis "12 nov." au-delà
+// d'une semaine (un nom de jour seul deviendrait ambigu).
+function quandEcheance(dansJours, dateIso) {
+  if (dansJours === 0) return 'Aujourd\'hui';
+  if (dansJours === 1) return 'Demain';
+  const date = new Date(dateIso + 'T00:00:00');
+  return dansJours < 7
+    ? majuscule(date.toLocaleDateString('fr-FR', { weekday: 'long' }))
+    : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+async function chargerResumes(promesseDechets) {
   const zone = document.getElementById('bandeau-resumes');
   if (!zone) return;
-  zone.innerHTML = '';
+  const lire = (chemin) => appelApi(`/${window.COMMUNE_SLUG}${chemin}`)
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null);
 
-  const [agendaRes, alertesRes, sondagesRes, coupsDeMainRes] = await Promise.all([
-    appelApi(`/${window.COMMUNE_SLUG}/agenda`),
-    appelApi(`/${window.COMMUNE_SLUG}/alertes`),
-    appelApi(`/${window.COMMUNE_SLUG}/sondages`),
-    appelApi(`/${window.COMMUNE_SLUG}/coups-de-main`),
+  // Un module désactivé pour la commune répond en erreur → null → tuile simplement absente.
+  const [agenda, alertes, sondages, entraide, mur, communeData, dechets] = await Promise.all([
+    lire('/agenda'), lire('/alertes'), lire('/sondages'), lire('/coups-de-main'), lire('/mur'), lire('/commune'), promesseDechets,
   ]);
+  const tuiles = [];
 
-  if (agendaRes.ok) {
-    const { events } = await agendaRes.json();
-    if (events.length) {
-      // Le plus proche événement fixe le jour affiché : s'il y en a plusieurs ce jour-là,
-      // une tuile par événement (pas seulement le premier de la liste).
-      const premierJour = new Date(events[0].date_debut);
-      const memeJour = (date) => date.getFullYear() === premierJour.getFullYear()
-        && date.getMonth() === premierJour.getMonth() && date.getDate() === premierJour.getDate();
-      for (const evt of events.filter((e) => memeJour(new Date(e.date_debut)))) {
-        const d = new Date(evt.date_debut).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-        zone.appendChild(creerTuileCoupOeil('eau', '📅', escapeAttr(evt.titre), d, () => activerOnglet('agenda')));
-      }
-    }
+  const prochainEvt = agenda?.events?.[0];
+  if (prochainEvt) {
+    const debut = new Date(prochainEvt.date_debut);
+    const memeJour = agenda.events.filter((e) => new Date(e.date_debut).toDateString() === debut.toDateString()).length - 1;
+    const details = [
+      `${majuscule(debut.toLocaleDateString('fr-FR', { weekday: 'long' }))} ${debut.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`,
+      prochainEvt.lieu ? escapeAttr(prochainEvt.lieu) : '',
+      prochainEvt.total_participants ? pluriel(prochainEvt.total_participants, 'inscrit') : '',
+      memeJour > 0 ? `+${pluriel(memeJour, 'autre')} ce jour` : '',
+    ].filter(Boolean).join(' · ');
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--eau)', etiquette: 'Prochain événement', valeur: escapeAttr(prochainEvt.titre), sous: details, large: true,
+      date: { jour: debut.getDate(), mois: debut.toLocaleDateString('fr-FR', { month: 'short' }) },
+      onClick: () => activerOnglet('agenda'),
+    }));
   }
 
-  if (alertesRes.ok) {
-    const { alertes } = await alertesRes.json();
-    const actives = alertes.filter((a) => a.statut !== 'resolue');
-    if (actives.length) {
-      zone.appendChild(creerTuileCoupOeil(
-        'rouge', '🚨', `${actives.length} alerte${actives.length > 1 ? 's' : ''}`, 'en cours',
-        () => activerOnglet('alertes'),
-      ));
-    }
+  const actives = (alertes?.alertes ?? []).filter((a) => a.statut !== 'resolue')
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  if (actives.length) {
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--rouge)', etiquette: '🚨 Alertes', valeur: `${actives.length} en cours`, sous: escapeAttr(actives[0].titre),
+      onClick: () => activerOnglet('alertes'),
+    }));
   }
 
-  if (sondagesRes.ok) {
-    const { sondages } = await sondagesRes.json();
-    const ouvert = sondages.find((s) =>
-      (!s.closes_at || new Date(s.closes_at) > new Date()) && s.mes_votes.length === 0);
-    if (ouvert) {
-      const question = escapeAttr(ouvert.question).slice(0, 34);
-      zone.appendChild(creerTuileCoupOeil(
-        'aube', '🌡️', 'Sondage en cours', question + (ouvert.question.length > 34 ? '…' : ''),
-        () => activerOnglet('thermometre'),
-      ));
-    }
+  const collectes = [...(dechets?.collectes ?? []), ...(dechets?.exceptions ?? [])].sort((a, b) => a.dans_jours - b.dans_jours);
+  if (collectes.length) {
+    const c = collectes[0];
+    const veille = c.dans_jours === 1;
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--prairie)', etiquette: '🗑️ Déchets',
+      valeur: LABELS_DECHET[c.type] ?? escapeAttr(c.libelle),
+      sous: `${quandEcheance(c.dans_jours, c.prochaine_date ?? c.date)}${veille ? ' · à sortir ce soir' : ''}`,
+      onClick: () => {
+        const calendrier = document.getElementById('carte-dechets');
+        if (!calendrier) return;
+        calendrier.hidden = !calendrier.hidden;
+        if (!calendrier.hidden) calendrier.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      },
+    }));
   }
 
-  if (coupsDeMainRes.ok) {
-    const { annonces } = await coupsDeMainRes.json();
-    if (annonces?.length) {
-      zone.appendChild(creerTuileCoupOeil(
-        'prairie', '🤲', `${annonces.length} coup${annonces.length > 1 ? 's' : ''} de main`, 'entraide ouverte',
-        () => activerOnglet('coups-de-main'),
-      ));
-    }
+  const sondageOuvert = (sondages?.sondages ?? []).find((s) =>
+    (!s.closes_at || new Date(s.closes_at) > new Date()) && s.mes_votes.length === 0);
+  if (sondageOuvert) {
+    const q = sondageOuvert.question;
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--aube)', etiquette: '🌡️ Sondage', valeur: escapeAttr(q.length > 60 ? q.slice(0, 60) + '…' : q), action: 'Je vote',
+      onClick: () => activerOnglet('thermometre'),
+    }));
   }
 
-  if (!zone.children.length) {
-    zone.appendChild(creerTuileCoupOeil('neutre', '🌿', 'Tout est calme', 'aujourd\'hui'));
+  const annonces = (entraide?.annonces ?? []).filter((a) => !a.pourvu);
+  if (annonces.length) {
+    const demandes = annonces.filter((a) => a.type === 'demande').length;
+    const offres = annonces.length - demandes;
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--prairie)', etiquette: '🤲 Entraide', valeur: pluriel(annonces.length, 'annonce'),
+      sous: [demandes ? pluriel(demandes, 'demande') : '', offres ? pluriel(offres, 'offre') : ''].filter(Boolean).join(' · '),
+      onClick: () => activerOnglet('coups-de-main'),
+    }));
   }
+
+  // Le Mur ne renvoie que ses 20 derniers messages : au-delà, "20+" plutôt qu'un faux total.
+  const postsMur = mur?.posts ?? [];
+  const aujourdhui = new Date().toDateString();
+  const messagesDuJour = postsMur.filter((p) => new Date(p.created_at).toDateString() === aujourdhui).length;
+  if (messagesDuJour) {
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--eauM)', etiquette: '💬 Mur',
+      valeur: messagesDuJour === postsMur.length && postsMur.length >= 20 ? '20+ messages' : pluriel(messagesDuJour, 'message'),
+      sous: 'aujourd\'hui', onClick: () => activerOnglet('mur'),
+    }));
+  }
+
+  const dateConseil = communeData?.commune?.prochain_conseil_date ? new Date(communeData.commune.prochain_conseil_date) : null;
+  if (dateConseil && dateConseil > new Date()) {
+    tuiles.push(creerTuileCoupOeil({
+      couleur: 'var(--eau)', etiquette: '🏛️ Conseil',
+      valeur: majuscule(dateConseil.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' })),
+      sous: `à ${dateConseil.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`,
+      onClick: () => activerOnglet('conseil'),
+    }));
+  }
+
+  if (!tuiles.length) {
+    tuiles.push(creerTuileCoupOeil({ couleur: 'var(--eauL)', etiquette: '🌿 Aujourd\'hui', valeur: 'Tout est calme', sous: 'rien de prévu pour l\'instant', large: true }));
+  }
+  const petites = tuiles.filter((t) => !t.classList.contains('tuile-oeil--large'));
+  if (petites.length % 2 === 1) petites[petites.length - 1].classList.add('tuile-oeil--pleine');
+  zone.replaceChildren(...tuiles);
 }
