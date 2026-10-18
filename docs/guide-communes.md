@@ -43,6 +43,11 @@ Messagerie libre entre habitants, façon fil d'actualité. Les messages disparai
 
 Petites annonces d'entraide entre voisins : offre ou demande, 8 catégories (bricolage, jardinage, garde d'enfants, transport, courses, informatique, cuisine, autre). Une annonce expire automatiquement après la durée choisie (30 jours par défaut).
 
+- **Idées d'annonces** : à la création, des raccourcis (Covoiturage, Garde d'enfants, Prêt d'outils, Jardin, Courses, Aide ponctuelle) préremplissent le titre et la catégorie — il ne reste qu'à décrire.
+- **Photo** facultative sur chaque annonce.
+- **« 🙋 Je suis intéressé(e) »** : plutôt que d'afficher ses coordonnées à tous, on laisse un petit message privé à l'auteur, qui est notifié et voit la liste des personnes intéressées.
+- **« ✅ Pourvu »** : l'auteur marque son annonce comme pourvue une fois le coup de main trouvé — elle reste visible, grisée, en bas de la liste (et peut être remise active en cas d'erreur).
+
 ## A.6 Agenda 📅
 
 Deux sous-onglets : **Agenda local** et **Autour de moi** (événements des communes voisines et nationaux, voir A.17).
