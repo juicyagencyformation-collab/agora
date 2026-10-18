@@ -25,7 +25,7 @@ Un rôle ne peut jamais se modifier lui-même, ni attribuer un rôle égal ou su
 
 ## A.1 L'accueil
 
-En arrivant, vous trouvez (dans l'ordre) : une éventuelle alerte météo officielle tout en haut, un message de bienvenue, la météo du jour et la phase de la lune, un rappel "sortez vos poubelles" la veille/le jour d'une collecte, la dernière actualité et le dernier compte-rendu de conseil, la photo vedette de la semaine, des raccourcis vers ce qui vous concerne (événement du jour, alertes en cours, sondage en attente, entraide ouverte), et les informations pratiques de la mairie tout en bas.
+En arrivant, vous trouvez (dans l'ordre) : une éventuelle alerte météo officielle tout en haut, puis un message de bienvenue avec à sa droite une **pastille météo** (icône et température). Un appui sur la pastille ouvre le détail : les 6 prochaines heures, le vent (force, direction, rafales), l'humidité, le risque de pluie, l'indice UV, le lever et le coucher du soleil, la phase de la lune avec son conseil jardin. Viennent ensuite le rappel "sortez vos poubelles" la veille d'une collecte, puis **En un coup d'œil** : une grille de tuiles qui résument la vie de la commune (prochain événement, alertes en cours, prochaine collecte de déchets, sondage à voter, entraide, messages du jour sur le Mur, prochain conseil municipal) — un appui sur une tuile ouvre le module correspondant. Enfin la dernière actualité, le dernier compte-rendu de conseil, la photo de la semaine et les informations pratiques de la mairie tout en bas.
 
 ## A.2 Actualités 📰
 
@@ -104,7 +104,7 @@ Vous choisissez individuellement ce qui vous intéresse : articles, chasses au t
 ## A.16 Météo et déchets
 
 - **Vigilance météo** (bandeau en haut de l'accueil) : alertes officielles orange/rouge synchronisées automatiquement — ni la mairie ni personne ne peut les masquer. La mairie peut en ajouter une manuellement si besoin (y compris niveau jaune).
-- **Déchets** : le calendrier de collecte configuré par la mairie s'affiche sur l'accueil, avec un rappel la veille et le jour du ramassage. Un bouton **"Voir tout le calendrier"** permet de consulter toutes les collectes à venir (pas seulement aujourd'hui/demain), ainsi que les **dates exceptionnelles** (jour férié qui décale la collecte, ramassage ponctuel...) ajoutées par la mairie.
+- **Déchets** : la prochaine collecte apparaît dans "En un coup d'œil", avec un grand rappel la veille du ramassage. Un appui sur la tuile **Déchets** déplie le calendrier complet : toutes les collectes à venir, ainsi que les **dates exceptionnelles** (jour férié qui décale la collecte, ramassage ponctuel...) ajoutées par la mairie.
 
 ## A.17 Découvrir les communes voisines
 
