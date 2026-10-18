@@ -9,8 +9,22 @@ function initFormulaireCoupDeMain() {
 // annonce fournie = édition (PATCH, préremplie) ; sinon création (POST).
 function ouvrirModaleCreationCoupDeMain(annonce = null) {
   const sel = (v, valeur) => v === valeur ? 'selected' : '';
+  // Raccourcis de création : un clic préremplit titre + catégorie (toujours modifiables).
+  const SUGGESTIONS = [
+    ['🚗 Covoiturage', 'Covoiturage', 'transport'],
+    ['👶 Garde d\'enfants', 'Garde d\'enfants', 'garde_enfants'],
+    ['🔧 Prêt d\'outils', 'Prêt d\'outils', 'bricolage'],
+    ['🌱 Jardin', 'Coup de main au jardin', 'jardinage'],
+    ['🛒 Courses', 'Courses pour un voisin', 'courses'],
+    ['📦 Aide ponctuelle', 'Aide ponctuelle', 'autre'],
+  ];
+  const puces = annonce ? '' : `
+      <div class="filtres-categorie-articles" id="suggestions-annonce" style="flex-wrap:wrap;">
+        <span style="width:100%;font-size:12px;color:var(--roseau);">Idées d'annonces :</span>
+        ${SUGGESTIONS.map(([libelle], i) => `<button type="button" class="filtre-categorie-btn" data-i="${i}">${libelle}</button>`).join('')}
+      </div>`;
   const html = `
-    <form id="form-modale-annonce">
+    <form id="form-modale-annonce">${puces}
       <input name="titre" placeholder="Titre" required value="${annonce ? escapeAttr(annonce.titre) : ''}">
       <textarea name="description" placeholder="Description" required>${annonce ? escapeAttr(annonce.description) : ''}</textarea>
       <select name="type">
@@ -40,6 +54,17 @@ function ouvrirModaleCreationCoupDeMain(annonce = null) {
   `;
   const overlay = ouvrirModaleFormulaire(annonce ? 'Modifier l\'annonce' : 'Publier une annonce', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
+
+  corps.querySelectorAll('#suggestions-annonce button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const [, titre, categorie] = SUGGESTIONS[btn.dataset.i];
+      const form = corps.querySelector('#form-modale-annonce');
+      form.titre.value = titre;
+      form.categorie.value = categorie;
+      corps.querySelectorAll('#suggestions-annonce button').forEach((b) => b.classList.toggle('active', b === btn));
+      form.description.focus();
+    });
+  });
 
   // Photo existante (édition) : un bouton × la marque pour retrait à l'enregistrement — même
   // logique que la bannière/photo de profil (profil.js), pas de suppression avant validation.
