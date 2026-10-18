@@ -162,12 +162,12 @@ Personne ne peut modifier son propre rôle. Seul le superadmin peut désigner un
 
 ## B.10 Réglages de la commune
 
-Depuis Modération : logo et couleurs (élu/maire/superadmin), horaires et coordonnées de la mairie, calendrier des déchets, seuils de la Photo du jour, rayon de validation des énigmes, durée d'affichage du Mur, participation à "Autour de moi", vigilance météo manuelle.
+Depuis Modération : logo et couleurs (élu/maire/superadmin), horaires et coordonnées de la mairie, calendrier des déchets, contact RGPD, vigilance météo manuelle.
 
 ## B.11 Ce qui reste réservé au maire seul ou au superadmin
 
 - **Maire seul** (avec élu) : changer le logo et les informations officielles de la mairie, nommer/révoquer un élu.
-- **Superadmin uniquement** : activer/désactiver un module pour votre commune (un module désactivé reste visible mais grisé pour vos citoyens, avec une popup expliquant qu'il fait partie d'une offre supérieure), attribuer le rôle maire, gérer les badges du système de points citoyens, déclencher une synchronisation manuelle des lois.
+- **Superadmin uniquement** : activer/désactiver un module pour votre commune (un module désactivé reste visible mais grisé pour vos citoyens, avec une popup expliquant qu'il fait partie d'une offre supérieure), attribuer le rôle maire, gérer les badges du système de points citoyens, déclencher une synchronisation manuelle des lois, et les réglages techniques des modules (seuils de la Photo du jour, rayon et durée des énigmes, durée d'affichage du Mur, participation à "Autour de moi") — à demander à Juicy Solutions si besoin.
 
 ---
 

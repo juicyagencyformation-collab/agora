@@ -138,6 +138,8 @@ Un cron quotidien envoie automatiquement jusqu'à 5 emails à toute commune grat
 
 Depuis "Communes clientes" ou Ctrl/Cmd+K.
 
+"Communes clientes" n'affiche que les communes ayant **au moins un vrai compte** (citoyen, admin ou élu — le compte générique créé à l'activation ne compte pas) **ou un forfait payant**. Les ~14 000 communes activées par la prospection sans aucune inscription n'y figurent pas : pour elles, passer par Ctrl/Cmd+K ou l'onglet Prospection.
+
 ### 6.2 Forfait et modules
 
 Boutons rapides "🆓 Passer en Gratuit" / "💶 Passer en Version complète", ou case par case (14 modules). Passer en Gratuit vide automatiquement le prix et l'échéance.
@@ -184,6 +186,15 @@ Bouton "👥 Gérer les utilisateurs" sur la fiche.
 ### 6.8 RGPD
 
 Section dédiée sur la fiche : nombre d'exports de données demandés, comptes anonymisés, détail des 8 derniers exports.
+
+### 6.9 Stickers à coller dans la commune
+
+Entrée **"🏷 Stickers"** du menu (s'ouvre dans un nouvel onglet), ou bouton **"🏷 Stickers"** sur une fiche commune (pré-remplit toutes les cases avec cette commune).
+
+- Choisir le format : **1, 2, 6 ou 9 stickers par page A4**.
+- **Une liste déroulante au-dessus de chaque sticker** pour lui attribuer une commune cliente : QR code, lien et nom s'adaptent à chacun — une même planche peut donc servir à 9 communes différentes. "— Sticker vierge —" laisse le lien à compléter à la main.
+- **"Remplir toutes les cases avec…"** : remplit toute la planche d'un coup avec une seule commune.
+- **Impression** : bouton "Imprimer / PDF", format A4, marges "Aucune", échelle 100 %, **graphiques d'arrière-plan activés** (sinon le fond bleu disparaît). Les listes déroulantes ne s'impriment pas.
 
 ---
 
