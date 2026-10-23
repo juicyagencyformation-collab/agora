@@ -106,16 +106,25 @@ app.get('/evenements', async (c) => {
 // protection nécessaire est le doublon (même email déjà inscrit sur cette commune), gérée comme
 // POST /:slug/auth/register.
 
-// GET /decouverte/communes/rechercher?q=... — recherche publique par nom, aucune authentification.
+// Filtre de recherche d'une commune : par code postal si la saisie n'est faite que de chiffres
+// (2 à 5, en préfixe — « 031 » propose déjà, « 80132 » renvoie les 19 communes qui le partagent),
+// sinon par nom. Ajouté le 2026-10-23 : un habitant de Montluçon a tapé « 03100 », rien trouvé,
+// et a fini par envoyer une « demande d'activation » alors que sa commune existait déjà.
+// Limite : prospects.code_postal ne contient que le code PRINCIPAL de chaque commune.
+export function filtreRechercheCommune(q: string): Record<string, string> {
+  if (/^\d{2,5}$/.test(q)) return { code_postal: `like.${q}*`, order: 'code_postal.asc,nom.asc', limit: '30' };
+  return { nom: `ilike.*${q}*`, order: 'nom.asc', limit: '10' };
+}
+
+// GET /decouverte/communes/rechercher?q=... — recherche publique par nom ou code postal, aucune
+// authentification.
 app.get('/communes/rechercher', async (c) => {
-  const q = (c.req.query('q') || '').trim();
+  const q = (c.req.query('q') || '').trim().slice(0, 100);
   if (q.length < 2) return c.json({ resultats: [] });
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
     select: 'id,nom,code_postal,departement',
-    nom: `ilike.*${q}*`,
-    order: 'nom.asc',
-    limit: '10',
+    ...filtreRechercheCommune(q),
   });
   return c.json({ resultats: prospects });
 });

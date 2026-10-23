@@ -5,6 +5,26 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-23 — Page « Rejoindre » : recherche par code postal
+
+**Gravité :** faible (gêne utilisateur, fausses demandes d'activation)
+**Fichiers :** `worker/src/routes/decouverte.ts`, `frontend/rejoindre.html`
+
+### Symptôme
+Un habitant de Montluçon a tapé « 03100 » : aucun résultat (la recherche ne portait que sur le nom), il
+a donc envoyé une « demande d'activation » alors que sa commune était déjà disponible.
+
+### Correction
+Saisie composée uniquement de 2 à 5 chiffres → recherche sur le code postal, en préfixe (« 03100 » →
+Montluçon et Lavault-Sainte-Anne ; « 80132 » → 19 communes). Sinon, recherche par nom comme avant.
+Aucune API externe : les 17 079 prospects ont déjà leur code postal en base.
+
+### À retenir
+Seul le code postal **principal** de chaque commune est enregistré : une ville à plusieurs codes postaux
+n'est trouvée que par le principal ou par son nom.
+
+---
+
 ## 2026-10-23 — Backoffice : « Comptes liés » créait des comptes admin trop facilement
 
 **Gravité :** haute (une habitante s'est retrouvée admin de 3 communes, dont 2 sans rapport avec elle)
