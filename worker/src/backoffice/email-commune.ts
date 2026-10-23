@@ -23,16 +23,37 @@ function echapper(s: string): string {
 // connexion n'a lieu qu'au clic explicite d'un bouton sur une page de confirmation, jamais sur
 // le simple chargement du lien (protège contre les scanners de sécurité des messageries qui
 // visitent automatiquement les liens d'un email avant que le destinataire ne l'ouvre).
+// dureeMs : 30 jours par défaut (emails de bienvenue) ; plus court pour un lien de dépannage
+// envoyé à un habitant (voir envoyerLienConnexionUtilisateur).
 export async function genererLienConnexionDirecte(
   env: any, frontendUrl: string, slug: string, communeId: string, userId: string,
+  dureeMs = 30 * 24 * 3600 * 1000,
 ): Promise<string> {
   const token = crypto.randomUUID() + crypto.randomUUID();
   await supabaseInsert(env, 'login_tokens', {
     commune_id: communeId, user_id: userId,
     token_hash: await hasherSha256Hex(token),
-    expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+    expires_at: new Date(Date.now() + dureeMs).toISOString(),
   });
   return `${frontendUrl}/api/${slug}/auth/lien-connexion/${token}`;
+}
+
+// Lien de connexion de dépannage envoyé par le staff à un utilisateur (backoffice, onglet
+// Utilisateurs). Précautions : envoyé UNIQUEMENT à l'adresse du compte, jamais renvoyé au staff
+// (qui ne peut donc pas s'en servir pour se connecter à la place de l'habitant) ; validité
+// courte (24 h) ; invalidé immédiatement si le compte est bloqué.
+export const DUREE_LIEN_DEPANNAGE_MS = 24 * 3600 * 1000;
+
+export async function envoyerLienConnexionUtilisateur(
+  env: any, d: { email: string; prenom: string; nomCommune: string; slug: string; communeId: string; userId: string },
+): Promise<string | null> {
+  const lien = await genererLienConnexionDirecte(env, env.FRONTEND_URL, d.slug, d.communeId, d.userId, DUREE_LIEN_DEPANNAGE_MS);
+  return envoyerEmail(env, d.email, `Votre lien de connexion — ${d.nomCommune}`, `
+    <p>Bonjour ${echapper(d.prenom)},</p>
+    <p>Voici un lien pour vous connecter à l'application de ${echapper(d.nomCommune)} sans mot de passe :</p>
+    <p><a href="${lien}" style="display:inline-block;background:#2c5f2d;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600">Me connecter</a></p>
+    <p style="color:#5b6b5c;font-size:13px">Ce lien est valable 24 heures. Si vous n'avez rien demandé, ignorez simplement cet email : personne d'autre que vous ne l'a reçu.</p>
+  `);
 }
 
 interface DonneesBienvenue {

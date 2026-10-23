@@ -169,7 +169,20 @@ Bouton "👥 Gérer les utilisateurs" sur la fiche.
 
 - **+ Ajouter un utilisateur** : rôles possibles = citoyen / admin / élu / maire (jamais superadmin, exclu du formulaire).
 - **Réinitialiser le mot de passe** : affiché une seule fois à l'écran, jamais envoyé par email — à communiquer toi-même à la personne.
+- **Envoyer un lien de connexion** : envoie à la personne, **dans sa propre boîte mail**, un lien pour se connecter sans mot de passe, valable 24 h. Tu ne vois jamais le lien, c'est voulu. À préférer à la réinitialisation quand quelqu'un « n'arrive plus à se connecter ».
+- **⛔ Bloquer le compte** : la personne ne peut plus se connecter, ses sessions sont coupées (sous 15 min au plus). **Réversible** avec « Débloquer le compte ». Indique un motif (visible du staff uniquement). À utiliser en cas d'abus, à la place de la suppression.
 - **🗑 Supprimer un compte** : ceci **anonymise** le compte (RGPD), ce n'est **pas réversible**. Le contenu déjà publié reste, mais l'identité est effacée.
+- Les comptes **superadmin** ne sont modifiables par aucune de ces actions (refusé par le serveur).
+
+### 6.5 bis Retrouver n'importe quel utilisateur — onglet « 👥 Utilisateurs »
+
+Entrée **"👥 Utilisateurs"** du menu : tous les comptes, **toutes communes confondues**, quand tu ne sais pas de quelle commune est une personne.
+
+- **Recherche** par nom, prénom ou email ; **filtres** commune, rôle, statut (en service / bloqués / anonymisés) et tri (inscription récente ou dernière connexion).
+- Les **comptes techniques** (compte générique créé à l'activation, visiteurs de la démo) sont masqués par défaut — case « Comptes techniques » pour les voir.
+- En haut : nombre de comptes, inscrits sur 7 jours, actifs sur 30 jours.
+- **Clic sur une ligne** → la même fiche que dans « Gérer les utilisateurs » (§6.5), avec toutes ses actions. Les lignes superadmin et anonymisées sont en lecture seule.
+- Chaque blocage, déblocage et envoi de lien est inscrit au **journal d'activité**.
 
 ### 6.6 Les trois façons d'accéder au compte d'une commune — ne pas les confondre
 
@@ -229,7 +242,7 @@ Entrée **"🏷 Stickers"** du menu (s'ouvre dans un nouvel onglet), ou bouton *
 - ☐ "Renvoyer les accès" écrase le mot de passe — vérifier que c'est vraiment nécessaire avant de cliquer.
 - ☐ Jamais toucher au Palier gratuit / à la Tarification / aux Comptes staff sans validation de Léandre.
 - ☐ Un bounce générique (souvent un filtrage anti-spam ponctuel, ex. Orange/Wanadoo) n'est pas forcément une adresse morte — ne pas la considérer comme définitivement invalide sans vérifier.
-- ☐ La suppression d'un utilisateur est une anonymisation **irréversible**.
+- ☐ La suppression d'un utilisateur est une anonymisation **irréversible** — en cas d'abus, **bloquer** d'abord (réversible).
 - ☐ Le prix suggéré par une formule tarifaire n'est qu'indicatif — toujours vérifier le prix réellement enregistré avant de facturer.
 
 ---

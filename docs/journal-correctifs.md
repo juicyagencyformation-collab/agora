@@ -5,6 +5,38 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-23 — Backoffice : onglet Utilisateurs (+ deux failles corrigées au passage)
+
+**Gravité :** faible (accès réservé au staff), corrigé à l'occasion de la nouvelle fonctionnalité
+**Fichiers :** `worker/src/backoffice/administration.ts`, `worker/src/auth.ts`,
+`worker/src/backoffice/email-commune.ts`, `db/migrations/082_blocage_comptes.sql`, `frontend/backoffice/*`
+
+### Constats
+1. **Recherche d'utilisateurs** : le texte tapé était inséré tel quel dans le filtre Supabase. Une
+   virgule ou une parenthèse (« Dupont, Jean ») cassait la requête, ou pouvait y ajouter un filtre.
+2. **Comptes superadmin** : modifiables depuis le backoffice (identité, email, rôle, mot de passe,
+   comptes liés), alors que la règle du projet l'interdit. Seule la suppression était refusée.
+
+### Correction
+- Recherche nettoyée (`nettoyerRecherche`) : les caractères qui structurent le filtre sont retirés.
+- Toute action du staff sur un compte passe par `chargerCompteGerable` : refus si superadmin ou anonymisé.
+
+### Nouveautés de sécurité livrées avec l'onglet
+- **Blocage de compte** réversible, contrôlé à **chaque** ouverture de session : connexion, lien de
+  connexion, rafraîchissement de session, bascule entre comptes liés. Au blocage, les sessions longues
+  sont révoquées et les liens de connexion encore valides supprimés ; le jeton court (15 min) expire seul.
+- **Lien de connexion de dépannage** : envoyé uniquement à l'adresse du compte, jamais montré au staff
+  (un VA ne peut donc pas s'en servir pour se connecter à la place d'un habitant), valable 24 h.
+- Blocage, déblocage et envoi de lien inscrits au journal d'activité.
+
+### À retenir
+- La migration 082 doit être appliquée **avant** le déploiement du Worker (sinon la connexion échoue
+  sur une colonne inconnue).
+- Limite connue, inchangée : « Réinitialiser le mot de passe » affiche le mot de passe au staff, donc un
+  VA peut techniquement se connecter à la place d'un habitant. Préférer le lien de connexion.
+
+---
+
 ## 2026-10-23 — Sécurité : limite de tentatives (connexion, formulaires)
 
 **Gravité :** moyenne (rien ne freinait les essais de mots de passe ni l'envoi massif de formulaires)

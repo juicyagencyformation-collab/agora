@@ -18,7 +18,7 @@ import {
   MODELE_PRESENTATION_DEFAUT, MODELE_BIENVENUE_INSCRIPTION_DEFAUT, MODELE_RELANCE_INACTIVITE_DEFAUT,
   MODELE_ONBOARDING_RELANCE_J3_DEFAUT, MODELE_ONBOARDING_CHECKIN_J7_DEFAUT,
   MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT, MODELE_ONBOARDING_UPSELL_DEFAUT,
-  genererLienConnexionDirecte,
+  genererLienConnexionDirecte, envoyerLienConnexionUtilisateur,
 } from './email-commune';
 import { uploaderFichier, deleteObject } from '../storage';
 import { versCsv } from '../lib/csv';
@@ -1260,14 +1260,34 @@ app.get('/communes/:id/rgpd', async (c) => {
 // Recherche nom/prénom/email, filtre par rôle. Les comptes déjà anonymisés (RGPD) sont exclus.
 const TAILLE_PAGE_UTILISATEURS = 100;
 
+// Texte de recherche inséré dans un filtre PostgREST `or=(...)` : on retire les caractères qui
+// en changent la structure (virgule, parenthèses, guillemets, antislash, joker *, deux-points)
+// — sinon une simple saisie comme "Dupont, Jean" casse la requête, voire ajoute un filtre.
+export function nettoyerRecherche(brut: string | undefined): string {
+  return (brut ?? '').replace(/[,()"'\\*:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+}
+const filtreRecherche = (r: string) => `(nom.ilike.*${r}*,prenom.ilike.*${r}*,email.ilike.*${r}*)`;
+
+// Charge un compte d'une commune pour une action du staff, avec les refus communs : introuvable,
+// superadmin (jamais modifiable depuis une interface, cf. CLAUDE.md) ou déjà anonymisé.
+async function chargerCompteGerable(c: any, communeId: string, userId: string): Promise<{ u?: any; erreur?: Response }> {
+  const [u] = await supabaseSelect(c.env, 'users', {
+    select: 'id,role,email,prenom,bloque_le,compte_supprime_le', id: `eq.${userId}`, commune_id: `eq.${communeId}`,
+  });
+  if (!u) return { erreur: c.json({ erreur: 'Compte introuvable' }, 404) };
+  if (u.role === 'superadmin') return { erreur: c.json({ erreur: 'Action non autorisée sur un compte superadmin.' }, 403) };
+  if (u.compte_supprime_le) return { erreur: c.json({ erreur: 'Ce compte a été anonymisé.' }, 409) };
+  return { u };
+}
+
 app.get('/communes/:id/utilisateurs', async (c) => {
   const id = c.req.param('id');
   const where: Record<string, string> = { commune_id: `eq.${id}`, compte_supprime_le: 'is.null' };
 
   const role = c.req.query('role');
   if (role && (ROLES_GERABLES as readonly string[]).includes(role)) where.role = `eq.${role}`;
-  const recherche = c.req.query('recherche');
-  if (recherche) where.or = `(nom.ilike.*${recherche}*,prenom.ilike.*${recherche}*,email.ilike.*${recherche}*)`;
+  const recherche = nettoyerRecherche(c.req.query('recherche'));
+  if (recherche) where.or = filtreRecherche(recherche);
 
   const page = Math.max(1, parseInt(c.req.query('page') || '1', 10) || 1);
   const offset = (page - 1) * TAILLE_PAGE_UTILISATEURS;
@@ -1275,7 +1295,7 @@ app.get('/communes/:id/utilisateurs', async (c) => {
   const [utilisateurs, total] = await Promise.all([
     supabaseSelect(c.env, 'users', {
       ...where,
-      select: 'id,nom,prenom,email,role,xp,niveau,created_at,derniere_connexion_streak',
+      select: 'id,nom,prenom,email,role,xp,niveau,created_at,derniere_connexion_streak,bloque_le,bloque_motif',
       order: 'created_at.desc',
       limit: String(TAILLE_PAGE_UTILISATEURS),
       offset: String(offset),
@@ -1331,10 +1351,13 @@ app.patch('/communes/:id/utilisateurs/:userId', async (c) => {
   const body = modifierUtilisateurSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+  const { erreur } = await chargerCompteGerable(c, id, userId);
+  if (erreur) return erreur;
 
   if (body.data.email) {
+    body.data.email = body.data.email.trim().toLowerCase();
     const [existant] = await supabaseSelect(c.env, 'users', {
-      select: 'id', commune_id: `eq.${id}`, email: `eq.${body.data.email}`,
+      select: 'id', commune_id: `eq.${id}`, email: `ilike.${body.data.email}`,
     });
     if (existant && existant.id !== userId) return c.json({ erreur: 'Cet email est déjà utilisé par un autre compte de cette commune.' }, 409);
   }
@@ -1349,8 +1372,8 @@ app.patch('/communes/:id/utilisateurs/:userId', async (c) => {
 app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
   const id = c.req.param('id');
   const userId = c.req.param('userId');
-  const [u] = await supabaseSelect(c.env, 'users', { select: 'id,email', id: `eq.${userId}`, commune_id: `eq.${id}` });
-  if (!u) return c.json({ erreur: 'Compte introuvable' }, 404);
+  const { u, erreur } = await chargerCompteGerable(c, id, userId);
+  if (erreur) return erreur;
 
   const motDePasse = genererMotDePasseTemporaire();
   await supabaseUpdate(c.env, 'users', { password_hash: await hasherMotDePasse(motDePasse) }, { id: `eq.${userId}` });
@@ -1383,6 +1406,8 @@ app.post('/communes/:id/utilisateurs/:userId/lier', async (c) => {
 
   const [a] = await supabaseSelect(c.env, 'users', { select: 'id,personne_id,email,commune_id,nom,prenom', id: `eq.${userId}` });
   if (!a) return c.json({ erreur: 'Compte introuvable' }, 404);
+  const { erreur } = await chargerCompteGerable(c, a.commune_id, a.id);
+  if (erreur) return erreur;
   if (a.commune_id === autreCommuneId) return c.json({ erreur: 'Choisis une commune différente de celle-ci' }, 400);
   const autreEmail = a.email;
 
@@ -1468,6 +1493,128 @@ app.delete('/communes/:id/utilisateurs/:userId', async (c) => {
 
   await journaliser(c.env, c.get('staff_id'), 'utilisateur_anonymise', `Utilisateur ${userId} (rôle ${u.role}), commune ${id}`);
   return c.json({ ok: true });
+});
+
+// — Onglet « Utilisateurs » : vue globale, toutes communes confondues —
+// Lecture seule ici : chaque action (modifier, mot de passe, comptes liés, anonymiser, bloquer,
+// lien de connexion) passe par les routes /communes/:id/utilisateurs/:userId/*, qui revérifient
+// que le compte appartient bien à la commune indiquée (chargerCompteGerable).
+const ROLES_FILTRABLES = [...ROLES_GERABLES, 'superadmin'] as const;
+const filtresUtilisateursSchema = z.object({
+  recherche: z.string().max(200).optional(),
+  commune_id: z.string().uuid().optional(),
+  role: z.enum(ROLES_FILTRABLES).optional(),
+  statut: z.enum(['comptes', 'bloques', 'anonymises']).default('comptes'),
+  tri: z.enum(['inscription', 'connexion']).default('inscription'),
+  techniques: z.enum(['0', '1']).default('0'),
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+});
+
+app.get('/utilisateurs', async (c) => {
+  const brut = Object.fromEntries(Object.entries(c.req.query()).filter(([, v]) => v !== ''));
+  const parse = filtresUtilisateursSchema.safeParse(brut);
+  if (!parse.success) return c.json({ erreur: 'Filtres invalides' }, 400);
+  const f = parse.data;
+
+  const where: Record<string, string> = {};
+  where.compte_supprime_le = f.statut === 'anonymises' ? 'not.is.null' : 'is.null';
+  if (f.statut === 'bloques') where.bloque_le = 'not.is.null';
+  // Comptes techniques (compte générique créé à l'activation, visiteurs de la démo) masqués par défaut.
+  if (f.techniques === '0') { where.compte_provisionne = 'eq.false'; where.compte_visiteur_demo = 'eq.false'; }
+  if (f.role) where.role = `eq.${f.role}`;
+  if (f.commune_id) where.commune_id = `eq.${f.commune_id}`;
+  const recherche = nettoyerRecherche(f.recherche);
+  if (recherche) where.or = filtreRecherche(recherche);
+
+  const offset = (f.page - 1) * TAILLE_PAGE_UTILISATEURS;
+  const ilYA = (jours: number) => new Date(Date.now() - jours * 24 * 3600 * 1000).toISOString();
+  const reels = { compte_supprime_le: 'is.null', compte_provisionne: 'eq.false', compte_visiteur_demo: 'eq.false' };
+
+  const [utilisateurs, total, totalComptes, nouveaux7j, actifs30j] = await Promise.all([
+    supabaseSelect(c.env, 'users', {
+      ...where,
+      select: 'id,nom,prenom,email,role,commune_id,created_at,derniere_connexion_streak,bloque_le,bloque_motif,compte_supprime_le',
+      order: f.tri === 'connexion' ? 'derniere_connexion_streak.desc.nullslast,created_at.desc' : 'created_at.desc',
+      limit: String(TAILLE_PAGE_UTILISATEURS),
+      offset: String(offset),
+    }),
+    supabaseCount(c.env, 'users', where),
+    supabaseCount(c.env, 'users', reels),
+    supabaseCount(c.env, 'users', { ...reels, created_at: `gte.${ilYA(7)}` }),
+    supabaseCount(c.env, 'users', { ...reels, derniere_connexion_streak: `gte.${ilYA(30).slice(0, 10)}` }),
+  ]);
+
+  const idsCommunes = [...new Set(utilisateurs.map((u: any) => u.commune_id))];
+  const communes = idsCommunes.length
+    ? await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `in.(${idsCommunes.join(',')})` })
+    : [];
+  const nomCommune = new Map(communes.map((cm: any) => [cm.id, cm.nom]));
+
+  return c.json({
+    utilisateurs: utilisateurs.map((u: any) => ({ ...u, commune_nom: nomCommune.get(u.commune_id) ?? '?' })),
+    page: f.page, taille: TAILLE_PAGE_UTILISATEURS, total,
+    stats: { total: totalComptes, nouveaux_7j: nouveaux7j, actifs_30j: actifs30j },
+  });
+});
+
+// POST /communes/:id/utilisateurs/:userId/bloquer — empêche toute nouvelle session sans
+// anonymiser (réversible). Coupe aussi l'existant : sessions longues révoquées et liens de
+// connexion encore valides supprimés. Le jeton d'accès déjà émis (15 min max) expire seul.
+// Contrôles côté connexion : auth.ts (/login, /lien-connexion/:token/confirmer, /refresh,
+// /basculer/:id).
+const blocageSchema = z.object({ motif: z.string().trim().max(300).optional() });
+
+app.post('/communes/:id/utilisateurs/:userId/bloquer', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.param('userId');
+  const body = blocageSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const { u, erreur } = await chargerCompteGerable(c, id, userId);
+  if (erreur) return erreur;
+  if (u.bloque_le) return c.json({ erreur: 'Ce compte est déjà bloqué.' }, 409);
+
+  await supabaseUpdate(c.env, 'users', { bloque_le: new Date().toISOString(), bloque_motif: body.data.motif || null }, {
+    id: `eq.${userId}`, commune_id: `eq.${id}`,
+  });
+  await supabaseUpdate(c.env, 'refresh_tokens', { revoked: true }, { user_id: `eq.${userId}` });
+  await supabaseDelete(c.env, 'login_tokens', { user_id: `eq.${userId}` });
+
+  await journaliser(c.env, c.get('staff_id'), 'utilisateur_bloque', `${u.email} (rôle ${u.role}), commune ${id}${body.data.motif ? ' — ' + body.data.motif : ''}`);
+  return c.json({ ok: true });
+});
+
+app.post('/communes/:id/utilisateurs/:userId/debloquer', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.param('userId');
+  const { u, erreur } = await chargerCompteGerable(c, id, userId);
+  if (erreur) return erreur;
+  if (!u.bloque_le) return c.json({ erreur: 'Ce compte n\'est pas bloqué.' }, 409);
+
+  await supabaseUpdate(c.env, 'users', { bloque_le: null, bloque_motif: null }, { id: `eq.${userId}`, commune_id: `eq.${id}` });
+  await journaliser(c.env, c.get('staff_id'), 'utilisateur_debloque', `${u.email}, commune ${id}`);
+  return c.json({ ok: true });
+});
+
+// POST /communes/:id/utilisateurs/:userId/envoyer-lien-connexion — dépannage : envoie un lien
+// de connexion (24 h) à l'adresse du compte. Le lien n'est JAMAIS renvoyé au staff (voir
+// envoyerLienConnexionUtilisateur) : impossible de s'en servir pour se connecter à sa place.
+app.post('/communes/:id/utilisateurs/:userId/envoyer-lien-connexion', async (c) => {
+  const id = c.req.param('id');
+  const userId = c.req.param('userId');
+  const { u, erreur } = await chargerCompteGerable(c, id, userId);
+  if (erreur) return erreur;
+  if (u.bloque_le) return c.json({ erreur: 'Ce compte est bloqué : débloque-le d\'abord.' }, 409);
+
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'nom,slug', id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+
+  const envoye = await envoyerLienConnexionUtilisateur(c.env, {
+    email: u.email, prenom: u.prenom, nomCommune: commune.nom, slug: commune.slug, communeId: id, userId,
+  });
+  if (!envoye) return c.json({ erreur: 'L\'email n\'a pas pu être envoyé (Réglages → test d\'envoi pour le diagnostic).' }, 502);
+
+  await journaliser(c.env, c.get('staff_id'), 'lien_connexion_envoye', `${u.email}, commune ${id}`);
+  return c.json({ ok: true, email: u.email });
 });
 
 // GET /grille-tarifaire — les 6 tranches de population + le nombre de mois offerts pour un

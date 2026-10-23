@@ -11,6 +11,9 @@ import { hasherMotDePasse, verifierMotDePasse } from './lib/password';
 import { OPTIONS_COOKIE } from './lib/securite';
 import { declencherBienvenuePremiereInscription } from './backoffice/onboarding';
 
+// Compte bloqué depuis le backoffice (migration 082) — même message partout.
+const MESSAGE_COMPTE_BLOQUE = 'Ce compte est suspendu. Contactez votre mairie.';
+
 const app = new Hono();
 
 export async function hasherToken(token: string): Promise<string> {
@@ -99,7 +102,7 @@ app.post('/login', async (c) => {
   // contiennent jamais d'espace, donc un espace collé au copier-coller depuis l'email ne peut
   // être qu'un accident de copier-coller, jamais un caractère voulu du mot de passe.
   const [user] = await supabaseSelect(c.env, 'users', {
-    select: 'id,role,password_hash',
+    select: 'id,role,password_hash,bloque_le',
     commune_id: `eq.${commune_id}`,
     email: `ilike.${body.data.email.trim()}`,
   });
@@ -107,6 +110,9 @@ app.post('/login', async (c) => {
   if (!user || !(await verifierMotDePasse(body.data.password.trim(), user.password_hash))) {
     return c.json({ erreur: 'Email ou mot de passe incorrect' }, 401);
   }
+  // Compte bloqué depuis le backoffice (migration 082) — vérifié après le mot de passe, pour ne
+  // jamais révéler à un tiers qu'un email correspond à un compte.
+  if (user.bloque_le) return c.json({ erreur: MESSAGE_COMPTE_BLOQUE }, 403);
 
   // Bascule silencieuse vers le nouveau format si le compte utilisait encore l'ancien
   // (SHA-256 sans sel) — l'utilisateur ne voit rien, aucune action de sa part requise.
@@ -282,9 +288,12 @@ app.post('/lien-connexion/:token/confirmer', async (c) => {
     `, 'Lien expiré'), 400);
   }
 
-  const [user] = await supabaseSelect(c.env, 'users', { select: 'id,role', id: `eq.${enregistrement.user_id}` });
+  const [user] = await supabaseSelect(c.env, 'users', { select: 'id,role,bloque_le', id: `eq.${enregistrement.user_id}` });
   if (!user) {
     return c.html(pageLienConnexion(`<p style="font-size:15px;line-height:1.5">Ce lien n'est plus valable.</p>`, 'Lien expiré'), 400);
+  }
+  if (user.bloque_le) {
+    return c.html(pageLienConnexion(`<p style="font-size:15px;line-height:1.5">${MESSAGE_COMPTE_BLOQUE}</p>`, 'Compte suspendu'), 403);
   }
 
   // Simple repère informatif (première utilisation) — ne bloque jamais les suivantes.
@@ -358,8 +367,13 @@ app.post('/refresh', async (c) => {
   await supabaseUpdate(c.env, 'refresh_tokens', { revoked: true }, { id: `eq.${enregistrement.id}` });
 
   const [user] = await supabaseSelect(c.env, 'users', {
-    select: 'role', id: `eq.${enregistrement.user_id}`,
+    select: 'role,bloque_le', id: `eq.${enregistrement.user_id}`,
   });
+  if (!user || user.bloque_le) {
+    deleteCookie(c, 'agora_access', { path: '/' });
+    deleteCookie(c, 'agora_refresh', { path: '/' });
+    return c.json({ erreur: user ? MESSAGE_COMPTE_BLOQUE : 'Session expirée, reconnexion requise' }, 401);
+  }
 
   const nouvelAccessToken = await sign(
     { user_id: enregistrement.user_id, commune_id: enregistrement.commune_id, role: user.role, exp: Math.floor(Date.now() / 1000) + 900 },
@@ -475,11 +489,12 @@ app.post('/basculer/:autreUserId', jwtMiddleware, async (c) => {
   if (!moi?.personne_id) return c.json({ erreur: 'Aucun compte lié' }, 403);
 
   const [cible] = await supabaseSelect(c.env, 'users', {
-    select: 'id,commune_id,role,personne_id', id: `eq.${autreUserId}`,
+    select: 'id,commune_id,role,personne_id,bloque_le', id: `eq.${autreUserId}`,
   });
   if (!cible || cible.personne_id !== moi.personne_id) {
     return c.json({ erreur: 'Ce compte n\'est pas lié au vôtre' }, 403);
   }
+  if (cible.bloque_le) return c.json({ erreur: MESSAGE_COMPTE_BLOQUE }, 403);
 
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${cible.commune_id}` });
 

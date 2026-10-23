@@ -73,6 +73,14 @@ function backoffice() {
     filtreUtilisateurRole: '',
     formUtilisateurOuvert: false,
     nouvelUtilisateur: { nom: '', prenom: '', email: '', role: 'citoyen', password: '' },
+    // Onglet « Utilisateurs » (vue globale, toutes communes) — voir allerUtilisateursGlobal.
+    utilisateursGlobal: [],
+    pageUtilisateursGlobal: 1,
+    totalUtilisateursGlobal: 0,
+    statsUtilisateurs: null,
+    filtresUtilisateursGlobal: { recherche: '', commune_id: '', role: '', statut: 'comptes', tri: 'inscription', techniques: false },
+    retourUtilisateur: 'commune', // d'où vient la fiche utilisateur ouverte : 'commune' ou 'global'
+    msgAccesUtilisateur: '',
     utilisateurEdite: null,
     utilisateurEnCours: false,
     msgUtilisateurs: '',
@@ -2599,6 +2607,7 @@ function backoffice() {
     },
 
     async ouvrirUtilisateurs() {
+      this.retourUtilisateur = 'commune';
       this.communeActiveId = this.fiche.commune.id;
       this.communeActiveNom = this.fiche.commune.nom;
       this.vue = 'utilisateurs';
@@ -2665,6 +2674,7 @@ function backoffice() {
       this.utilisateurEdite = { ...u };
       this.resetMdpResultat = '';
       this.msgUtilisateurs = '';
+      this.msgAccesUtilisateur = '';
       this.lienCommuneIds = [];
       this.lienRole = 'admin';
       this.msgLienCompte = '';
@@ -2791,8 +2801,7 @@ function backoffice() {
       this.utilisateurEnCours = true;
       try {
         await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id, { method: 'DELETE' });
-        this.vue = 'utilisateurs';
-        await this.chargerUtilisateurs();
+        await this.retourListeUtilisateurs();
         await this.rafraichirCompteursCommune();
       } catch (e) {
         this.msgUtilisateurs = e.message || 'Échec';
@@ -2800,6 +2809,115 @@ function backoffice() {
         this.utilisateurEnCours = false;
       }
     },
+    // Retour depuis la fiche d'un utilisateur vers la liste d'où elle a été ouverte.
+    async retourListeUtilisateurs() {
+      if (this.retourUtilisateur === 'global') {
+        this.vue = 'utilisateurs_global';
+        await this.chargerUtilisateursGlobal();
+      } else {
+        this.vue = 'utilisateurs';
+        await this.chargerUtilisateurs();
+      }
+    },
+
+    // — Onglet « Utilisateurs » : tous les comptes, toutes communes confondues —
+    async allerUtilisateursGlobal() {
+      this.vue = 'utilisateurs_global';
+      this.pageUtilisateursGlobal = 1;
+      await this.chargerUtilisateursGlobal();
+    },
+    async chargerUtilisateursGlobal() {
+      this.erreurChargement = '';
+      const f = this.filtresUtilisateursGlobal;
+      const params = new URLSearchParams({ statut: f.statut, tri: f.tri, page: this.pageUtilisateursGlobal });
+      if (f.recherche) params.set('recherche', f.recherche);
+      if (f.commune_id) params.set('commune_id', f.commune_id);
+      if (f.role) params.set('role', f.role);
+      if (f.techniques) params.set('techniques', '1');
+      try {
+        const r = await boFetch('/administration/utilisateurs?' + params);
+        this.utilisateursGlobal = r.utilisateurs;
+        this.totalUtilisateursGlobal = r.total;
+        this.statsUtilisateurs = r.stats;
+      } catch (e) {
+        this.erreurChargement = e.message || 'Erreur de chargement des utilisateurs';
+      }
+    },
+    appliquerFiltresUtilisateursGlobal() {
+      this.pageUtilisateursGlobal = 1;
+      this.chargerUtilisateursGlobal();
+    },
+    nbPagesUtilisateursGlobal() {
+      return Math.max(1, Math.ceil(this.totalUtilisateursGlobal / this.tailleUtilisateurs));
+    },
+    allerPageUtilisateursGlobal(delta) {
+      const cible = Math.min(this.nbPagesUtilisateursGlobal(), Math.max(1, this.pageUtilisateursGlobal + delta));
+      if (cible === this.pageUtilisateursGlobal) return;
+      this.pageUtilisateursGlobal = cible;
+      this.chargerUtilisateursGlobal();
+    },
+    // Communes proposées dans le filtre : seulement celles qui ont des inscrits (la table compte
+    // des milliers de prospects).
+    communesAvecInscrits() {
+      return this.communes.filter((c) => c.nb_citoyens > 0).sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+    },
+    // Ouvre la fiche existante (modifier, mot de passe, comptes liés, bloquer, anonymiser) dans
+    // le contexte de la commune du compte. Superadmin et comptes anonymisés : lecture seule.
+    ouvrirUtilisateurGlobal(u) {
+      if (u.role === 'superadmin' || u.compte_supprime_le) return;
+      this.retourUtilisateur = 'global';
+      this.communeActiveId = u.commune_id;
+      this.communeActiveNom = u.commune_nom;
+      this.ouvrirUtilisateur(u);
+    },
+
+    async envoyerLienConnexionUtilisateur() {
+      if (!confirm('Envoyer un lien de connexion (valable 24 h) à ' + this.utilisateurEdite.email + ' ?\n\nLe lien part uniquement dans sa boîte mail : tu ne le verras pas.')) return;
+      this.utilisateurEnCours = true;
+      this.msgUtilisateurs = '';
+      try {
+        const r = await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/envoyer-lien-connexion', { method: 'POST' });
+        this.msgAccesUtilisateur = 'Lien envoyé à ' + r.email + '.';
+      } catch (e) {
+        this.msgAccesUtilisateur = e.message || 'Échec de l\'envoi';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
+    async bloquerUtilisateur() {
+      const motif = prompt('Bloquer ' + this.utilisateurEdite.email + ' ?\n\nIl ne pourra plus se connecter et ses sessions seront coupées (sous 15 min au plus). Réversible.\n\nMotif (facultatif, visible du staff uniquement) :', '');
+      if (motif === null) return;
+      this.utilisateurEnCours = true;
+      try {
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/bloquer', {
+          method: 'POST', body: JSON.stringify(motif.trim() ? { motif: motif.trim() } : {}),
+        });
+        this.utilisateurEdite.bloque_le = new Date().toISOString();
+        this.utilisateurEdite.bloque_motif = motif.trim() || null;
+        this.msgAccesUtilisateur = 'Compte bloqué.';
+      } catch (e) {
+        this.msgAccesUtilisateur = e.message || 'Échec';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
+    async debloquerUtilisateur() {
+      if (!confirm('Débloquer ' + this.utilisateurEdite.email + ' ? Il pourra de nouveau se connecter.')) return;
+      this.utilisateurEnCours = true;
+      try {
+        await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + this.utilisateurEdite.id + '/debloquer', { method: 'POST' });
+        this.utilisateurEdite.bloque_le = null;
+        this.utilisateurEdite.bloque_motif = null;
+        this.msgAccesUtilisateur = 'Compte débloqué.';
+      } catch (e) {
+        this.msgAccesUtilisateur = e.message || 'Échec';
+      } finally {
+        this.utilisateurEnCours = false;
+      }
+    },
+
     pctPop(n) {
       const p = this.frequentation && this.frequentation.population;
       return p ? ` (${Math.round((n / p) * 100)} %)` : '';

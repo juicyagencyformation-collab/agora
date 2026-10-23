@@ -18,6 +18,7 @@
       <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260818-1" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'aujourdhui' }" @click="allerAujourdhui()">🎯 Aujourd'hui<span class="bo-tiroir__compte" x-show="totalAujourdhui()" x-text="' ' + totalAujourdhui()"></span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || (vue === 'fiche_unifiee' && fiche) }" @click="allerCommunes()">Communes clientes</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'utilisateurs_global' || (vue === 'utilisateur' && retourUtilisateur === 'global') }" @click="allerUtilisateursGlobal()">👥 Utilisateurs</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || (vue === 'fiche_unifiee' && !fiche) }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
@@ -3652,12 +3653,96 @@
         </div>
       </template>
 
+
+      <!-- Vue : tous les utilisateurs (toutes communes) -->
+      <template x-if="!chargement && vue === 'utilisateurs_global'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">Utilisateurs</div>
+              <div class="bo-sous" x-text="totalUtilisateursGlobal.toLocaleString('fr-FR') + ' compte(s) correspondant aux filtres'"></div>
+            </div>
+          </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
+
+          <div class="bo-outils" x-show="statsUtilisateurs" style="gap:18px; margin-bottom:12px">
+            <span class="bo-info"><strong x-text="(statsUtilisateurs?.total ?? 0).toLocaleString('fr-FR')"></strong> comptes</span>
+            <span class="bo-info"><strong x-text="(statsUtilisateurs?.nouveaux_7j ?? 0).toLocaleString('fr-FR')"></strong> inscrits sur 7 jours</span>
+            <span class="bo-info"><strong x-text="(statsUtilisateurs?.actifs_30j ?? 0).toLocaleString('fr-FR')"></strong> actifs sur 30 jours</span>
+          </div>
+
+          <div class="bo-outils" style="flex-wrap:wrap">
+            <input type="text" x-model="filtresUtilisateursGlobal.recherche" @input.debounce.400ms="appliquerFiltresUtilisateursGlobal()" placeholder="Rechercher (nom, email)" />
+            <select x-model="filtresUtilisateursGlobal.commune_id" @change="appliquerFiltresUtilisateursGlobal()">
+              <option value="">Toutes les communes</option>
+              <template x-for="cm in communesAvecInscrits()" :key="cm.id"><option :value="cm.id" x-text="cm.nom"></option></template>
+            </select>
+            <select x-model="filtresUtilisateursGlobal.role" @change="appliquerFiltresUtilisateursGlobal()">
+              <option value="">Tous les rôles</option>
+              <template x-for="r in rolesGerables.concat(['superadmin'])" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+            </select>
+            <select x-model="filtresUtilisateursGlobal.statut" @change="appliquerFiltresUtilisateursGlobal()">
+              <option value="comptes">Comptes en service</option>
+              <option value="bloques">Bloqués</option>
+              <option value="anonymises">Anonymisés (RGPD)</option>
+            </select>
+            <select x-model="filtresUtilisateursGlobal.tri" @change="appliquerFiltresUtilisateursGlobal()">
+              <option value="inscription">Inscription la plus récente</option>
+              <option value="connexion">Dernière connexion</option>
+            </select>
+            <label class="bo-info" style="display:flex; align-items:center; gap:6px; margin:0">
+              <input type="checkbox" x-model="filtresUtilisateursGlobal.techniques" @change="appliquerFiltresUtilisateursGlobal()" style="width:auto" />
+              Comptes techniques
+            </label>
+          </div>
+
+          <div class="bo-carte">
+            <table>
+              <thead>
+                <tr><th>Nom</th><th>Email</th><th>Commune</th><th>Rôle</th><th>Inscrit le</th><th>Dernière connexion</th></tr>
+              </thead>
+              <tbody>
+                <template x-for="u in utilisateursGlobal" :key="u.id">
+                  <tr @click="ouvrirUtilisateurGlobal(u)" :style="(u.role === 'superadmin' || u.compte_supprime_le) ? 'cursor:default; opacity:.7' : ''"
+                      :title="u.role === 'superadmin' ? 'Compte superadmin : lecture seule' : (u.compte_supprime_le ? 'Compte anonymisé' : '')">
+                    <td class="bo-nom-commune">
+                      <span x-text="u.prenom + ' ' + u.nom"></span>
+                      <span x-show="u.bloque_le" class="bo-statut" style="margin-left:6px; background:#fee2e2; color:#b91c1c" :title="u.bloque_motif || ''">Bloqué</span>
+                    </td>
+                    <td x-text="u.email"></td>
+                    <td x-text="u.commune_nom"></td>
+                    <td><span class="bo-statut" :class="'bo-statut--' + u.role" x-text="libelleRole(u.role)"></span></td>
+                    <td x-text="formatDate(u.created_at)"></td>
+                    <td><span :class="{ 'bo-vide': !u.derniere_connexion_streak }" x-text="u.derniere_connexion_streak ? formatDate(u.derniere_connexion_streak) : '—'"></span></td>
+                  </tr>
+                </template>
+                <template x-if="utilisateursGlobal.length === 0">
+                  <tr><td colspan="6" class="bo-vide" style="text-align:center">Aucun utilisateur.</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="bo-outils" x-show="totalUtilisateursGlobal > 0" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="'page ' + pageUtilisateursGlobal + ' sur ' + nbPagesUtilisateursGlobal()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageUtilisateursGlobal(-1)" :disabled="pageUtilisateursGlobal <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageUtilisateursGlobal(1)" :disabled="pageUtilisateursGlobal >= nbPagesUtilisateursGlobal()">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Vue : fiche d'un utilisateur -->
       <template x-if="!chargement && vue === 'utilisateur' && utilisateurEdite">
         <div>
-          <div class="bo-retour" @click="vue = 'utilisateurs'">← Retour aux utilisateurs</div>
+          <div class="bo-retour" @click="retourListeUtilisateurs()">← Retour aux utilisateurs</div>
           <div class="bo-titre" x-text="utilisateurEdite.prenom + ' ' + utilisateurEdite.nom"></div>
-          <div class="bo-sous" style="margin-bottom:18px" x-text="'Inscrit le ' + formatDate(utilisateurEdite.created_at)"></div>
+          <div class="bo-sous" style="margin-bottom:18px" x-text="communeActiveNom + ' · inscrit le ' + formatDate(utilisateurEdite.created_at)"></div>
+          <div class="bo-carte" x-show="utilisateurEdite.bloque_le" style="padding:12px 18px; margin-bottom:14px; border-color:#f87171">
+            <strong style="color:#b91c1c">Compte bloqué</strong>
+            <span class="bo-info" x-text="' depuis le ' + formatDate(utilisateurEdite.bloque_le) + (utilisateurEdite.bloque_motif ? ' — ' + utilisateurEdite.bloque_motif : '')"></span>
+          </div>
 
           <div class="bo-carte" style="padding:16px 18px; max-width:480px">
             <label style="margin-top:0">Prénom</label>
@@ -3681,6 +3766,11 @@
             <div class="bo-info">Régénère un mot de passe temporaire, affiché une fois pour que tu le communiques.</div>
             <button class="bo-btn bo-btn--sec bo-btn--compact" @click="reinitialiserMdpUtilisateur()" :disabled="utilisateurEnCours">Réinitialiser le mot de passe</button>
           </div>
+          <div class="bo-carte" style="padding:14px 18px; margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+            <div class="bo-info">Envoie un lien de connexion sans mot de passe (valable 24 h) à son adresse. Tu ne vois jamais le lien.</div>
+            <button class="bo-btn bo-btn--sec bo-btn--compact" @click="envoyerLienConnexionUtilisateur()" :disabled="utilisateurEnCours || !!utilisateurEdite.bloque_le">Envoyer un lien de connexion</button>
+          </div>
+          <div class="bo-info" x-show="msgAccesUtilisateur" x-text="msgAccesUtilisateur" style="margin-top:6px"></div>
           <div class="bo-carte" x-show="resetMdpResultat" style="padding:14px 18px; margin-top:10px">
             <div style="font-weight:600; margin-bottom:6px">Nouveau mot de passe (affiché une seule fois)</div>
             <div x-text="resetMdpResultat"></div>
@@ -3716,6 +3806,11 @@
 
           <div class="bo-section-titre">Zone sensible</div>
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+            <div class="bo-info" x-text="utilisateurEdite.bloque_le ? 'Le compte est bloqué : il ne peut plus se connecter.' : 'Bloque le compte : plus aucune connexion possible, sessions coupées. Réversible.'"></div>
+            <button x-show="!utilisateurEdite.bloque_le" class="bo-btn bo-btn--sec bo-btn--compact" style="border-color:#f59e0b; color:#b45309" @click="bloquerUtilisateur()" :disabled="utilisateurEnCours">⛔ Bloquer le compte</button>
+            <button x-show="utilisateurEdite.bloque_le" class="bo-btn bo-btn--sec bo-btn--compact" @click="debloquerUtilisateur()" :disabled="utilisateurEnCours">Débloquer le compte</button>
+          </div>
+          <div class="bo-carte" style="padding:14px 18px; margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
             <div class="bo-info">Supprime le compte (anonymisation RGPD — le contenu déjà publié reste, sans identité).</div>
             <button class="bo-btn bo-btn--sec bo-btn--compact" style="border-color:#f87171; color:#f87171" @click="supprimerUtilisateur()" :disabled="utilisateurEnCours">🗑 Supprimer le compte</button>
           </div>
@@ -3727,7 +3822,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261017-1"></script>
+  <script src="/backoffice/js/app.js?v=20261023-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
