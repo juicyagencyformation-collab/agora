@@ -8,7 +8,7 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 ## 2026-10-23 — Sécurité : CORS trop permissif, CSRF, cookies SameSite=None
 
 **Gravité :** critique (lecture possible des données d'un utilisateur connecté depuis un site tiers)
-**Statut :** sur la branche `securite/cors-csrf-cookies`, **pas encore en production**
+**Statut :** en production (commit `38adb92`)
 **Fichiers :** `worker/src/lib/securite.ts` (nouveau), `worker/src/index.ts`, `worker/src/auth.ts`,
 `worker/src/backoffice/auth.ts`, `worker/src/backoffice/administration.ts`, `worker/src/routes/decouverte.ts`,
 `worker/test/securite.test.ts` (nouveau)
@@ -37,8 +37,10 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 ### Vérification
 - 228 tests passent, dont 11 nouveaux (origines pirates refusées, connexion depuis le vrai site acceptée,
   webhook Resend non bloqué, localhost refusé hors dev).
-- À faire après déploiement : connexion habitant, mairie et backoffice sur le vrai site (et sur
-  l'adresse `.pages.dev` de secours).
+- Vérifié en production : écriture depuis `pirate.pages.dev` → 403, aucun en-tête CORS pour une origine
+  pirate ; connexion habitant et backoffice depuis `plateforme-agora.fr` et `newappcitoyenne.pages.dev`
+  → acceptées (réponse « mot de passe incorrect » avec de faux identifiants, donc non bloquées).
+- Reste à confirmer à la main : une vraie connexion habitant, mairie et backoffice.
 
 ### À retenir
 - Toute nouvelle origine légitime (ex. un futur domaine) s'ajoute dans `worker/src/lib/securite.ts`, sinon
