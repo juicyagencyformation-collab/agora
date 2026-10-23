@@ -119,8 +119,8 @@ Tout nouveau `<select x-model>` du backoffice dont les options viennent d'un `x-
 ## 2026-10-23 — Sécurité : limite de tentatives (connexion, formulaires)
 
 **Gravité :** moyenne (rien ne freinait les essais de mots de passe ni l'envoi massif de formulaires)
-**Statut :** code prêt sur la branche `securite/limite-tentatives` ; **inactif tant que le secret
-`RELAIS_SECRET` n'est pas configuré** côté Pages ET côté Worker
+**Statut :** **actif en production** depuis le 2026-10-23 (secret `RELAIS_SECRET` posé sur Pages puis
+sur le Worker)
 **Fichiers :** `worker/src/lib/securite.ts`, `worker/src/index.ts`, `worker/wrangler.toml`,
 `frontend/functions/[[path]].js`, `worker/test/securite-limite.test.ts` (nouveau)
 
@@ -146,6 +146,14 @@ Derrière le relais `/api`, le Worker ne voit pas l'IP du visiteur mais l'IP de 
 ### Vérification
 - 237 tests passent, dont 9 nouveaux (6e tentative bloquée, autre habitant sur la même IP non
   pénalisé, IP inventée ignorée, inactive sans secret).
+
+### Constaté en production (wrangler tail, 2026-10-23)
+- Le relais fonctionne : le Worker reçoit l'IP réelle. Sans lui, il voit `2a06:98c0:3600::103`
+  (IP de sortie de Cloudflare) pour **tous** les visiteurs — l'hypothèse de départ était juste.
+- Le limiteur Cloudflare est **approximatif par conception** (compteurs locaux synchronisés en
+  différé, cf. documentation) : sur une rafale de 60 tentatives, le premier blocage est arrivé vers la
+  47e, puis de façon intermittente. Il freine une attaque massive, **pas** un essai lent de mots de passe.
+- Pour un plafond strict, il faudrait un compteur d'échecs par compte (en base) ou un Durable Object.
 
 ### À retenir
 - Ordre d'activation : secret côté **Pages d'abord** (puis redéploiement Pages), **Worker ensuite**.
