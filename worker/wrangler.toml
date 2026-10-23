@@ -16,5 +16,21 @@ jurisdiction = "eu"
 [ai]
 binding = "AI"
 
+# Limite de tentatives (connexion, formulaires) — voir src/lib/securite.ts. Inactive tant que le
+# secret RELAIS_SECRET n'est pas configuré (Worker ET Pages). period : 10 ou 60 s uniquement.
+[[ratelimits]]
+name = "LIMITEUR_STRICT"
+namespace_id = "2001"
+  [ratelimits.simple]
+  limit = 5
+  period = 60
+
+[[ratelimits]]
+name = "LIMITEUR_LARGE"
+namespace_id = "2002"
+  [ratelimits.simple]
+  limit = 20
+  period = 60
+
 [triggers]
 crons = ["0 3 1 * *", "0 4 * * *", "0 */6 * * *", "0 6 * * *", "0 * * * *"]

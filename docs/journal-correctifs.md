@@ -5,6 +5,45 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-23 — Sécurité : limite de tentatives (connexion, formulaires)
+
+**Gravité :** moyenne (rien ne freinait les essais de mots de passe ni l'envoi massif de formulaires)
+**Statut :** code prêt sur la branche `securite/limite-tentatives` ; **inactif tant que le secret
+`RELAIS_SECRET` n'est pas configuré** côté Pages ET côté Worker
+**Fichiers :** `worker/src/lib/securite.ts`, `worker/src/index.ts`, `worker/wrangler.toml`,
+`frontend/functions/[[path]].js`, `worker/test/securite-limite.test.ts` (nouveau)
+
+### Problème de fond
+Derrière le relais `/api`, le Worker ne voit pas l'IP du visiteur mais l'IP de sortie de Cloudflare,
+**la même pour tout le monde**. Une limite par IP naïve aurait bloqué toute la plateforme au bout de
+5 connexions par minute.
+
+### Correction
+- Le relais (Pages Function) transmet l'IP réelle dans `X-Agora-Client-IP`, prouvée par un secret
+  partagé `RELAIS_SECRET`. Sans ce secret, une IP envoyée par un tiers est ignorée.
+- Deux limiteurs Cloudflare (`wrangler.toml`) : **strict 5/min** et **large 20/min**.
+
+| Route | Limite |
+|---|---|
+| Connexion habitant / backoffice | 5/min par **IP + email** (acharnement sur un compte) et 20/min par IP |
+| Mot de passe oublié, demande de contact, découverte (demande d'accès…) | 5/min par IP (protège aussi le quota Resend) |
+| Inscription, réinitialisation, lien de connexion, démo | 20/min par IP (plusieurs habitants sur un même Wi-Fi) |
+
+- Au-delà : réponse 429 « Trop de tentatives, réessayez dans une minute ».
+- **Garde-fous** : inactive sans binding ou sans `RELAIS_SECRET` ; les lectures (GET) ne sont jamais limitées.
+
+### Vérification
+- 237 tests passent, dont 9 nouveaux (6e tentative bloquée, autre habitant sur la même IP non
+  pénalisé, IP inventée ignorée, inactive sans secret).
+
+### À retenir
+- Ordre d'activation : secret côté **Pages d'abord** (puis redéploiement Pages), **Worker ensuite**.
+  L'inverse bloquerait tout le monde pendant l'intervalle.
+- Limite connue : 5/min reste 300/heure — un acharné peut encore épuiser le quota Resend gratuit
+  (100/jour). Acceptable au volume actuel.
+
+---
+
 ## 2026-10-23 — Sécurité : CORS trop permissif, CSRF, cookies SameSite=None
 
 **Gravité :** critique (lecture possible des données d'un utilisateur connecté depuis un site tiers)

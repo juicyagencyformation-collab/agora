@@ -1,7 +1,7 @@
 // worker/src/index.ts
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { origineAutorisee, protectionCsrf } from './lib/securite';
+import { origineAutorisee, protectionCsrf, limiterDebit } from './lib/securite';
 import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
@@ -44,6 +44,20 @@ app.use('*', cors({
   maxAge: 600,
 }));
 app.use('*', protectionCsrf);
+
+// Limite de tentatives (voir lib/securite.ts) — AVANT les app.route() concernés, sinon le
+// handler répond avant que le middleware ne s'exécute. Strict = 5/min, large = 20/min, par IP.
+for (const chemin of ['/backoffice/auth/login', '/:slug/auth/login']) {
+  app.use(chemin, limiterDebit('LIMITEUR_STRICT', { parEmail: true }), limiterDebit('LIMITEUR_LARGE'));
+}
+// Formulaires qui envoient un email : stricts (protège aussi le quota Resend).
+for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-contact', '/decouverte/communes/*']) {
+  app.use(chemin, limiterDebit('LIMITEUR_STRICT'));
+}
+// Inscription et liens à jeton : larges (plusieurs habitants peuvent partager une connexion).
+for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo']) {
+  app.use(chemin, limiterDebit('LIMITEUR_LARGE'));
+}
 
 // Découverte régionale — route publique, AVANT la résolution de tenant, sinon
 // "decouverte" serait interprété à tort comme un slug de commune.

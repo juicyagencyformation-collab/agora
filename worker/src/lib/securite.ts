@@ -42,3 +42,54 @@ export const protectionCsrf: MiddlewareHandler = async (c, next) => {
 // Cookies de session : grâce au relais same-origin, ils sont posés sur plateforme-agora.fr —
 // SameSite=Lax suffit (plus besoin de None, qui les envoyait aussi depuis des sites tiers).
 export const OPTIONS_COOKIE = { httpOnly: true, secure: true, sameSite: 'Lax', path: '/' } as const;
+
+// Comparaison de chaînes en temps constant (secrets) — évite qu'un attaquant devine une valeur
+// caractère par caractère en mesurant le temps de réponse.
+export function egaliteTempsConstant(a: string, b: string): boolean {
+  const ea = new TextEncoder().encode(a);
+  const eb = new TextEncoder().encode(b);
+  if (ea.length !== eb.length) return false;
+  let diff = 0;
+  for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+  return diff === 0;
+}
+
+// IP réelle du visiteur. Derrière le relais /api (frontend/functions/[[path]].js),
+// CF-Connecting-IP vaut l'IP de sortie des Workers Cloudflare, COMMUNE à tous les visiteurs : le
+// relais transmet donc l'IP réelle dans X-Agora-Client-IP, authentifiée par le secret partagé
+// RELAIS_SECRET (sans ce secret, n'importe qui appelant workers.dev en direct pourrait choisir
+// son IP et contourner la limite). Appel direct sans secret valide → CF-Connecting-IP.
+export function ipClient(c: any): string | null {
+  const secret = c.env?.RELAIS_SECRET;
+  const relais = c.req.header('X-Agora-Relais');
+  if (secret && relais && egaliteTempsConstant(relais, secret)) return c.req.header('X-Agora-Client-IP') || null;
+  return c.req.header('CF-Connecting-IP') || null;
+}
+
+// Limite de tentatives via les bindings Rate Limiting de Cloudflare (wrangler.toml) :
+// LIMITEUR_STRICT (5/min) et LIMITEUR_LARGE (20/min). parEmail : la clé inclut l'email du corps
+// JSON — freine l'acharnement sur UN compte sans pénaliser plusieurs habitants derrière la même
+// connexion (Wi-Fi de la salle des fêtes un jour de lancement).
+// Inactive tant que RELAIS_SECRET n'est pas configuré : sinon tous les visiteurs passant par
+// /api partageraient le même compteur (IP de sortie Cloudflare) → blocage général.
+export function limiterDebit(nomBinding: 'LIMITEUR_STRICT' | 'LIMITEUR_LARGE', options: { parEmail?: boolean } = {}): MiddlewareHandler {
+  return async (c, next) => {
+    const limiteur = (c.env as any)?.[nomBinding];
+    if (!limiteur || !(c.env as any)?.RELAIS_SECRET || METHODES_SURES.has(c.req.method)) return next();
+    const ip = ipClient(c);
+    if (!ip) return next();
+
+    let cle = `${ip}:${c.req.routePath}`;
+    if (options.parEmail) {
+      const corps: any = await c.req.json().catch(() => null);
+      const email = typeof corps?.email === 'string' ? corps.email.trim().toLowerCase() : '';
+      if (email) cle += `:${email}`;
+    }
+    const { success } = await limiteur.limit({ key: cle });
+    if (!success) {
+      c.header('Retry-After', '60');
+      return c.json({ erreur: 'Trop de tentatives, réessayez dans une minute.' }, 429);
+    }
+    return next();
+  };
+}

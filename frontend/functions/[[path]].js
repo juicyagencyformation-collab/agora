@@ -18,13 +18,22 @@ const PAGES_RACINE = ['connexion', 'reinitialiser', 'decouverte', 'rejoindre', '
 // contourne le blocage des cookies tiers de Safari/iOS (ITP) — voir CLAUDE.md.
 const WORKER_ORIGIN = 'https://agora-worker.juicy-agency-formation.workers.dev';
 
-async function relayerVersWorker(request, segments) {
+async function relayerVersWorker(request, segments, env) {
   const url = new URL(request.url);
   const cheminApi = '/' + segments.slice(1).join('/');
   const cible = new URL(cheminApi + url.search, WORKER_ORIGIN);
 
   const entetes = new Headers(request.headers);
   entetes.delete('host');
+  // IP réelle du visiteur pour la limite de tentatives du Worker (voir worker/src/lib/securite.ts) :
+  // sans ça, le Worker ne voit que l'IP de sortie de Cloudflare, commune à tous. Prouvée par le
+  // secret partagé RELAIS_SECRET ; toute valeur envoyée par le navigateur est écrasée.
+  entetes.delete('x-agora-relais');
+  entetes.delete('x-agora-client-ip');
+  if (env?.RELAIS_SECRET) {
+    entetes.set('x-agora-relais', env.RELAIS_SECRET);
+    entetes.set('x-agora-client-ip', request.headers.get('CF-Connecting-IP') || '');
+  }
 
   const estAvecCorps = !['GET', 'HEAD'].includes(request.method);
   const init = {
@@ -65,7 +74,7 @@ export async function onRequest(context) {
   const premier = segments[0];
 
   if (premier === 'api') {
-    return relayerVersWorker(context.request, segments);
+    return relayerVersWorker(context.request, segments, context.env);
   }
 
   // Liens courts pour QR code (voir worker/src/routes/liens_courts.ts) : contrairement à /api/...
