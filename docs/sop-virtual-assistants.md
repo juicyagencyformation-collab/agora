@@ -178,7 +178,8 @@ Bouton "👥 Gérer les utilisateurs" sur la fiche.
 
 Entrée **"👥 Utilisateurs"** du menu : tous les comptes, **toutes communes confondues**, quand tu ne sais pas de quelle commune est une personne.
 
-- **Recherche** par nom, prénom ou email ; **filtres** commune, rôle, statut (en service / bloqués / anonymisés) et tri (inscription récente ou dernière connexion).
+- **Recherche** par nom, prénom ou email ; **filtres** commune, rôle et statut (en service / bloqués / anonymisés).
+- **Tri** : clic sur un en-tête de colonne (Nom, Email, Commune, Rôle, Inscrit le, Dernière connexion) ; second clic = sens inverse (▲/▼).
 - Les **comptes techniques** (compte générique créé à l'activation, visiteurs de la démo) sont masqués par défaut — case « Comptes techniques » pour les voir.
 - En haut : nombre de comptes, inscrits sur 7 jours, actifs sur 30 jours.
 - **Clic sur une ligne** → la même fiche que dans « Gérer les utilisateurs » (§6.5), avec toutes ses actions. Les lignes superadmin et anonymisées sont en lecture seule.

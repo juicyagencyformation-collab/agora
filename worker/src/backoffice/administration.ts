@@ -1505,7 +1505,8 @@ const filtresUtilisateursSchema = z.object({
   commune_id: z.string().uuid().optional(),
   role: z.enum(ROLES_FILTRABLES).optional(),
   statut: z.enum(['comptes', 'bloques', 'anonymises']).default('comptes'),
-  tri: z.enum(['inscription', 'connexion']).default('inscription'),
+  tri: z.enum(['nom', 'email', 'commune', 'role', 'inscription', 'connexion']).default('inscription'),
+  sens: z.enum(['asc', 'desc']).default('desc'),
   techniques: z.enum(['0', '1']).default('0'),
   page: z.coerce.number().int().min(1).max(10000).default(1),
 });
@@ -1527,14 +1528,25 @@ app.get('/utilisateurs', async (c) => {
   if (recherche) where.or = filtreRecherche(recherche);
 
   const offset = (f.page - 1) * TAILLE_PAGE_UTILISATEURS;
+  // Tri côté serveur (liste paginée). Commune : tri sur la table liée (embed communes(nom)).
+  // created_at en second critère pour un ordre stable d'une page à l'autre.
+  const colonnesTri: Record<typeof f.tri, string> = {
+    nom: `nom.${f.sens},prenom.${f.sens}`,
+    email: `email.${f.sens}`,
+    commune: `communes(nom).${f.sens}`,
+    role: `role.${f.sens}`,
+    inscription: `created_at.${f.sens}`,
+    connexion: `derniere_connexion_streak.${f.sens}.nullslast`,
+  };
+  const order = f.tri === 'inscription' ? colonnesTri.inscription : `${colonnesTri[f.tri]},created_at.desc`;
   const ilYA = (jours: number) => new Date(Date.now() - jours * 24 * 3600 * 1000).toISOString();
   const reels = { compte_supprime_le: 'is.null', compte_provisionne: 'eq.false', compte_visiteur_demo: 'eq.false' };
 
   const [utilisateurs, total, totalComptes, nouveaux7j, actifs30j] = await Promise.all([
     supabaseSelect(c.env, 'users', {
       ...where,
-      select: 'id,nom,prenom,email,role,commune_id,created_at,derniere_connexion_streak,bloque_le,bloque_motif,compte_supprime_le',
-      order: f.tri === 'connexion' ? 'derniere_connexion_streak.desc.nullslast,created_at.desc' : 'created_at.desc',
+      select: 'id,nom,prenom,email,role,commune_id,created_at,derniere_connexion_streak,bloque_le,bloque_motif,compte_supprime_le,communes(nom)',
+      order,
       limit: String(TAILLE_PAGE_UTILISATEURS),
       offset: String(offset),
     }),
@@ -1544,14 +1556,8 @@ app.get('/utilisateurs', async (c) => {
     supabaseCount(c.env, 'users', { ...reels, derniere_connexion_streak: `gte.${ilYA(30).slice(0, 10)}` }),
   ]);
 
-  const idsCommunes = [...new Set(utilisateurs.map((u: any) => u.commune_id))];
-  const communes = idsCommunes.length
-    ? await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `in.(${idsCommunes.join(',')})` })
-    : [];
-  const nomCommune = new Map(communes.map((cm: any) => [cm.id, cm.nom]));
-
   return c.json({
-    utilisateurs: utilisateurs.map((u: any) => ({ ...u, commune_nom: nomCommune.get(u.commune_id) ?? '?' })),
+    utilisateurs: utilisateurs.map(({ communes, ...u }: any) => ({ ...u, commune_nom: communes?.nom ?? '?' })),
     page: f.page, taille: TAILLE_PAGE_UTILISATEURS, total,
     stats: { total: totalComptes, nouveaux_7j: nouveaux7j, actifs_30j: actifs30j },
   });

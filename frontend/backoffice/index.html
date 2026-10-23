@@ -3686,10 +3686,6 @@
               <option value="bloques">Bloqués</option>
               <option value="anonymises">Anonymisés (RGPD)</option>
             </select>
-            <select x-model="filtresUtilisateursGlobal.tri" @change="appliquerFiltresUtilisateursGlobal()">
-              <option value="inscription">Inscription la plus récente</option>
-              <option value="connexion">Dernière connexion</option>
-            </select>
             <label class="bo-info" style="display:flex; align-items:center; gap:6px; margin:0">
               <input type="checkbox" x-model="filtresUtilisateursGlobal.techniques" @change="appliquerFiltresUtilisateursGlobal()" style="width:auto" />
               Comptes techniques
@@ -3699,7 +3695,12 @@
           <div class="bo-carte">
             <table>
               <thead>
-                <tr><th>Nom</th><th>Email</th><th>Commune</th><th>Rôle</th><th>Inscrit le</th><th>Dernière connexion</th></tr>
+                <tr>
+                  <template x-for="col in [['nom','Nom'],['email','Email'],['commune','Commune'],['role','Rôle'],['inscription','Inscrit le'],['connexion','Dernière connexion']]" :key="col[0]">
+                    <th @click="trierUtilisateursGlobal(col[0])" style="cursor:pointer; user-select:none; white-space:nowrap" title="Trier"
+                        x-text="col[1] + flecheTriUtilisateurs(col[0])"></th>
+                  </template>
+                </tr>
               </thead>
               <tbody>
                 <template x-for="u in utilisateursGlobal" :key="u.id">
@@ -3822,7 +3823,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261023-1"></script>
+  <script src="/backoffice/js/app.js?v=20261023-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

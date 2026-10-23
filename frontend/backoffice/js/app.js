@@ -78,7 +78,7 @@ function backoffice() {
     pageUtilisateursGlobal: 1,
     totalUtilisateursGlobal: 0,
     statsUtilisateurs: null,
-    filtresUtilisateursGlobal: { recherche: '', commune_id: '', role: '', statut: 'comptes', tri: 'inscription', techniques: false },
+    filtresUtilisateursGlobal: { recherche: '', commune_id: '', role: '', statut: 'comptes', tri: 'inscription', sens: 'desc', techniques: false },
     retourUtilisateur: 'commune', // d'où vient la fiche utilisateur ouverte : 'commune' ou 'global'
     msgAccesUtilisateur: '',
     utilisateurEdite: null,
@@ -2829,7 +2829,7 @@ function backoffice() {
     async chargerUtilisateursGlobal() {
       this.erreurChargement = '';
       const f = this.filtresUtilisateursGlobal;
-      const params = new URLSearchParams({ statut: f.statut, tri: f.tri, page: this.pageUtilisateursGlobal });
+      const params = new URLSearchParams({ statut: f.statut, tri: f.tri, sens: f.sens, page: this.pageUtilisateursGlobal });
       if (f.recherche) params.set('recherche', f.recherche);
       if (f.commune_id) params.set('commune_id', f.commune_id);
       if (f.role) params.set('role', f.role);
@@ -2846,6 +2846,18 @@ function backoffice() {
     appliquerFiltresUtilisateursGlobal() {
       this.pageUtilisateursGlobal = 1;
       this.chargerUtilisateursGlobal();
+    },
+    // Clic sur un en-tête : trie par cette colonne ; second clic = sens inverse. Dates : plus
+    // récent d'abord au premier clic ; texte : ordre alphabétique.
+    trierUtilisateursGlobal(colonne) {
+      const f = this.filtresUtilisateursGlobal;
+      if (f.tri === colonne) f.sens = f.sens === 'asc' ? 'desc' : 'asc';
+      else { f.tri = colonne; f.sens = ['inscription', 'connexion'].includes(colonne) ? 'desc' : 'asc'; }
+      this.appliquerFiltresUtilisateursGlobal();
+    },
+    flecheTriUtilisateurs(colonne) {
+      const f = this.filtresUtilisateursGlobal;
+      return f.tri === colonne ? (f.sens === 'asc' ? ' ▲' : ' ▼') : '';
     },
     nbPagesUtilisateursGlobal() {
       return Math.max(1, Math.ceil(this.totalUtilisateursGlobal / this.tailleUtilisateurs));
