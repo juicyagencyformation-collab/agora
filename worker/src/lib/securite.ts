@@ -86,8 +86,6 @@ export function limiterDebit(nomBinding: 'LIMITEUR_STRICT' | 'LIMITEUR_LARGE', o
       if (email) cle += `:${email}`;
     }
     const { success } = await limiteur.limit({ key: cle });
-    // DIAGNOSTIC TEMPORAIRE (2026-10-23) — à retirer : vérifie la réponse réelle du limiteur.
-    console.log(JSON.stringify({ diag_limite: nomBinding, relais: ip !== (c.req.header('CF-Connecting-IP') || null), longueur_cle: cle.length, success }));
     if (!success) {
       c.header('Retry-After', '60');
       return c.json({ erreur: 'Trop de tentatives, réessayez dans une minute.' }, 429);
