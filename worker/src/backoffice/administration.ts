@@ -10,6 +10,7 @@ import { setCookie } from 'hono/cookie';
 import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
+import { OPTIONS_COOKIE } from '../lib/securite';
 import {
   envoyerEmailBienvenue, genererMotDePasseTemporaire,
   envoyerPresentation, contextePresentation, chargerModelePresentation,
@@ -345,8 +346,8 @@ app.post('/communes/:id/se-connecter-en-tant-que', async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   await journaliser(c.env, c.get('staff_id'), 'connexion_en_tant_que_maire', `${commune.nom} (${id}) — compte ${compte.email}`);
   return c.json({ ok: true, slug: commune.slug, email: compte.email });

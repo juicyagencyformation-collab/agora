@@ -11,6 +11,7 @@ import { setCookie } from 'hono/cookie';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { distanceMetres } from '../lib/geo';
 import { hasherMotDePasse } from '../lib/password';
+import { OPTIONS_COOKIE } from '../lib/securite';
 import { hasherToken, genererRefreshToken } from '../auth';
 import { genererSlugUnique } from '../backoffice/prospection';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from '../backoffice/administration';
@@ -260,8 +261,8 @@ app.post('/communes/activation/:token/creer-compte', async (c) => {
     token_hash: await hasherToken(refreshToken),
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   return c.json({ ok: true, slug: commune.slug }, 201);
 });

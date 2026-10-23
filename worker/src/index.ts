@@ -1,6 +1,7 @@
 // worker/src/index.ts
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { origineAutorisee, protectionCsrf } from './lib/securite';
 import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
@@ -36,17 +37,13 @@ import { synchroniserToutesLesLois } from './lib/sync-lois';
 
 const app = new Hono();
 
-// CORS : autorise ton frontend (Pages, réseau local, sous-domaines communes)
+// CORS + CSRF : liste d'origines EXACTE, voir lib/securite.ts (jamais de endsWith/includes).
 app.use('*', cors({
-  origin: (origin) => {
-    if (!origin) return '';
-    if (origin.endsWith('.pages.dev')) return origin;
-    if (origin === 'https://plateforme-agora.fr' || origin.endsWith('.plateforme-agora.fr')) return origin;
-    if (origin.includes('192.168.') || origin.includes('localhost')) return origin;
-    return '';
-  },
+  origin: (origin, c) => (origineAutorisee(origin, c.env) ? origin : ''),
   credentials: true,
+  maxAge: 600,
 }));
+app.use('*', protectionCsrf);
 
 // Découverte régionale — route publique, AVANT la résolution de tenant, sinon
 // "decouverte" serait interprété à tort comme un slug de commune.

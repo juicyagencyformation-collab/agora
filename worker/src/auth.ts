@@ -8,6 +8,7 @@ import { jwtMiddleware } from './middleware/jwt';
 import { gererConnexionQuotidienne, verifierBadges } from './lib/gamification';
 import { envoyerEmail } from './lib/email';
 import { hasherMotDePasse, verifierMotDePasse } from './lib/password';
+import { OPTIONS_COOKIE } from './lib/securite';
 import { declencherBienvenuePremiereInscription } from './backoffice/onboarding';
 
 const app = new Hono();
@@ -73,8 +74,8 @@ app.post('/register', async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   // En arrière-plan (n'attend pas, ne doit jamais ralentir/casser une inscription citoyenne) :
   // si c'est la toute première inscription de cette commune issue de la prospection, un email
@@ -126,8 +127,8 @@ app.post('/login', async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   const resultatConnexion = await gererConnexionQuotidienne(c.env, commune_id, user.id);
   // Filet de sécurité (badges non liés à l'XP quotidien) — idempotent, ne re-débloque rien.
@@ -174,8 +175,8 @@ app.post('/entrer-demo', async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   return c.json({ ok: true, role: visiteur.role });
 });
@@ -302,8 +303,8 @@ app.post('/lien-connexion/:token/confirmer', async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   return c.redirect(`/${slug}/`, 302);
 });
@@ -371,8 +372,8 @@ app.post('/refresh', async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', nouvelAccessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', nouveauRefreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', nouvelAccessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', nouveauRefreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   return c.json({ ok: true });
 });
@@ -493,8 +494,8 @@ app.post('/basculer/:autreUserId', jwtMiddleware, async (c) => {
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
 
-  setCookie(c, 'agora_access', accessToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 900 });
-  setCookie(c, 'agora_refresh', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', path: '/', maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
   return c.json({ ok: true, slug: commune?.slug ?? '' });
 });

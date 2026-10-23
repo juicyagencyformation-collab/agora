@@ -5,6 +5,51 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-23 — Sécurité : CORS trop permissif, CSRF, cookies SameSite=None
+
+**Gravité :** critique (lecture possible des données d'un utilisateur connecté depuis un site tiers)
+**Statut :** sur la branche `securite/cors-csrf-cookies`, **pas encore en production**
+**Fichiers :** `worker/src/lib/securite.ts` (nouveau), `worker/src/index.ts`, `worker/src/auth.ts`,
+`worker/src/backoffice/auth.ts`, `worker/src/backoffice/administration.ts`, `worker/src/routes/decouverte.ts`,
+`worker/test/securite.test.ts` (nouveau)
+
+### Constat (audit externe, vérifié dans le code)
+1. **CORS** : l'API acceptait, avec les cookies, toute origine qui *finit par* `.pages.dev` ou qui
+   *contient* `localhost` ou `192.168.`. Un site `pirate.pages.dev` pouvait appeler
+   `plateforme-agora.fr/api/...` au nom d'un habitant connecté et **lire la réponse**
+   (profil, export RGPD…).
+2. **CSRF** : rien n'empêchait un site tiers d'envoyer une écriture (POST…) avec les cookies de
+   l'utilisateur.
+3. **Cookies** en `SameSite=None` : envoyés par le navigateur même depuis un site tiers. Ce réglage
+   datait de l'époque où l'API était sur un autre domaine ; depuis le relais same-origin `/api`
+   (app citoyenne ET backoffice), il n'est plus nécessaire.
+
+### Correction
+- **Liste d'origines exacte** (regex ancrées, jamais « finit par » / « contient ») :
+  `plateforme-agora.fr` et ses sous-domaines, `newappcitoyenne.pages.dev` (secours + aperçus).
+  `localhost` / `127.0.0.1` / `192.168.x.x` seulement si `ENVIRONNEMENT=dev` (fichier local `.dev.vars`).
+- **Anti-CSRF** : toute écriture avec une origine inconnue → 403. Sans en-tête Origin (appel serveur à
+  serveur, ex. webhook Resend protégé par sa signature) → accepté, sauf si le navigateur signale une
+  requête inter-sites.
+- **Cookies `SameSite=Lax`** partout, via une constante unique `OPTIONS_COOKIE` (17 occurrences remplacées).
+- Les lectures (GET) ne sont jamais bloquées par l'anti-CSRF.
+
+### Vérification
+- 228 tests passent, dont 11 nouveaux (origines pirates refusées, connexion depuis le vrai site acceptée,
+  webhook Resend non bloqué, localhost refusé hors dev).
+- À faire après déploiement : connexion habitant, mairie et backoffice sur le vrai site (et sur
+  l'adresse `.pages.dev` de secours).
+
+### À retenir
+- Toute nouvelle origine légitime (ex. un futur domaine) s'ajoute dans `worker/src/lib/securite.ts`, sinon
+  ses écritures seront refusées (403).
+- Les sessions ouvertes avant le déploiement gardent leurs anciens cookies jusqu'au prochain
+  rafraîchissement (15 min max) : aucune déconnexion attendue.
+- Reste à traiter : limite de tentatives sur la connexion — vérifier d'abord quelle IP le Worker voit
+  derrière le relais (sinon tous les habitants partageraient le même compteur).
+
+---
+
 ## 2026-10-23 — Vigilance météo automatique : communes non alertées
 
 **Gravité :** haute (information de sécurité non affichée, échec silencieux)

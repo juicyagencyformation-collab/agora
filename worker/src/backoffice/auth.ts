@@ -9,6 +9,7 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierMotDePasse, hasherMotDePasse } from '../lib/password';
+import { OPTIONS_COOKIE } from '../lib/securite';
 import { backofficeMiddleware } from '../middleware/backoffice';
 
 const app = new Hono();
@@ -22,8 +23,6 @@ function genererRefreshToken(): string {
   return crypto.randomUUID() + crypto.randomUUID();
 }
 
-const COOKIE_BASE = { httpOnly: true, secure: true, sameSite: 'None', path: '/' } as const;
-
 async function ouvrirSession(c: any, staff_id: string) {
   const accessToken = await sign(
     { staff_id, scope: 'backoffice', exp: Math.floor(Date.now() / 1000) + 900 },
@@ -35,8 +34,8 @@ async function ouvrirSession(c: any, staff_id: string) {
     token_hash: await hasherToken(refreshToken),
     expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
   });
-  setCookie(c, 'agora_bo', accessToken, { ...COOKIE_BASE, maxAge: 900 });
-  setCookie(c, 'agora_bo_refresh', refreshToken, { ...COOKIE_BASE, maxAge: 30 * 24 * 3600 });
+  setCookie(c, 'agora_bo', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
+  setCookie(c, 'agora_bo_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 }
 
 const loginSchema = z.object({
