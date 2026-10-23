@@ -2163,7 +2163,7 @@
                     <td>
                       <select x-model="d.statut" @change="changerStatutDevis(d)" style="width:auto">
                         <template x-for="s in ['envoye','accepte','refuse','expire']" :key="s">
-                          <option :value="s" x-text="s"></option>
+                          <option :value="s" :selected="s === d.statut" x-text="s"></option>
                         </template>
                       </select>
                     </td>
@@ -2194,7 +2194,7 @@
                     <td>
                       <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
                         <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
-                          <option :value="s" x-text="s"></option>
+                          <option :value="s" :selected="s === f.statut" x-text="s"></option>
                         </template>
                       </select>
                     </td>
@@ -2264,7 +2264,7 @@
                   <td>
                     <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
                       <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
-                        <option :value="s" x-text="s"></option>
+                        <option :value="s" :selected="s === f.statut" x-text="s"></option>
                       </template>
                     </select>
                   </td>
@@ -2488,7 +2488,7 @@
                   <div class="bo-carte" style="padding:14px 18px">
                     <label>Statut</label>
                     <select x-model="prospect.statut" @change="majProspect({ statut: prospect.statut })">
-                      <template x-for="s in statuts" :key="s"><option :value="s" x-text="libelleStatut(s)"></option></template>
+                      <template x-for="s in statuts" :key="s"><option :value="s" :selected="s === prospect.statut" x-text="libelleStatut(s)"></option></template>
                     </select>
                     <label>Prochaine relance</label>
                     <div style="display:flex; align-items:center; gap:8px">
@@ -2542,7 +2542,7 @@
                   <div class="bo-carte" style="padding:14px 18px">
                     <form @submit.prevent="ajouterInteraction()" style="margin-bottom:8px">
                       <select x-model="nouvInteraction.type" style="margin-bottom:8px">
-                        <template x-for="t in typesInteraction" :key="t"><option :value="t" x-text="libelleType(t)"></option></template>
+                        <template x-for="t in typesInteraction" :key="t"><option :value="t" :selected="t === nouvInteraction.type" x-text="libelleType(t)"></option></template>
                       </select>
                       <textarea x-model="nouvInteraction.contenu" placeholder="Compte-rendu de l'échange…"></textarea>
                       <button class="bo-btn bo-btn--compact" type="submit" :disabled="!nouvInteraction.contenu.trim()">Ajouter à l'historique</button>
@@ -3153,7 +3153,7 @@
                     <td>
                       <select x-model="d.statut" @change="changerStatutDevis(d)" style="width:auto">
                         <template x-for="s in ['envoye','accepte','refuse','expire']" :key="s">
-                          <option :value="s" x-text="s"></option>
+                          <option :value="s" :selected="s === d.statut" x-text="s"></option>
                         </template>
                       </select>
                     </td>
@@ -3182,7 +3182,7 @@
                     <td>
                       <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
                         <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
-                          <option :value="s" x-text="s"></option>
+                          <option :value="s" :selected="s === f.statut" x-text="s"></option>
                         </template>
                       </select>
                     </td>
@@ -3611,7 +3611,7 @@
               <div class="bo-champ">
                 <label>Rôle</label>
                 <select x-model="nouvelUtilisateur.role" style="width:auto">
-                  <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+                  <template x-for="r in rolesGerables" :key="r"><option :value="r" :selected="r === nouvelUtilisateur.role" x-text="libelleRole(r)"></option></template>
                 </select>
               </div>
               <div class="bo-champ"><label>Mot de passe temporaire</label><input type="text" x-model="nouvelUtilisateur.password" required minlength="6" /></div>
@@ -3754,7 +3754,7 @@
             <input type="email" x-model="utilisateurEdite.email" />
             <label>Rôle</label>
             <select x-model="utilisateurEdite.role">
-              <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+              <template x-for="r in rolesGerables" :key="r"><option :value="r" :selected="r === utilisateurEdite.role" x-text="libelleRole(r)"></option></template>
             </select>
             <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
               <button class="bo-btn bo-btn--compact" @click="enregistrerUtilisateur()" :disabled="utilisateurEnCours">Enregistrer</button>
@@ -3797,7 +3797,7 @@
             <div style="min-width:140px">
               <label style="margin-top:0">Rôle (si compte à créer)</label>
               <select x-model="lienRole">
-                <template x-for="r in rolesGerables" :key="r"><option :value="r" x-text="libelleRole(r)"></option></template>
+                <template x-for="r in rolesGerables" :key="r"><option :value="r" :selected="r === lienRole" x-text="libelleRole(r)"></option></template>
               </select>
               <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:8px; width:100%" @click="lierCompte()" :disabled="utilisateurEnCours || !lienCommuneIds.length">Lier</button>
             </div>

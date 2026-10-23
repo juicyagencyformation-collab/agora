@@ -5,6 +5,39 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-23 — Backoffice : menus déroulants qui affichaient une mauvaise valeur
+
+**Gravité :** moyenne (modifications ignorées sans message, affichage trompeur)
+**Fichier :** `frontend/backoffice/index.html`
+
+### Symptôme
+Impossible de passer un compte d'**Admin à Citoyen** depuis la fiche utilisateur : après « Enregistrer »,
+le compte restait admin (cas de Fisli Aya, Salouël).
+
+### Cause
+Les menus déroulants dont les options sont générées par une boucle Alpine (`x-for`) recevaient leur
+valeur **avant** que les options existent : ils affichaient alors leur **première option**, quelle que soit
+la vraie valeur. Un compte admin apparaissait « Citoyen » ; choisir « Citoyen » ne changeait rien à
+l'écran, donc aucune modification n'était détectée, et l'enregistrement renvoyait « admin ».
+Reproduit dans Chrome sans interface avec la même version d'Alpine (3.14.9) : affiché `citoyen`,
+valeur réelle `admin`.
+
+### Portée
+10 menus touchés : rôle (fiche utilisateur, création, comptes liés), **statut des devis, des factures
+(3 écrans) et des prospects**, type d'interaction. Ils pouvaient afficher un statut faux (ex. une facture
+payée affichée « émise »). **Les données en base n'ont jamais été faussées** : seul l'affichage l'était,
+et un changement vers la valeur affichée par erreur était ignoré.
+
+### Correction
+Chaque option indique explicitement si elle est la valeur courante (`:selected`). Vérifié en
+navigateur : le menu affiche bien `admin`.
+
+### À retenir
+Tout nouveau `<select x-model>` du backoffice dont les options viennent d'un `x-for` doit porter
+`:selected="valeur === modele"` sur l'option (inutile si la première option est une option vide « Tous… »).
+
+---
+
 ## 2026-10-23 — Backoffice : onglet Utilisateurs (+ deux failles corrigées au passage)
 
 **Gravité :** faible (accès réservé au staff), corrigé à l'occasion de la nouvelle fonctionnalité
