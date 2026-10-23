@@ -28,8 +28,10 @@ export const LABELS_TYPE_VIGILANCE: Record<string, string> = {
 // l'appelant). Préférence SÉPARÉE de notif_meteo (le digest quotidien) : rare et important,
 // donc opt-out (true par défaut) plutôt qu'opt-in — quelqu'un peut vouloir être alerté d'une
 // vigilance sans pour autant recevoir un bulletin météo tous les matins.
-export async function notifierNouvelleVigilance(env: any, communeId: string, type: string, niveau: string) {
-  const userIds = await utilisateursAbonnesA(env, communeId, 'notif_vigilance');
+// abonnes : déjà récupérés en lot par la synchro auto (une requête pour toutes les communes) —
+// omis par la route manuelle, qui ne concerne qu'une commune.
+export async function notifierNouvelleVigilance(env: any, communeId: string, type: string, niveau: string, abonnes?: string[]) {
+  const userIds = abonnes ?? await utilisateursAbonnesA(env, communeId, 'notif_vigilance');
   if (!userIds.length) return;
   await envoyerNotificationAUtilisateurs(
     env, communeId, userIds,
@@ -56,14 +58,24 @@ async function resumeMeteoDuJour(lat: number, lng: number): Promise<string | nul
   }
 }
 
+// Abonnés lus en UNE requête puis regroupés par commune : la table communes contient des
+// milliers de prospects sans utilisateur, une requête par commune dépasserait la limite de
+// sous-requêtes Cloudflare (même piège que lib/vigilance-meteofrance.ts, constaté 2026-10-23).
 export async function envoyerResumeMeteoMatinal(env: any) {
-  const communes = await supabaseSelectTout(env, 'communes', { select: 'id,lat,lng' });
+  const abonnes = await supabaseSelectTout(env, 'users', { select: 'id,commune_id', notif_meteo: 'eq.true' });
+  if (!abonnes.length) return;
+  const abonnesParCommune = new Map<string, string[]>();
+  for (const u of abonnes) {
+    abonnesParCommune.set(u.commune_id, [...(abonnesParCommune.get(u.commune_id) ?? []), u.id]);
+  }
+
+  const communes = await supabaseSelect(env, 'communes', {
+    select: 'id,lat,lng', id: `in.(${[...abonnesParCommune.keys()].join(',')})`,
+    lat: 'not.is.null', lng: 'not.is.null',
+  });
 
   for (const commune of communes) {
-    if (commune.lat == null || commune.lng == null) continue;
-
-    const userIds = await utilisateursAbonnesA(env, commune.id, 'notif_meteo');
-    if (!userIds.length) continue;
+    const userIds = abonnesParCommune.get(commune.id) ?? [];
 
     const resumeMeteo = await resumeMeteoDuJour(commune.lat, commune.lng);
     if (!resumeMeteo) continue;
