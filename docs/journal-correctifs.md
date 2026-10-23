@@ -58,8 +58,9 @@ Aucune erreur visible : les jours sans vigilance, le problème était invisible.
 - 217 tests passent.
 - Lecture de la source testée sur les données réelles du jour : un seul appel, 15 départements en
   orange vent, Somme = orange de 10h à 20h (heure de Paris).
-- Confirmation en production : voir l'apparition de l'alerte auto pour Eaucourt dans `alertes_meteo`
-  au premier passage du cron après déploiement.
+- **Confirmé en production** au passage du cron de 11h00 (heure de Paris) : Eaucourt reçoit l'alerte
+  orange vent avec les horaires officiels (10h → 20h), et **175 communes** au total sont servies en
+  une seule exécution (Somme, Oise, Calvados, Seine-Maritime…), contre 4 avant le correctif.
 
 ### À retenir
 - **Jamais de boucle de requêtes par commune dans un cron** : la table `communes` contient des
