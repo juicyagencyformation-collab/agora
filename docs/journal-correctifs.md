@@ -40,7 +40,7 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 - Vérifié en production : écriture depuis `pirate.pages.dev` → 403, aucun en-tête CORS pour une origine
   pirate ; connexion habitant et backoffice depuis `plateforme-agora.fr` et `newappcitoyenne.pages.dev`
   → acceptées (réponse « mot de passe incorrect » avec de faux identifiants, donc non bloquées).
-- Reste à confirmer à la main : une vraie connexion habitant, mairie et backoffice.
+- Confirmé par Léandre : vraies connexions habitant, mairie et backoffice fonctionnelles (cookies Lax acceptés).
 
 ### À retenir
 - Toute nouvelle origine légitime (ex. un futur domaine) s'ajoute dans `worker/src/lib/securite.ts`, sinon
