@@ -171,6 +171,7 @@ Bouton "👥 Gérer les utilisateurs" sur la fiche.
 - **Réinitialiser le mot de passe** : affiché une seule fois à l'écran, jamais envoyé par email — à communiquer toi-même à la personne.
 - **Envoyer un lien de connexion** : envoie à la personne, **dans sa propre boîte mail**, un lien pour se connecter sans mot de passe, valable 24 h. Tu ne vois jamais le lien, c'est voulu. À préférer à la réinitialisation quand quelqu'un « n'arrive plus à se connecter ».
 - **⛔ Bloquer le compte** : la personne ne peut plus se connecter, ses sessions sont coupées (sous 15 min au plus). **Réversible** avec « Débloquer le compte ». Indique un motif (visible du staff uniquement). À utiliser en cas d'abus, à la place de la suppression.
+- **Comptes liés** : uniquement pour une personne qui **administre plusieurs communes** (ex. secrétaire mutualisée). Le rôle des comptes créés se choisit à chaque fois (aucun par défaut) et une confirmation liste les communes concernées. **Ne jamais s'en servir pour corriger la commune d'un habitant** — demander à Léandre. « Délier » ne supprime pas le compte : la confirmation qui suit propose de le supprimer.
 - **🗑 Supprimer un compte** : ceci **anonymise** le compte (RGPD), ce n'est **pas réversible**. Le contenu déjà publié reste, mais l'identité est effacée.
 - Les comptes **superadmin** ne sont modifiables par aucune de ces actions (refusé par le serveur).
 
@@ -241,6 +242,7 @@ Entrée **"🏷 Stickers"** du menu (s'ouvre dans un nouvel onglet), ou bouton *
 - ☐ Une demande explicite de "ne plus être contacté" va au statut **"Ne plus contacter"**, pas "Perdu" (qui reprogrammerait une relance dans 10 mois).
 - ☐ Jamais "Lancer la séquence maintenant" hors test, sauf instruction explicite.
 - ☐ "Renvoyer les accès" écrase le mot de passe — vérifier que c'est vraiment nécessaire avant de cliquer.
+- ☐ « Comptes liés » = personnes qui administrent plusieurs communes, jamais pour déplacer un habitant.
 - ☐ Jamais toucher au Palier gratuit / à la Tarification / aux Comptes staff sans validation de Léandre.
 - ☐ Un bounce générique (souvent un filtrage anti-spam ponctuel, ex. Orange/Wanadoo) n'est pas forcément une adresse morte — ne pas la considérer comme définitivement invalide sans vérifier.
 - ☐ La suppression d'un utilisateur est une anonymisation **irréversible** — en cas d'abus, **bloquer** d'abord (réversible).

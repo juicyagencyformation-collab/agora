@@ -5,6 +5,32 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-23 — Backoffice : « Comptes liés » créait des comptes admin trop facilement
+
+**Gravité :** haute (une habitante s'est retrouvée admin de 3 communes, dont 2 sans rapport avec elle)
+**Fichiers :** `worker/src/backoffice/administration.ts`, `frontend/backoffice/*`, `docs/sop-virtual-assistants.md`
+
+### Incident
+Le 12 octobre, pour rattacher une habitante (Fisli Aya) inscrite par erreur à Eaucourt, l'écran
+« Comptes liés » a été utilisé avec 3 communes sélectionnées : 3 comptes **admin** créés en 1,4 s (rôle
+par défaut de l'écran). Deux ont été « déliés » aussitôt, mais délier ne supprime pas le compte : ils
+sont restés admin. Découvert le 23 octobre ; corrigé à la main (2 comptes anonymisés, Salouël repassé
+citoyen — ce dernier changement bloqué un temps par le bug des menus déroulants ci-dessous).
+
+### Correction
+- **Plus de rôle par défaut** (côté écran ET côté serveur, qui refuse une demande sans rôle).
+- **Confirmation** avant de lier : liste des communes, rôle des comptes qui seront créés, avertissement
+  si ce rôle donne des droits de gestion.
+- **Rôle affiché** pour chaque compte lié.
+- **Délier** propose ensuite de supprimer le compte (qui sinon garde ses droits).
+- Consigne VA : cet outil ne sert jamais à corriger la commune d'un habitant.
+
+### À retenir
+Il n'existe pas d'action « changer la commune d'un habitant ». Si le besoin revient, en faire une vraie
+action plutôt que de détourner « Comptes liés ».
+
+---
+
 ## 2026-10-23 — Backoffice : menus déroulants qui affichaient une mauvaise valeur
 
 **Gravité :** moyenne (modifications ignorées sans message, affichage trompeur)

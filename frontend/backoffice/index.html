@@ -3781,7 +3781,7 @@
           <div class="bo-info" style="margin-bottom:8px">Pour une secrétaire administrant plusieurs communes : attribue-lui une ou plusieurs autres communes, avec le même email que ce compte — elle pourra basculer d'un clic entre toutes, sans ressaisir de mot de passe. Si elle n'a pas encore de compte sur une commune choisie, il est créé automatiquement (mot de passe aléatoire, jamais utilisé).</div>
           <template x-for="cl in comptesLies" :key="cl.user_id">
             <div class="bo-carte" style="padding:12px 18px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
-              <div><strong x-text="cl.commune_nom"></strong> — <span x-text="cl.email"></span></div>
+              <div><strong x-text="cl.commune_nom"></strong> — <span x-text="cl.email"></span> <span class="bo-statut" :class="'bo-statut--' + cl.role" x-text="libelleRole(cl.role)" style="margin-left:6px"></span></div>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="delierCompte(cl)" :disabled="utilisateurEnCours">Délier</button>
             </div>
           </template>
@@ -3797,9 +3797,10 @@
             <div style="min-width:140px">
               <label style="margin-top:0">Rôle (si compte à créer)</label>
               <select x-model="lienRole">
+                <option value="">— Choisir —</option>
                 <template x-for="r in rolesGerables" :key="r"><option :value="r" :selected="r === lienRole" x-text="libelleRole(r)"></option></template>
               </select>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:8px; width:100%" @click="lierCompte()" :disabled="utilisateurEnCours || !lienCommuneIds.length">Lier</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:8px; width:100%" @click="lierCompte()" :disabled="utilisateurEnCours || !lienCommuneIds.length || !lienRole">Lier</button>
             </div>
           </div>
           <div class="bo-info" style="margin-top:4px">Le rôle choisi ne compte que si un nouveau compte doit être créé — sans effet si le compte existe déjà là-bas.</div>
@@ -3823,7 +3824,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261023-2"></script>
+  <script src="/backoffice/js/app.js?v=20261023-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

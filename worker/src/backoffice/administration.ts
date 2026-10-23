@@ -1395,7 +1395,9 @@ app.post('/communes/:id/utilisateurs/:userId/reinitialiser-mdp', async (c) => {
 // nouveau.
 const lierCompteSchema = z.object({
   autre_commune_id: z.string().uuid(),
-  autre_role: z.enum(ROLES_GERABLES).default('admin'),
+  // Plus de valeur par défaut (était 'admin') : le rôle d'un compte créé doit toujours être un
+  // choix explicite — incident du 2026-10-12, 3 comptes admin créés par erreur pour une habitante.
+  autre_role: z.enum(ROLES_GERABLES),
 });
 
 app.post('/communes/:id/utilisateurs/:userId/lier', async (c) => {
@@ -1445,7 +1447,7 @@ app.get('/communes/:id/utilisateurs/:userId/lies', async (c) => {
   if (!moi?.personne_id) return c.json({ comptes: [] });
 
   const autres = await supabaseSelect(c.env, 'users', {
-    select: 'id,commune_id,email', personne_id: `eq.${moi.personne_id}`, id: `neq.${userId}`,
+    select: 'id,commune_id,email,role', personne_id: `eq.${moi.personne_id}`, id: `neq.${userId}`, compte_supprime_le: 'is.null',
   });
   if (!autres.length) return c.json({ comptes: [] });
 
@@ -1453,7 +1455,8 @@ app.get('/communes/:id/utilisateurs/:userId/lies', async (c) => {
     select: 'id,nom', id: `in.(${autres.map((u: any) => u.commune_id).join(',')})`,
   });
   const comptes = autres.map((u: any) => ({
-    user_id: u.id, email: u.email, commune_nom: communes.find((cm: any) => cm.id === u.commune_id)?.nom ?? '?',
+    user_id: u.id, commune_id: u.commune_id, email: u.email, role: u.role,
+    commune_nom: communes.find((cm: any) => cm.id === u.commune_id)?.nom ?? '?',
   }));
   return c.json({ comptes });
 });

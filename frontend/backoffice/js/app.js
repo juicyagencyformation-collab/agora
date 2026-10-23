@@ -87,7 +87,7 @@ function backoffice() {
     resetMdpResultat: '',
     comptesLies: [],
     lienCommuneIds: [],
-    lienRole: 'admin',
+    lienRole: '', // toujours choisi explicitement, jamais de valeur par défaut (voir lierCompte)
     msgLienCompte: '',
     coordsEnCours: false,
     coordsMsg: '',
@@ -2676,7 +2676,7 @@ function backoffice() {
       this.msgUtilisateurs = '';
       this.msgAccesUtilisateur = '';
       this.lienCommuneIds = [];
-      this.lienRole = 'admin';
+      this.lienRole = '';
       this.msgLienCompte = '';
       this.vue = 'utilisateur';
       this.chargerComptesLies();
@@ -2694,6 +2694,16 @@ function backoffice() {
     // de passe aléatoire jamais utilisé). Une commune à la fois côté serveur, mais la sélection
     // multiple ici permet d'en relier plusieurs en un seul clic.
     async lierCompte() {
+      // Confirmation explicite : la sélection multiple + la création silencieuse de comptes ont
+      // déjà produit 3 comptes admin pour une habitante (2026-10-12).
+      if (!this.lienRole) return;
+      const noms = this.lienCommuneIds.map((id) => this.communes.find((c) => c.id === id)?.nom || '?');
+      const gestion = ['admin', 'elu', 'maire'].includes(this.lienRole);
+      const message = 'Relier ' + this.utilisateurEdite.email + ' à ' + noms.length + ' commune(s) :\n• ' + noms.join('\n• ')
+        + '\n\nSur chaque commune où cet email n\'a pas encore de compte, un compte « ' + this.libelleRole(this.lienRole).toUpperCase() + ' » sera CRÉÉ.'
+        + (gestion ? '\n\n⚠ Ce rôle donne des droits de gestion (publier, modifier, supprimer du contenu).' : '')
+        + '\n\nCet outil sert uniquement aux personnes qui administrent plusieurs communes (ex. secrétaire mutualisée). Confirmer ?';
+      if (!confirm(message)) return;
       this.utilisateurEnCours = true;
       this.msgLienCompte = '';
       let creees = 0, liees = 0;
@@ -2715,7 +2725,7 @@ function backoffice() {
         if (echecs.length) parties.push('échec : ' + echecs.join(', '));
         this.msgLienCompte = parties.join(' — ') || 'Rien à faire.';
         this.lienCommuneIds = [];
-        this.lienRole = 'admin';
+        this.lienRole = '';
         await this.chargerComptesLies();
       } finally {
         this.utilisateurEnCours = false;
@@ -2727,6 +2737,12 @@ function backoffice() {
       this.utilisateurEnCours = true;
       try {
         await boFetch('/administration/communes/' + this.communeActiveId + '/utilisateurs/' + cl.user_id + '/lier', { method: 'DELETE' });
+        // Délier ne supprime pas le compte : il garde ses droits sur l'autre commune. On propose
+        // de le supprimer dans la foulée (cas d'un compte créé par erreur).
+        if (confirm('Délié. Le compte de ' + cl.commune_nom + ' (' + this.libelleRole(cl.role) + ') existe toujours et garde ses droits.\n\nLe supprimer aussi ? (anonymisation, irréversible)')) {
+          await boFetch('/administration/communes/' + cl.commune_id + '/utilisateurs/' + cl.user_id, { method: 'DELETE' });
+          this.msgLienCompte = 'Compte de ' + cl.commune_nom + ' délié et supprimé.';
+        }
         await this.chargerComptesLies();
       } catch (e) {
         this.msgLienCompte = e.message || 'Échec';
