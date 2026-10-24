@@ -336,9 +336,11 @@ app.delete('/:id', async (c) => {
     return c.json({ erreur: 'Non autorisé' }, 403);
   }
 
-  // La photo était signalée puis effectivement supprimée : le(s) signalement(s) étaient fondés —
+  // La photo était signalée puis supprimée PAR LA MAIRIE : le(s) signalement(s) étaient fondés —
   // on récompense chaque personne qui l'avait signalée (XP + progression vers le badge "Protecteur").
-  if (photo.statut === 'masquee') {
+  // Pas quand l'auteur supprime lui-même sa photo (2026-10-24) : sinon des amis pourraient la
+  // signaler exprès puis l'auteur la retirer, pour leur faire gagner de l'XP (anti-farming).
+  if (photo.statut === 'masquee' && photo.user_id !== user_id) {
     const signalements = await supabaseSelect(c.env, 'photo_signalements', {
       select: 'user_id', commune_id: `eq.${commune_id}`, photo_id: `eq.${photo_id}`,
     });

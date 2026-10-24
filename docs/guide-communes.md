@@ -79,7 +79,7 @@ Bottin des commerces, artisans, associations et services publics. Vous pouvez cr
 
 ## A.11 Photo du jour 📸
 
-Galerie participative façon Instagram villageois — une photo par jour maximum (réglé par la mairie), avec une petite légende facultative (140 caractères). Une photo reste floutée tant qu'elle n'a pas reçu assez de validations d'autres habitants (vous ne pouvez pas valider votre propre photo). Vous pouvez choisir si la mairie a le droit de réutiliser votre photo ("libre de droit"). Toute la carte s'ouvre en plein écran d'un clic (sauf les boutons).
+Galerie participative façon Instagram villageois — une photo par jour maximum (réglé par la mairie), avec une petite légende facultative (140 caractères). Une photo reste floutée tant qu'elle n'a pas reçu assez de validations d'autres habitants (vous ne pouvez pas valider votre propre photo). Vous pouvez choisir si la mairie a le droit de réutiliser votre photo ("libre de droit"). Toute la carte s'ouvre en plein écran d'un clic (sauf les boutons). L'auteur peut **supprimer sa propre photo** (bouton 🗑️ sur sa carte) — sans pour autant pouvoir en republier une autre le même jour.
 
 ## A.12 Lois ⚖️
 
@@ -151,7 +151,7 @@ Ce module n'est pas une publication citoyenne : l'onglet est **masqué pour tout
 
 ## B.8 Modération centralisée
 
-Quatre modules ont une file de contenu masqué à traiter : **Mur des voisins, Photo du jour, Énigme photo, Mémoire du village**. Un signalement masque immédiatement le contenu ; vous choisissez ensuite de le **restaurer** ou de le **supprimer définitivement** (la suppression confirmée récompense les personnes qui avaient signalé).
+Quatre modules ont une file de contenu masqué à traiter : **Mur des voisins, Photo du jour, Énigme photo, Mémoire du village**. Un signalement masque immédiatement le contenu ; vous choisissez ensuite de le **restaurer** ou de le **supprimer définitivement** (la suppression par la mairie récompense les personnes qui avaient signalé ; pas quand l'auteur retire lui-même sa photo).
 
 ## B.9 Gestion des rôles — qui peut nommer qui
 

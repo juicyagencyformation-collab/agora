@@ -53,6 +53,7 @@ function renderPhotoDuJour(p, medaille) {
           <input type="checkbox" class="case-libre-droit" ${p.libre_de_droit ? 'checked' : ''}>
           Libre de droit
         </label>
+        <button class="btn-supprimer-photo" title="Supprimer ma photo">🗑️</button>
       ` : `
         <button class="btn-valider-photo" ${p.deja_valide ? 'disabled' : ''}>${p.deja_valide ? '✓ Validée' : `👍 ${p.total_validations}/${p.seuil_validations}`}</button>
         <button class="btn-signaler-photo" ${p.deja_signale ? 'disabled' : ''}>${p.deja_signale ? 'Signalée' : '🚩'}</button>
@@ -83,6 +84,16 @@ function renderPhotoDuJour(p, medaille) {
       body: JSON.stringify({ libre_de_droit: e.target.checked }),
     });
     if (!res.ok) { e.target.checked = !e.target.checked; afficherToastMessage('Erreur lors de la mise à jour.', 'erreur'); return; }
+    chargerPhotoDuJour();
+  });
+
+  // Suppression de sa propre photo (le serveur revérifie que c'est bien la nôtre). La limite
+  // quotidienne reste consommée : supprimer ne permet pas d'en republier une autre le jour même.
+  el.querySelector('.btn-supprimer-photo')?.addEventListener('click', async () => {
+    if (!confirm('Supprimer votre photo ? Elle disparaîtra de la galerie.\n\nAttention : cela ne permet pas d\'en publier une autre aujourd\'hui.')) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/photo-du-jour/${p.id}`, { method: 'DELETE' });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); afficherToastMessage(d.erreur || 'Suppression impossible.', 'erreur'); return; }
+    afficherToastMessage('Photo supprimée.');
     chargerPhotoDuJour();
   });
 
