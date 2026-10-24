@@ -30,8 +30,13 @@ vers la 47e tentative en rafale). Il fallait un plafond strict, par compte.
 - 251 tests passent, dont 5 nouveaux (seuil, filtres, email en minuscules, fail-open table absente et
   réseau coupé).
 
+- **Testé en production le 2026-10-24** (migration 083 appliquée) : 10 échecs → « mot de passe
+  incorrect », 11e → bloqué (429, bon message) ; un autre compte depuis la même IP n'est pas affecté.
+  Lignes de test supprimées ensuite.
+
 ### À retenir
-- Le verrou ne devient actif qu'une fois la migration 083 appliquée dans Supabase.
+- Un compte bloqué se débloque seul au bout de 15 minutes ; en urgence, supprimer ses lignes dans
+  `tentatives_connexion` (filtre sur l'email).
 
 ---
 
