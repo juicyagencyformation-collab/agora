@@ -81,6 +81,8 @@ function backoffice() {
     filtresUtilisateursGlobal: { recherche: '', commune_id: '', role: '', statut: 'comptes', tri: 'inscription', sens: 'desc', techniques: false },
     retourUtilisateur: 'commune', // d'où vient la fiche utilisateur ouverte : 'commune' ou 'global'
     msgAccesUtilisateur: '',
+    configCommuneEnCours: false,
+    configCommuneMsg: '',
     // Onglet « Avis » (avis déposés depuis l'application) — voir allerAvis.
     avisGlobal: [],
     totalAvisGlobal: 0,
@@ -2839,6 +2841,53 @@ function backoffice() {
       } else {
         this.vue = 'utilisateurs';
         await this.chargerUtilisateurs();
+      }
+    },
+
+    // — Configurer la commune (fiche commune) : mêmes réglages que l'onglet « Ma commune » de
+    // l'application, via PATCH /administration/communes/:id/configuration et POST .../logo.
+    async enregistrerConfigurationCommune() {
+      const cm = this.fiche?.commune;
+      if (!cm) return;
+      this.configCommuneEnCours = true;
+      this.configCommuneMsg = '';
+      try {
+        await boFetch('/administration/communes/' + cm.id + '/configuration', {
+          method: 'PATCH',
+          body: JSON.stringify({
+            couleur_theme: cm.couleur_theme || '#2C5F6E',
+            couleur_accent: cm.couleur_accent || '#E2C97E',
+            horaires_ouverture: cm.horaires_ouverture ?? '',
+            permanences: cm.permanences ?? '',
+            telephone_mairie: cm.telephone_mairie ?? '',
+            email_mairie: cm.email_mairie ?? '',
+          }),
+        });
+        this.configCommuneMsg = 'Enregistré.';
+      } catch (e) {
+        this.configCommuneMsg = e.message || 'Échec';
+      } finally {
+        this.configCommuneEnCours = false;
+      }
+    },
+    async envoyerLogoCommune(evenement) {
+      const fichier = evenement.target.files[0];
+      const cm = this.fiche?.commune;
+      if (!fichier || !cm) return;
+      if (fichier.size > 4 * 1024 * 1024) { this.configCommuneMsg = 'Image trop lourde (4 Mo max).'; evenement.target.value = ''; return; }
+      this.configCommuneEnCours = true;
+      this.configCommuneMsg = 'Envoi du logo…';
+      try {
+        const r = await boFetch('/administration/communes/' + cm.id + '/logo', {
+          method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
+        });
+        cm.logo_url = r.logo_url;
+        this.configCommuneMsg = 'Logo mis à jour.';
+      } catch (e) {
+        this.configCommuneMsg = e.message || 'Échec de l\'envoi';
+      } finally {
+        this.configCommuneEnCours = false;
+        evenement.target.value = '';
       }
     },
 

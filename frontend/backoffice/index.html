@@ -2997,6 +2997,57 @@
             <span class="bo-info" x-text="presentMsg"></span>
           </div>
 
+          <div class="bo-section-titre">⚙️ Configurer la commune</div>
+          <div class="bo-carte" style="padding:16px 18px; margin-bottom:16px">
+            <div class="bo-info" style="margin-bottom:12px">Mêmes réglages que l'onglet « Ma commune » de l'application, sans se connecter au compte de la mairie. Déchets, vigilance météo et contact RGPD : passer par « Se connecter en tant que ».</div>
+
+            <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:16px">
+              <div style="width:72px; height:72px; border-radius:12px; background:rgba(127,127,127,.12); display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0">
+                <template x-if="fiche?.commune.logo_url"><img :src="fiche.commune.logo_url" alt="Logo" style="max-width:100%; max-height:100%; object-fit:contain"></template>
+                <template x-if="!fiche?.commune.logo_url"><span class="bo-vide" style="font-size:11px">Aucun logo</span></template>
+              </div>
+              <div>
+                <div style="font-weight:600; margin-bottom:4px">Logo</div>
+                <input type="file" accept="image/jpeg,image/png" @change="envoyerLogoCommune($event)" :disabled="configCommuneEnCours" />
+                <div class="bo-info">JPEG ou PNG, 4 Mo maximum. Remplace le logo actuel.</div>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:14px">
+              <div>
+                <label style="margin-top:0">Couleur principale</label>
+                <input type="color" :value="fiche?.commune.couleur_theme || '#2C5F6E'" @input="fiche.commune.couleur_theme = $event.target.value" style="width:70px; height:36px; padding:2px" />
+              </div>
+              <div>
+                <label style="margin-top:0">Couleur d'accent</label>
+                <input type="color" :value="fiche?.commune.couleur_accent || '#E2C97E'" @input="fiche.commune.couleur_accent = $event.target.value" style="width:70px; height:36px; padding:2px" />
+              </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px 16px">
+              <div>
+                <label style="margin-top:0">Horaires d'ouverture</label>
+                <textarea rows="3" x-model="fiche.commune.horaires_ouverture" placeholder="Lun-Ven 9h-12h et 14h-17h"></textarea>
+              </div>
+              <div>
+                <label style="margin-top:0">Permanences</label>
+                <textarea rows="3" x-model="fiche.commune.permanences" placeholder="M. le Maire reçoit le mardi 17h-19h sur RDV"></textarea>
+              </div>
+              <div>
+                <label style="margin-top:0">Téléphone(s)</label>
+                <textarea rows="2" x-model="fiche.commune.telephone_mairie" placeholder="03 22 00 00 00"></textarea>
+              </div>
+              <div>
+                <label style="margin-top:0">Email de la mairie</label>
+                <input type="email" x-model="fiche.commune.email_mairie" placeholder="mairie@macommune.fr" />
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
+              <button class="bo-btn bo-btn--compact" @click="enregistrerConfigurationCommune()" :disabled="configCommuneEnCours">Enregistrer</button>
+              <span class="bo-info" x-text="configCommuneMsg"></span>
+            </div>
+          </div>
+
           <div class="bo-section-titre">Forfait &amp; stockage</div>
           <div class="bo-carte" style="padding:16px 18px">
             <div style="display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap">
@@ -3899,7 +3950,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261024-1"></script>
+  <script src="/backoffice/js/app.js?v=20261024-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

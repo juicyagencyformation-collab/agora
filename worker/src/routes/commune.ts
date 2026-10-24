@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseUpdate } from '../db';
-import { uploaderFichier } from '../storage';
+import { uploaderFichier, urlLogoVersionnee } from '../storage';
 import { genererQrSvgUrl } from '../lib/qr-url';
 import { deduireDepartement } from '../lib/geo';
 
@@ -128,7 +128,7 @@ app.post('/logo', jwtMiddleware, async (c) => {
   // Clé fixe (pas d'UUID) : un nouvel upload remplace directement l'ancien logo dans R2 —
   // un seul logo par commune, inutile de suivre/supprimer un ancien fichier séparément.
   const key = `${commune_id}/logo.${extension}`;
-  const url = await uploaderFichier(c.env, key, donnees, contentType);
+  const url = urlLogoVersionnee(await uploaderFichier(c.env, key, donnees, contentType));
   await supabaseUpdate(c.env, 'communes', { logo_url: url }, { id: `eq.${commune_id}` });
   return c.json({ ok: true, logo_url: url });
 });

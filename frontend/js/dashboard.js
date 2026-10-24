@@ -188,7 +188,7 @@ async function chargerChecklistOnboarding() {
         ${etape(aProfil, textes.checklist_item_profil || 'Changer le nom et prénom dans Mon profil', 'profil')}
         ${etape(aEvenement, textes.checklist_item_agenda || 'Ajouter des dates d\'événements dans Agenda', 'agenda')}
         ${etape(aArticle, textes.checklist_item_article || 'Publier un premier article', 'actualites')}
-        ${etape(aDechets, textes.checklist_item_dechets || 'Renseigner le calendrier des déchets', 'moderation')}
+        ${etape(aDechets, textes.checklist_item_dechets || 'Renseigner le calendrier des déchets', 'commune')}
         ${etape(aCollegue, textes.checklist_item_collegue || 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'moderation')}
       </ul>
     </div>

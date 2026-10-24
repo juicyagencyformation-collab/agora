@@ -15,3 +15,10 @@ export async function deleteObject(env: any, key: string): Promise<void> {
   if (!env.BUCKET_R2) return;
   await env.BUCKET_R2.delete(key);
 }
+
+// Le logo d'une commune est toujours stocké sous la même clé (`<commune>/logo.<ext>`) : son URL ne
+// change donc jamais, et navigateurs/CDN continuent d'afficher l'ancien après un remplacement. Un
+// paramètre de version (horodatage) donne une URL neuve à chaque envoi, sans toucher au fichier.
+export function urlLogoVersionnee(url: string): string {
+  return `${url.split('?')[0]}?v=${Date.now()}`;
+}

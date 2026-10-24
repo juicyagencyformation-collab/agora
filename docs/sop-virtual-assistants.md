@@ -140,6 +140,10 @@ Depuis "Communes clientes" ou Ctrl/Cmd+K.
 
 "Communes clientes" n'affiche que les communes ayant **au moins un vrai compte** (citoyen, admin ou élu — le compte générique créé à l'activation ne compte pas) **ou un forfait payant**. Les ~14 000 communes activées par la prospection sans aucune inscription n'y figurent pas : pour elles, passer par Ctrl/Cmd+K ou l'onglet Prospection.
 
+### 6.1 bis Configurer la commune à sa place
+
+Section **« ⚙️ Configurer la commune »** de la fiche : logo, couleurs, horaires, permanences, téléphone et email de la mairie — les mêmes réglages que l'onglet « Ma commune » de l'application, sans se connecter à son compte. Chaque modification est inscrite au journal d'activité. Pour les déchets, la vigilance météo ou le contact RGPD : « Se connecter en tant que ».
+
 ### 6.2 Forfait et modules
 
 Boutons rapides "🆓 Passer en Gratuit" / "💶 Passer en Version complète", ou case par case (14 modules). Passer en Gratuit vide automatiquement le prix et l'échéance.

@@ -167,7 +167,7 @@ Personne ne peut modifier son propre rôle. Seul le superadmin peut désigner un
 
 ## B.10 Réglages de la commune
 
-Depuis Modération : logo et couleurs (élu/maire/superadmin), horaires et coordonnées de la mairie, calendrier des déchets, contact RGPD, vigilance météo manuelle.
+Depuis l'onglet **🏛️ Ma commune** (visible des gestionnaires uniquement, juste avant Modération) : calendrier des déchets, couleurs, horaires et coordonnées de la mairie, logo (élu/maire/superadmin), vigilance météo et département, contact RGPD, kit « Faire connaître l'appli », onglets actifs. L'onglet **Modération** ne contient plus que la modération : contenu signalé, fréquentation, gestion des rôles.
 
 ## B.11 Ce qui reste réservé au maire seul ou au superadmin
 

@@ -74,7 +74,8 @@ async function initUtilisateur() {
     if (data.cgu_sous_traitance_a_accepter) afficherGateCguSousTraitance();
 
     const peutVoirModeration = ['admin', 'elu', 'maire', 'superadmin'].includes(data.role);
-    document.querySelectorAll('[data-onglet="moderation"]').forEach((btn) => {
+    // « Ma commune » (réglages) : mêmes personnes que Modération.
+    document.querySelectorAll('[data-onglet="moderation"], [data-onglet="commune"]').forEach((btn) => {
       btn.style.display = peutVoirModeration ? '' : 'none';
     });
 
@@ -165,6 +166,7 @@ const CHARGEURS = {
   profil: () => { chargerProfil(); initReglagesNotificationsProfil(); initSectionInstallationProfil(); chargerComptesLies(); },
   lois: () => chargerLois(),
   moderation: () => chargerPanneauModeration(),
+  commune: () => chargerPanneauCommune(),
 };
 const dejaCharges = new Set();
 

@@ -93,16 +93,47 @@ function initVoletsGeneriquesModeration() {
   if (lienAffiche) lienAffiche.href = `/backoffice/affiche-citoyens?slug=${slugKit}`;
   if (lienDossier) lienDossier.href = `/backoffice/dossier-conseil?slug=${slugKit}`;
 
-  document.getElementById('onglet-moderation')?.addEventListener('click', (e) => {
-    const toggle = e.target.closest('.volet-entete-generique');
-    if (!toggle) return;
-    const volet = toggle.nextElementSibling;
-    const ouvert = volet.classList.toggle('ouvert');
-    toggle.querySelector('.chevron').textContent = ouvert ? '▲' : '▼';
+  // Les réglages de la commune ont leur propre onglet « Ma commune » depuis le 2026-10-24 : même
+  // mécanique de volets dépliables dans les deux onglets.
+  ['onglet-moderation', 'onglet-commune'].forEach((idOnglet) => {
+    document.getElementById(idOnglet)?.addEventListener('click', (e) => {
+      const toggle = e.target.closest('.volet-entete-generique');
+      if (!toggle) return;
+      const volet = toggle.nextElementSibling;
+      const ouvert = volet.classList.toggle('ouvert');
+      toggle.querySelector('.chevron').textContent = ouvert ? '▲' : '▼';
+    });
   });
 }
 
+// Onglet « Ma commune » (index.html, #onglet-commune) : tous les réglages de la commune, séparés
+// de la modération du contenu le 2026-10-24. Les formulaires eux-mêmes sont branchés une seule
+// fois au démarrage (initVolet*, voir navigation.js) ; ici on ne fait que charger les valeurs.
+async function chargerPanneauCommune() {
+  chargerPanneauOngletsActifs();
+  chargerListeDechetsModeration();
+  chargerApercuLogoCommune();
+  chargerReglageCouleurs();
+  chargerReglageVigilanceMeteo();
+  chargerReglageContactRgpd();
+  chargerReglageSeuilPhoto();
+  chargerReglageRayonEnigme();
+  chargerReglageDureeMur();
+  chargerReglagePartageRegional();
+}
+
 async function chargerPanneauModeration() {
+  chargerStatsModeration();
+  chargerStatsConnexions();
+  chargerListeUtilisateurs();
+  chargerPhotosEnAttente();
+  chargerEnigmesEnAttente();
+  chargerMurEnAttente();
+  chargerMemoireEnAttente();
+  chargerBadgesCitoyensModeration();
+}
+
+async function chargerPanneauOngletsActifs() {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/moderation/onglets`);
   if (!res.ok) return;
   const { onglets } = await res.json();
@@ -133,24 +164,6 @@ async function chargerPanneauModeration() {
     });
     conteneur.appendChild(ligne);
   });
-
-  chargerStatsModeration();
-  chargerStatsConnexions();
-  chargerListeDechetsModeration();
-  chargerListeUtilisateurs();
-  chargerApercuLogoCommune();
-  chargerPhotosEnAttente();
-  chargerEnigmesEnAttente();
-  chargerMurEnAttente();
-  chargerMemoireEnAttente();
-  chargerReglageSeuilPhoto();
-  chargerReglageCouleurs();
-  chargerReglageRayonEnigme();
-  chargerReglageDureeMur();
-  chargerReglageContactRgpd();
-  chargerReglagePartageRegional();
-  chargerBadgesCitoyensModeration();
-  chargerReglageVigilanceMeteo();
 }
 
 // Infos mairie (horaires, permanences, tél, email) — configurables par les élus/maire, affichées

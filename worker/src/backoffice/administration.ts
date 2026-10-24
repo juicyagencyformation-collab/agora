@@ -20,7 +20,7 @@ import {
   MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT, MODELE_ONBOARDING_UPSELL_DEFAUT,
   genererLienConnexionDirecte, envoyerLienConnexionUtilisateur,
 } from './email-commune';
-import { uploaderFichier, deleteObject } from '../storage';
+import { uploaderFichier, deleteObject, urlLogoVersionnee } from '../storage';
 import { versCsv } from '../lib/csv';
 import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
 import { chargerBareme, CLES_OFFRES_TEXTE, chargerOffresTexte, enregistrerOffreTexte } from './tarification';
@@ -186,7 +186,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,horaires_ouverture,permanences,couleur_theme,couleur_accent,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -1673,6 +1673,52 @@ app.get('/avis', async (c) => {
     page: f.page, taille: TAILLE_PAGE_AVIS, total,
     stats: { total: notes.length, moyenne, repartition },
   });
+});
+
+// — Configurer la commune depuis le backoffice (fiche commune) —
+// Mêmes réglages que l'onglet « Ma commune » de l'application (routes/commune.ts), pour que le
+// staff puisse configurer une commune cliente sans se connecter à son compte. Mêmes validations.
+// Chaîne vide = efface le champ (comme PATCH /commune/infos-mairie).
+const configurationCommuneSchema = z.object({
+  couleur_theme: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  couleur_accent: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  horaires_ouverture: z.string().max(2000).nullable().optional(),
+  permanences: z.string().max(2000).nullable().optional(),
+  telephone_mairie: z.string().max(500).nullable().optional(),
+  email_mairie: z.string().max(200).nullable().optional(),
+});
+
+app.patch('/communes/:id/configuration', async (c) => {
+  const id = c.req.param('id');
+  const body = configurationCommuneSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const patch: Record<string, unknown> = {};
+  for (const [cle, valeur] of Object.entries(body.data)) {
+    patch[cle] = typeof valeur === 'string' ? (valeur.trim() || null) : valeur;
+  }
+  if (!Object.keys(patch).length) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+
+  const [commune] = await supabaseUpdate(c.env, 'communes', patch, { id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+  await journaliser(c.env, c.get('staff_id'), 'configuration_commune', `${commune.nom} : ${Object.keys(patch).join(', ')}`);
+  return c.json({ ok: true });
+});
+
+// POST /communes/:id/logo — même règles que POST /commune/logo côté app (JPEG/PNG, 4 Mo max,
+// clé fixe qui remplace l'ancien logo), voir urlLogoVersionnee pour le cache.
+app.post('/communes/:id/logo', async (c) => {
+  const id = c.req.param('id');
+  const contentType = c.req.header('Content-Type') || '';
+  if (!/^image\/(jpeg|png)$/.test(contentType)) return c.json({ erreur: 'Format non autorisé (JPEG ou PNG uniquement)' }, 400);
+  const donnees = await c.req.arrayBuffer();
+  if (donnees.byteLength > 4 * 1024 * 1024) return c.json({ erreur: 'Image trop lourde (max 4 Mo)' }, 400);
+
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `eq.${id}` });
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+  const url = urlLogoVersionnee(await uploaderFichier(c.env, `${id}/logo.${contentType.split('/')[1]}`, donnees, contentType));
+  await supabaseUpdate(c.env, 'communes', { logo_url: url }, { id: `eq.${id}` });
+  await journaliser(c.env, c.get('staff_id'), 'logo_commune', commune.nom);
+  return c.json({ ok: true, logo_url: url });
 });
 
 // GET /grille-tarifaire — les 6 tranches de population + le nombre de mois offerts pour un
