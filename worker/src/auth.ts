@@ -8,7 +8,7 @@ import { jwtMiddleware } from './middleware/jwt';
 import { gererConnexionQuotidienne, verifierBadges } from './lib/gamification';
 import { envoyerEmail } from './lib/email';
 import { hasherMotDePasse, verifierMotDePasse } from './lib/password';
-import { OPTIONS_COOKIE } from './lib/securite';
+import { OPTIONS_COOKIE, connexionVerrouillee, enregistrerEchecConnexion, effacerEchecsConnexion, MESSAGE_TROP_DE_TENTATIVES } from './lib/securite';
 import { declencherBienvenuePremiereInscription } from './backoffice/onboarding';
 
 // Compte bloqué depuis le backoffice (migration 082) — même message partout.
@@ -93,6 +93,9 @@ app.post('/login', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
   const commune_id = c.get('commune_id_resolue');
+  const emailSaisi = body.data.email.trim();
+  const communeVerrou = commune_id as string;
+  if (await connexionVerrouillee(c.env, communeVerrou, emailSaisi)) return c.json({ erreur: MESSAGE_TROP_DE_TENTATIVES }, 429);
 
   // ilike (insensible à la casse) plutôt que eq : des comptes existants ont été créés avec
   // la casse telle que tapée dans le backoffice (ex. "Mairie@..."), et un email est en
@@ -108,8 +111,10 @@ app.post('/login', async (c) => {
   });
 
   if (!user || !(await verifierMotDePasse(body.data.password.trim(), user.password_hash))) {
+    await enregistrerEchecConnexion(c.env, communeVerrou, emailSaisi);
     return c.json({ erreur: 'Email ou mot de passe incorrect' }, 401);
   }
+  await effacerEchecsConnexion(c.env, communeVerrou, emailSaisi);
   // Compte bloqué depuis le backoffice (migration 082) — vérifié après le mot de passe, pour ne
   // jamais révéler à un tiers qu'un email correspond à un compte.
   if (user.bloque_le) return c.json({ erreur: MESSAGE_COMPTE_BLOQUE }, 403);

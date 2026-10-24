@@ -390,3 +390,9 @@ async function rafraichirContenuDemoBonvivreInterne(env: any) {
   }
 }
 
+
+// Purge quotidienne des échecs de connexion de plus de 24 h (table tentatives_connexion, migration
+// 083) : le verrou ne regarde que les 15 dernières minutes, le reste ne sert plus à rien.
+export async function purgerTentativesConnexion(env: any) {
+  await supabaseDelete(env, 'tentatives_connexion', { created_at: `lt.${new Date(Date.now() - 24 * 3600 * 1000).toISOString()}` });
+}

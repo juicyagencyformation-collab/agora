@@ -5,7 +5,7 @@ import { origineAutorisee, protectionCsrf, limiterDebit } from './lib/securite';
 import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes } from './cron';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 
@@ -166,7 +166,7 @@ export default {
       await executerIsolement(env, [
         purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire,
         relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection,
-        verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection,
+        verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, purgerTentativesConnexion,
       ]);
       // rafraichirContenuDemoBonvivre(env) désactivé le 2026-10-07 sur demande explicite — voir
       // la mémoire "Cron dates démo bonvivre" pour le pourquoi et comment le réactiver proprement.

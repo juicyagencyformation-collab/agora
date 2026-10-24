@@ -9,6 +9,7 @@
 // contenant "localhost" était acceptée avec les cookies (n'importe quel site pirate.pages.dev
 // pouvait lire les données d'un utilisateur connecté). Historique : docs/journal-correctifs.md.
 import type { MiddlewareHandler } from 'hono';
+import { supabaseCount, supabaseInsert, supabaseDelete } from '../db';
 
 const ORIGINES_PROD = [
   /^https:\/\/([a-z0-9-]+\.)*plateforme-agora\.fr$/,
@@ -92,4 +93,51 @@ export function limiterDebit(nomBinding: 'LIMITEUR_STRICT' | 'LIMITEUR_LARGE', o
     }
     return next();
   };
+}
+
+// Blocage d'un compte après trop d'échecs de mot de passe (table tentatives_connexion, migration
+// 083). Plafond STRICT par compte, indépendant de l'IP — complète le limiteur Cloudflare, qui est
+// approximatif (premier blocage constaté vers la 47e tentative en rafale, 2026-10-23).
+// - Comptés que l'email existe ou non : ne révèle jamais l'existence d'un compte.
+// - Ne bloque que le mot de passe : lien de connexion et « Mot de passe oublié » restent possibles,
+//   un tiers qui provoque le blocage n'empêche donc pas le vrai titulaire d'entrer.
+// - Fail-open : si la table manque (migration non passée) ou si Supabase échoue ici, la connexion
+//   fonctionne quand même — on ne prend jamais le risque de bloquer tout le monde.
+// communeId null = backoffice (staff).
+export const MAX_ECHECS_CONNEXION = 10;
+export const FENETRE_ECHECS_MS = 15 * 60 * 1000;
+export const MESSAGE_TROP_DE_TENTATIVES = 'Trop de tentatives. Réessayez dans 15 minutes ou utilisez « Mot de passe oublié ».';
+
+const filtreCompte = (communeId: string | null, email: string) => ({
+  email: `eq.${email.trim().toLowerCase()}`,
+  commune_id: communeId ? `eq.${communeId}` : 'is.null',
+});
+
+export async function connexionVerrouillee(env: any, communeId: string | null, email: string): Promise<boolean> {
+  try {
+    const echecs = await supabaseCount(env, 'tentatives_connexion', {
+      ...filtreCompte(communeId, email),
+      created_at: `gte.${new Date(Date.now() - FENETRE_ECHECS_MS).toISOString()}`,
+    });
+    return echecs >= MAX_ECHECS_CONNEXION;
+  } catch (e) {
+    console.error('Verrou de connexion indisponible (fail-open) :', e);
+    return false;
+  }
+}
+
+export async function enregistrerEchecConnexion(env: any, communeId: string | null, email: string): Promise<void> {
+  try {
+    await supabaseInsert(env, 'tentatives_connexion', { commune_id: communeId, email: email.trim().toLowerCase() });
+  } catch (e) {
+    console.error('Enregistrement d\'échec de connexion impossible :', e);
+  }
+}
+
+export async function effacerEchecsConnexion(env: any, communeId: string | null, email: string): Promise<void> {
+  try {
+    await supabaseDelete(env, 'tentatives_connexion', filtreCompte(communeId, email));
+  } catch (e) {
+    console.error('Remise à zéro des échecs de connexion impossible :', e);
+  }
 }

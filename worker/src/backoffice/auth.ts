@@ -9,7 +9,7 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierMotDePasse, hasherMotDePasse } from '../lib/password';
-import { OPTIONS_COOKIE } from '../lib/securite';
+import { OPTIONS_COOKIE, connexionVerrouillee, enregistrerEchecConnexion, effacerEchecsConnexion, MESSAGE_TROP_DE_TENTATIVES } from '../lib/securite';
 import { backofficeMiddleware } from '../middleware/backoffice';
 
 const app = new Hono();
@@ -46,6 +46,8 @@ const loginSchema = z.object({
 app.post('/login', async (c) => {
   const body = loginSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  // Verrou par compte (commune null = backoffice), voir lib/securite.ts.
+  if (await connexionVerrouillee(c.env, null, body.data.email)) return c.json({ erreur: MESSAGE_TROP_DE_TENTATIVES }, 429);
 
   const [staff] = await supabaseSelect(c.env, 'staff_backoffice', {
     select: 'id,nom,password_hash,actif',
@@ -53,8 +55,10 @@ app.post('/login', async (c) => {
   });
 
   if (!staff || !staff.actif || !(await verifierMotDePasse(body.data.password, staff.password_hash))) {
+    await enregistrerEchecConnexion(c.env, null, body.data.email);
     return c.json({ erreur: 'Email ou mot de passe incorrect' }, 401);
   }
+  await effacerEchecsConnexion(c.env, null, body.data.email);
 
   // Bascule silencieuse vers PBKDF2 si le hash stocké était encore en ancien format
   // (SHA-256 sans sel) — cohérent avec le comportement côté citoyen.

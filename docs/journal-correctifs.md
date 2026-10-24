@@ -5,6 +5,36 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-24 — Sécurité : blocage d'un compte après 10 échecs de mot de passe
+
+**Gravité :** moyenne (le limiteur Cloudflare ne freinait pas un essai de mots de passe à petit rythme)
+**Fichiers :** `worker/src/lib/securite.ts`, `worker/src/auth.ts`, `worker/src/backoffice/auth.ts`,
+`worker/src/cron.ts`, `db/migrations/083_tentatives_connexion.sql`
+
+### Pourquoi
+Mesuré en production le 2026-10-23 : le limiteur Cloudflare par IP est approximatif (premier blocage
+vers la 47e tentative en rafale). Il fallait un plafond strict, par compte.
+
+### Correction
+- Chaque échec de mot de passe est enregistré (table `tentatives_connexion` : commune, email, date ;
+  commune vide = backoffice). **10 échecs en 15 minutes** sur un compte → connexion par mot de passe
+  refusée (429) pendant 15 minutes. Une connexion réussie remet le compteur à zéro.
+- Habitants **et** backoffice.
+- Échecs comptés que l'email existe ou non : n'indique jamais si un compte existe.
+- Lien de connexion et « Mot de passe oublié » restent utilisables : provoquer le blocage d'un compte
+  n'empêche pas son titulaire d'entrer.
+- **Fail-open** : table absente ou Supabase injoignable → la connexion fonctionne (verrou inactif,
+  erreur dans les logs). Purge quotidienne des échecs de plus de 24 h.
+
+### Vérification
+- 251 tests passent, dont 5 nouveaux (seuil, filtres, email en minuscules, fail-open table absente et
+  réseau coupé).
+
+### À retenir
+- Le verrou ne devient actif qu'une fois la migration 083 appliquée dans Supabase.
+
+---
+
 ## 2026-10-23 — Page « Rejoindre » : recherche par code postal
 
 **Gravité :** faible (gêne utilisateur, fausses demandes d'activation)
