@@ -81,6 +81,12 @@ function backoffice() {
     filtresUtilisateursGlobal: { recherche: '', commune_id: '', role: '', statut: 'comptes', tri: 'inscription', sens: 'desc', techniques: false },
     retourUtilisateur: 'commune', // d'où vient la fiche utilisateur ouverte : 'commune' ou 'global'
     msgAccesUtilisateur: '',
+    // Onglet « Avis » (avis déposés depuis l'application) — voir allerAvis.
+    avisGlobal: [],
+    totalAvisGlobal: 0,
+    pageAvisGlobal: 1,
+    statsAvis: null,
+    filtresAvis: { commune_id: '', note: '', commentaire: false },
     utilisateurEdite: null,
     utilisateurEnCours: false,
     msgUtilisateurs: '',
@@ -2834,6 +2840,55 @@ function backoffice() {
         this.vue = 'utilisateurs';
         await this.chargerUtilisateurs();
       }
+    },
+
+    // — Onglet « Avis » : avis déposés depuis l'application, toutes communes —
+    async allerAvis() {
+      this.vue = 'avis';
+      this.pageAvisGlobal = 1;
+      await this.chargerAvis();
+    },
+    async chargerAvis() {
+      this.erreurChargement = '';
+      const f = this.filtresAvis;
+      const params = new URLSearchParams({ page: this.pageAvisGlobal });
+      if (f.commune_id) params.set('commune_id', f.commune_id);
+      if (f.note) params.set('note', f.note);
+      if (f.commentaire) params.set('commentaire', '1');
+      try {
+        const r = await boFetch('/administration/avis?' + params);
+        this.avisGlobal = r.avis;
+        this.totalAvisGlobal = r.total;
+        this.statsAvis = r.stats;
+      } catch (e) {
+        this.erreurChargement = e.message || 'Erreur de chargement des avis';
+      }
+    },
+    appliquerFiltresAvis() {
+      this.pageAvisGlobal = 1;
+      this.chargerAvis();
+    },
+    nbPagesAvis() {
+      return Math.max(1, Math.ceil(this.totalAvisGlobal / 100));
+    },
+    allerPageAvis(delta) {
+      const cible = Math.min(this.nbPagesAvis(), Math.max(1, this.pageAvisGlobal + delta));
+      if (cible === this.pageAvisGlobal) return;
+      this.pageAvisGlobal = cible;
+      this.chargerAvis();
+    },
+    // Ouvre la fiche de l'auteur (mêmes règles que l'onglet Utilisateurs : superadmin et comptes
+    // anonymisés en lecture seule, voir ouvrirUtilisateurGlobal).
+    ouvrirAuteurAvis(a) {
+      if (!a.auteur) return;
+      this.ouvrirUtilisateurGlobal({ ...a.auteur, commune_id: a.commune_id, commune_nom: a.commune_nom });
+    },
+    auteurAvisCliquable(a) {
+      return a.auteur && a.auteur.role !== 'superadmin' && !a.auteur.compte_supprime_le;
+    },
+    pctNote(n) {
+      const t = this.statsAvis?.total || 0;
+      return t ? Math.round(((this.statsAvis.repartition[n] || 0) / t) * 100) : 0;
     },
 
     // — Onglet « Utilisateurs » : tous les comptes, toutes communes confondues —

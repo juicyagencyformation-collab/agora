@@ -176,6 +176,15 @@ Bouton "👥 Gérer les utilisateurs" sur la fiche.
 - **🗑 Supprimer un compte** : ceci **anonymise** le compte (RGPD), ce n'est **pas réversible**. Le contenu déjà publié reste, mais l'identité est effacée.
 - Les comptes **superadmin** ne sont modifiables par aucune de ces actions (refusé par le serveur).
 
+### 6.5 ter Avis sur l'application — onglet « ⭐ Avis »
+
+Tous les avis déposés par les habitants depuis **Mon profil** (note de 1 à 5 + commentaire facultatif), toutes communes confondues, du plus récent au plus ancien.
+
+- En haut : note moyenne, nombre d'avis, répartition par étoiles.
+- Filtres : commune, note, « avec commentaire uniquement ».
+- Clic sur le nom de l'auteur → sa fiche utilisateur (pour le recontacter). Lecture seule : un avis ne se modifie ni ne se supprime depuis le backoffice — c'est l'habitant qui le change depuis son profil.
+- Un avis négatif avec commentaire mérite une réponse rapide : c'est souvent un bug ou une incompréhension à remonter à Léandre.
+
 ### 6.5 bis Retrouver n'importe quel utilisateur — onglet « 👥 Utilisateurs »
 
 Entrée **"👥 Utilisateurs"** du menu : tous les comptes, **toutes communes confondues**, quand tu ne sais pas de quelle commune est une personne.

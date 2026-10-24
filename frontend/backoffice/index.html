@@ -19,6 +19,7 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'aujourdhui' }" @click="allerAujourdhui()">🎯 Aujourd'hui<span class="bo-tiroir__compte" x-show="totalAujourdhui()" x-text="' ' + totalAujourdhui()"></span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || (vue === 'fiche_unifiee' && fiche) }" @click="allerCommunes()">Communes clientes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'utilisateurs_global' || (vue === 'utilisateur' && retourUtilisateur === 'global') }" @click="allerUtilisateursGlobal()">👥 Utilisateurs</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'avis' }" @click="allerAvis()">⭐ Avis</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || (vue === 'fiche_unifiee' && !fiche) }" @click="allerProspection()">Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
@@ -3654,6 +3655,80 @@
       </template>
 
 
+      <!-- Vue : avis déposés depuis l'application (toutes communes) -->
+      <template x-if="!chargement && vue === 'avis'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">Avis sur l'application</div>
+              <div class="bo-sous" x-text="totalAvisGlobal.toLocaleString('fr-FR') + ' avis correspondant aux filtres'"></div>
+            </div>
+          </div>
+          <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
+
+          <div class="bo-carte" x-show="statsAvis && statsAvis.total" style="padding:14px 18px; margin-bottom:14px; display:flex; gap:28px; flex-wrap:wrap; align-items:center">
+            <div>
+              <div style="font-size:28px; font-weight:800" x-text="'★ ' + (statsAvis?.moyenne ?? '—')"></div>
+              <div class="bo-info" x-text="(statsAvis?.total ?? 0) + ' avis au total'"></div>
+            </div>
+            <div style="flex:1; min-width:220px">
+              <template x-for="n in [5,4,3,2,1]" :key="n">
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px; margin:2px 0">
+                  <span style="width:28px" x-text="n + ' ★'"></span>
+                  <div style="flex:1; height:8px; background:rgba(127,127,127,.18); border-radius:4px; overflow:hidden">
+                    <div style="height:100%; background:#f59e0b" :style="'width:' + pctNote(n) + '%'"></div>
+                  </div>
+                  <span style="width:28px; text-align:right" x-text="statsAvis?.repartition[n] ?? 0"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <div class="bo-outils" style="flex-wrap:wrap">
+            <select x-model="filtresAvis.commune_id" @change="appliquerFiltresAvis()">
+              <option value="">Toutes les communes</option>
+              <template x-for="cm in communesAvecInscrits()" :key="cm.id"><option :value="cm.id" x-text="cm.nom"></option></template>
+            </select>
+            <select x-model="filtresAvis.note" @change="appliquerFiltresAvis()">
+              <option value="">Toutes les notes</option>
+              <template x-for="n in ['5','4','3','2','1']" :key="n"><option :value="n" x-text="n + ' étoile' + (n === '1' ? '' : 's')"></option></template>
+            </select>
+            <label class="bo-info" style="display:flex; align-items:center; gap:6px; margin:0">
+              <input type="checkbox" x-model="filtresAvis.commentaire" @change="appliquerFiltresAvis()" style="width:auto" />
+              Avec commentaire uniquement
+            </label>
+          </div>
+
+          <div class="bo-carte" style="padding:0 18px">
+            <template x-for="a in avisGlobal" :key="a.id">
+              <div class="bo-avis-item">
+                <div class="bo-avis-item__tete" style="flex-wrap:wrap; gap:8px">
+                  <span class="bo-note" :class="classeNote(a.note)" x-text="'★ ' + a.note + '/5'"></span>
+                  <strong x-text="a.commune_nom"></strong>
+                  <span x-show="a.auteur" @click="ouvrirAuteurAvis(a)"
+                        :style="auteurAvisCliquable(a) ? 'cursor:pointer; text-decoration:underline' : ''"
+                        :title="auteurAvisCliquable(a) ? 'Ouvrir la fiche' : ''"
+                        x-text="a.auteur ? (a.auteur.compte_supprime_le ? 'Compte supprimé' : a.auteur.prenom + ' ' + a.auteur.nom) : ''"></span>
+                  <span class="bo-avis-item__date" x-text="formatDate(a.created_at) + (a.updated_at && a.updated_at.slice(0,16) !== a.created_at.slice(0,16) ? ' · modifié le ' + formatDate(a.updated_at) : '')"></span>
+                </div>
+                <div x-text="a.commentaire || '(sans commentaire)'" :class="{ 'bo-vide': !a.commentaire }"></div>
+              </div>
+            </template>
+            <template x-if="avisGlobal.length === 0">
+              <div class="bo-avis-item bo-vide">Aucun avis.</div>
+            </template>
+          </div>
+
+          <div class="bo-outils" x-show="totalAvisGlobal > 100" style="justify-content:space-between; margin-top:14px">
+            <span class="bo-info" x-text="'page ' + pageAvisGlobal + ' sur ' + nbPagesAvis()"></span>
+            <div style="display:flex; gap:8px">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageAvis(-1)" :disabled="pageAvisGlobal <= 1">← Précédent</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageAvis(1)" :disabled="pageAvisGlobal >= nbPagesAvis()">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Vue : tous les utilisateurs (toutes communes) -->
       <template x-if="!chargement && vue === 'utilisateurs_global'">
         <div>
@@ -3824,7 +3899,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261023-3"></script>
+  <script src="/backoffice/js/app.js?v=20261024-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

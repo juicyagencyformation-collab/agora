@@ -1626,6 +1626,55 @@ app.post('/communes/:id/utilisateurs/:userId/envoyer-lien-connexion', async (c) 
   return c.json({ ok: true, email: u.email });
 });
 
+// — Onglet « Avis » : avis déposés depuis l'application (Mon profil), toutes communes —
+// Lecture seule : un avis appartient à l'habitant (il le modifie depuis son profil), le staff ne
+// le retouche jamais. Auteur joint pour pouvoir le recontacter (clic → fiche utilisateur).
+const filtresAvisSchema = z.object({
+  commune_id: z.string().uuid().optional(),
+  note: z.coerce.number().int().min(1).max(5).optional(),
+  commentaire: z.enum(['0', '1']).default('0'),
+  page: z.coerce.number().int().min(1).max(10000).default(1),
+});
+const TAILLE_PAGE_AVIS = 100;
+
+app.get('/avis', async (c) => {
+  const brut = Object.fromEntries(Object.entries(c.req.query()).filter(([, v]) => v !== ''));
+  const parse = filtresAvisSchema.safeParse(brut);
+  if (!parse.success) return c.json({ erreur: 'Filtres invalides' }, 400);
+  const f = parse.data;
+
+  const where: Record<string, string> = {};
+  if (f.commune_id) where.commune_id = `eq.${f.commune_id}`;
+  if (f.note) where.note = `eq.${f.note}`;
+  if (f.commentaire === '1') where.commentaire = 'not.is.null';
+
+  const [avis, total, notes] = await Promise.all([
+    supabaseSelect(c.env, 'avis_application', {
+      ...where,
+      select: 'id,note,commentaire,created_at,updated_at,commune_id,'
+        + 'users(id,prenom,nom,email,role,created_at,derniere_connexion_streak,bloque_le,bloque_motif,compte_supprime_le),communes(nom)',
+      order: 'updated_at.desc',
+      limit: String(TAILLE_PAGE_AVIS),
+      offset: String((f.page - 1) * TAILLE_PAGE_AVIS),
+    }),
+    supabaseCount(c.env, 'avis_application', where),
+    supabaseSelectTout(c.env, 'avis_application', { select: 'note' }),
+  ]);
+
+  // Statistiques globales (tous avis confondus, indépendantes des filtres).
+  const repartition: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const a of notes) repartition[a.note] = (repartition[a.note] ?? 0) + 1;
+  const moyenne = notes.length ? Math.round((notes.reduce((s: number, a: any) => s + a.note, 0) / notes.length) * 10) / 10 : null;
+
+  return c.json({
+    avis: avis.map(({ users, communes, ...a }: any) => ({
+      ...a, commune_nom: communes?.nom ?? '?', auteur: users ?? null,
+    })),
+    page: f.page, taille: TAILLE_PAGE_AVIS, total,
+    stats: { total: notes.length, moyenne, repartition },
+  });
+});
+
 // GET /grille-tarifaire — les 6 tranches de population + le nombre de mois offerts pour un
 // engagement 3 ans. Rien n'est codé en dur : tout est éditable depuis le backoffice.
 app.get('/grille-tarifaire', async (c) => {
