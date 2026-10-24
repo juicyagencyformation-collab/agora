@@ -173,8 +173,8 @@ async function chargerChecklistOnboarding() {
 
   if (aProfil && aEvenement && aArticle && aDechets && aCollegue) { zone.hidden = true; return; } // tout est déjà fait
 
-  const etape = (fait, texte, cibleOnglet) => `
-    <li class="${fait ? 'etape-checklist-faite' : ''}" ${!fait ? `data-onglet-cible="${cibleOnglet}"` : ''}>
+  const etape = (fait, texte, action) => `
+    <li class="${fait ? 'etape-checklist-faite' : ''}" ${!fait ? `data-action-checklist="${action}"` : ''}>
       <span>${fait ? '✅' : '⬜'}</span> ${texte}
     </li>`;
   // Textes éditables depuis le backoffice (voir contenu-texte.ts) — replis identiques au texte
@@ -187,9 +187,9 @@ async function chargerChecklistOnboarding() {
       <ul class="liste-checklist-onboarding">
         ${etape(aProfil, textes.checklist_item_profil || 'Changer le nom et prénom dans Mon profil', 'profil')}
         ${etape(aEvenement, textes.checklist_item_agenda || 'Ajouter des dates d\'événements dans Agenda', 'agenda')}
-        ${etape(aArticle, textes.checklist_item_article || 'Publier un premier article', 'actualites')}
-        ${etape(aDechets, textes.checklist_item_dechets || 'Renseigner le calendrier des déchets', 'commune')}
-        ${etape(aCollegue, textes.checklist_item_collegue || 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'moderation')}
+        ${etape(aArticle, textes.checklist_item_article || 'Publier un premier article', 'article')}
+        ${etape(aDechets, textes.checklist_item_dechets || 'Renseigner le calendrier des déchets', 'dechets')}
+        ${etape(aCollegue, textes.checklist_item_collegue || 'Donner un accès à un collègue (Modération → Gestion des rôles)', 'collegue')}
       </ul>
     </div>
   `;
@@ -197,9 +197,36 @@ async function chargerChecklistOnboarding() {
     localStorage.setItem(cleMasquee, '1');
     zone.hidden = true;
   });
-  zone.querySelectorAll('[data-onglet-cible]').forEach((li) => {
-    li.addEventListener('click', () => activerOnglet(li.dataset.ongletCible));
+  zone.querySelectorAll('[data-action-checklist]').forEach((li) => {
+    li.addEventListener('click', () => lancerActionChecklist(li.dataset.actionChecklist));
   });
+}
+
+// Chaque étape mène directement là où l'on agit (formulaire ouvert, volet déplié), pas seulement
+// en haut de l'onglet — depuis la création de l'onglet « Ma commune » (2026-10-24), arriver sur un
+// onglet aux volets fermés laissait la personne chercher. [onglet, id de l'élément, est un volet]
+const ACTIONS_CHECKLIST = {
+  profil: ['profil', 'btn-editer-identite', false],
+  agenda: ['agenda', 'btn-ouvrir-creation-agenda', false],
+  article: ['actualites', 'btn-ouvrir-creation-article', false],
+  dechets: ['commune', 'entete-volet-dechets', true],
+  collegue: ['moderation', 'entete-volet-roles', true],
+};
+
+function lancerActionChecklist(action) {
+  const [onglet, idCible, estVolet] = ACTIONS_CHECKLIST[action] || [];
+  if (!onglet) return;
+  activerOnglet(onglet);
+  // L'élément peut n'apparaître qu'après le chargement de l'onglet (ex. bouton ✏️ du profil,
+  // rendu en différé) : on réessaie pendant 3 s au plus.
+  const debut = Date.now();
+  const essayer = () => {
+    const el = document.getElementById(idCible);
+    if (!el) { if (Date.now() - debut < 3000) setTimeout(essayer, 150); return; }
+    if (!estVolet || !el.nextElementSibling?.classList.contains('ouvert')) el.click();
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  essayer();
 }
 
 function afficherSalut() {
