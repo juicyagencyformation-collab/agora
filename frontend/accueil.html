@@ -336,6 +336,8 @@
     }
 
     .hero-wordmark-full em { color: var(--green); font-style: italic; }
+    /* « Plateforme-Agora » fait ~353 px en 2.4rem : réduit sous 420 px pour tenir sur une ligne. */
+    @media (max-width: 420px) { .hero-wordmark-full { font-size: 1.8rem; } }
 
     /* Pills en ligne sous le logo */
     .hero-pills-row {
@@ -1403,7 +1405,7 @@
           </div>
           <div class="hero-proof">
             <div class="hero-proof-dot"></div>
-            <span>Gratuit pour commencer · Conçue en France · Données hébergées en Europe · Par un élu, pour des élus</span>
+            <span>Gratuit · Conçue en France · Données hébergées en Europe · Par un élu, pour des élus</span>
           </div>
         </div>
       </div>
@@ -1415,19 +1417,19 @@
             alt="Plateforme Agora — Échanger, Participer, Agir ensemble"
             class="hero-logo-full"
           />
-          <div class="hero-wordmark-full">Agor<em>a</em></div>
+          <div class="hero-wordmark-full">Plateforme-<em>Agora</em></div>
           <div class="hero-pills-row">
             <div class="hero-pill-inline">
               <div class="pill-icon" style="background:var(--green-light);">📢</div>
-              Alertes mairie
+              ACTUALITÉS
             </div>
             <div class="hero-pill-inline">
               <div class="pill-icon" style="background:var(--orange-light);">🗺️</div>
-              Chasse au trésor
+              ALERTES
             </div>
             <div class="hero-pill-inline">
               <div class="pill-icon" style="background:var(--coral-light);">🏘️</div>
-              Mur des voisins
+              AGENDA
             </div>
           </div>
         </div>
@@ -1452,7 +1454,7 @@
       </div>
       <div class="stat-item" data-reveal>
         <div class="stat-number" style="color:white;">Gratuit</div>
-        <div class="stat-label">pour commencer</div>
+        <div class="stat-label">version gratuite</div>
       </div>
     </div>
   </div>
@@ -1560,22 +1562,22 @@
       </div>
       <div class="steps-grid">
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--green-light);">🔍</div>
-          <div class="pillar-num">01 — Trouvez votre commune</div>
+          <div class="pillar-icon" style="background:var(--green-light); font-size:3.5rem; text-align:center;">🔍</div>
+          <div class="pillar-num" style="font-size:1.496rem;">01 — Trouvez votre commune</div>
           <div class="pillar-title">Elle est déjà prête</div>
           <p class="pillar-desc">Cherchez le nom de votre village sur la page d'inscription : son espace existe déjà, il n'attend que vous.</p>
         </div>
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--orange-light);">✍️</div>
-          <div class="pillar-num">02 — Créez votre compte</div>
-          <div class="pillar-title">Gratuit, sans carte bancaire</div>
+          <div class="pillar-icon" style="background:var(--orange-light); font-size:3.5rem; text-align:center;">✍️</div>
+          <div class="pillar-num" style="font-size:1.496rem;">02 — Créez votre compte</div>
+          <div class="pillar-title">Gratuit</div>
           <p class="pillar-desc">Un email, un mot de passe : votre compte est créé et connecté immédiatement, sans attendre personne.</p>
         </div>
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--coral-light);">🚀</div>
-          <div class="pillar-num">03 — C'est en ligne</div>
+          <div class="pillar-icon" style="background:var(--coral-light); font-size:3.5rem; text-align:center;">🚀</div>
+          <div class="pillar-num" style="font-size:1.496rem;">03 — C'est en ligne</div>
           <div class="pillar-title">Vous activez à votre rythme</div>
-          <p class="pillar-desc">Agenda et Alertes sont actifs tout de suite. Les autres modules s'ajoutent quand votre commune est prête.</p>
+          <p class="pillar-desc">Agenda, Alertes et Actus sont actifs tout de suite. Les autres modules s'ajoutent quand votre commune est prête.</p>
         </div>
       </div>
     </div>
@@ -1591,8 +1593,8 @@
       </div>
       <div class="pillars-grid">
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--green-light);">🤝</div>
-          <div class="pillar-num">01 — Engagement citoyen</div>
+          <div class="pillar-icon" style="background:var(--green-light); font-size:3.5rem;">🤝</div>
+          <div class="pillar-num" style="font-size:1.496rem;">01 — Engagement citoyen</div>
           <div class="pillar-title">Des habitants qui participent, vraiment</div>
           <p class="pillar-desc">Inscriptions, présence vérifiée par géolocalisation, points citoyens et badges. La participation devient visible et mesurable — sans déclaratif, sans triche possible.</p>
           <div class="pillar-tags">
@@ -1604,8 +1606,8 @@
         </div>
 
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--orange-light);">🏛️</div>
-          <div class="pillar-num">02 — Conseil municipal</div>
+          <div class="pillar-icon" style="background:var(--orange-light); font-size:3.5rem;">🏛️</div>
+          <div class="pillar-num" style="font-size:1.496rem;">02 — Conseil municipal</div>
           <div class="pillar-title">La mairie, accessible à tous</div>
           <p class="pillar-desc">Délibérations, comptes-rendus et trombinoscope publiés dans l'appli. Alertes urgentes en un instant, signalements des habitants dans les deux sens.</p>
           <div class="pillar-tags">
@@ -1616,8 +1618,8 @@
         </div>
 
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--coral-light);">🏪</div>
-          <div class="pillar-num">03 — Vie locale</div>
+          <div class="pillar-icon" style="background:var(--coral-light); font-size:3.5rem;">🏪</div>
+          <div class="pillar-num" style="font-size:1.496rem;">03 — Vie locale</div>
           <div class="pillar-title">Commerces &amp; associations, enfin visibles</div>
           <p class="pillar-desc">Boulangerie, artisan menuisier, club de pétanque : chacun a sa fiche classée par catégorie. Plus de numéro punaisé sur un panneau depuis trois ans.</p>
           <div class="pillar-tags">
@@ -1628,8 +1630,8 @@
         </div>
 
         <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--indigo-light);">🗺️</div>
-          <div class="pillar-num">04 — Patrimoine &amp; territoire</div>
+          <div class="pillar-icon" style="background:var(--indigo-light); font-size:3.5rem;">🗺️</div>
+          <div class="pillar-num" style="font-size:1.496rem;">04 — Patrimoine &amp; territoire</div>
           <div class="pillar-title">Le village, raconté autrement</div>
           <p class="pillar-desc">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens.</p>
           <div class="pillar-tags">
@@ -1810,8 +1812,8 @@
           <ul class="pricing-features" id="features-accompagne">
             <li>Tout Autonomie, plus :</li>
             <li>Modération automatique des photos</li>
-            <li>Bilan mensuel automatique par email</li>
             <li>Support prioritaire</li>
+            <li>Bilan mensuel</li>
           </ul>
           <a href="#contact" class="btn-pricing btn-pricing-white">Devenir commune fondatrice</a>
         </div>
