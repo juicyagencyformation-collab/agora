@@ -133,7 +133,7 @@ app.put('/identite', async (c) => {
 // PUT /affichage-nom — comment le nom de l'habitant apparaît aux autres sur ses publications
 // (voir lib/nom-public.ts). S'applique aussi à tout ce qu'il a déjà publié : le nom affiché est
 // calculé à chaque lecture, jamais figé dans le contenu.
-const affichageNomSchema = z.object({ affichage_nom: z.enum(['initiale', 'habitant', 'habitante']) });
+const affichageNomSchema = z.object({ affichage_nom: z.enum(['initiale', 'anonyme']) });
 
 app.put('/affichage-nom', async (c) => {
   const commune_id = c.get('commune_id');

@@ -9,11 +9,10 @@ describe('nomPublic', () => {
     expect(nomPublic(lea, 'autre')).toEqual({ prenom: 'Léa', nom: 'M.' });
   });
   it("respecte l'anonymat choisi, sans fuite du prénom ni du nom", () => {
-    expect(nomPublic({ ...lea, affichage_nom: 'habitante' }, 'autre')).toEqual({ prenom: 'Une habitante', nom: '' });
-    expect(nomPublic({ ...lea, affichage_nom: 'habitant' }, 'autre')).toEqual({ prenom: 'Un habitant', nom: '' });
+    expect(nomPublic({ ...lea, affichage_nom: 'anonyme' }, 'autre')).toEqual({ prenom: 'Anonyme', nom: '' });
   });
   it("montre toujours son nom complet à l'intéressé lui-même", () => {
-    expect(nomPublic({ ...lea, affichage_nom: 'habitante' }, 'u1')).toEqual({ prenom: 'Léa', nom: 'martin' });
+    expect(nomPublic({ ...lea, affichage_nom: 'anonyme' }, 'u1')).toEqual({ prenom: 'Léa', nom: 'martin' });
   });
   it('reste sûr sans utilisateur ou sans nom', () => {
     expect(nomPublic(undefined, 'u1')).toEqual({ prenom: '?', nom: '' });

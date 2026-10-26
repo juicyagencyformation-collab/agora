@@ -418,8 +418,7 @@ function initReglagesRgpdProfil(data) {
     <label for="select-affichage-nom" style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Mon nom sur mes publications</label>
     <select id="select-affichage-nom">
       ${optionNom('initiale', `${escapeAttr(data.prenom || '')} ${initiale ? initiale + '.' : ''} (prénom et initiale)`)}
-      ${optionNom('habitante', 'Une habitante (anonyme)')}
-      ${optionNom('habitant', 'Un habitant (anonyme)')}
+      ${optionNom('anonyme', 'Anonyme')}
     </select>
     <p style="font-size:11.5px;color:var(--roseau);margin:4px 0 14px;">
       Ce que voient les autres habitants sur vos photos, messages, annonces et événements, y compris ceux déjà publiés.
