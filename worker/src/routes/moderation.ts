@@ -98,6 +98,7 @@ app.get('/utilisateurs', async (c) => {
   const utilisateurs = await supabaseSelect(c.env, 'users', {
     select: 'id,nom,prenom,email,role',
     commune_id: `eq.${commune_id}`,
+    compte_supprime_le: 'is.null', // comptes anonymisés : plus de connexion possible, rien à gérer
     order: 'prenom.asc',
   });
   return c.json({ utilisateurs });
@@ -122,7 +123,7 @@ app.patch('/utilisateurs/:id/role', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
   const [cible] = await supabaseSelect(c.env, 'users', {
-    select: 'id,role', commune_id: `eq.${commune_id}`, id: `eq.${cibleId}`,
+    select: 'id,role', commune_id: `eq.${commune_id}`, id: `eq.${cibleId}`, compte_supprime_le: 'is.null',
   });
   if (!cible) return c.json({ erreur: 'Utilisateur introuvable' }, 404);
 
