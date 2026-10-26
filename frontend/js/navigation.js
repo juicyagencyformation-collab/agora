@@ -281,6 +281,7 @@ document.getElementById('fond-feuille-plus')?.addEventListener('click', () => {
   initVoletEnigme();
   initVoletMur();
   initVoletRgpd();
+  initFormulaireMessageMairie();
   initVoletRegional();
   initVoletSyncLois();
   initVoletVigilanceMeteo();

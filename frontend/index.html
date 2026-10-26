@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261017-1">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261018-2">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261026-3">
 </head>
 <body>
 
@@ -47,6 +47,7 @@
   <main>
     <section id="onglet-accueil" class="onglet-contenu">
       <div id="banniere-vigilance-meteo"></div>
+      <div id="messages-mairie-accueil"></div>
 
       <div class="ligne-salut-accueil">
         <p id="salut-utilisateur" class="salut-utilisateur"></p>
@@ -361,6 +362,28 @@
 
     <section id="onglet-commune" class="onglet-contenu" hidden>
       <p style="font-size:12.5px;color:var(--roseau);margin:4px 0 14px;">👋 Configurez votre commune : logo, couleurs, horaires, calendrier des déchets…</p>
+
+      <div class="volet-reglage">
+        <button type="button" class="volet-entete-generique">
+          <span>📢 Message de la mairie</span>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="volet-contenu">
+          <p style="font-size:12.5px;color:var(--roseau);margin:0 0 10px;">Un message court affiché tout en haut de l'accueil de tous les habitants, jusqu'à la date choisie (60 jours maximum). Idéal pour une coupure d'eau, une fermeture de la mairie ou une nouveauté.</p>
+          <form id="form-message-mairie">
+            <textarea id="texte-message-mairie" maxlength="280" rows="3" required placeholder="Ex. : Coupure d'eau mardi 4 novembre de 9h à 12h, rue de l'Église."></textarea>
+            <p id="compteur-message-mairie" style="font-size:11.5px;color:var(--roseau);text-align:right;margin:2px 0 8px;">0 / 280</p>
+            <label for="fin-message-mairie" style="font-size:13px;color:var(--roseau);">Afficher jusqu'au (inclus)</label>
+            <input type="date" id="fin-message-mairie" required>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:10px 0;">
+              <input type="checkbox" id="notifier-message-mairie" style="width:auto;margin:0;">
+              Envoyer aussi une notification aux habitants
+            </label>
+            <button type="submit">Publier le message</button>
+          </form>
+          <div id="liste-messages-mairie" style="margin-top:12px;"></div>
+        </div>
+      </div>
 
       <div class="volet-reglage">
         <button type="button" id="entete-volet-dechets" class="volet-entete-generique">
@@ -733,7 +756,7 @@
   <script src="/js/utils.js?v=20261005-6"></script>
   <script src="/js/api.js?v=20261006-2"></script>
   <script src="/js/editeur-riche.js?v=20261005-6"></script>
-  <script src="/js/dashboard.js?v=20261024-3"></script>
+  <script src="/js/dashboard.js?v=20261026-3"></script>
   <script src="/js/articles.js?v=20261012-3"></script>
   <script src="/js/alertes.js?v=20261013-1"></script>
   <script src="/js/thermometre.js?v=20261005-6"></script>
@@ -751,8 +774,8 @@
   <script src="/js/profil.js?v=20261026-2"></script>
   <script src="/js/notifications.js?v=20261006-3"></script>
   <script src="/js/lois.js?v=20261005-6"></script>
-  <script src="/js/moderation.js?v=20261024-2"></script>
+  <script src="/js/moderation.js?v=20261026-3"></script>
   <script src="/js/participation-citoyenne.js?v=20261005-6"></script>
-  <script src="/js/navigation.js?v=20261024-2"></script>
+  <script src="/js/navigation.js?v=20261026-3"></script>
 </body>
 </html>

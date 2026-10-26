@@ -124,6 +124,10 @@ Accessible à tout gestionnaire (admin/élu/maire), avec des statistiques en tem
 
 Depuis l'onglet Actualités : bouton "+ Publier un article" — titre, catégorie, texte, jusqu'à 10 photos, et un sondage optionnel intégré directement dans l'article. Vous pouvez modifier, archiver ou supprimer vos publications.
 
+## B.2 bis Message de la mairie en haut de l'accueil
+
+Depuis l'onglet Ma commune, volet « 📢 Message de la mairie » : un message court (280 caractères) affiché tout en haut de l'accueil de tous les habitants jusqu'à la date choisie (60 jours maximum), par exemple pour une coupure d'eau, une fermeture de la mairie ou une nouveauté. Une case permet d'envoyer aussi une notification. Chaque habitant peut fermer le bandeau une fois lu ; il disparaît pour tous à la date de fin, et vous pouvez le retirer avant depuis le même volet.
+
 ## B.3 Créer un événement officiel ou une action citoyenne
 
 Depuis l'Agenda : un événement que vous créez est automatiquement marqué "Officiel". Pour transformer un événement en **action citoyenne avec suivi de présence** (nettoyage, plantation, chantier...) :

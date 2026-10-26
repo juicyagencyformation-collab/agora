@@ -57,6 +57,7 @@ async function chargerDashboard() {
 
   afficherSalut();
   chargerAlertesMeteoAccueil();
+  chargerMessagesMairieAccueil();
   initActionsRapidesAccueil();
   chargerChecklistOnboarding();
   chargerMeteoAccueil();
@@ -67,6 +68,43 @@ async function chargerDashboard() {
   chargerPhotoVedette();
   chargerDernierPv();
   chargerInfosMairie();
+}
+
+// Bandeau "Message de la mairie" (voir worker/src/routes/messages_mairie.ts), juste sous la
+// vigilance météo. Chaque habitant peut le fermer une fois lu : mémorisé sur son appareil
+// seulement (simple confort, il disparaît de toute façon pour tous à sa date de fin).
+const CLE_MESSAGES_MAIRIE_FERMES = 'agora_messages_mairie_fermes';
+function lireMessagesMairieFermes() {
+  try { return JSON.parse(localStorage.getItem(CLE_MESSAGES_MAIRIE_FERMES) || '[]'); } catch { return []; }
+}
+
+async function chargerMessagesMairieAccueil() {
+  const zone = document.getElementById('messages-mairie-accueil');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/messages-mairie`).catch(() => null);
+  if (!res?.ok) { zone.innerHTML = ''; return; }
+  const { messages } = await res.json();
+  const fermes = lireMessagesMairieFermes();
+  zone.innerHTML = messages.filter((m) => !fermes.includes(m.id)).map((m) => `
+    <div class="message-mairie" data-id="${escapeAttr(m.id)}">
+      <span class="message-mairie-icone" aria-hidden="true">📢</span>
+      <div class="message-mairie-texte">
+        <strong>Message de la mairie</strong>
+        <p>${texteAvecLiensCliquables(m.texte).replace(/\n/g, '<br>')}</p>
+      </div>
+      <button type="button" class="fermer-message-mairie" aria-label="J'ai lu, masquer ce message">✕</button>
+    </div>
+  `).join('');
+  zone.querySelectorAll('.fermer-message-mairie').forEach((btn) => btn.addEventListener('click', () => {
+    const bloc = btn.closest('.message-mairie');
+    try {
+      // On ne garde que les ids encore actifs : la liste ne grossit pas indéfiniment.
+      const actifs = new Set(messages.map((m) => m.id));
+      const nouveaux = [...lireMessagesMairieFermes().filter((id) => actifs.has(id)), bloc.dataset.id];
+      localStorage.setItem(CLE_MESSAGES_MAIRIE_FERMES, JSON.stringify(nouveaux));
+    } catch { /* stockage indisponible : le bandeau se masque quand même pour cette visite */ }
+    bloc.remove();
+  }));
 }
 
 // Vigilance météo (vent violent, orages, canicule...) — tout premier bloc de l'accueil, avant

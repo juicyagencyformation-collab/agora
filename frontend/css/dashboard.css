@@ -1379,3 +1379,17 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
   color: var(--roseau); font-size: 12px; padding: 0; display: flex; align-items: center; justify-content: center;
 }
 .btn-reordonner-badge:disabled { opacity: .3; }
+/* Bandeau "Message de la mairie" en haut de l'accueil (chargerMessagesMairieAccueil). */
+.message-mairie {
+  display: flex; gap: 10px; align-items: flex-start; background: var(--eauXL);
+  border: 1px solid var(--eauL); border-left: 4px solid var(--eau); border-radius: 12px;
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.message-mairie-icone { font-size: 20px; line-height: 1.2; flex-shrink: 0; }
+.message-mairie-texte { flex: 1; min-width: 0; }
+.message-mairie-texte strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--eau); }
+.message-mairie-texte p { margin: 2px 0 0; font-size: 14px; color: var(--boue); line-height: 1.4; overflow-wrap: anywhere; }
+.fermer-message-mairie {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(255,255,255,.7); color: var(--roseau); font-size: 13px;
+}

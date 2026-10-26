@@ -110,6 +110,7 @@ function initVoletsGeneriquesModeration() {
 // de la modération du contenu le 2026-10-24. Les formulaires eux-mêmes sont branchés une seule
 // fois au démarrage (initVolet*, voir navigation.js) ; ici on ne fait que charger les valeurs.
 async function chargerPanneauCommune() {
+  chargerListeMessagesMairie();
   chargerPanneauOngletsActifs();
   chargerListeDechetsModeration();
   chargerApercuLogoCommune();
@@ -262,6 +263,68 @@ async function chargerReglageContactRgpd() {
   if (!res.ok) return;
   const { commune } = await res.json();
   input.value = commune.contact_email ?? '';
+}
+
+// ── Message de la mairie (bandeau de l'accueil, voir worker/src/routes/messages_mairie.ts) ──
+
+function initFormulaireMessageMairie() {
+  const form = document.getElementById('form-message-mairie');
+  if (!form) return;
+  const texte = document.getElementById('texte-message-mairie');
+  const compteur = document.getElementById('compteur-message-mairie');
+  const fin = document.getElementById('fin-message-mairie');
+  const versIso = (d) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const plusJours = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d; };
+  fin.min = versIso(new Date());
+  fin.max = versIso(plusJours(59));
+  fin.value = versIso(plusJours(7));
+  texte.addEventListener('input', () => { compteur.textContent = `${texte.value.length} / 280`; });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const bouton = form.querySelector('button[type="submit"]');
+    bouton.disabled = true;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/messages-mairie`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        texte: texte.value.trim(),
+        fin_le: new Date(`${fin.value}T23:59:59`).toISOString(), // jusqu'à la fin du jour choisi, heure locale
+        notifier: document.getElementById('notifier-message-mairie').checked,
+      }),
+    });
+    bouton.disabled = false;
+    if (res.ok) {
+      form.reset();
+      fin.value = versIso(plusJours(7));
+      compteur.textContent = '0 / 280';
+      afficherToastMessage("Message publié en haut de l'accueil.", 'succes');
+      chargerListeMessagesMairie();
+      chargerMessagesMairieAccueil();
+    } else {
+      const d = await res.json().catch(() => ({}));
+      afficherToastMessage(typeof d.erreur === 'string' ? d.erreur : "Le message n'a pas pu être publié.", 'erreur');
+    }
+  });
+}
+
+async function chargerListeMessagesMairie() {
+  const zone = document.getElementById('liste-messages-mairie');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/messages-mairie`);
+  if (!res.ok) { zone.innerHTML = ''; return; }
+  const { messages } = await res.json();
+  if (!messages.length) { zone.innerHTML = '<p class="dechets-vide">Aucun message affiché en ce moment.</p>'; return; }
+  zone.innerHTML = "<p style=\"font-size:12.5px;font-weight:600;margin:0 0 6px;\">En ce moment sur l'accueil</p>" + messages.map((m) => `
+    <div class="ligne-dechet" style="border-left-color:var(--eau);display:flex;gap:8px;align-items:flex-start;justify-content:space-between;">
+      <span style="min-width:0;overflow-wrap:anywhere;">${escapeAttr(m.texte)}<br><small style="color:var(--roseau);">jusqu'au ${new Date(m.fin_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}</small></span>
+      <button type="button" class="btn-retirer-message-mairie" data-id="${escapeAttr(m.id)}" style="flex-shrink:0;background:transparent;color:var(--rouge);border:1.5px solid var(--rouge);padding:4px 10px;font-size:12px;border-radius:100px;">Retirer</button>
+    </div>
+  `).join('');
+  zone.querySelectorAll('.btn-retirer-message-mairie').forEach((btn) => btn.addEventListener('click', async () => {
+    const r = await appelApi(`/${window.COMMUNE_SLUG}/messages-mairie/${btn.dataset.id}`, { method: 'DELETE' });
+    if (r.ok) { afficherToastMessage('Message retiré.', 'succes'); chargerListeMessagesMairie(); chargerMessagesMairieAccueil(); }
+    else afficherToastMessage('Impossible de retirer le message.', 'erreur');
+  }));
 }
 
 function initVoletRgpd() {
