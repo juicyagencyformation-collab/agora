@@ -236,6 +236,11 @@ function backoffice() {
     devisEnCours: false,
     devisMsg: '',
     // — Facturation libre (hors commune) — voir allerFacturationLibre()
+    // — Convention « Commune fondatrice » de la fiche ouverte — voir creerConvention()
+    convention: null,
+    conventionNumerosPris: [],
+    conventionEnCours: false,
+    conventionMsg: '',
     // — Annonces de la plateforme (bandeau de l'accueil de l'app) — voir allerAnnonces()
     annonces: [],
     annoncesCibles: { communes: [], regions: [] },
@@ -401,6 +406,8 @@ function backoffice() {
       this.presentMsg = '';
       this.frequentation = null;
       this.rapport = null;
+      this.convention = null;
+      this.conventionMsg = '';
       this.rapportMsg = '';
       const aujourdhuiIso = new Date().toISOString().slice(0, 10);
       this.rapportFin = aujourdhuiIso;
@@ -439,6 +446,11 @@ function backoffice() {
           try { this.doublons = (await boFetch('/administration/communes/' + communeId + '/doublons')).doublons; } catch {}
           try { this.activiteCommune = (await boFetch('/administration/activite?commune_id=' + communeId + '&depuis=90')).evenements; } catch {}
           try { this.rgpd = await boFetch('/administration/communes/' + communeId + '/rgpd'); } catch {}
+          try {
+            const rc = await boFetch('/conventions/commune/' + communeId);
+            this.convention = this.conventionPourFormulaire(rc.convention);
+            this.conventionNumerosPris = rc.numeros_pris;
+          } catch { this.convention = null; }
           this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
           this.devisMsg = '';
           try { await this.chargerDevisFactures(communeId); } catch {}
@@ -2462,6 +2474,66 @@ function backoffice() {
     // commande reçu, facturation) sans dupliquer chargerDevisFactures pour chaque vue.
     communeIdFacturationActuelle() {
       return this.vue === 'facturation_libre' ? null : this.fiche.commune.id;
+    },
+    // Les <select> du formulaire travaillent en texte : '' = pas encore renseigné.
+    conventionPourFormulaire(c) {
+      if (!c) return null;
+      return { ...c, option_reconduction: c.option_reconduction || '',
+        citation_autorisee: c.citation_autorisee === null || c.citation_autorisee === undefined ? '' : String(c.citation_autorisee) };
+    },
+    async creerConvention() {
+      this.conventionEnCours = true;
+      this.conventionMsg = '';
+      try {
+        await boFetch('/conventions/commune/' + this.fiche.commune.id, { method: 'POST' });
+        const rc = await boFetch('/conventions/commune/' + this.fiche.commune.id);
+        this.convention = this.conventionPourFormulaire(rc.convention);
+        this.conventionNumerosPris = rc.numeros_pris;
+      } catch (e) { alert(e.message || 'Création impossible'); }
+      finally { this.conventionEnCours = false; }
+    },
+    async enregistrerConvention() {
+      const c = this.convention;
+      this.conventionEnCours = true;
+      this.conventionMsg = '';
+      const champs = ['statut', 'numero_fondatrice', 'signee_le', 'signataire_nom', 'signataire_qualite', 'deliberation_reference', 'deliberation_date',
+        'option_reconduction', 'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee'];
+      const corps = Object.fromEntries(champs.map((k) => [k, c[k] ?? null]));
+      corps.citation_autorisee = c.citation_autorisee === '' ? null : c.citation_autorisee === 'true';
+      if (['signee', 'annulee'].includes(c.statut) && !confirm(c.statut === 'signee'
+        ? 'Marquer la convention comme signée ? Le lien de la secrétaire cessera de fonctionner.'
+        : 'Annuler la convention ? Son numéro de commune fondatrice sera libéré et le lien de la secrétaire désactivé.')) {
+        this.conventionEnCours = false;
+        return;
+      }
+      try {
+        const r = await boFetch('/conventions/' + c.id, { method: 'PATCH', body: JSON.stringify(corps) });
+        this.convention = this.conventionPourFormulaire(r.convention);
+        this.conventionMsg = 'Enregistré.';
+      } catch (e) { this.conventionMsg = e.message || 'Échec de l\'enregistrement'; }
+      finally { this.conventionEnCours = false; }
+    },
+    elementsConvention() {
+      const c = this.convention || {};
+      const rempli = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+      return [
+        { libelle: 'Numéro de commune fondatrice', fait: rempli(c.numero_fondatrice) },
+        { libelle: 'Signataire', fait: rempli(c.signataire_nom) },
+        { libelle: 'Délibération (numéro et date)', fait: rempli(c.deliberation_reference) && rempli(c.deliberation_date) },
+        { libelle: 'Option de reconduction', fait: rempli(c.option_reconduction) },
+        { libelle: 'SIRET de la commune', fait: rempli(c.siret_commune) },
+        { libelle: 'Email de facturation', fait: rempli(c.facturation_email) },
+        { libelle: 'Accord pour citer la commune', fait: rempli(c.citation_autorisee) },
+        { libelle: 'Code service Chorus Pro', fait: rempli(c.code_service_chorus), facultatif: true },
+        { libelle: 'Date de mise en service souhaitée', fait: rempli(c.date_debut_souhaitee), facultatif: true },
+      ];
+    },
+    lienConvention() {
+      return this.convention ? location.origin + '/convention.html?j=' + this.convention.jeton_formulaire : '';
+    },
+    async copierLienConvention() {
+      try { await navigator.clipboard.writeText(this.lienConvention()); this.conventionMsg = 'Lien copié.'; }
+      catch { this.conventionMsg = 'Copie impossible : sélectionnez le lien et copiez-le à la main.'; }
     },
     async allerAnnonces() {
       this.vue = 'annonces';

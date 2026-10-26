@@ -233,6 +233,16 @@ Entrée **"🏷 Stickers"** du menu (s'ouvre dans un nouvel onglet), ou bouton *
 
 Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app pour informer les habitants (✨ nouveauté, 🔧 maintenance, ℹ️ information, 💡 « Le saviez-vous ? »). Un bouton d'action facultatif : « Partager l'application » ou « Donner mon avis » (pas montré à qui a déjà noté l'app). Ciblage : toutes les communes, certaines communes (seulement celles qui ont de vrais utilisateurs ou un forfait payant) ou certaines régions ; destinataires : tout le monde ou seulement les mairies. Une seule annonce s'affiche à la fois, la plus importante (maintenance > nouveauté > information > astuce), et une annonce fermée ou dont on a cliqué le bouton ne revient jamais pour cette personne, sur aucun appareil. Le tableau indique combien de personnes l'ont lue. À n'utiliser qu'avec l'accord de Léandre : c'est la voix de Plateforme-Agora auprès de tous les habitants.
 
+### 6.11 Convention « Commune fondatrice »
+
+1. Fiche commune, section « 📝 Convention Commune fondatrice » → « Préparer la convention » : le premier numéro de commune fondatrice libre (sur 10) et le nom du maire connu sont repris automatiquement.
+2. « Copier le lien » et l'envoyer à la secrétaire de mairie : elle remplit elle-même, sans compte, le signataire, la délibération, l'option de reconduction (tacite recommandée, ou annuelle), le SIRET, le code service Chorus Pro et le contact de facturation. Elle peut revenir autant de fois que nécessaire.
+3. La liste « Informations à réunir » se coche toute seule ; la date des réponses de la mairie s'affiche sous le lien et dans le journal d'activité.
+4. « 📄 Voir la convention » : le document est prérempli avec tout ce qui est connu ; ce qui manque apparaît en orange. Imprimer ou enregistrer en PDF depuis le navigateur.
+5. Mettre à jour le statut (Envoyée, puis Signée avec sa date) dans « Modifier les informations et le statut ». Une fois signée ou annulée, le lien de la secrétaire ne fonctionne plus.
+
+⚠️ Le texte de la convention est celui validé par Léandre : il ne se modifie pas depuis le backoffice. Joindre le contrat DPA (annexe 1). Ne jamais attribuer un numéro de commune fondatrice ni marquer une convention signée sans l'accord de Léandre.
+
 ## 7. Suivi commercial (lecture seule pour un VA sauf instruction contraire)
 
 - **Activité** : flux de toutes les inscriptions/publications citoyennes, toutes communes confondues.

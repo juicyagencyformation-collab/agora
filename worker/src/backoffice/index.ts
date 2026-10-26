@@ -2,6 +2,7 @@
 // Point d'entrée du backoffice interne Juicy Solutions. Monté sur /backoffice, AVANT la
 // résolution de tenant (/:slug/*) dans worker/src/index.ts — sinon "backoffice" serait pris
 // pour un slug de commune. Aucune route ici ne dépend d'un commune_id : périmètre transverse.
+import { routesStaff as conventionsStaff, routesFormulaire as conventionFormulaire } from './conventions';
 import annoncesPlateforme from './annonces-plateforme';
 import { Hono } from 'hono';
 import auth from './auth';
@@ -202,5 +203,8 @@ app.route('/administration', facturation);
 app.route('/prospection', prospection);
 app.route('/onboarding', onboarding);
 app.route('/annonces-plateforme', annoncesPlateforme);
+app.route('/conventions', conventionsStaff);
+// Public, sans session : la secrétaire de mairie remplit les infos de la convention par jeton.
+app.route('/convention-formulaire', conventionFormulaire);
 
 export default app;

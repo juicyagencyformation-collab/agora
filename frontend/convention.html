@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<!-- frontend/convention.html — page publique ouverte par la secrétaire de mairie depuis son lien
+     personnel (?j=<jeton>) pour transmettre les informations de la convention « Commune
+     fondatrice ». Aucun compte requis. API : /api/backoffice/convention-formulaire/:jeton
+     (worker/src/backoffice/conventions.ts). Toute valeur affichée passe par .value/.textContent. -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Convention Commune fondatrice — Plateforme-Agora</title>
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6" />
+  <meta name="theme-color" content="#1B2A4A">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --navy: #1B2A4A; --green: #2EAB7B; --green-light: #e8f7f1; --orange: #F4A529; --orange-light: #fef5e4;
+      --coral: #C2410C; --white: #FFFFFF; --cream: #F8F7F4; --muted: #6b7280; --border: #e5e2db;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--cream); color: var(--navy); font-family: 'Inter', system-ui, sans-serif; line-height: 1.5; -webkit-font-smoothing: antialiased;
+      padding: 28px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); }
+    .page { max-width: 640px; margin: 0 auto; }
+    .marque { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; font-family: 'Fraunces', serif; font-weight: 700; font-size: 18px; }
+    .marque img { width: 40px; height: 40px; border-radius: 50%; background: #fff; }
+    h1 { font-family: 'Fraunces', serif; font-size: 26px; line-height: 1.2; margin: 0 0 8px; text-wrap: balance; }
+    .intro { color: var(--muted); margin: 0 0 22px; }
+    .carte { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px; margin-bottom: 14px; }
+    .carte h2 { font-size: 15px; margin: 0 0 4px; }
+    .aide { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+    label { display: block; font-size: 13.5px; font-weight: 600; margin: 10px 0 4px; }
+    label .facultatif { font-weight: 400; color: var(--muted); }
+    input[type=text], input[type=email], input[type=date] {
+      width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font: inherit; color: var(--navy); background: #fff;
+    }
+    input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+    .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    @media (max-width: 520px) { .deux { grid-template-columns: 1fr; } }
+    .option { display: flex; gap: 12px; align-items: flex-start; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-top: 10px; cursor: pointer; font-weight: 400; }
+    .option:has(input:checked) { border-color: var(--green); background: var(--green-light); }
+    .option input { margin-top: 4px; accent-color: var(--green); }
+    .option strong { display: block; font-size: 14.5px; }
+    .option span { font-size: 13px; color: var(--muted); }
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; color: var(--green); background: #fff; border: 1px solid var(--green); border-radius: 100px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; }
+    .choix-simple { display: flex; gap: 18px; margin-top: 6px; }
+    .choix-simple label { display: flex; align-items: center; gap: 6px; font-weight: 400; margin: 0; }
+    button { width: 100%; margin-top: 8px; padding: 13px; border: none; border-radius: 12px; background: var(--navy); color: #fff; font: 600 15px 'Inter', sans-serif; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    button:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+    .message { margin-top: 12px; padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+    .message.ok { background: var(--green-light); color: #14593f; }
+    .message.erreur { background: #fdecea; color: var(--coral); }
+    .pied { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="marque"><img src="/icons/agora-icone-1024-fond-transparent.png" alt="">Plateforme-Agora</div>
+    <h1 id="titre">Convention « Commune fondatrice »</h1>
+    <p class="intro" id="intro">Quelques informations pour préparer la convention. Vous pouvez remplir ce que vous avez déjà, enregistrer, et revenir compléter plus tard avec le même lien.</p>
+
+    <form id="formulaire" hidden>
+      <section class="carte">
+        <h2>Qui signera pour la commune ?</h2>
+        <div class="deux">
+          <div><label for="signataire_nom">Nom et prénom</label><input type="text" id="signataire_nom" maxlength="150" autocomplete="name"></div>
+          <div><label for="signataire_qualite">Qualité</label><input type="text" id="signataire_qualite" maxlength="100" placeholder="maire, adjoint délégué…"></div>
+        </div>
+      </section>
+
+      <section class="carte">
+        <h2>Délibération</h2>
+        <p class="aide">Même pour 1 €, le maire doit être habilité à signer : par une délibération du conseil municipal, ou par sa délégation générale (article L2122-22 du CGCT). Si la délibération n'est pas encore votée, laissez vide et revenez plus tard.</p>
+        <div class="deux">
+          <div><label for="deliberation_reference">Numéro</label><input type="text" id="deliberation_reference" maxlength="100" placeholder="ex. 2026-45"></div>
+          <div><label for="deliberation_date">Date</label><input type="date" id="deliberation_date"></div>
+        </div>
+      </section>
+
+      <section class="carte">
+        <h2>Après la période fondatrice</h2>
+        <p class="aide">Après les 12 mois à 1 €, rien ne devient payant sans une décision de votre part. Si vous choisissez de continuer, comment préférez-vous gérer l'abonnement ?</p>
+        <label class="option"><input type="radio" name="option_reconduction" value="tacite">
+          <div><strong>Reconduction automatique<span class="badge">Recommandé</span></strong>
+          <span>Une seule décision : l'abonnement se renouvelle chaque année, jusqu'à 4 ans, sans repasser en conseil. Vous restez libres d'arrêter avec un simple mail, 2 mois avant la date anniversaire.</span></div></label>
+        <label class="option"><input type="radio" name="option_reconduction" value="annuelle">
+          <div><strong>Renouvellement chaque année</strong>
+          <span>Une nouvelle décision (bon de commande ou délibération) chaque année. Plus de contrôle, mais plus de démarches.</span></div></label>
+      </section>
+
+      <section class="carte">
+        <h2>Facturation</h2>
+        <p class="aide">La facture de 1 € sera déposée sur Chorus Pro, comme pour tout achat de la commune.</p>
+        <div class="deux">
+          <div><label for="siret_commune">SIRET de la commune</label><input type="text" id="siret_commune" inputmode="numeric" maxlength="20" placeholder="14 chiffres"></div>
+          <div><label for="code_service_chorus">Code service Chorus Pro <span class="facultatif">(si demandé)</span></label><input type="text" id="code_service_chorus" maxlength="50"></div>
+          <div><label for="facturation_nom">Contact facturation</label><input type="text" id="facturation_nom" maxlength="150" placeholder="Nom ou service"></div>
+          <div><label for="facturation_email">Email</label><input type="email" id="facturation_email" maxlength="200" autocomplete="email"></div>
+        </div>
+      </section>
+
+      <section class="carte">
+        <h2>Derniers détails</h2>
+        <label for="date_debut_souhaitee">Date de mise en service souhaitée <span class="facultatif">(facultatif)</span></label>
+        <input type="date" id="date_debut_souhaitee">
+        <label>Pouvons-nous citer votre commune comme utilisatrice de Plateforme-Agora ?</label>
+        <p class="aide" style="margin:0">Aucun chiffre d'usage ni témoignage ne sera publié sans votre accord écrit.</p>
+        <div class="choix-simple">
+          <label><input type="radio" name="citation_autorisee" value="oui"> Oui</label>
+          <label><input type="radio" name="citation_autorisee" value="non"> Non</label>
+        </div>
+      </section>
+
+      <button type="submit" id="bouton">Enregistrer ces informations</button>
+      <div id="message" class="message" hidden role="status"></div>
+    </form>
+
+    <p class="pied">Une question ? contact@plateforme-agora.fr</p>
+  </main>
+
+  <script>
+    (function () {
+      const jeton = new URLSearchParams(location.search).get('j') || '';
+      const API = '/api/backoffice/convention-formulaire/' + encodeURIComponent(jeton);
+      const CHAMPS_TEXTE = ['signataire_nom', 'signataire_qualite', 'deliberation_reference', 'deliberation_date',
+        'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee'];
+      const form = document.getElementById('formulaire');
+      const message = document.getElementById('message');
+      const afficher = (texte, type) => { message.textContent = texte; message.className = 'message ' + type; message.hidden = false; };
+
+      fetch(API).then(async (res) => {
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          document.getElementById('intro').textContent = d.erreur || "Ce lien n'est plus valable. Contactez Plateforme-Agora.";
+          return;
+        }
+        document.getElementById('titre').textContent = 'Convention « Commune fondatrice » — ' + d.commune_nom;
+        document.title = 'Convention — ' + d.commune_nom;
+        for (const k of CHAMPS_TEXTE) document.getElementById(k).value = d.champs[k] || '';
+        const option = form.querySelector(`input[name=option_reconduction][value="${d.champs.option_reconduction}"]`);
+        if (option) option.checked = true;
+        if (d.champs.citation_autorisee !== null) form.querySelector(`input[name=citation_autorisee][value="${d.champs.citation_autorisee ? 'oui' : 'non'}"]`).checked = true;
+        form.hidden = false;
+      }).catch(() => { document.getElementById('intro').textContent = 'Connexion impossible pour le moment. Réessayez dans un instant.'; });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const corps = {};
+        for (const k of CHAMPS_TEXTE) corps[k] = document.getElementById(k).value.trim();
+        corps.option_reconduction = form.querySelector('input[name=option_reconduction]:checked')?.value ?? null;
+        const citation = form.querySelector('input[name=citation_autorisee]:checked')?.value;
+        corps.citation_autorisee = citation ? citation === 'oui' : null;
+        const bouton = document.getElementById('bouton');
+        bouton.disabled = true;
+        try {
+          const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+          const d = await res.json().catch(() => ({}));
+          if (res.ok) afficher('Merci, vos informations sont enregistrées. Vous pouvez revenir les compléter à tout moment avec ce même lien.', 'ok');
+          else afficher(typeof d.erreur === 'string' ? d.erreur : "L'enregistrement a échoué. Vérifiez les champs et réessayez.", 'erreur');
+        } catch {
+          afficher('Connexion impossible pour le moment. Réessayez dans un instant.', 'erreur');
+        } finally {
+          bouton.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

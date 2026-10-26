@@ -19,6 +19,18 @@
 
   // Le contrat DPA est déjà entièrement rendu côté Worker (voir contrat-dpa.ts) — pas de table
   // montants/mentions à construire ici, juste l'afficher tel quel.
+  // La convention « Commune fondatrice » est elle aussi rendue côté Worker (convention-document.ts).
+  if (type === 'convention') {
+    try {
+      const { html, commune_nom } = await boFetch('/conventions/' + id + '/document');
+      document.title = 'Convention Commune fondatrice — ' + (commune_nom || '') + ' — Backoffice Plateforme-Agora';
+      feuille.innerHTML = html;
+    } catch (e) {
+      feuille.textContent = 'Impossible de charger la convention : ' + (e.message || 'erreur inconnue');
+    }
+    return;
+  }
+
   if (type === 'contrat-dpa') {
     try {
       const { html } = await boFetch('/administration/contrat-dpa/' + id);

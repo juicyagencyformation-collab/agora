@@ -3242,6 +3242,79 @@
             </div>
           </div>
 
+          <!-- Convention « Commune fondatrice » (worker/src/backoffice/conventions.ts) -->
+          <div class="bo-section-titre">📝 Convention Commune fondatrice</div>
+          <div class="bo-carte" style="padding:16px 18px; margin-bottom:16px">
+            <template x-if="!convention">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+                <div class="bo-info">Pas encore de convention. Elle se génère à partir de la fiche, et la secrétaire de mairie peut compléter elle-même les informations manquantes depuis un lien.</div>
+                <button class="bo-btn bo-btn--compact" @click="creerConvention()" :disabled="conventionEnCours">Préparer la convention</button>
+              </div>
+            </template>
+            <template x-if="convention">
+              <div style="display:flex; flex-direction:column; gap:12px">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
+                  <div>
+                    <span class="bo-statut" :class="'bo-statut--' + ({ brouillon: 'a_contacter', envoyee: 'relance', signee: 'gagne', annulee: 'perdu' })[convention.statut]" x-text="({ brouillon: 'Brouillon', envoyee: 'Envoyée', signee: 'Signée', annulee: 'Annulée' })[convention.statut]"></span>
+                    <span class="bo-info" style="margin-left:8px" x-text="'Commune fondatrice n° ' + (convention.numero_fondatrice || '?') + ' / 10' + (convention.signee_le ? ' · signée le ' + formatDate(convention.signee_le) : '') + (convention.envoyee_le && !convention.signee_le ? ' · envoyée le ' + formatDate(convention.envoyee_le) : '')"></span>
+                  </div>
+                  <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=convention&id=' + convention.id" target="_blank">📄 Voir la convention</a>
+                </div>
+
+                <div>
+                  <div style="font-weight:600; margin-bottom:6px" x-text="'Informations à réunir (' + elementsConvention().filter(e => e.fait && !e.facultatif).length + ' / ' + elementsConvention().filter(e => !e.facultatif).length + ')'"></div>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:4px 16px">
+                    <template x-for="e in elementsConvention()" :key="e.libelle">
+                      <div style="font-size:13px" :style="e.fait ? '' : (e.facultatif ? 'color:var(--bo-text-faible)' : 'font-weight:600')" x-text="(e.fait ? '✅ ' : '⬜ ') + e.libelle + (e.facultatif ? ' (facultatif)' : '')"></div>
+                    </template>
+                  </div>
+                </div>
+
+                <template x-if="!['signee', 'annulee'].includes(convention.statut)">
+                  <div>
+                    <div style="font-weight:600; margin-bottom:4px">Lien pour la secrétaire de mairie</div>
+                    <div class="bo-info" style="margin-bottom:6px">Elle y remplit elle-même ce qui manque, sans compte, et peut revenir autant de fois que nécessaire. Le lien cesse de fonctionner une fois la convention signée.</div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap">
+                      <input type="text" readonly :value="lienConvention()" style="flex:1; min-width:220px; font-size:12.5px" @focus="$event.target.select()" />
+                      <button class="bo-btn bo-btn--sec bo-btn--compact" @click="copierLienConvention()">Copier le lien</button>
+                    </div>
+                    <div class="bo-info" style="margin-top:4px" x-text="convention.formulaire_rempli_le ? '✉️ Réponses reçues de la mairie le ' + formatDateHeure(convention.formulaire_rempli_le) : 'La mairie n\'a encore rien transmis.'"></div>
+                  </div>
+                </template>
+
+                <details>
+                  <summary style="cursor:pointer; font-weight:600">Modifier les informations et le statut</summary>
+                  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:4px 14px; margin-top:10px">
+                    <div class="bo-champ-inline"><label>Statut</label>
+                      <select x-model="convention.statut"><option value="brouillon">Brouillon</option><option value="envoyee">Envoyée</option><option value="signee">Signée</option><option value="annulee">Annulée</option></select></div>
+                    <div class="bo-champ-inline" x-show="convention.statut === 'signee'"><label>Signée le</label><input type="date" x-model="convention.signee_le" /></div>
+                    <div class="bo-champ-inline"><label>N° de commune fondatrice</label>
+                      <select x-model.number="convention.numero_fondatrice">
+                        <template x-for="n in [1,2,3,4,5,6,7,8,9,10]" :key="n"><option :value="n" :disabled="conventionNumerosPris.includes(n)" :selected="convention.numero_fondatrice === n" x-text="n + (conventionNumerosPris.includes(n) ? ' (pris)' : '')"></option></template>
+                      </select></div>
+                    <div class="bo-champ-inline"><label>Signataire</label><input type="text" x-model="convention.signataire_nom" /></div>
+                    <div class="bo-champ-inline"><label>Qualité</label><input type="text" x-model="convention.signataire_qualite" placeholder="maire" /></div>
+                    <div class="bo-champ-inline"><label>N° de délibération</label><input type="text" x-model="convention.deliberation_reference" /></div>
+                    <div class="bo-champ-inline"><label>Date de délibération</label><input type="date" x-model="convention.deliberation_date" /></div>
+                    <div class="bo-champ-inline"><label>Reconduction</label>
+                      <select x-model="convention.option_reconduction"><option value="">À choisir</option><option value="tacite">Tacite (jusqu'à 4 ans)</option><option value="annuelle">Annuelle (décision chaque année)</option></select></div>
+                    <div class="bo-champ-inline"><label>SIRET de la commune</label><input type="text" x-model="convention.siret_commune" /></div>
+                    <div class="bo-champ-inline"><label>Code service Chorus Pro</label><input type="text" x-model="convention.code_service_chorus" /></div>
+                    <div class="bo-champ-inline"><label>Contact facturation</label><input type="text" x-model="convention.facturation_nom" /></div>
+                    <div class="bo-champ-inline"><label>Email facturation</label><input type="email" x-model="convention.facturation_email" /></div>
+                    <div class="bo-champ-inline"><label>Mise en service souhaitée</label><input type="date" x-model="convention.date_debut_souhaitee" /></div>
+                    <div class="bo-champ-inline"><label>Citer la commune</label>
+                      <select x-model="convention.citation_autorisee"><option value="">Pas encore répondu</option><option value="true">Oui</option><option value="false">Non</option></select></div>
+                  </div>
+                  <div style="display:flex; gap:10px; align-items:center; margin-top:10px">
+                    <button class="bo-btn bo-btn--compact" @click="enregistrerConvention()" :disabled="conventionEnCours">Enregistrer</button>
+                    <span class="bo-info" x-text="conventionMsg"></span>
+                  </div>
+                </details>
+              </div>
+            </template>
+          </div>
+
           <div class="bo-section-titre">Devis &amp; facturation</div>
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px">
             <div>
@@ -4052,7 +4125,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261026-4"></script>
+  <script src="/backoffice/js/app.js?v=20261026-5"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
