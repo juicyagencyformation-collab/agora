@@ -3066,6 +3066,13 @@
           <template x-if="rgpd">
             <div>
               <div class="bo-section-titre">🔒 Vie privée (RGPD)</div>
+              <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
+                <div>
+                  <div style="font-weight:600">Restitution des données de la commune</div>
+                  <div class="bo-info">Fichier JSON avec tout ce que la commune a confié à la plateforme (habitants, contenus, réglages), sans aucun secret. À envoyer à la mairie sur demande (DPA article 15.1, convention article 5). Chaque export est noté au journal.</div>
+                </div>
+                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/api/backoffice/export-commune/' + fiche.commune.id" download>⬇ Exporter les données</a>
+              </div>
               <div class="bo-grille-stats">
                 <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_exports"></div><div class="bo-stat__lib">Exports de données demandés</div></div>
                 <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_suppressions"></div><div class="bo-stat__lib" x-text="'Comptes supprimés' + pctRgpd(rgpd?.nb_suppressions)"></div></div>
