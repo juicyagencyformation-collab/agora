@@ -1,4 +1,5 @@
 // worker/src/routes/chasses_tresor.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -376,13 +377,13 @@ app.post('/valider-position', async (c) => {
 app.get('/classement-exploration', async (c) => {
   const commune_id = c.get('commune_id');
   const users = await supabaseSelect(c.env, 'users', {
-    select: 'prenom,etapes_chasse_validees,enigmes_trouvees',
+    select: `${COLONNES_NOM_PUBLIC},etapes_chasse_validees,enigmes_trouvees`,
     commune_id: `eq.${commune_id}`,
   });
 
   const classement = users
     .map((u: any) => ({
-      prenom: u.prenom,
+      prenom: [nomPublic(u, c.get('user_id')).prenom, nomPublic(u, c.get('user_id')).nom].filter(Boolean).join(' '),
       etapes: u.etapes_chasse_validees ?? 0,
       enigmes: u.enigmes_trouvees ?? 0,
       score: (u.etapes_chasse_validees ?? 0) + (u.enigmes_trouvees ?? 0),
@@ -404,7 +405,7 @@ app.get('/:id/classement', async (c) => {
     order: 'validee_at.asc',
   });
   const users = await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom,nom',
+    select: COLONNES_NOM_PUBLIC,
     commune_id: `eq.${commune_id}`,
   });
 
@@ -419,7 +420,8 @@ app.get('/:id/classement', async (c) => {
   const classement = [...parUtilisateur.entries()]
     .map(([user_id, stats]) => {
       const u = users.find((u: any) => u.id === user_id);
-      return { prenom: u?.prenom ?? '?', total_etapes: stats.total, derniere_validation: stats.derniere };
+      const n = nomPublic(u, c.get('user_id'));
+      return { prenom: [n.prenom, n.nom].filter(Boolean).join(' '), total_etapes: stats.total, derniere_validation: stats.derniere };
     })
     .sort((a, b) => b.total_etapes - a.total_etapes || a.derniere_validation.localeCompare(b.derniere_validation));
 

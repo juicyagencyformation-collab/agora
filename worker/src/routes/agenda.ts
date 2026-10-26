@@ -1,4 +1,5 @@
 // worker/src/routes/agenda.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -92,7 +93,7 @@ app.get('/', async (c) => {
       actif: 'eq.true',
     }) : [],
     idsAuteurs.length ? supabaseSelect(c.env, 'users', {
-      select: 'id,prenom,nom',
+      select: COLONNES_NOM_PUBLIC,
       commune_id: `eq.${commune_id}`,
       id: `in.(${idsAuteurs.join(',')})`,
     }) : [],
@@ -101,7 +102,7 @@ app.get('/', async (c) => {
   // Noms des participants (publics) — jamais leurs coordonnées, réservées à GET /:id/contacts.
   const idsParticipants = [...new Set(participants.map((p: any) => p.user_id))];
   const utilisateursParticipants = idsParticipants.length ? await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsParticipants.join(',')})`,
+    select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsParticipants.join(',')})`,
   }) : [];
 
   const idsEventsCiviques = events.filter((e: any) => e.necessite_validation_presence).map((e: any) => e.id);
@@ -114,15 +115,14 @@ app.get('/', async (c) => {
     const participantsEvent = participants.filter((p: any) => p.event_id === e.id);
     return {
       ...e,
-      auteur_prenom: auteur?.prenom ?? '?',
-      auteur_nom: auteur?.nom ?? '',
+      ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
       est_moi: e.user_id === user_id,
       total_participants: participantsEvent.length,
       je_participe: participantsEvent.some((p: any) => p.user_id === user_id),
       ma_participation_citoyenne: mesParticipationsCitoyennes.find((p: any) => p.event_id === e.id)?.statut ?? null,
       participants: participantsEvent.map((p: any) => {
         const u = utilisateursParticipants.find((u: any) => u.id === p.user_id);
-        return { prenom: u?.prenom ?? '?', nom: u?.nom ?? '' };
+        return nomPublic(u, user_id);
       }),
     };
   });

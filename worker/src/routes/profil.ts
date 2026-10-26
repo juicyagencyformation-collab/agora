@@ -1,4 +1,5 @@
 // worker/src/routes/profil.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
@@ -32,7 +33,7 @@ app.get('/', async (c) => {
   const [user] = await supabaseSelect(c.env, 'users', {
     select: 'nom,prenom,email,role,xp,niveau,streak_actuel,streak_record,created_at,'
       + 'score_citoyen,streak_participation_actuel,streak_participation_record,streak_mensuel_citoyen_actuel,suspendu_jusqu_au,'
-      + 'photo_profil_url,banniere_url',
+      + 'photo_profil_url,banniere_url,affichage_nom',
     commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
   if (!user) return c.json({ erreur: 'Utilisateur introuvable' }, 404);
@@ -127,6 +128,27 @@ app.put('/identite', async (c) => {
     id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
   });
   return c.json({ ok: true, prenom, nom });
+});
+
+// PUT /affichage-nom — comment le nom de l'habitant apparaît aux autres sur ses publications
+// (voir lib/nom-public.ts). S'applique aussi à tout ce qu'il a déjà publié : le nom affiché est
+// calculé à chaque lecture, jamais figé dans le contenu.
+const affichageNomSchema = z.object({ affichage_nom: z.enum(['initiale', 'habitant', 'habitante']) });
+
+app.put('/affichage-nom', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const body = affichageNomSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  try {
+    await supabaseUpdate(c.env, 'users', { affichage_nom: body.data.affichage_nom }, {
+      id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
+    });
+    return c.json({ ok: true, affichage_nom: body.data.affichage_nom });
+  } catch (e) {
+    console.error('Échec mise à jour affichage_nom', e);
+    return c.json({ erreur: "Impossible d'enregistrer ce choix, réessaie dans un instant." }, 500);
+  }
 });
 
 // PUT /mot-de-passe — changer son mot de passe en étant déjà connecté (contrairement à
@@ -245,12 +267,14 @@ async function construireBlocParticipation(env: any, commune_id: string, user_id
 
   const idsValideurs = [...new Set(historique.map((h: any) => h.valide_par).filter(Boolean))];
   const valideurs = idsValideurs.length ? await supabaseSelect(env, 'users', {
-    select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsValideurs.join(',')})`,
+    select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsValideurs.join(',')})`,
   }) : [];
   const nomValideur = (id: string | null) => {
     if (!id) return null;
     const v = valideurs.find((u: any) => u.id === id);
-    return v ? `${v.prenom} ${v.nom}` : null;
+    if (!v) return null;
+    const n = nomPublic(v, user_id);
+    return [n.prenom, n.nom].filter(Boolean).join(' ');
   };
 
   return {

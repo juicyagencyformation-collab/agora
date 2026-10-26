@@ -1,4 +1,5 @@
 // worker/src/routes/coups_de_main.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -62,11 +63,11 @@ app.get('/', async (c) => {
 
   const idsAuteurs = [...new Set(annonces.map((a: any) => a.user_id))];
   const auteurs = await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
+    select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
   });
   const result = annonces.map((a: any) => {
     const auteur = auteurs.find((u: any) => u.id === a.user_id);
-    return { ...a, auteur_prenom: auteur?.prenom ?? '?', auteur_nom: auteur?.nom ?? '' };
+    return { ...a, ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))) };
   });
 
   return c.json({ annonces: result });

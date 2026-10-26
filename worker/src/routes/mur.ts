@@ -1,4 +1,5 @@
 // worker/src/routes/mur.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -61,7 +62,7 @@ app.get('/', async (c) => {
   // commentaires résolu ci-dessus, d'où cette requête séparée plutôt qu'en parallèle).
   const idsAuteurs = [...new Set([...posts.map((p: any) => p.user_id), ...commentaires.map((cm: any) => cm.user_id)])];
   const auteurs = await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom,nom',
+    select: COLONNES_NOM_PUBLIC,
     commune_id: `eq.${commune_id}`,
     id: `in.(${idsAuteurs.join(',')})`,
   });
@@ -71,14 +72,12 @@ app.get('/', async (c) => {
     const auteur = auteurs.find((a: any) => a.id === p.user_id);
     return {
       ...p,
-      auteur_prenom: auteur?.prenom ?? '?',
-      auteur_nom: auteur?.nom ?? '',
+      ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
       commentaires: commentaires.filter((cm: any) => cm.post_id === p.id).map((cm: any) => {
         const auteurCommentaire = auteurs.find((a: any) => a.id === cm.user_id);
         return {
           ...cm,
-          auteur_prenom: auteurCommentaire?.prenom ?? '?',
-          auteur_nom: auteurCommentaire?.nom ?? '',
+          ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteurCommentaire, c.get('user_id'))),
         };
       }),
       reactions: ['jaime', 'jadore', 'utile'].map((type) => ({

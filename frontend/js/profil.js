@@ -155,7 +155,7 @@ async function chargerProfil() {
 
   initUploadsMediaProfil();
   initNoterApplication(data.mon_avis);
-  initReglagesRgpdProfil();
+  initReglagesRgpdProfil(data);
   initEditionIdentite(data);
   initInviterVoisins();
 }
@@ -405,11 +405,27 @@ function renderSectionParticipationCitoyenne(participation) {
 
 // ── Droits RGPD : export de mes données, suppression de mon compte ──
 
-function initReglagesRgpdProfil() {
+function initReglagesRgpdProfil(data) {
   const zone = document.getElementById('reglages-rgpd-profil');
   if (!zone) return;
 
+  // Nom affiché aux autres habitants sur ses publications (voir worker/src/lib/nom-public.ts).
+  const initiale = (data.nom || '').trim().charAt(0).toUpperCase();
+  const choixNom = data.affichage_nom || 'initiale';
+  const optionNom = (valeur, libelle) => `<option value="${valeur}" ${choixNom === valeur ? 'selected' : ''}>${libelle}</option>`;
+
   zone.innerHTML = `
+    <label for="select-affichage-nom" style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Mon nom sur mes publications</label>
+    <select id="select-affichage-nom">
+      ${optionNom('initiale', `${escapeAttr(data.prenom || '')} ${initiale ? initiale + '.' : ''} (prénom et initiale)`)}
+      ${optionNom('habitante', 'Une habitante (anonyme)')}
+      ${optionNom('habitant', 'Un habitant (anonyme)')}
+    </select>
+    <p style="font-size:11.5px;color:var(--roseau);margin:4px 0 14px;">
+      Ce que voient les autres habitants sur vos photos, messages, annonces et événements, y compris ceux déjà publiés.
+      La mairie peut toujours vous identifier en cas de signalement.
+    </p>
+
     <button type="button" id="btn-changer-mdp" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">🔑 Changer mon mot de passe</button>
     <button type="button" id="btn-telecharger-donnees" class="bouton-pilule-profil" style="margin-top:8px;color:var(--eau);border-color:var(--eauL);">📥 Télécharger mes données</button>
     <button type="button" id="btn-supprimer-compte" class="bouton-pilule-profil" style="margin-top:8px;color:var(--rouge);border-color:var(--rouge);">🗑️ Supprimer mon compte</button>
@@ -424,6 +440,22 @@ function initReglagesRgpdProfil() {
       <a href="/conditions-utilisation.html" target="_blank" rel="noopener">📄 Conditions générales d'utilisation</a>
     </div>
   `;
+
+  zone.querySelector('#select-affichage-nom').addEventListener('change', async (e) => {
+    const select = e.target;
+    const precedent = data.affichage_nom || 'initiale';
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/profil/affichage-nom`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ affichage_nom: select.value }),
+    });
+    if (res.ok) {
+      data.affichage_nom = select.value;
+      afficherToastMessage('Choix enregistré.', 'succes');
+    } else {
+      select.value = precedent;
+      afficherToastMessage("Impossible d'enregistrer ce choix, réessayez dans un instant.", 'erreur');
+    }
+  });
 
   zone.querySelector('#btn-changer-mdp').addEventListener('click', () => {
     const html = `

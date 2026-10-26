@@ -1,4 +1,5 @@
 // worker/src/routes/lois.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -143,12 +144,12 @@ app.get('/:id/commentaires', async (c) => {
 
   const idsAuteurs = [...new Set(commentaires.map((cm: any) => cm.user_id))];
   const auteurs = idsAuteurs.length ? await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom,nom', id: `in.(${idsAuteurs.join(',')})`,
+    select: COLONNES_NOM_PUBLIC, id: `in.(${idsAuteurs.join(',')})`,
   }) : [];
 
   const result = commentaires.map((cm: any) => {
     const auteur = auteurs.find((a: any) => a.id === cm.user_id);
-    return { ...cm, auteur_prenom: auteur?.prenom ?? '?', auteur_nom: auteur?.nom ?? '' };
+    return { ...cm, ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))) };
   });
 
   return c.json({ commentaires: result });

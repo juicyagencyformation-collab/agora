@@ -2,6 +2,7 @@
 // "La mémoire du village" : récits patrimoniaux des habitants (texte + photos + audio).
 // Contribution citoyenne → modération standard (signalement → masquage → revue mairie),
 // calquée sur le module Énigmes (worker/src/routes/enigmes.ts).
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -34,7 +35,7 @@ app.get('/', async (c) => {
       souvenir_id: `in.(${ids.join(',')})`, order: 'ordre.asc',
     }),
     supabaseSelect(c.env, 'users', {
-      select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
+      select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
     }),
     supabaseSelect(c.env, 'souvenir_signalements', {
       select: 'souvenir_id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
@@ -48,7 +49,7 @@ app.get('/', async (c) => {
     return {
       ...s,
       images: images.filter((i: any) => i.souvenir_id === s.id),
-      auteur_prenom: auteur?.prenom ?? '?', auteur_nom: auteur?.nom ?? '',
+      ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
       deja_signale: mesSig.has(s.id), est_moi: s.user_id === user_id,
     };
   });

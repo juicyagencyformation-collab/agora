@@ -1,4 +1,5 @@
 // worker/src/routes/alertes.ts
+import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import { estGestionnaire } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -59,7 +60,7 @@ app.get('/', async (c) => {
       select: 'alerte_id,user_id', commune_id: `eq.${commune_id}`, alerte_id: `in.(${ids.join(',')})`,
     }),
     idsUtilisateurs.length ? supabaseSelect(c.env, 'users', {
-      select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsUtilisateurs.join(',')})`,
+      select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsUtilisateurs.join(',')})`,
     }) : [],
   ]);
 
@@ -72,8 +73,7 @@ app.get('/', async (c) => {
       images: images.filter((i: any) => i.alerte_id === a.id).map((i: any) => i.url),
       soutiens: sesSoutiens.length,
       je_soutiens: sesSoutiens.some((s: any) => s.user_id === user_id),
-      auteur_prenom: auteur?.prenom ?? '?',
-      auteur_nom: auteur?.nom ?? '',
+      ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
       reponse_par_nom: rep ? `${rep.prenom} ${rep.nom}` : null,
     };
   });
