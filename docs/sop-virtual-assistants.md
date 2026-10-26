@@ -245,6 +245,15 @@ Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app p
 
 ⚠️ Le texte de la convention est celui validé par Léandre : il ne se modifie pas depuis le backoffice. Joindre le contrat DPA (annexe 1). Ne jamais attribuer un numéro de commune fondatrice ni marquer une convention signée sans l'accord de Léandre.
 
+### 6.12 Contrat DPA (sous-traitance RGPD)
+
+1. Fiche commune → « 📄 Générer le contrat DPA ». Le panneau de droite liste les informations à compléter ; chaque trou du contrat est en rouge avec son nom (ex. « [● DPO de la commune] ») et un clic dessus ouvre le bon champ.
+2. Ce qui est déjà connu est repris tout seul, avec sa provenance (« repris : convention », « repris : annuaire ») : signataire, SIRET, délibération, adresse et téléphone de la mairie. Vérifier, ne retaper que si c'est faux.
+3. À demander à la mairie : le DPO (souvent celui du centre de gestion du département), le téléphone à appeler en cas de fuite de données, et ce qui autorise le maire à signer (délibération ou délégation).
+4. « Enregistrer » : le compteur passe à « ✓ Contrat complet ». Puis « Imprimer / PDF ».
+
+⚠️ La section « Vous (Prestataire) » (plafond de responsabilité, assurance, SIRET, adresse) vaut pour TOUTES les communes : ne jamais la modifier sans l'accord de Léandre.
+
 ## 7. Suivi commercial (lecture seule pour un VA sauf instruction contraire)
 
 - **Activité** : flux de toutes les inscriptions/publications citoyennes, toutes communes confondues.
