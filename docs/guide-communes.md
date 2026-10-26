@@ -27,6 +27,8 @@ Un rôle ne peut jamais se modifier lui-même, ni attribuer un rôle égal ou su
 
 En arrivant, vous trouvez (dans l'ordre) : une éventuelle alerte météo officielle tout en haut, puis un message de bienvenue avec à sa droite une **pastille météo** (icône et température). Un appui sur la pastille ouvre le détail : les 6 prochaines heures, le vent (force, direction, rafales), l'humidité, le risque de pluie, l'indice UV, le lever et le coucher du soleil, la phase de la lune avec son conseil jardin. Viennent ensuite le rappel "sortez vos poubelles" la veille d'une collecte, puis **En un coup d'œil** : une grille de tuiles qui résument la vie de la commune (prochain événement, alertes en cours, prochaine collecte de déchets, sondage à voter, entraide, messages du jour sur le Mur, prochain conseil municipal) — un appui sur une tuile ouvre le module correspondant. Enfin la dernière actualité, le dernier compte-rendu de conseil, la photo de la semaine et les informations pratiques de la mairie tout en bas.
 
+Plateforme-Agora peut aussi afficher en haut de l'accueil un bandeau à son nom : nouveauté, maintenance prévue, information ou « Le saviez-vous ? » (par exemple pour inviter un voisin ou noter l'application). Il se ferme d'une croix et ne revient plus une fois lu.
+
 ## A.2 Actualités 📰
 
 Le fil d'informations officiel de la commune, publié uniquement par la mairie (admin/élu/maire). Vous pouvez filtrer par catégorie (Vie du village, Projets & travaux, Environnement, Agenda, Info pratique). Lire un article rapporte 1 point d'expérience (une seule fois par article).

@@ -229,6 +229,10 @@ Entrée **"🏷 Stickers"** du menu (s'ouvre dans un nouvel onglet), ou bouton *
 
 ---
 
+### 6.10 Annonces aux habitants (bandeau Plateforme-Agora)
+
+Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app pour informer les habitants (✨ nouveauté, 🔧 maintenance, ℹ️ information, 💡 « Le saviez-vous ? »). Un bouton d'action facultatif : « Partager l'application » ou « Donner mon avis » (pas montré à qui a déjà noté l'app). Ciblage : toutes les communes, certaines communes (seulement celles qui ont de vrais utilisateurs ou un forfait payant) ou certaines régions ; destinataires : tout le monde ou seulement les mairies. Une seule annonce s'affiche à la fois, la plus importante (maintenance > nouveauté > information > astuce), et une annonce fermée ou dont on a cliqué le bouton ne revient jamais pour cette personne, sur aucun appareil. Le tableau indique combien de personnes l'ont lue. À n'utiliser qu'avec l'accord de Léandre : c'est la voix de Plateforme-Agora auprès de tous les habitants.
+
 ## 7. Suivi commercial (lecture seule pour un VA sauf instruction contraire)
 
 - **Activité** : flux de toutes les inscriptions/publications citoyennes, toutes communes confondues.

@@ -58,6 +58,7 @@ async function chargerDashboard() {
   afficherSalut();
   chargerAlertesMeteoAccueil();
   chargerMessagesMairieAccueil();
+  chargerAnnoncePlateformeAccueil();
   initActionsRapidesAccueil();
   chargerChecklistOnboarding();
   chargerMeteoAccueil();
@@ -105,6 +106,66 @@ async function chargerMessagesMairieAccueil() {
     } catch { /* stockage indisponible : le bandeau se masque quand même pour cette visite */ }
     bloc.remove();
   }));
+}
+
+// Annonce de Plateforme-Agora (nouveauté, maintenance, "Le saviez-vous ?"), publiée depuis le
+// backoffice (voir worker/src/routes/annonces_plateforme.ts). Le serveur n'en renvoie qu'une, jamais
+// une déjà lue : fermée ou bouton cliqué, elle est marquée lue sur le compte et ne revient plus.
+const ENTETES_ANNONCE_PLATEFORME = {
+  astuce: '💡 Le saviez-vous ?', nouveaute: '✨ Nouveauté', info: 'ℹ️ Information', maintenance: '🔧 Maintenance',
+};
+const BOUTONS_ANNONCE_PLATEFORME = { partager: "📤 Partager l'application", avis: '⭐ Donner mon avis' };
+
+async function chargerAnnoncePlateformeAccueil() {
+  const zone = document.getElementById('annonce-plateforme-accueil');
+  if (!zone) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/annonces-plateforme`).catch(() => null);
+  const annonce = res?.ok ? (await res.json()).annonce : null;
+  if (!annonce) { zone.innerHTML = ''; return; }
+  const bouton = BOUTONS_ANNONCE_PLATEFORME[annonce.action];
+  zone.innerHTML = `
+    <div class="annonce-plateforme annonce-plateforme--${escapeAttr(annonce.type)}">
+      <div class="annonce-plateforme-texte">
+        <strong>${ENTETES_ANNONCE_PLATEFORME[annonce.type] ?? 'Information'}</strong>
+        <p>${texteAvecLiensCliquables(annonce.texte).replace(/\n/g, '<br>')}</p>
+        ${bouton ? `<button type="button" class="action-annonce-plateforme">${bouton}</button>` : ''}
+      </div>
+      <button type="button" class="fermer-annonce-plateforme" aria-label="J'ai lu, masquer ce message">✕</button>
+    </div>
+  `;
+  const marquerLue = () => {
+    zone.innerHTML = '';
+    appelApi(`/${window.COMMUNE_SLUG}/annonces-plateforme/${annonce.id}/lu`, { method: 'POST' }).catch(() => {});
+  };
+  zone.querySelector('.fermer-annonce-plateforme').addEventListener('click', marquerLue);
+  zone.querySelector('.action-annonce-plateforme')?.addEventListener('click', () => {
+    marquerLue();
+    if (annonce.action === 'partager') partagerApplication();
+    if (annonce.action === 'avis') ouvrirNotationApplication();
+  });
+}
+
+async function partagerApplication() {
+  const url = `${window.location.origin}/${window.COMMUNE_SLUG}/`;
+  if (navigator.share) {
+    try { await navigator.share({ title: 'Plateforme-Agora', text: "Rejoins l'application de notre commune :", url }); } catch { /* annulé */ }
+    return;
+  }
+  try { await navigator.clipboard.writeText(url); afficherToastMessage('Lien copié : collez-le dans un message.', 'succes'); }
+  catch { afficherToastMessage(url, 'info'); }
+}
+
+// Ouvre Mon profil directement sur « Noter l'application » (la carte est rendue en différé).
+function ouvrirNotationApplication() {
+  activerOnglet('profil');
+  const debut = Date.now();
+  const essayer = () => {
+    const entete = [...document.querySelectorAll('.entete-categorie-profil')].find((b) => b.textContent.includes("Noter l'application"));
+    if (!entete) { if (Date.now() - debut < 3000) setTimeout(essayer, 150); return; }
+    if (entete.nextElementSibling?.hidden) entete.click();
+    entete.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  essayer();
 }
 
 // Vigilance météo (vent violent, orages, canicule...) — tout premier bloc de l'accueil, avant

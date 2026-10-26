@@ -1393,3 +1393,24 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
   flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
   background: rgba(255,255,255,.7); color: var(--roseau); font-size: 13px;
 }
+
+/* Annonce de Plateforme-Agora (chargerAnnoncePlateformeAccueil) : même gabarit que le message de
+   la mairie, couleur propre au type pour qu'on distingue bien qui parle. */
+.annonce-plateforme {
+  display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 10px 12px; margin-bottom: 10px;
+  background: #F6F1E3; border: 1px solid #E8DCB8; border-left: 4px solid var(--aube);
+}
+.annonce-plateforme--nouveaute { background: #EEF5EA; border-color: #D3E4CB; border-left-color: var(--prairie); }
+.annonce-plateforme--info { background: var(--eauXL); border-color: var(--eauL); border-left-color: var(--eauM); }
+.annonce-plateforme--maintenance { background: #FCEBDD; border-color: #F2C9A5; border-left-color: #D9772B; }
+.annonce-plateforme-texte { flex: 1; min-width: 0; }
+.annonce-plateforme-texte strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--boue); }
+.annonce-plateforme-texte p { margin: 2px 0 0; font-size: 14px; color: var(--boue); line-height: 1.4; overflow-wrap: anywhere; }
+.action-annonce-plateforme {
+  margin-top: 8px; border: none; border-radius: 100px; padding: 6px 12px; cursor: pointer;
+  background: var(--eau); color: #fff; font: 600 12.5px 'DM Sans', sans-serif;
+}
+.fermer-annonce-plateforme {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(255,255,255,.7); color: var(--roseau); font-size: 13px;
+}

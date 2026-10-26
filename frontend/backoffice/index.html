@@ -25,6 +25,7 @@
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'toutes_factures' }" @click="allerToutesFactures()">📑 Toutes les factures</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'facturation_libre' }" @click="allerFacturationLibre()">🧾 Facturation libre</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'annonces' }" @click="allerAnnonces()">📣 Annonces</div>
       <a class="bo-nav__lien" href="/backoffice/stickers" target="_blank" rel="noopener" style="text-decoration:none; color:inherit">🏷 Stickers</a>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
@@ -2359,6 +2360,107 @@
         </div>
       </template>
 
+      <!-- Vue : annonces de la plateforme (bandeau sur l'accueil de l'app, voir backoffice/annonces-plateforme.ts) -->
+      <template x-if="!chargement && vue === 'annonces'">
+        <div>
+          <div class="bo-entete">
+            <div>
+              <div class="bo-titre">📣 Annonces</div>
+              <div class="bo-sous">Un bandeau en haut de l'accueil de l'app : nouveauté, maintenance, information ou « Le saviez-vous ? ». Une seule annonce s'affiche à la fois (la plus importante), et une annonce lue ou fermée ne revient jamais pour cette personne.</div>
+            </div>
+          </div>
+
+          <div class="bo-carte" style="padding:16px 18px; display:flex; flex-direction:column; gap:12px">
+            <div style="display:flex; gap:12px; flex-wrap:wrap">
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Type</label>
+                <select x-model="annonceForm.type" style="width:auto">
+                  <option value="astuce">💡 Le saviez-vous ?</option>
+                  <option value="nouveaute">✨ Nouveauté</option>
+                  <option value="info">ℹ️ Information</option>
+                  <option value="maintenance">🔧 Maintenance</option>
+                </select>
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Bouton d'action</label>
+                <select x-model="annonceForm.action" style="width:auto">
+                  <option value="aucune">Aucun</option>
+                  <option value="partager">📤 Partager l'application</option>
+                  <option value="avis">⭐ Donner mon avis</option>
+                </select>
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Destinataires</label>
+                <select x-model="annonceForm.destinataires" style="width:auto">
+                  <option value="tous">Tout le monde</option>
+                  <option value="gestionnaires">Seulement les mairies (admins, élus, maires)</option>
+                </select>
+              </div>
+              <div class="bo-champ-inline">
+                <label style="margin-top:0">Afficher jusqu'au (inclus)</label>
+                <input type="date" x-model="annonceForm.fin" />
+              </div>
+            </div>
+
+            <div class="bo-champ-inline" style="width:100%">
+              <label style="margin-top:0">Texte <span class="bo-info" x-text="'(' + annonceForm.texte.length + ' / 300)'"></span></label>
+              <textarea x-model="annonceForm.texte" maxlength="300" rows="3" style="width:100%" placeholder="Ex. : Vous pouvez inviter un voisin ou un membre de votre foyer à rejoindre l'application de la commune."></textarea>
+            </div>
+
+            <div>
+              <label style="margin-top:0">Cibler</label>
+              <div style="display:flex; gap:16px; flex-wrap:wrap; margin:4px 0 8px">
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0"><input type="radio" value="toutes" x-model="annonceForm.cible" style="width:auto"> Toutes les communes</label>
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0"><input type="radio" value="communes" x-model="annonceForm.cible" style="width:auto"> Certaines communes</label>
+                <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0"><input type="radio" value="regions" x-model="annonceForm.cible" style="width:auto"> Certaines régions</label>
+              </div>
+              <template x-if="annonceForm.cible === 'communes'">
+                <div style="max-height:180px; overflow-y:auto; border:1px solid var(--bo-border); border-radius:8px; padding:8px 12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:4px 12px">
+                  <template x-for="cm in annoncesCibles.communes" :key="cm.id">
+                    <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0"><input type="checkbox" :value="cm.id" x-model="annonceForm.communes_ids" style="width:auto"> <span x-text="cm.nom + (cm.region ? ' · ' + cm.region : '')"></span></label>
+                  </template>
+                </div>
+              </template>
+              <template x-if="annonceForm.cible === 'regions'">
+                <div style="display:flex; flex-wrap:wrap; gap:6px 16px">
+                  <template x-for="r in annoncesCibles.regions" :key="r">
+                    <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0"><input type="checkbox" :value="r" x-model="annonceForm.regions" style="width:auto"> <span x-text="r + ' (' + annoncesCibles.communes.filter(cm => cm.region === r).length + ')'"></span></label>
+                  </template>
+                </div>
+              </template>
+              <div class="bo-info" style="margin-top:6px" x-text="'Seules les ' + annoncesCibles.communes.length + ' communes ayant de vrais utilisateurs (ou un forfait payant) sont proposées.'"></div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+              <button class="bo-btn bo-btn--compact" @click="publierAnnonce()" :disabled="annonceEnCours || !annonceForm.texte.trim() || !annonceForm.fin">Publier l'annonce</button>
+              <span class="bo-info" x-text="annonceMsg"></span>
+            </div>
+          </div>
+
+          <div class="bo-section-titre">Annonces publiées</div>
+          <div class="bo-carte">
+            <table>
+              <thead><tr><th>Type</th><th>Texte</th><th>Cible</th><th>Jusqu'au</th><th>Lue par</th><th></th></tr></thead>
+              <tbody>
+                <template x-for="a in annonces" :key="a.id">
+                  <tr style="cursor:default" :style="new Date(a.fin_le) < new Date() ? 'opacity:.55' : ''">
+                    <td x-text="libelleTypeAnnonce(a.type)"></td>
+                    <td style="max-width:360px; white-space:normal" x-text="a.texte + (a.action !== 'aucune' ? ' [bouton : ' + (a.action === 'partager' ? 'Partager' : 'Avis') + ']' : '')"></td>
+                    <td style="white-space:normal" x-text="resumeCibleAnnonce(a)"></td>
+                    <td x-text="formatDate(a.fin_le) + (new Date(a.fin_le) < new Date() ? ' (terminée)' : '')"></td>
+                    <td x-text="a.nb_lues + ' pers.'"></td>
+                    <td><button class="bo-btn bo-btn--sec bo-btn--compact" @click="retirerAnnonce(a)">Retirer</button></td>
+                  </tr>
+                </template>
+                <template x-if="annonces.length === 0">
+                  <tr><td colspan="6" class="bo-vide" style="text-align:center">Aucune annonce pour l'instant.</td></tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
       <!-- Vue : fiche d'une commune -->
       <template x-if="!chargement && vue === 'fiche_unifiee' && (fiche || prospect)">
         <div>
@@ -3950,7 +4052,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261024-2"></script>
+  <script src="/backoffice/js/app.js?v=20261026-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

@@ -236,6 +236,12 @@ function backoffice() {
     devisEnCours: false,
     devisMsg: '',
     // — Facturation libre (hors commune) — voir allerFacturationLibre()
+    // — Annonces de la plateforme (bandeau de l'accueil de l'app) — voir allerAnnonces()
+    annonces: [],
+    annoncesCibles: { communes: [], regions: [] },
+    annonceForm: { type: 'astuce', texte: '', action: 'aucune', destinataires: 'tous', cible: 'toutes', communes_ids: [], regions: [], fin: '' },
+    annonceEnCours: false,
+    annonceMsg: '',
     nouveauDevisLibre: { nom_destinataire: '', adresse_destinataire: '', objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: null, validite_jours: 30 },
     // — Toutes les factures (vue d'ensemble, communes + libres) — voir allerToutesFactures()
     toutesFacturesListe: [],
@@ -2456,6 +2462,55 @@ function backoffice() {
     // commande reçu, facturation) sans dupliquer chargerDevisFactures pour chaque vue.
     communeIdFacturationActuelle() {
       return this.vue === 'facturation_libre' ? null : this.fiche.commune.id;
+    },
+    async allerAnnonces() {
+      this.vue = 'annonces';
+      this.annonceMsg = '';
+      if (!this.annonceForm.fin) this.annonceForm.fin = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+      try {
+        const [liste, cibles] = await Promise.all([boFetch('/annonces-plateforme'), boFetch('/annonces-plateforme/cibles')]);
+        this.annonces = liste.annonces;
+        this.annoncesCibles = cibles;
+      } catch (e) { this.annonceMsg = e.message || 'Chargement impossible'; }
+    },
+    async publierAnnonce() {
+      this.annonceEnCours = true;
+      this.annonceMsg = '';
+      const f = this.annonceForm;
+      try {
+        await boFetch('/annonces-plateforme', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: f.type, texte: f.texte.trim(), action: f.action, destinataires: f.destinataires, cible: f.cible,
+            communes_ids: f.communes_ids, regions: f.regions,
+            fin_le: new Date(f.fin + 'T23:59:59').toISOString(), // jusqu'à la fin du jour choisi
+          }),
+        });
+        this.annonceForm = { type: 'astuce', texte: '', action: 'aucune', destinataires: 'tous', cible: 'toutes', communes_ids: [], regions: [], fin: f.fin };
+        this.annonceMsg = 'Annonce publiée.';
+        this.annonces = (await boFetch('/annonces-plateforme')).annonces;
+      } catch (e) {
+        this.annonceMsg = e.message || 'Échec de la publication';
+      } finally {
+        this.annonceEnCours = false;
+      }
+    },
+    async retirerAnnonce(a) {
+      if (!confirm('Retirer cette annonce ? Elle disparaîtra pour tout le monde.')) return;
+      try {
+        await boFetch('/annonces-plateforme/' + a.id, { method: 'DELETE' });
+        this.annonces = this.annonces.filter((x) => x.id !== a.id);
+      } catch (e) { this.annonceMsg = e.message || 'Échec'; }
+    },
+    libelleTypeAnnonce(t) {
+      return { astuce: '💡 Le saviez-vous ?', nouveaute: '✨ Nouveauté', info: 'ℹ️ Information', maintenance: '🔧 Maintenance' }[t] || t;
+    },
+    resumeCibleAnnonce(a) {
+      const qui = a.destinataires === 'gestionnaires' ? ' · mairies seulement' : '';
+      if (a.cible === 'toutes') return 'Toutes les communes' + qui;
+      if (a.cible === 'regions') return a.regions.join(', ') + qui;
+      const noms = a.communes_ids.map((id) => this.annoncesCibles.communes.find((cm) => cm.id === id)?.nom || '?');
+      return noms.join(', ') + qui;
     },
     async allerFacturationLibre() {
       this.vue = 'facturation_libre';

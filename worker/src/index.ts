@@ -22,6 +22,7 @@ import chassesTresor from './routes/chasses_tresor';
 import moderation from './routes/moderation';
 import dechets from './routes/dechets';
 import messagesMairie from './routes/messages_mairie';
+import annoncesPlateforme from './routes/annonces_plateforme';
 import profil from './routes/profil';
 import push from './routes/push';
 import enigmes from './routes/enigmes';
@@ -112,6 +113,9 @@ app.route('/:slug/dechets', dechets);
 
 // Bandeau "Message de la mairie" de l'accueil : pas d'onglet désactivable dédié
 app.route('/:slug/messages-mairie', messagesMairie);
+
+// Annonces de Plateforme-Agora (nouveautés, maintenance, astuces), publiées depuis le backoffice
+app.route('/:slug/annonces-plateforme', annoncesPlateforme);
 
 // Mon profil (statistiques gamification)
 app.use('/:slug/profil/*', jwtMiddleware, requireOngletActif('profil'));
