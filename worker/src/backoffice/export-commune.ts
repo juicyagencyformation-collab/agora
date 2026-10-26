@@ -96,7 +96,7 @@ export const NON_INCLUS: Record<string, string> = {
     + 'refresh_tokens, activations_libres), abonnements aux notifications (push_subscriptions), codes des QR de validation',
   'journaux de sécurité': 'tentatives de connexion (tentatives_connexion), conservées brièvement pour la protection des comptes',
   'données commerciales du Prestataire': 'prospection, devis, factures, convention, prix, forfait et suivi des relances '
-    + '(prospects, devis, factures, conventions, churn_events, sequence_emails_sent, activation_events, annonces_plateforme_lues)',
+    + '(prospects, devis, factures, conventions, dpa_communes, churn_events, sequence_emails_sent, activation_events, annonces_plateforme_lues)',
   'clés de stockage internes': "identifiants techniques des fichiers ; l'adresse publique de chaque fichier est incluse",
 };
 

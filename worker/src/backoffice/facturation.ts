@@ -7,10 +7,10 @@
 // PDF généré ici. Toutes les routes sont derrière backofficeMiddleware (données financières).
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
+import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseUpsert, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { versCsv } from '../lib/csv';
-import { genererContratDpaHtml } from './contrat-dpa';
+import { genererContratDpaHtml, CHAMPS_DPA, type CleDpa, type InfosDpa } from './contrat-dpa';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -49,37 +49,103 @@ app.put('/parametres-entreprise', async (c) => {
   return c.json({ ok: true });
 });
 
-// GET /contrat-dpa/:communeId — contrat de sous-traitance RGPD (art. 28) pré-rempli pour une
-// commune, à la demande (bouton sur sa fiche), jamais généré ni envoyé automatiquement. Le nom
-// du maire est repris du vrai compte (role='maire') s'il existe déjà, sinon du prospect lié
-// (nom_maire/prenom_maire/maire_civilite, renseignés via le RNE en prospection) — voir
-// docs/dpa-contrat-sous-traitance.md pour la version de référence, à tenir synchronisée.
+// Contrat de sous-traitance RGPD (art. 28) pré-rempli pour une commune, à la demande (bouton sur
+// sa fiche), jamais généré ni envoyé automatiquement — voir docs/dpa-contrat-sous-traitance.md
+// pour la version de référence, à tenir synchronisée. Chaque information à compléter (CHAMPS_DPA)
+// vient de la saisie du panneau du document (dpa_communes pour la commune, parametres_facturation
+// pour le Prestataire), sinon de la première source existante ci-dessous, renvoyée au panneau.
+const CLES_COMMUNE_DPA = CHAMPS_DPA.filter((ch) => ch.groupe === 'commune').map((ch) => ch.cle);
+const CLES_PRESTATAIRE_DPA = CHAMPS_DPA.filter((ch) => ch.groupe === 'prestataire').map((ch) => ch.cle);
+
+async function infosContratDpa(env: any, communeId: string) {
+  const [commune] = await supabaseSelect(env, 'communes', { select: 'id,nom,population,telephone_mairie', id: `eq.${communeId}` });
+  if (!commune) return null;
+  const [lignesParam, [saisie], [maireCompte], [prospect], [convention]] = await Promise.all([
+    supabaseSelect(env, 'parametres_facturation', { select: 'cle,valeur', cle: `in.(${[...new Set([...CLES_ENTREPRISE, ...CLES_PRESTATAIRE_DPA])].join(',')})` }),
+    supabaseSelect(env, 'dpa_communes', { select: CLES_COMMUNE_DPA.join(','), commune_id: `eq.${communeId}` }),
+    supabaseSelect(env, 'users', { select: 'prenom,nom', commune_id: `eq.${communeId}`, role: 'eq.maire', compte_supprime_le: 'is.null', limit: '1' }),
+    supabaseSelect(env, 'prospects', { select: 'nom_maire,maire_civilite,adresse,contact_telephone', commune_id: `eq.${communeId}`, limit: '1' }),
+    supabaseSelect(env, 'conventions', {
+      select: 'signataire_nom,signataire_qualite,siret_commune,deliberation_reference,deliberation_date',
+      commune_id: `eq.${communeId}`, statut: 'neq.annulee', order: 'created_at.desc', limit: '1',
+    }),
+  ]);
+  const param: Record<string, string> = Object.fromEntries(lignesParam.map((r: any) => [r.cle, r.valeur]));
+  const dateFr = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  // nom_maire est déjà "Prénom Nom" formé (voir formaterNomMaire dans prospection.ts).
+  const candidats: Record<string, [string | null | undefined, string][]> = {
+    signataire_nom: [[convention?.signataire_nom, 'convention'], [maireCompte && `${maireCompte.prenom} ${maireCompte.nom}`, 'compte du maire'], [prospect?.nom_maire, 'annuaire']],
+    signataire_qualite: [[convention?.signataire_qualite, 'convention'], ['maire', 'par défaut']],
+    habilitation: [[convention?.deliberation_reference && `la délibération n° ${convention.deliberation_reference}`
+      + (convention.deliberation_date ? ` du ${dateFr(convention.deliberation_date)}` : ''), 'convention']],
+    siret_commune: [[convention?.siret_commune, 'convention']],
+    adresse_mairie: [[prospect?.adresse, 'annuaire']],
+    telephone_alerte: [[commune.telephone_mairie, 'fiche commune'], [prospect?.contact_telephone, 'annuaire']],
+  };
+  const champs = CHAMPS_DPA.map(({ cle, libelle, groupe }) => {
+    const saisi = groupe === 'commune' ? saisie?.[cle] : param[cle];
+    if (saisi) return { cle, libelle, groupe, valeur: saisi as string, source: null as string | null };
+    const [valeur, source] = (candidats[cle] || []).find(([v]) => v) || ['', null];
+    return { cle, libelle, groupe, valeur: valeur || '', source };
+  });
+  const infos: InfosDpa = {
+    ...Object.fromEntries(champs.map((ch) => [ch.cle, ch.valeur])),
+    entreprise_raison_sociale: param.entreprise_raison_sociale, entreprise_forme_juridique: param.entreprise_forme_juridique,
+    entreprise_email: param.entreprise_email,
+    maire_civilite: prospect?.nom_maire && champs.find((ch) => ch.cle === 'signataire_nom')!.valeur === prospect.nom_maire
+      ? prospect.maire_civilite : undefined,
+  };
+  return { commune, champs, infos };
+}
+
 app.get('/contrat-dpa/:communeId', async (c) => {
+  const donnees = await infosContratDpa(c.env, c.req.param('communeId'));
+  if (!donnees) return c.json({ erreur: 'Commune introuvable' }, 404);
+  return c.json({
+    html: genererContratDpaHtml(donnees.commune, donnees.infos),
+    commune_nom: donnees.commune.nom,
+    champs: donnees.champs,
+    manquants: donnees.champs.filter((ch) => !ch.valeur).length,
+  });
+});
+
+// Saisie du panneau : champs envoyés seulement (les autres ne bougent pas) ; vide = effacé, et la
+// source automatique reprend alors la main. Les champs « prestataire » valent pour toutes les communes.
+const infosDpaSchema = z.object(
+  Object.fromEntries(CHAMPS_DPA.map((ch) => [ch.cle, z.string().trim().max(300).optional()])) as Record<CleDpa, z.ZodOptional<z.ZodString>>,
+).strict();
+
+app.put('/contrat-dpa/:communeId', async (c) => {
   const communeId = c.req.param('communeId');
-  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom,population', id: `eq.${communeId}` });
+  const body = infosDpaSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Données invalides.' }, 400);
+  const d: Record<string, string | undefined> = { ...body.data };
+  if (d.siret_commune) {
+    d.siret_commune = d.siret_commune.replace(/\s/g, '');
+    if (!/^\d{14}$/.test(d.siret_commune)) return c.json({ erreur: 'Le SIRET de la commune compte 14 chiffres.' }, 400);
+  }
+  if (d.dpa_plafond_responsabilite) {
+    d.dpa_plafond_responsabilite = d.dpa_plafond_responsabilite.replace(/[\s€.]/g, '');
+    if (!/^\d{1,9}$/.test(d.dpa_plafond_responsabilite)) return c.json({ erreur: 'Le plafond de responsabilité est un montant en euros, sans centimes.' }, 400);
+  }
+  if (d.dpa_assurance && !['titulaire', 'engagement'].includes(d.dpa_assurance)) return c.json({ erreur: 'Assurance : choix invalide.' }, 400);
+
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `eq.${communeId}` });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  const lignesEntreprise = await supabaseSelect(c.env, 'parametres_facturation', {
-    select: 'cle,valeur', cle: `in.(${CLES_ENTREPRISE.join(',')})`,
-  });
-  const entreprise: Record<string, string> = {};
-  for (const cle of CLES_ENTREPRISE) entreprise[cle] = lignesEntreprise.find((r: any) => r.cle === cle)?.valeur || '';
-
-  const [maireCompte] = await supabaseSelect(c.env, 'users', {
-    select: 'prenom,nom', commune_id: `eq.${communeId}`, role: 'eq.maire', limit: '1',
-  });
-  // nom_maire est déjà "Prénom Nom" formé (voir formaterNomMaire dans prospection.ts) —
-  // jamais à recombiner avec prenom_maire, qui ne sert qu'à la création de compte séparément.
-  let maire = maireCompte ? { civilite: null, nomComplet: `${maireCompte.prenom} ${maireCompte.nom}` } : null;
-  if (!maire) {
-    const [prospect] = await supabaseSelect(c.env, 'prospects', {
-      select: 'nom_maire,maire_civilite', commune_id: `eq.${communeId}`, limit: '1',
-    });
-    if (prospect?.nom_maire) maire = { civilite: prospect.maire_civilite, nomComplet: prospect.nom_maire };
+  const champsCommune = CLES_COMMUNE_DPA.filter((cle) => d[cle] !== undefined);
+  if (champsCommune.length) {
+    await supabaseUpsert(c.env, 'dpa_communes', [{
+      commune_id: communeId, updated_at: new Date().toISOString(),
+      ...Object.fromEntries(champsCommune.map((cle) => [cle, d[cle] || null])),
+    }], 'commune_id');
   }
-
-  const html = genererContratDpaHtml(commune, entreprise as any, maire);
-  return c.json({ html });
+  const champsPrestataire = CLES_PRESTATAIRE_DPA.filter((cle) => d[cle] !== undefined);
+  if (champsPrestataire.length) {
+    await supabaseUpsert(c.env, 'parametres_facturation', champsPrestataire.map((cle) => ({ cle, valeur: d[cle] })), 'cle');
+  }
+  await journaliser(c.env, c.get('staff_id'), 'contrat_dpa_infos', commune.nom);
+  return c.json({ ok: true });
 });
 
 // Numéro séquentiel SANS TROU par table et par année (ex. F-2026-0001) — obligation légale pour

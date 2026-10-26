@@ -3,69 +3,131 @@
 // voir docs/dpa-contrat-sous-traitance.md pour la version de référence (identique, à tenir
 // synchronisée si l'un des deux évolue). Rendu uniquement à la demande depuis la fiche commune
 // du backoffice (bouton "Générer le contrat DPA"), jamais automatique ni envoyé tout seul :
-// Léandre relit et complète les [●] restants avant tout envoi à une vraie commune.
+// Léandre relit et complète les [●] restants avant tout envoi à une vraie commune — depuis le
+// panneau « Informations à compléter » du document (frontend/backoffice/js/document.js), qui
+// enregistre via PUT /administration/contrat-dpa/:communeId (facturation.ts).
 function echapper(s: string | null | undefined): string {
   return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
 }
 
-const PLACEHOLDER = '<span class="a-completer">[●]</span>';
-
-type Entreprise = {
-  entreprise_raison_sociale?: string; entreprise_forme_juridique?: string; entreprise_siret?: string;
-  entreprise_adresse?: string; entreprise_cp_ville?: string; entreprise_email?: string; entreprise_telephone?: string;
+// Informations à compléter, dans l'ordre du panneau. groupe « commune » : propre à chaque commune
+// (table dpa_communes) ; « prestataire » : identique pour toutes (table parametres_facturation).
+export const CHAMPS_DPA = [
+  { cle: 'signataire_nom', libelle: 'Nom du signataire', groupe: 'commune' },
+  { cle: 'signataire_qualite', libelle: 'Qualité du signataire', groupe: 'commune' },
+  { cle: 'habilitation', libelle: 'Habilitation du signataire', groupe: 'commune' },
+  { cle: 'siret_commune', libelle: 'SIRET de la commune', groupe: 'commune' },
+  { cle: 'adresse_mairie', libelle: 'Adresse de la mairie', groupe: 'commune' },
+  { cle: 'telephone_alerte', libelle: "Téléphone d'alerte de la commune", groupe: 'commune' },
+  { cle: 'dpo', libelle: 'DPO de la commune', groupe: 'commune' },
+  { cle: 'entreprise_siret', libelle: 'Votre SIRET', groupe: 'prestataire' },
+  { cle: 'entreprise_adresse', libelle: 'Votre adresse', groupe: 'prestataire' },
+  { cle: 'entreprise_cp_ville', libelle: 'Votre code postal et ville', groupe: 'prestataire' },
+  { cle: 'entreprise_telephone', libelle: 'Votre téléphone', groupe: 'prestataire' },
+  { cle: 'dpa_plafond_responsabilite', libelle: 'Plafond de responsabilité', groupe: 'prestataire' },
+  { cle: 'dpa_assurance', libelle: 'Assurance RC Pro', groupe: 'prestataire' },
+] as const;
+export type CleDpa = typeof CHAMPS_DPA[number]['cle'];
+export type InfosDpa = Partial<Record<CleDpa, string>> & {
+  entreprise_raison_sociale?: string; entreprise_forme_juridique?: string; entreprise_email?: string; maire_civilite?: string;
 };
-type Maire = { civilite?: string | null; nomComplet: string } | null;
 type Commune = { nom: string; population?: number | null };
 
-export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, maire: Maire): string {
-  const nomCommune = echapper(commune.nom);
-  const raisonSociale = echapper(entreprise.entreprise_raison_sociale) || 'Juicy Solutions';
-  const formeJuridique = entreprise.entreprise_forme_juridique ? echapper(entreprise.entreprise_forme_juridique) : 'entrepreneur individuel (EI)';
-  const siretEntreprise = echapper(entreprise.entreprise_siret) || PLACEHOLDER;
-  const adresseEntreprise = entreprise.entreprise_adresse ? echapper(entreprise.entreprise_adresse) : PLACEHOLDER;
-  const cpVilleEntreprise = entreprise.entreprise_cp_ville ? echapper(entreprise.entreprise_cp_ville) : PLACEHOLDER;
-  const emailEntreprise = echapper(entreprise.entreprise_email) || 'contact@plateforme-agora.fr';
+// Trou du document : étiqueté (on sait ce qui manque, même imprimé) et relié à son champ du panneau.
+function manque(cle: CleDpa): string {
+  const libelle = CHAMPS_DPA.find((ch) => ch.cle === cle)!.libelle;
+  return `<span class="a-completer" data-champ="${cle}" title="À compléter">[● ${echapper(libelle)}]</span>`;
+}
 
-  const nomMaire = maire?.nomComplet
-    ? `${maire.civilite ? echapper(maire.civilite) + ' ' : ''}${echapper(maire.nomComplet)}`
-    : `[M./Mme Prénom NOM]`;
+export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string {
+  const val = (cle: CleDpa) => (infos[cle] ? echapper(infos[cle]) : manque(cle));
+  const nomCommune = echapper(commune.nom);
+  const raisonSociale = echapper(infos.entreprise_raison_sociale) || 'Juicy Solutions';
+  const formeJuridique = infos.entreprise_forme_juridique ? echapper(infos.entreprise_forme_juridique) : 'entrepreneur individuel (EI)';
+  const emailEntreprise = echapper(infos.entreprise_email) || 'contact@plateforme-agora.fr';
+  // Le contrat cite le SIREN (9 chiffres) : ce sont les 9 premiers chiffres du SIRET des Réglages.
+  const siretChiffres = (infos.entreprise_siret ?? '').replace(/\s/g, '');
+  const siren = /^\d{14}$/.test(siretChiffres) ? siretChiffres.slice(0, 9).replace(/(\d{3})(?=\d)/g, '$1 ') : val('entreprise_siret');
+
+  const signataire = infos.signataire_nom
+    ? `${infos.maire_civilite ? echapper(infos.maire_civilite) + ' ' : ''}${echapper(infos.signataire_nom)}`
+    : manque('signataire_nom');
+  const qualite = val('signataire_qualite');
+  const plafond = infos.dpa_plafond_responsabilite
+    ? Number(infos.dpa_plafond_responsabilite).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ')
+    : manque('dpa_plafond_responsabilite');
+  const clauseAssurance = infos.dpa_assurance === 'titulaire'
+    ? `déclare être titulaire d'une police d'assurance responsabilité civile professionnelle couvrant les
+      conséquences pécuniaires de sa responsabilité au titre de l'Accord, y compris les risques liés aux atteintes
+      aux données, dont il justifie sur demande.`
+    : infos.dpa_assurance === 'engagement'
+      ? `s'engage à souscrire une police d'assurance responsabilité civile professionnelle couvrant les
+      conséquences pécuniaires de sa responsabilité au titre de l'Accord, y compris les risques liés aux atteintes
+      aux données, dont il justifiera sur demande.`
+      : `${manque('dpa_assurance')} (déclare être titulaire d'une police d'assurance responsabilité
+      civile professionnelle couvrant les conséquences pécuniaires de sa responsabilité au titre de l'Accord, y
+      compris les risques liés aux atteintes aux données / s'engage à souscrire une telle police), dont il justifie
+      sur demande.`;
 
   const dateDuJour = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return `
     <style>
-      .contrat h1 { font-size: 20px; color: var(--navy); text-align: center; margin-bottom: 4px; }
-      .contrat .sous-titre { text-align: center; font-size: 13px; color: var(--gris); margin-bottom: 4px; }
-      .contrat .version { text-align: center; font-size: 11.5px; color: var(--gris); margin-bottom: 26px; }
-      .contrat h2 { font-size: 14.5px; color: var(--navy); margin: 22px 0 8px; border-bottom: 1px solid var(--bord); padding-bottom: 4px; }
+      .contrat { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .contrat .entete { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; border-bottom: 3px solid var(--navy); padding-bottom: 12px; margin-bottom: 26px; }
+      .contrat .entete .marque { font-size: 17px; font-weight: 800; color: var(--navy); letter-spacing: -.01em; }
+      .contrat .entete .ref { font-size: 10.5px; color: var(--gris); text-align: right; line-height: 1.5; }
+      .contrat h1 { font-size: 21px; line-height: 1.25; color: var(--navy); text-align: center; margin-bottom: 6px; text-wrap: balance; }
+      .contrat .sous-titre { text-align: center; font-size: 12.5px; color: var(--gris); margin-bottom: 4px; }
+      .contrat .version { text-align: center; font-size: 11px; color: var(--gris); margin-bottom: 28px; }
+      .contrat h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--navy); margin: 26px 0 9px; border-bottom: 1px solid #cfd8e3; padding-bottom: 5px; break-after: avoid; }
       .contrat p { font-size: 12.5px; line-height: 1.65; margin-bottom: 8px; text-align: justify; }
       .contrat ol, .contrat ul { font-size: 12.5px; line-height: 1.65; margin: 6px 0 10px 20px; }
-      .contrat table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 11.5px; }
-      .contrat table, .contrat th, .contrat td { border: 1px solid var(--bord); }
-      .contrat th, .contrat td { padding: 6px 8px; text-align: left; vertical-align: top; }
-      .contrat th { background: var(--fond-doux); }
-      .a-completer { color: #b45309; font-weight: 600; }
-      .contrat .signatures { display: flex; gap: 24px; margin-top: 30px; }
-      .contrat .signatures > div { flex: 1; border: 1px dashed var(--bord); border-radius: 10px; padding: 14px 16px; text-align: center; font-size: 12px; color: var(--gris); }
-      .contrat .signatures b { display: block; font-size: 13px; color: var(--encre); margin-bottom: 40px; }
+      .contrat .partie { border: 1px solid #dbe3ec; border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; background: #fafbfd; }
+      .contrat .partie p { margin: 0; }
+      .contrat .et { text-align: center; font-weight: 700; color: var(--navy); font-size: 12px; letter-spacing: .1em; margin: 6px 0; }
+      .contrat table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 12px 0 18px; font-size: 11px; line-height: 1.5; border: 1px solid #cfd8e3; border-radius: 8px; }
+      .contrat th, .contrat td { padding: 7px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid #e3e9f0; }
+      .contrat tr:last-child > th, .contrat tr:last-child > td { border-bottom: none; }
+      .contrat tr { break-inside: avoid; }
+      .contrat thead { display: table-header-group; }
+      .contrat thead th { background: var(--navy); color: #fff; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+      .contrat thead th:first-child { border-top-left-radius: 7px; }
+      .contrat thead th:last-child { border-top-right-radius: 7px; }
+      .contrat tbody tr:nth-child(even) td { background: #f5f7fa; }
+      .contrat table.grille td:first-child { font-weight: 600; color: var(--navy); }
+      .contrat table.fiche th { width: 27%; background: #eef2f7; color: var(--navy); font-weight: 700; border-right: 1px solid #e3e9f0; }
+      .contrat table.fiche tr:first-child th { border-top-left-radius: 7px; }
+      .contrat table.fiche tr:last-child th { border-bottom-left-radius: 7px; }
+      .contrat table.fiche td { background: #fff; }
+      .a-completer { color: #b42318; background: #fdecea; border-radius: 4px; padding: 0 4px; font-weight: 600; cursor: pointer; }
+      .a-completer.actif { outline: 2px solid #b42318; outline-offset: 1px; }
+      .contrat .signatures { display: flex; gap: 20px; margin-top: 30px; break-inside: avoid; }
+      .contrat .signatures > div { flex: 1; border: 1px solid #cfd8e3; border-radius: 10px; padding: 14px 16px; font-size: 12px; color: var(--gris); min-height: 150px; }
+      .contrat .signatures b { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--navy); margin-bottom: 6px; }
+      .contrat .signatures .fait { margin-top: 10px; }
     </style>
 
     <div class="contrat">
+      <div class="entete">
+        <div class="marque">Plateforme-Agora</div>
+        <div class="ref">Accord de sous-traitance RGPD — article 28<br>Commune de ${nomCommune}</div>
+      </div>
       <h1>Accord de sous-traitance de données à caractère personnel</h1>
       <div class="sous-titre">Plateforme Agora — Annexe RGPD au contrat d'abonnement (article 28 du RGPD)</div>
       <div class="version">Version 2.2 — généré le ${dateDuJour} pour la commune de ${nomCommune}</div>
 
       <h2>Entre les soussignés</h2>
-      <p><strong>La commune de ${nomCommune}</strong>, collectivité territoriale, SIRET ${PLACEHOLDER}, dont la mairie
-      est située ${PLACEHOLDER}, représentée par ${nomMaire}, maire, agissant en vertu de ${PLACEHOLDER},
-      ci-après dénommée « <strong>le Responsable du traitement</strong> » ou « <strong>la Commune</strong> »,</p>
-      <p><strong>ET</strong></p>
-      <p><strong>Monsieur Léandre SALLE, ${formeJuridique}</strong>, exerçant son activité sous le nom d'usage
+      <div class="partie"><p><strong>La commune de ${nomCommune}</strong>, collectivité territoriale, SIRET ${val('siret_commune')}, dont la mairie
+      est située ${val('adresse_mairie')}, représentée par ${signataire}, ${qualite}, agissant en vertu de ${val('habilitation')},
+      ci-après dénommée « <strong>le Responsable du traitement</strong> » ou « <strong>la Commune</strong> »,</p></div>
+      <div class="et">ET</div>
+      <div class="partie"><p><strong>Monsieur Léandre SALLE, ${formeJuridique}</strong>, exerçant son activité sous le nom d'usage
       « ${raisonSociale} » (non déclaré comme nom commercial au Registre National des Entreprises),
-      immatriculé au RCS d'Amiens sous le numéro SIREN ${siretEntreprise}, dont le siège est situé
-      ${adresseEntreprise}, ${cpVilleEntreprise}, éditeur et exploitant de la plateforme Agora
+      immatriculé au RCS d'Amiens sous le numéro SIREN ${siren}, dont le siège est situé
+      ${val('entreprise_adresse')}, ${val('entreprise_cp_ville')}, éditeur et exploitant de la plateforme Agora
       (plateforme-agora.fr), joignable pour toute question relative aux données personnelles à l'adresse
-      ${emailEntreprise}, ci-après dénommé « <strong>le Sous-traitant</strong> »,</p>
+      ${emailEntreprise}, ci-après dénommé « <strong>le Sous-traitant</strong> »,</p></div>
       <p>ci-après ensemble « <strong>les Parties</strong> » et individuellement « <strong>une Partie</strong> ».</p>
 
       <h2>Préambule</h2>
@@ -97,7 +159,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       Contrat principal sur une question relative à la protection des données à caractère personnel, l'Accord prévaut.</p>
 
       <h2>Article 3 — Description du traitement</h2>
-      <table>
+      <table class="fiche">
         <tr><th>Nature des opérations</th><td>Hébergement, collecte, enregistrement, organisation, conservation, consultation, modification, diffusion aux Utilisateurs de la Commune, envoi de courriels et de notifications, modération, export, effacement</td></tr>
         <tr><th>Finalités</th><td>Fonctionnement des services de la Plateforme activés par la Commune, détaillés module par module à l'Annexe 1</td></tr>
         <tr><th>Personnes concernées</th><td>Habitants et usagers inscrits ; élus et agents municipaux utilisateurs de l'espace de gestion de la mairie</td></tr>
@@ -189,7 +251,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       <h2>Article 10 — Violations de données à caractère personnel</h2>
       <p>10.1. Le Sous-traitant notifie à la Commune toute violation de données à caractère personnel <strong>dans
       les meilleurs délais et au plus tard quarante-huit (48) heures</strong> après en avoir pris connaissance, par
-      courriel à l'adresse de contact déclarée par la Commune, doublé d'un appel téléphonique au ${PLACEHOLDER}.</p>
+      courriel à l'adresse de contact déclarée par la Commune, doublé d'un appel téléphonique au ${val('telephone_alerte')}.</p>
       <p>10.2. La notification comporte, dans la mesure où ces informations sont disponibles : la nature de la
       violation, les catégories et le nombre approximatif de personnes et d'enregistrements concernés, les
       conséquences probables, les mesures prises ou proposées pour y remédier et en atténuer les effets, ainsi que
@@ -211,9 +273,9 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       <p>12.1. Le Sous-traitant tient un registre des catégories d'activités de traitement effectuées pour le
       compte de ses clients, conformément à l'article 30.2 du RGPD.</p>
       <p>12.2. La Commune communique au Sous-traitant les coordonnées de son délégué à la protection des données
-      (DPO), le cas échéant mutualisé : ${PLACEHOLDER}.</p>
+      (DPO), le cas échéant mutualisé : ${val('dpo')}.</p>
       <p>12.3. Le point de contact du Sous-traitant pour toute question relative à la protection des données est :
-      Léandre SALLE — ${emailEntreprise} — ${PLACEHOLDER}.</p>
+      Léandre SALLE — ${emailEntreprise} — ${val('entreprise_telephone')}.</p>
 
       <h2>Article 13 — Âge minimum des Utilisateurs</h2>
       <p>13.1. La création d'un compte habitant sur la Plateforme est réservée aux personnes âgées d'au moins
@@ -276,14 +338,11 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       <p>17.2. Sauf faute lourde ou dolosive, et hors dommages corporels, la responsabilité totale du Sous-traitant
       au titre de l'Accord, toutes causes confondues, est limitée au montant le plus élevé des deux sommes
       suivantes : (i) les sommes hors taxes effectivement versées par la Commune au titre du Contrat principal au
-      cours des douze (12) mois précédant le fait générateur ; (ii) ${PLACEHOLDER} euros.</p>
+      cours des douze (12) mois précédant le fait générateur ; (ii) ${plafond} euros.</p>
       <p>17.3. Lorsqu'une personne concernée obtient réparation de l'une des Parties pour un dommage imputable en
       tout ou partie à l'autre, la Partie ayant indemnisé peut se retourner contre l'autre à hauteur de sa part de
       responsabilité (article 82.5 du RGPD).</p>
-      <p>17.4. Le Sous-traitant ${PLACEHOLDER} (déclare être titulaire d'une police d'assurance responsabilité
-      civile professionnelle couvrant les conséquences pécuniaires de sa responsabilité au titre de l'Accord, y
-      compris les risques liés aux atteintes aux données / s'engage à souscrire une telle police), dont il justifie
-      sur demande.</p>
+      <p>17.4. Le Sous-traitant ${clauseAssurance}</p>
 
       <h2>Article 18 — Durée</h2>
       <p>18.1. L'Accord entre en vigueur à la date de sa signature par la dernière des Parties, ou, si elle est
@@ -308,15 +367,15 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       territorialement compétente.</p>
 
       <div class="signatures">
-        <div><b>Pour la commune de ${nomCommune}</b>${nomMaire}, maire<br>Signature et cachet</div>
-        <div><b>Pour le Sous-traitant</b>Léandre SALLE<br>Signature</div>
+        <div><b>Pour la commune de ${nomCommune}</b>${signataire}, ${qualite}<div class="fait">Fait à …………………, le ……………</div>Signature et cachet</div>
+        <div><b>Pour le Sous-traitant</b>Léandre SALLE<div class="fait">Fait à …………………, le ……………</div>Signature</div>
       </div>
 
       <h2>Annexe 1 — Description détaillée des traitements</h2>
       <p>Les bases légales indiquées sont des propositions : leur détermination relève de la Commune. Les durées de
       conservation sont celles appliquées par défaut par la Plateforme ; la Commune peut demander à les adapter.</p>
-      <table>
-        <tr><th>Module</th><th>Finalité</th><th>Données traitées</th><th>Base légale suggérée</th><th>Conservation par défaut</th></tr>
+      <table class="grille">
+        <thead><tr><th>Module</th><th>Finalité</th><th>Données traitées</th><th>Base légale suggérée</th><th>Conservation par défaut</th></tr></thead><tbody>
         <tr><td>Compte habitant</td><td>Permettre l'accès aux services</td><td>Nom, prénom, courriel, mot de passe haché, commune(s) de rattachement, date d'inscription, rôle</td><td>Mission d'intérêt public (art. 6.1.e)</td><td>Durée de vie du compte ; suppression après 3 ans d'inactivité, précédée d'un avertissement par courriel</td></tr>
         <tr><td>Profil enrichi et annuaire</td><td>Mettre en relation les habitants (entraide, compétences)</td><td>Bio, compétences, passions, disponibilités, photo, choix de visibilité</td><td>Consentement (art. 6.1.a)</td><td>Jusqu'à modification, retrait ou suppression du compte</td></tr>
         <tr><td>Actualités, bulletin, agenda, conseil municipal</td><td>Informer les habitants</td><td>Contenus publiés par la Commune ; le cas échéant nom des élus et intervenants</td><td>Mission d'intérêt public</td><td>Tant que publié par la Commune</td></tr>
@@ -329,7 +388,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
         <tr><td>Espace de gestion — élus et agents</td><td>Administrer la Plateforme</td><td>Nom, courriel professionnel, rôle, journal des actions</td><td>Mission d'intérêt public</td><td>Durée des fonctions + 1 an</td></tr>
         <tr><td>Données techniques et de connexion</td><td>Sécurité, prévention des abus, diagnostic</td><td>Adresse IP, date et heure, identifiant de session, type de navigateur</td><td>Intérêt légitime / obligation légale</td><td>12 mois au plus</td></tr>
         <tr><td>Modération automatique des photos (option)</td><td>Détecter les images inappropriées avant publication</td><td>Photo soumise par l'habitant</td><td>Mission d'intérêt public</td><td>Aucune conservation après traitement</td></tr>
-      </table>
+      </tbody></table>
 
       <h2>Annexe 2 — Mesures techniques et organisationnelles de sécurité</h2>
       <p><strong>Hébergement et localisation</strong> — Base de données PostgreSQL managée hébergée dans l'Union
@@ -358,13 +417,13 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
 
       <h2>Annexe 3 — Sous-traitants ultérieurs autorisés</h2>
       <p>Liste à jour au ${dateDuJour}.</p>
-      <table>
-        <tr><th>Sous-traitant ultérieur</th><th>Prestation</th><th>Localisation des données</th><th>Garanties pour les transferts</th></tr>
+      <table class="grille">
+        <thead><tr><th>Sous-traitant ultérieur</th><th>Prestation</th><th>Localisation des données</th><th>Garanties pour les transferts</th></tr></thead><tbody>
         <tr><td>Cloudflare, Inc. (États-Unis)</td><td>Hébergement et distribution de l'application (Pages), serveur applicatif (Workers), stockage des fichiers (R2)</td><td>Fichiers : Union européenne (bucket R2 en juridiction « UE ») ; traitement applicatif sur le réseau mondial</td><td>Certification Data Privacy Framework ; clauses contractuelles types</td></tr>
         <tr><td>Supabase, Inc. (États-Unis)</td><td>Base de données PostgreSQL managée</td><td>Union européenne (Francfort, Allemagne)</td><td>DPA Supabase ; hébergement fixé en UE</td></tr>
         <tr><td>Resend, Inc. (États-Unis)</td><td>Envoi des courriels transactionnels</td><td>États-Unis</td><td>Certification Data Privacy Framework ; clauses contractuelles types</td></tr>
         <tr><td>Cloudflare, Inc. — Workers AI (si la Commune active l'option)</td><td>Modération automatique des photos par IA</td><td>Réseau mondial ; aucune conservation après analyse, aucun entraînement de modèle</td><td>Mêmes garanties que Cloudflare ci-dessus</td></tr>
-      </table>
+      </tbody></table>
       <p><strong>Services d'acheminement des notifications push (non choisis par le Sous-traitant).</strong> Le
       standard Web Push impose que chaque notification transite par le service push du fournisseur du navigateur
       utilisé par l'habitant (Google, Mozilla ou Apple), qui ne reçoit qu'un contenu chiffré de bout en bout et des

@@ -33,13 +33,132 @@
 
   if (type === 'contrat-dpa') {
     try {
-      const { html } = await boFetch('/administration/contrat-dpa/' + id);
-      document.title = 'Contrat DPA — Backoffice Plateforme-Agora';
-      feuille.innerHTML = html;
+      await initContratDpa(id);
     } catch (e) {
       feuille.textContent = 'Impossible de charger le contrat : ' + (e.message || 'erreur inconnue');
     }
     return;
+  }
+
+  // Contrat DPA + panneau « Informations à compléter » : chaque trou du document ([● …],
+  // span.a-completer[data-champ]) correspond à un champ du panneau. Seuls les champs modifiés
+  // sont enregistrés : un champ laissé tel quel continue de suivre sa source (convention,
+  // annuaire…). Valeurs posées via .value, jamais injectées en HTML.
+  async function initContratDpa(communeId) {
+    const AIDES = {
+      habilitation: "Ce qui autorise le signataire : délibération du conseil, ou délégation générale du maire.",
+      telephone_alerte: 'Appelé en cas de fuite de données (article 10), en plus du courriel.',
+      dpo: 'Obligatoire pour une commune : souvent le DPO mutualisé du centre de gestion (CDG) ou de l\'intercommunalité.',
+      dpa_plafond_responsabilite: 'Montant minimum de votre responsabilité (article 17.2), en euros.',
+      entreprise_siret: 'Valable pour toutes les communes, comme les champs suivants.',
+    };
+    const RACCOURCIS_HABILITATION = [
+      ['Délibération', 'la délibération n° … du …'],
+      ['Délégation L2122-22', "la délégation consentie par le conseil municipal en application de l'article L2122-22 du CGCT"],
+    ];
+    const panneau = document.createElement('aside');
+    panneau.className = 'panneau';
+    panneau.setAttribute('aria-label', 'Informations à compléter');
+    document.body.insertBefore(panneau, feuille);
+    document.body.classList.add('avec-panneau');
+    let manquants = 0;
+    let initiales = {};
+
+    const boutonImprimer = document.querySelector('.barre-actions .btn:not(.btn--sec)');
+    boutonImprimer.onclick = () => {
+      if (manquants && !confirm(`Il reste ${manquants} information(s) à compléter (en rouge). Imprimer quand même ?`)) return;
+      window.print();
+    };
+
+    const surligner = (cle) => {
+      feuille.querySelectorAll('.a-completer.actif').forEach((s) => s.classList.remove('actif'));
+      const cibles = feuille.querySelectorAll(`.a-completer[data-champ="${cle}"]`);
+      cibles.forEach((s) => s.classList.add('actif'));
+      if (cibles[0]) cibles[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+    feuille.addEventListener('click', (e) => {
+      const trou = e.target.closest('.a-completer');
+      const champ = trou && panneau.querySelector(`[name="${trou.dataset.champ}"]`);
+      if (!champ) return;
+      champ.focus();
+      surligner(champ.name);
+      champ.classList.remove('flash'); void champ.offsetWidth; champ.classList.add('flash');
+    });
+
+    const dessiner = (champs) => {
+      const bloc = (groupe, titre) => `<h3>${titre}</h3>` + champs.filter((ch) => ch.groupe === groupe).map((ch) => `
+        <div class="champ${ch.valeur ? '' : ' vide'}">
+          <label for="dpa-${ch.cle}"><span><span class="point"></span>${echapper(ch.libelle)}</span>${ch.source ? `<span class="source">repris : ${echapper(ch.source)}</span>` : ''}</label>
+          ${ch.cle === 'dpa_assurance'
+            ? `<select id="dpa-${ch.cle}" name="${ch.cle}"><option value="">— à choisir —</option><option value="titulaire">Déjà souscrite</option><option value="engagement">À souscrire (engagement)</option></select>`
+            : `<input id="dpa-${ch.cle}" name="${ch.cle}" type="text" maxlength="300" autocomplete="off"${ch.cle === 'dpa_plafond_responsabilite' ? ' inputmode="numeric" placeholder="ex. 10 000"' : ''}>`}
+          ${ch.cle === 'habilitation' ? `<div class="raccourcis">${RACCOURCIS_HABILITATION.map(([lib], i) => `<button type="button" data-raccourci="${i}">${lib}</button>`).join('')}</div>` : ''}
+          ${AIDES[ch.cle] ? `<div class="aide">${AIDES[ch.cle]}</div>` : ''}
+        </div>`).join('');
+      panneau.innerHTML = `
+        <div class="panneau__tete">
+          <h2>Informations à compléter</h2>
+          <span class="pastille ${manquants ? 'pastille--manque' : 'pastille--ok'}">${manquants ? `● ${manquants} manquante${manquants > 1 ? 's' : ''}` : '✓ Contrat complet'}</span>
+        </div>
+        <form class="panneau__corps" novalidate>
+          ${bloc('commune', 'La commune')}
+          ${bloc('prestataire', 'Vous (Prestataire)')}
+        </form>
+        <div class="panneau__pied">
+          <button type="button" class="btn" id="dpa-enregistrer">Enregistrer</button>
+          <div class="panneau__message" role="status"></div>
+        </div>`;
+      initiales = {};
+      for (const ch of champs) { panneau.querySelector(`[name="${ch.cle}"]`).value = ch.valeur; initiales[ch.cle] = ch.valeur; }
+      panneau.querySelectorAll('input, select').forEach((el) => {
+        el.addEventListener('focus', () => surligner(el.name));
+        el.addEventListener('input', () => el.closest('.champ').classList.toggle('vide', !el.value.trim()));
+      });
+      panneau.querySelectorAll('[data-raccourci]').forEach((b) => b.addEventListener('click', () => {
+        const champ = panneau.querySelector('[name="habilitation"]');
+        champ.value = RACCOURCIS_HABILITATION[b.dataset.raccourci][1];
+        champ.dispatchEvent(new Event('input'));
+        champ.focus();
+        const pos = champ.value.indexOf('…');
+        if (pos >= 0) champ.setSelectionRange(pos, pos + 1);
+      }));
+      panneau.querySelector('#dpa-enregistrer').addEventListener('click', enregistrer);
+      panneau.querySelector('form').addEventListener('submit', (e) => { e.preventDefault(); enregistrer(); });
+    };
+
+    const charger = async () => {
+      const d = await boFetch('/administration/contrat-dpa/' + communeId);
+      document.title = 'Contrat DPA — ' + d.commune_nom + ' — Backoffice Plateforme-Agora';
+      feuille.innerHTML = d.html;
+      manquants = d.manquants;
+      dessiner(d.champs);
+    };
+
+    async function enregistrer() {
+      const message = panneau.querySelector('.panneau__message');
+      const corps = {};
+      panneau.querySelectorAll('input, select').forEach((el) => {
+        if (el.value.trim() !== (initiales[el.name] || '')) corps[el.name] = el.value.trim();
+      });
+      if (!Object.keys(corps).length) { message.className = 'panneau__message'; message.textContent = 'Aucune modification.'; return; }
+      const bouton = panneau.querySelector('#dpa-enregistrer');
+      bouton.disabled = true;
+      try {
+        await boFetch('/administration/contrat-dpa/' + communeId, { method: 'PUT', body: JSON.stringify(corps) });
+        const y = window.scrollY;
+        await charger();
+        window.scrollTo(0, y);
+        const m = panneau.querySelector('.panneau__message');
+        m.className = 'panneau__message ok';
+        m.textContent = manquants ? 'Enregistré.' : 'Enregistré — le contrat est complet.';
+      } catch (e) {
+        message.className = 'panneau__message erreur';
+        message.textContent = e.message || "L'enregistrement a échoué.";
+        bouton.disabled = false;
+      }
+    }
+
+    await charger();
   }
 
   let entreprise, doc;
