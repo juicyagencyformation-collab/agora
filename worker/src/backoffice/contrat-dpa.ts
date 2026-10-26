@@ -53,7 +53,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
     <div class="contrat">
       <h1>Accord de sous-traitance de données à caractère personnel</h1>
       <div class="sous-titre">Plateforme Agora — Annexe RGPD au contrat d'abonnement (article 28 du RGPD)</div>
-      <div class="version">Version 2.1 — généré le ${dateDuJour} pour la commune de ${nomCommune}</div>
+      <div class="version">Version 2.2 — généré le ${dateDuJour} pour la commune de ${nomCommune}</div>
 
       <h2>Entre les soussignés</h2>
       <p><strong>La commune de ${nomCommune}</strong>, collectivité territoriale, SIRET ${PLACEHOLDER}, dont la mairie
@@ -81,9 +81,9 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       « sous-traitant », « personne concernée », « violation de données à caractère personnel » et
       « analyse d'impact » ont le sens que leur donne l'article 4 du RGPD. En outre :</p>
       <ul>
-        <li><strong>Plateforme</strong> : l'application web Agora (application citoyenne et back-office municipal) ;</li>
+        <li><strong>Plateforme</strong> : l'application web Agora (application citoyenne et espace de gestion de la mairie) ;</li>
         <li><strong>Utilisateurs</strong> : les habitants et usagers inscrits sur la Plateforme, ainsi que les élus
-        et agents de la Commune disposant d'un accès au back-office ;</li>
+        et agents de la Commune disposant d'un accès à l'espace de gestion de la mairie ;</li>
         <li><strong>Sous-traitant ultérieur</strong> : tout prestataire auquel le Sous-traitant recourt pour mener
         des activités de traitement spécifiques pour le compte de la Commune ;</li>
         <li><strong>Réglementation applicable</strong> : le RGPD, la loi n° 78-17 du 6 janvier 1978 modifiée et tout
@@ -100,7 +100,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       <table>
         <tr><th>Nature des opérations</th><td>Hébergement, collecte, enregistrement, organisation, conservation, consultation, modification, diffusion aux Utilisateurs de la Commune, envoi de courriels et de notifications, modération, export, effacement</td></tr>
         <tr><th>Finalités</th><td>Fonctionnement des services de la Plateforme activés par la Commune, détaillés module par module à l'Annexe 1</td></tr>
-        <tr><th>Personnes concernées</th><td>Habitants et usagers inscrits ; élus et agents municipaux utilisateurs du back-office</td></tr>
+        <tr><th>Personnes concernées</th><td>Habitants et usagers inscrits ; élus et agents municipaux utilisateurs de l'espace de gestion de la mairie</td></tr>
         <tr><th>Catégories de données</th><td>Identification et contact, données de compte, contenus publiés, participation (votes, réponses aux sondages), géolocalisation ponctuelle, données techniques et de connexion — détail à l'Annexe 1</td></tr>
         <tr><th>Données sensibles</th><td>Aucune donnée relevant de l'article 9 du RGPD n'est sollicitée par la Plateforme. Les Utilisateurs sont invités à ne pas en publier ; tout contenu de cette nature est traité dans le cadre de la modération (article 6.3)</td></tr>
         <tr><th>Durée</th><td>Durée du Contrat principal, augmentée du délai de restitution et de suppression prévu à l'article 15</td></tr>
@@ -111,7 +111,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
       ce qui concerne les transferts vers un pays tiers, sauf obligation imposée par le droit de l'Union ou le droit
       français ; dans ce cas, il en informe la Commune avant le traitement, sauf si ce droit l'interdit.</p>
       <p>4.2. Constituent des instructions documentées : (i) l'Accord et le Contrat principal ; (ii) les paramétrages
-      effectués par la Commune dans le back-office (modules activés, options de modération, rôles attribués) ;
+      effectués par la Commune dans son espace de gestion (modules activés, options de modération, rôles attribués) ;
       (iii) toute instruction écrite complémentaire adressée par un représentant habilité de la Commune.</p>
       <p>4.3. Le Sous-traitant informe immédiatement la Commune si, selon lui, une instruction constitue une
       violation de la Réglementation applicable. Il peut alors en suspendre l'exécution jusqu'à sa confirmation ou
@@ -235,15 +235,15 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
         <li>documenter par écrit toute instruction adressée au Sous-traitant ;</li>
         <li>veiller au respect, pendant toute la durée du traitement, des obligations que le RGPD met à la charge
         du responsable du traitement ;</li>
-        <li>attribuer les accès au back-office aux seuls élus et agents qui en ont besoin, les retirer sans délai
+        <li>attribuer les accès à l'espace de gestion de la mairie aux seuls élus et agents qui en ont besoin, les retirer sans délai
         en cas de fin de fonctions, et veiller à la confidentialité de leurs identifiants ;</li>
         <li>assurer la modération des contenus publiés par les habitants dans le respect de l'article 6.3 ;</li>
         <li>superviser les traitements, y compris par la réalisation d'audits (article 16).</li>
       </ol>
 
       <h2>Article 15 — Sort des données en fin de contrat</h2>
-      <p>15.1. Au terme du Contrat principal, pour quelque cause que ce soit, la Commune peut exporter l'ensemble
-      de ses données depuis le back-office ou en demander la restitution, dans un format structuré, couramment
+      <p>15.1. Au terme du Contrat principal, pour quelque cause que ce soit, la Commune peut demander la restitution
+      de l'ensemble de ses données, dans un format structuré, couramment
       utilisé et lisible par machine (JSON ou CSV), pendant un délai de <strong>trente (30) jours</strong>.</p>
       <p>15.2. À l'issue de ce délai, ou plus tôt sur instruction écrite de la Commune, le Sous-traitant supprime
       de manière définitive l'ensemble des données de la Commune de ses systèmes et de ceux de ses sous-traitants
@@ -326,7 +326,7 @@ export function genererContratDpaHtml(commune: Commune, entreprise: Entreprise, 
         <tr><td>Sondages et votes de projets</td><td>Consulter les habitants</td><td>Réponses, votes, date</td><td>Mission d'intérêt public</td><td>Réponses individuelles : 6 mois après clôture ; résultats agrégés ensuite</td></tr>
         <tr><td>Chasse au trésor, visite guidée</td><td>Valoriser le patrimoine</td><td>Progression, validations GPS/QR, points</td><td>Consentement</td><td>Durée de vie du compte</td></tr>
         <tr><td>Modération</td><td>Prévenir et traiter les contenus illicites</td><td>Signalements, motif, contenu signalé, décisions</td><td>Mission d'intérêt public</td><td>1 an après la décision</td></tr>
-        <tr><td>Back-office élus et agents</td><td>Administrer la Plateforme</td><td>Nom, courriel professionnel, rôle, journal des actions</td><td>Mission d'intérêt public</td><td>Durée des fonctions + 1 an</td></tr>
+        <tr><td>Espace de gestion — élus et agents</td><td>Administrer la Plateforme</td><td>Nom, courriel professionnel, rôle, journal des actions</td><td>Mission d'intérêt public</td><td>Durée des fonctions + 1 an</td></tr>
         <tr><td>Données techniques et de connexion</td><td>Sécurité, prévention des abus, diagnostic</td><td>Adresse IP, date et heure, identifiant de session, type de navigateur</td><td>Intérêt légitime / obligation légale</td><td>12 mois au plus</td></tr>
         <tr><td>Modération automatique des photos (option)</td><td>Détecter les images inappropriées avant publication</td><td>Photo soumise par l'habitant</td><td>Mission d'intérêt public</td><td>Aucune conservation après traitement</td></tr>
       </table>

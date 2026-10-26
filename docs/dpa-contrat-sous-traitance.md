@@ -1,5 +1,8 @@
 <!--
 NOTES INTERNES — à retirer avant envoi (invisibles au rendu Markdown)
+- Version 2.2 du 26/10/2026 : « back-office » remplacé par « espace de gestion de la mairie » (le
+  back-office est l'outil interne du Prestataire, hors périmètre) ; article 15.1 : plus d'export en
+  libre-service annoncé (n'existe pas), restitution sur demande uniquement.
 - Version 2.1 du 10/10/2026 : reprend la v2.0 (refonte complète de la v1), avec corrections
   factuelles vérifiées dans le code par Claude (VS Code) le 10/10/2026 :
   - Article 8.1, Annexe 2, Annexe 3 : stockage R2 en juridiction UE confirmé réel (migration
@@ -24,7 +27,7 @@ NOTES INTERNES — à retirer avant envoi (invisibles au rendu Markdown)
 **Plateforme Agora — Annexe RGPD au contrat d'abonnement**
 *(article 28 du Règlement (UE) 2016/679 et loi n° 78-17 du 6 janvier 1978 modifiée)*
 
-Version 2.1 — octobre 2026
+Version 2.2 — octobre 2026
 
 ---
 
@@ -67,9 +70,9 @@ Les termes « données à caractère personnel », « traitement », « responsa
 « sous-traitant », « personne concernée », « violation de données à caractère personnel » et
 « analyse d'impact » ont le sens que leur donne l'article 4 du RGPD. En outre :
 
-- **Plateforme** : l'application web Agora (application citoyenne et back-office municipal) ;
+- **Plateforme** : l'application web Agora (application citoyenne et espace de gestion de la mairie) ;
 - **Utilisateurs** : les habitants et usagers inscrits sur la Plateforme, ainsi que les élus et
-  agents de la Commune disposant d'un accès au back-office ;
+  agents de la Commune disposant d'un accès à l'espace de gestion de la mairie ;
 - **Sous-traitant ultérieur** : tout prestataire auquel le Sous-traitant recourt pour mener des
   activités de traitement spécifiques pour le compte de la Commune ;
 - **Réglementation applicable** : le RGPD, la loi n° 78-17 du 6 janvier 1978 modifiée et tout
@@ -90,7 +93,7 @@ personnel, l'Accord prévaut.
 |---|---|
 | **Nature des opérations** | Hébergement, collecte, enregistrement, organisation, conservation, consultation, modification, diffusion aux Utilisateurs de la Commune, envoi de courriels et de notifications, modération, export, effacement |
 | **Finalités** | Fonctionnement des services de la Plateforme activés par la Commune, détaillés module par module à l'Annexe 1 |
-| **Personnes concernées** | Habitants et usagers inscrits ; élus et agents municipaux utilisateurs du back-office |
+| **Personnes concernées** | Habitants et usagers inscrits ; élus et agents municipaux utilisateurs de l'espace de gestion de la mairie |
 | **Catégories de données** | Identification et contact, données de compte, contenus publiés, participation (votes, réponses aux sondages), géolocalisation ponctuelle, données techniques et de connexion — détail à l'Annexe 1 |
 | **Données sensibles** | Aucune donnée relevant de l'article 9 du RGPD n'est sollicitée par la Plateforme. Les Utilisateurs sont invités à ne pas en publier ; tout contenu de cette nature est traité dans le cadre de la modération (article 6.3) |
 | **Durée** | Durée du Contrat principal, augmentée du délai de restitution et de suppression prévu à l'article 15 |
@@ -103,7 +106,7 @@ de l'Union ou le droit français ; dans ce cas, il en informe la Commune avant l
 si ce droit l'interdit.
 
 4.2. Constituent des instructions documentées : (i) l'Accord et le Contrat principal ; (ii) les
-paramétrages effectués par la Commune dans le back-office (modules activés, options de
+paramétrages effectués par la Commune dans son espace de gestion (modules activés, options de
 modération, rôles attribués) ; (iii) toute instruction écrite complémentaire adressée par un
 représentant habilité de la Commune.
 
@@ -264,15 +267,15 @@ La Commune s'engage à :
 3. documenter par écrit toute instruction adressée au Sous-traitant ;
 4. veiller au respect, pendant toute la durée du traitement, des obligations que le RGPD met à la
    charge du responsable du traitement ;
-5. attribuer les accès au back-office aux seuls élus et agents qui en ont besoin, les retirer sans
+5. attribuer les accès à l'espace de gestion de la mairie aux seuls élus et agents qui en ont besoin, les retirer sans
    délai en cas de fin de fonctions, et veiller à la confidentialité de leurs identifiants ;
 6. assurer la modération des contenus publiés par les habitants dans le respect de l'article 6.3 ;
 7. superviser les traitements, y compris par la réalisation d'audits (article 16).
 
 ## Article 15 — Sort des données en fin de contrat
 
-15.1. Au terme du Contrat principal, pour quelque cause que ce soit, la Commune peut exporter
-l'ensemble de ses données depuis le back-office ou en demander la restitution, dans un format
+15.1. Au terme du Contrat principal, pour quelque cause que ce soit, la Commune peut demander
+la restitution de l'ensemble de ses données, dans un format
 structuré, couramment utilisé et lisible par machine (JSON ou CSV), pendant un délai de
 **trente (30) jours**.
 
@@ -388,7 +391,7 @@ demander à les adapter.
 | **Sondages et votes de projets** | Consulter les habitants | Réponses, votes, date | Mission d'intérêt public | Réponses individuelles : [6 mois] après clôture ; résultats agrégés et anonymes ensuite |
 | **Chasse au trésor, visite guidée** | Valoriser le patrimoine de manière ludique | Progression, validations GPS/QR, points ; position géographique ponctuelle, non historisée | Consentement | Durée de vie du compte |
 | **Modération** | Prévenir et traiter les contenus illicites ou inappropriés | Signalements, motif, contenu signalé, décisions | Mission d'intérêt public | [1 an] après la décision |
-| **Back-office élus et agents** | Administrer la Plateforme pour la Commune | Nom, courriel professionnel, rôle, journal des actions d'administration | Mission d'intérêt public | Durée des fonctions + [1 an] |
+| **Espace de gestion — élus et agents** | Administrer la Plateforme pour la Commune | Nom, courriel professionnel, rôle, journal des actions d'administration | Mission d'intérêt public | Durée des fonctions + [1 an] |
 | **Données techniques et de connexion** | Sécurité, prévention des abus, diagnostic | Adresse IP, date et heure, identifiant de session, type de navigateur | Intérêt légitime de sécurité / obligation légale | [12 mois] au plus |
 | **Modération automatique des photos (option)** | Détecter les images inappropriées avant publication | Photo soumise par l'habitant | Mission d'intérêt public | Aucune conservation par le service d'analyse après traitement |
 
