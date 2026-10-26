@@ -216,6 +216,8 @@ Entrée **"👥 Utilisateurs"** du menu : tous les comptes, **toutes communes co
 
 Section dédiée sur la fiche : nombre d'exports de données demandés, comptes anonymisés, détail des 8 derniers exports.
 
+Si un habitant demande à ne plus voir son nom affiché : il le règle lui-même dans Mon profil → 🔒 Confidentialité → « Mon nom sur mes publications » (« Une habitante » / « Un habitant »). Par défaut, l'app n'affiche plus que le prénom et l'initiale du nom. Le vrai nom reste visible dans le backoffice et dans les outils de modération de la mairie.
+
 ### 6.9 Stickers à coller dans la commune
 
 Entrée **"🏷 Stickers"** du menu (s'ouvre dans un nouvel onglet), ou bouton **"🏷 Stickers"** sur une fiche commune (pré-remplit toutes les cases avec cette commune).

@@ -97,6 +97,8 @@ Deux systèmes séparés :
 
 Vous y trouvez aussi : votre streak de connexion, votre historique de contributions, un QR pour inviter vos voisins, la possibilité de noter l'application, et vos droits (changer votre mot de passe, télécharger vos données, supprimer votre compte).
 
+**Votre nom sur vos publications** (Mon profil → 🔒 Confidentialité) : par défaut, les autres habitants voient votre prénom et l'initiale de votre nom (« Léa M. »). Vous pouvez choisir d'apparaître simplement comme « Une habitante » ou « Un habitant ». Le choix s'applique aussi à ce que vous avez déjà publié, et vous continuez de voir votre propre nom. La mairie peut toujours identifier l'auteur d'un contenu signalé.
+
 ## A.15 Notifications
 
 Vous choisissez individuellement ce qui vous intéresse : articles, chasses au trésor, énigmes, mur, sondages, agenda, entraide, vigilance météo, résumé météo quotidien (désactivé par défaut). Un clic sur une notification vous emmène directement au bon endroit dans l'application.
