@@ -14,10 +14,16 @@ function fetchFake(input: any, init?: any): Promise<Response> {
   const url = new URL(String(input));
   const table = url.pathname.replace('/rest/v1/', '');
   if ((init?.method || 'GET') === 'POST') { (db[table] ??= []).push(JSON.parse(String(init.body))); return Promise.resolve(new Response('[]', { status: 201 })); }
-  const colonnes = (url.searchParams.get('select') || '').split(',');
+  // select à plat ou avec tables embarquées « table(col,col) », reliées par commune_id comme en vrai
+  const champs = (url.searchParams.get('select') || '').match(/\w+\([^)]*\)|\w+/g) || [];
+  const projeter = (l: Ligne, cols: string[]) => Object.fromEntries(cols.filter((c) => c in l).map((c) => [c, l[c]]));
   const lignes = (db[table] || [])
     .filter((l) => [...url.searchParams.entries()].every(([k, v]) => ['select', 'order', 'limit', 'offset'].includes(k) || String(l[k]) === v.replace(/^eq\./, '')))
-    .map((l) => Object.fromEntries(colonnes.filter((c) => c in l).map((c) => [c, l[c]])));
+    .map((l) => Object.fromEntries(champs.flatMap((ch) => {
+      const m = ch.match(/^(\w+)\(([^)]*)\)$/);
+      if (!m) return ch in l ? [[ch, l[ch]]] : [];
+      return [[m[1], (db[m[1]] || []).filter((e) => e.commune_id === l.id).map((e) => projeter(e, m[2].split(',')))]];
+    })));
   return Promise.resolve(new Response(JSON.stringify(lignes), { status: 200 }));
 }
 const session = async () => ({ Cookie: `agora_bo=${await sign({ staff_id: 's1', scope: 'backoffice', exp: Math.floor(Date.now() / 1000) + 900 }, JWT_SECRET)}` });

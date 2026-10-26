@@ -5,6 +5,34 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-26 — Backoffice : l'export des données d'une commune ne se téléchargeait pas
+
+**Gravité :** moyenne (restitution DPA art. 15.1 impossible, aucune donnée exposée)
+**Fichiers :** `worker/src/backoffice/export-commune.ts`, `worker/test/export-commune.test.ts`
+
+### Symptôme
+Le bouton « ⬇ Exporter les données » donnait un téléchargement en échec (« Site non disponible »),
+nommé d'après l'identifiant de la commune au lieu de `donnees-<slug>-<date>.json`.
+
+### Cause
+Une requête Supabase par table (60 tables + pagination) : au-delà de la limite Cloudflare de
+50 sous-requêtes par invocation Worker, l'appel plantait avant de répondre. Invisible en tests
+(le faux Supabase n'a pas cette limite).
+
+### Correction
+Une seule requête : les 60 tables sont embarquées depuis `communes` via leur clé étrangère
+`commune_id` (`communes?select=...,users(...),articles(...)`). Colonnes toujours listées une à une.
+
+### Vérification
+- Requête testée sur la base réelle (Eaucourt) : 200 en 0,8 s, 382 Ko, aucun plafond sur les
+  embarqués (457 lignes de `connexions_journalieres`, comme le comptage direct). 283 tests passent.
+
+### À retenir
+Toute route qui boucle sur des tables ou des lignes compte ses sous-requêtes : rester bien sous 50,
+sinon regrouper (embarquement PostgREST, filtre `in.(...)`, upsert en masse).
+
+---
+
 ## 2026-10-24 — Sécurité : blocage d'un compte après 10 échecs de mot de passe
 
 **Gravité :** moyenne (le limiteur Cloudflare ne freinait pas un essai de mots de passe à petit rythme)

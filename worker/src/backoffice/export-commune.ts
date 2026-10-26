@@ -5,8 +5,12 @@
 // plus tard n'est exportée que si on l'ajoute ici, donc jamais un secret par accident.
 // Inventaire fait le 2026-10-26 sur les 74 tables ayant commune_id : toute nouvelle table liée à
 // une commune doit être ajoutée à TABLES ou à NON_INCLUS ci-dessous.
+// UNE SEULE requête Supabase (tables embarquées depuis communes via leur clé étrangère
+// commune_id) : une requête par table dépassait la limite de 50 sous-requêtes par invocation
+// Worker et l'export échouait en production (vécu le 2026-10-26). Les embarqués ne sont pas
+// plafonnés par PostgREST (vérifié : 457 lignes d'une même table, toutes présentes).
 import { Hono } from 'hono';
-import { supabaseSelect, supabaseSelectTout, journaliser } from '../db';
+import { supabaseSelect, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 
 const app = new Hono();
@@ -98,15 +102,15 @@ export const NON_INCLUS: Record<string, string> = {
 
 app.get('/:communeId', async (c) => {
   const communeId = c.req.param('communeId');
-  const [commune] = await supabaseSelect(c.env, 'communes', { select: COLONNES_COMMUNE, id: `eq.${communeId}` });
-  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+  const embarques = Object.entries(TABLES).map(([table, colonnes]) => `${table}(${colonnes})`).join(',');
+  const [ligne] = await supabaseSelect(c.env, 'communes', { select: `${COLONNES_COMMUNE},${embarques}`, id: `eq.${communeId}` });
+  if (!ligne) return c.json({ erreur: 'Commune introuvable' }, 404);
 
+  const commune: Record<string, any> = {};
   const tables: Record<string, any[]> = {};
-  const entrees = Object.entries(TABLES);
-  for (let i = 0; i < entrees.length; i += 8) {
-    await Promise.all(entrees.slice(i, i + 8).map(async ([table, colonnes]) => {
-      tables[table] = await supabaseSelectTout(c.env, table, { select: colonnes, commune_id: `eq.${communeId}`, order: 'id.asc' });
-    }));
+  for (const [cle, valeur] of Object.entries(ligne)) {
+    if (cle in TABLES) tables[cle] = (valeur as any[]) ?? [];
+    else commune[cle] = valeur;
   }
   const nombreLignes = Object.fromEntries(Object.entries(tables).map(([t, l]) => [t, l.length]));
   const total = Object.values(nombreLignes).reduce((a, b) => a + b, 0);
