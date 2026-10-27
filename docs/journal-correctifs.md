@@ -5,6 +5,26 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-10-27 — Backoffice : « Voir la convention » affichait « Devis introuvable »
+
+**Gravité :** faible (document de convention inaccessible, aucune donnée touchée)
+**Fichiers :** `frontend/backoffice/js/document.js`, `frontend/backoffice/document.html`
+
+### Cause
+La page des documents n'accepte que les types de sa liste blanche (`facture`, `contrat-dpa`) et
+retombe sur `devis` sinon. `convention` y avait été oublié lors de l'ajout de la convention : la page
+cherchait un devis avec l'identifiant de la convention (404).
+
+### Correction et vérification
+`convention` ajouté à la liste. Vérifié dans Chrome (sans interface) : la page appelle bien
+`/conventions/:id/document` et affiche la convention.
+
+### À retenir
+Tout nouveau type de document se déclare à DEUX endroits de `document.js` : la liste blanche
+(ligne `const type = …`) et sa branche de rendu.
+
+---
+
 ## 2026-10-26 — Backoffice : l'export des données d'une commune ne se téléchargeait pas
 
 **Gravité :** moyenne (restitution DPA art. 15.1 impossible, aucune donnée exposée)

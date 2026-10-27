@@ -5,7 +5,7 @@
 // (une facture adressée à une commune doit ensuite être déposée sur Chorus Pro).
 (async function () {
   const params = new URLSearchParams(location.search);
-  const type = ['facture', 'contrat-dpa'].includes(params.get('type')) ? params.get('type') : 'devis';
+  const type = ['facture', 'contrat-dpa', 'convention'].includes(params.get('type')) ? params.get('type') : 'devis';
   const id = params.get('id');
 
   const echapper = (s) => (s || '').replace(/[&<>"']/g, (m) => (
