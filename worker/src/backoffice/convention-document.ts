@@ -134,7 +134,7 @@ export function genererConventionHtml(
           <tr><td>Prix</td><td>1 €</td><td>Grille du site − 35 %, tant que l'abonnement est continu</td></tr>
           <tr><td>Durée</td><td>12 mois à compter de la mise en service</td><td>${dureeTableau}</td></tr>
           <tr><td>Onglets</td><td>${ligneOnglets(ongletsActifs)}</td><td>Selon l'offre choisie</td></tr>
-          <tr><td>Si aucune décision</td><td>—</td><td>Version gratuite, données conservées</td></tr>
+          <tr><td>Si aucune décision</td><td>Rien à décider : l'accès complet court jusqu'au terme des 12 mois</td><td>Version gratuite, données conservées</td></tr>
         </tbody>
       </table>
       <p><strong>Facturation</strong> — une facture de 1 €, déposée sur Chorus Pro${conv.code_service_chorus ? ` (code service : ${echapper(conv.code_service_chorus)})` : ''}, avec la mention « ${ou(entreprise.entreprise_mention_tva)} ». Contact facturation de la Commune : ${contactFacturation}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>
