@@ -46,6 +46,12 @@ describe('emailDemandeContactHtml', () => {
 });
 
 describe('sujetDemandeContact', () => {
+  it('indique le type de demande, et reste neutre sans type (ancien formulaire en cache)', () => {
+    expect(sujetDemandeContact(demandeContactSchema.parse({ ...valide, demande: 'gratuit' }))).toBe('Version gratuite — Fay-les-Étangs (Secrétaire de mairie)');
+    expect(sujetDemandeContact(demandeContactSchema.parse({ ...valide, demande: 'fondatrice' }))).toMatch(/^Commune fondatrice — /);
+    expect(sujetDemandeContact(demandeContactSchema.parse(valide))).toMatch(/^Demande de contact — /);
+    expect(demandeContactSchema.safeParse({ ...valide, demande: 'autre' }).success).toBe(false);
+  });
   it('reste sur une seule ligne même si la commune contient des retours à la ligne', () => {
     const d = demandeContactSchema.parse({ ...valide, commune: 'Fay\r\nBcc: x@y.z' });
     expect(sujetDemandeContact(d)).not.toMatch(/[\r\n]/);

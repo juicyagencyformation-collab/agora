@@ -1,5 +1,6 @@
 // worker/src/backoffice/demande-contact.ts
-// Formulaire « Commune fondatrice » de la landing page (frontend/accueil.html, section #contact) :
+// Formulaire de demande de la landing page (frontend/accueil.html, section #contact) : activation
+// de la version gratuite, devis pour la version payante ou candidature « Commune fondatrice » —
 // un élu ou une secrétaire de mairie laisse ses coordonnées, on reçoit un email sur la boîte
 // contact. Remplace le mailto: nu, qui échoue chez tous ceux qui n'ont pas de logiciel de
 // messagerie configuré (cas fréquent en mairie : webmail uniquement).
@@ -10,9 +11,14 @@
 // réception déjà branchée sur Resend, voir emails-recus.ts).
 import { z } from 'zod';
 
+// Type de demande choisi dans le formulaire. Facultatif : une page encore en cache chez un
+// visiteur (ancien formulaire « Commune fondatrice » seul) envoie sans ce champ.
+export const DEMANDES_CONTACT = { gratuit: 'Version gratuite', devis: 'Devis version payante', fondatrice: 'Commune fondatrice' } as const;
+
 export const FONCTIONS_CONTACT = ['Maire', 'Adjoint(e)', 'Conseiller(e) municipal(e)', 'Secrétaire de mairie', 'Autre'] as const;
 
 export const demandeContactSchema = z.object({
+  demande: z.enum(Object.keys(DEMANDES_CONTACT) as [keyof typeof DEMANDES_CONTACT]).optional(),
   nom: z.string().trim().min(2).max(120),
   fonction: z.enum(FONCTIONS_CONTACT),
   commune: z.string().trim().min(2).max(120),
@@ -29,10 +35,12 @@ const echapper = (s: string) => s.replace(/[&<>"']/g, (m) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>
 )[m]);
 
+const libelleDemande = (d: DemandeContact) => (d.demande ? DEMANDES_CONTACT[d.demande] : 'Demande de contact');
+
 export function sujetDemandeContact(d: DemandeContact): string {
   // Sujet sur une ligne, sans caractère de contrôle (le nom de commune vient du visiteur).
   const commune = d.commune.replace(/[\r\n]+/g, ' ');
-  return `Commune fondatrice — ${commune} (${d.fonction})`;
+  return `${libelleDemande(d)} — ${commune} (${d.fonction})`;
 }
 
 export function emailDemandeContactHtml(d: DemandeContact): string {
@@ -44,7 +52,7 @@ export function emailDemandeContactHtml(d: DemandeContact): string {
     : '';
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1B2A4A;max-width:560px">
-    <h1 style="font-size:20px;margin-bottom:12px">Nouvelle demande « Commune fondatrice »</h1>
+    <h1 style="font-size:20px;margin-bottom:12px">Nouvelle demande : ${libelleDemande(d)}</h1>
     <table style="font-size:15px;border-collapse:collapse">
       ${ligne('Commune', d.commune)}
       ${ligne('Nom', d.nom)}

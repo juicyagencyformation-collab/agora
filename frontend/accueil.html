@@ -1293,6 +1293,10 @@
     /* — FORMULAIRE COMMUNE FONDATRICE — */
     .contact-fondatrice { background: var(--cream); }
     .contact-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 3rem; align-items: start; }
+    .lien-habitant { display: inline-block; margin-top: 0.9rem; font-size: 0.88rem; color: inherit; opacity: 0.75; text-decoration: underline; text-underline-offset: 3px; }
+    .lien-habitant:hover { opacity: 1; }
+    .contact-fondatrice-encart { margin-top: 1.5rem; padding: 1rem 1.2rem; border-radius: 12px; background: var(--white); border: 1px solid var(--border-light); font-size: 0.92rem; line-height: 1.55; }
+    .contact-fondatrice-encart strong { color: var(--coral); }
     .contact-avantages { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
     .contact-avantages li { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.95rem; line-height: 1.5; }
     .contact-avantages li::before { content: '✓'; color: var(--green); font-weight: 700; }
@@ -1380,7 +1384,7 @@
         <li><a href="#fonctionnalites">Fonctionnalités</a></li>
         <li><a href="#tarifs">Tarifs</a></li>
         <li><a href="#faq">FAQ</a></li>
-        <li><a href="rejoindre.html" id="cta-nav-activer" class="nav-cta">Activer ma commune →</a></li>
+        <li><a href="#contact" id="cta-nav-activer" class="nav-cta" data-demande="gratuit">Demander l'activation →</a></li>
       </ul>
     </div>
   </nav>
@@ -1400,9 +1404,10 @@
         </p>
         <div data-reveal>
           <div class="hero-actions">
-            <a href="rejoindre.html" id="cta-hero-activer" class="btn-primary">Activer gratuitement →</a>
+            <a href="#contact" id="cta-hero-activer" class="btn-primary" data-demande="gratuit">Demander l'activation gratuite →</a>
             <a href="#fonctionnalites" class="btn-secondary">Voir les fonctionnalités</a>
           </div>
+          <a href="rejoindre.html" class="lien-habitant">Vous êtes habitant ? Rejoindre ma commune →</a>
           <div class="hero-proof">
             <div class="hero-proof-dot"></div>
             <span>Gratuit · Conçue en France · Données hébergées en Europe · Par un élu, pour des élus</span>
@@ -1558,26 +1563,26 @@
     <div class="wrap">
       <div style="text-align:center; margin-bottom:3rem;" data-reveal>
         <div class="section-eyebrow">Comment ça marche</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">En ligne en 2 minutes, sans aide extérieure</h2>
+        <h2 class="section-title" style="text-align:center; max-width:none;">En ligne en 48 heures, sans aucune compétence technique</h2>
       </div>
       <div class="steps-grid">
         <div class="pillar-card" data-reveal>
           <div class="pillar-icon" style="background:var(--green-light); font-size:3.5rem; text-align:center;">🔍</div>
-          <div class="pillar-num" style="font-size:1.496rem;">01 — Trouvez votre commune</div>
-          <div class="pillar-title">Elle est déjà prête</div>
-          <p class="pillar-desc">Cherchez le nom de votre village sur la page d'inscription : son espace existe déjà, il n'attend que vous.</p>
+          <div class="pillar-num" style="font-size:1.496rem;">01 — Faites votre demande</div>
+          <div class="pillar-title">Un formulaire, 2 minutes</div>
+          <p class="pillar-desc">Indiquez votre commune et vos coordonnées : pas de compte à créer, pas de carte bancaire.</p>
         </div>
         <div class="pillar-card" data-reveal>
           <div class="pillar-icon" style="background:var(--orange-light); font-size:3.5rem; text-align:center;">✍️</div>
-          <div class="pillar-num" style="font-size:1.496rem;">02 — Créez votre compte</div>
-          <div class="pillar-title">Gratuit</div>
-          <p class="pillar-desc">Un email, un mot de passe : votre compte est créé et connecté immédiatement, sans attendre personne.</p>
+          <div class="pillar-num" style="font-size:1.496rem;">02 — Nous vous rappelons</div>
+          <div class="pillar-title">Par un élu, pour des élus</div>
+          <p class="pillar-desc">Nous préparons votre espace avec vous et vous transmettons les documents utiles : contrat RGPD, devis si besoin.</p>
         </div>
         <div class="pillar-card" data-reveal>
           <div class="pillar-icon" style="background:var(--coral-light); font-size:3.5rem; text-align:center;">🚀</div>
           <div class="pillar-num" style="font-size:1.496rem;">03 — C'est en ligne</div>
           <div class="pillar-title">Vous activez à votre rythme</div>
-          <p class="pillar-desc">Agenda, Alertes et Actus sont actifs tout de suite. Les autres modules s'ajoutent quand votre commune est prête.</p>
+          <p class="pillar-desc">Actualités, agenda, signalements, conseil municipal et lois sont actifs tout de suite. Les autres onglets s'ajoutent quand votre commune est prête.</p>
         </div>
       </div>
     </div>
@@ -1613,7 +1618,7 @@
           <div class="pillar-tags">
             <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Délibérations &amp; PV</span>
             <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Alertes urgentes</span>
-            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Thermomètre citoyen</span>
+            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Thermomètre du village</span>
           </div>
         </div>
 
@@ -1666,7 +1671,7 @@
         </div>
         <div class="module-item" data-reveal style="--i:3">
           <div class="module-dot" style="background:var(--indigo-light);">🌡️</div>
-          <div class="module-text"><strong>Thermomètre citoyen</strong><span>Sondage rapide avant une décision</span></div>
+          <div class="module-text"><strong>Thermomètre du village</strong><span>Sondage rapide avant une décision</span></div>
         </div>
         <div class="module-item" data-reveal style="--i:4">
           <div class="module-dot" style="background:var(--green-light);">🤝</div>
@@ -1752,6 +1757,43 @@
     </div>
   </section>
 
+  <!-- — POUR LA MAIRIE : LE TEMPS GAGNÉ — argument n° 1 auprès du conseil municipal qui vote le
+       budget (ligne d'offre validée le 2026-10-27). Réutilise la grille des modules. -->
+  <section class="section modules">
+    <div class="wrap">
+      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
+        <div class="section-eyebrow">Pour la mairie</div>
+        <h2 class="section-title" style="text-align:center; max-width:none;">Du temps rendu au secrétariat</h2>
+      </div>
+      <div class="modules-grid">
+        <div class="module-item" data-reveal style="--i:0">
+          <div class="module-dot" style="background:var(--green-light);">📰</div>
+          <div class="module-text"><strong>Bulletin municipal</strong><span>Rédigé à plusieurs et à distance : fini les relances par mail et les versions Word qui se croisent</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:1">
+          <div class="module-dot" style="background:var(--orange-light);">🌡️</div>
+          <div class="module-text"><strong>Thermomètre du village</strong><span>Un sondage en ligne au lieu de questionnaires papier à distribuer, ramasser et dépouiller</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:2">
+          <div class="module-dot" style="background:var(--coral-light);">🏪</div>
+          <div class="module-text"><strong>Annuaire</strong><span>Commerçants et associations tiennent leur fiche à jour eux-mêmes</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:3">
+          <div class="module-dot" style="background:var(--indigo-light);">🤝</div>
+          <div class="module-text"><strong>Coups de main</strong><span>Les habitants s'entraident directement, sans passer par la mairie</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:4">
+          <div class="module-dot" style="background:var(--green-light);">💬</div>
+          <div class="module-text"><strong>Mur des voisins</strong><span>Les questions courantes trouvent réponse entre habitants</span></div>
+        </div>
+        <div class="module-item" data-reveal style="--i:5">
+          <div class="module-dot" style="background:var(--orange-light);">📊</div>
+          <div class="module-text"><strong>Bilan mensuel</strong><span>Formule Accompagné : le résumé du mois (signalements, actualités, habitants) arrive tout seul par mail</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- — TARIFS — -->
   <section class="section pricing" id="tarifs">
     <div class="wrap">
@@ -1774,7 +1816,7 @@
       </div>
 
       <div class="pricing-zone">
-      <a href="#contact" class="ruban-fondatrice" aria-label="Communes fondatrices : moins 35 % à vie. Je candidate">
+      <a href="#contact" class="ruban-fondatrice" data-demande="fondatrice" aria-label="Communes fondatrices : moins 35 % à vie. Je candidate">
         <span class="ruban-texte">−35 % à vie <em>· 10 communes fondatrices</em></span>
         <span class="ruban-cta">Je candidate →</span>
       </a>
@@ -1795,7 +1837,7 @@
             <li>Support email</li>
             <li>Valorisation du patrimoine en option, sur devis</li>
           </ul>
-          <a href="#contact" class="btn-pricing btn-pricing-light">Devenir commune fondatrice</a>
+          <a href="#contact" class="btn-pricing btn-pricing-light" data-demande="fondatrice">Devenir commune fondatrice</a>
         </div>
 
         <div class="pricing-card featured" data-reveal>
@@ -1815,35 +1857,43 @@
             <li>Support prioritaire</li>
             <li>Bilan mensuel</li>
           </ul>
-          <a href="#contact" class="btn-pricing btn-pricing-white">Devenir commune fondatrice</a>
+          <a href="#contact" class="btn-pricing btn-pricing-white" data-demande="fondatrice">Devenir commune fondatrice</a>
         </div>
       </div>
       </div>
-      <p class="pricing-option"><strong>Option patrimoine :</strong> une chasse au trésor numérique pour faire découvrir le patrimoine de votre commune, créée avec vous sur place, sur devis. <a href="mailto:contact@plateforme-agora.fr?subject=Option%20patrimoine%20Agora">Nous écrire</a></p>
+      <p class="pricing-option"><strong>Options :</strong> valorisation du patrimoine par une chasse au trésor numérique, créée avec vous sur place, sur devis · packs de sondages pour le Thermomètre du village, vendus à l'unité. <a href="#contact" data-demande="devis">Demander un devis</a></p>
       <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
-        Gratuit pour commencer · Agenda &amp; Alertes sans carte bancaire, sans limite de temps · Prix indicatif, base de votre devis personnalisé
+        Gratuit pour commencer · Actualités, agenda, signalements, conseil municipal et lois, sans carte bancaire ni limite de temps · Prix indicatif, base de votre devis personnalisé
       </p>
     </div>
   </section>
 
-  <!-- — COMMUNE FONDATRICE : FORMULAIRE DE CONTACT —
+  <!-- — FORMULAIRE DE DEMANDE (version gratuite, devis, commune fondatrice) —
+       Les activations sont faites à la main par Léandre (décision du 2026-10-27 : aucun
+       parcours automatique ni email envoyé à une mairie depuis le site). Les boutons portant
+       data-demande présélectionnent le type de demande.
        Cible du ruban des tarifs. Envoi vers /api/backoffice/demande-contact (Worker,
        voir worker/src/backoffice/demande-contact.ts) : un vrai formulaire plutôt qu'un mailto:,
        qui échoue chez qui n'a pas de logiciel de messagerie (fréquent en mairie). -->
   <section class="section contact-fondatrice" id="contact">
     <div class="wrap contact-grid">
       <div data-reveal>
-        <div class="section-eyebrow">Communes fondatrices</div>
-        <h2 class="section-title"><em style="color:var(--coral); font-style:italic;">−35 %</em> garantis à vie.</h2>
-        <p class="section-subtitle">10 places seulement, ouvertes jusqu'au 31 mars 2027. Les communes fondatrices construisent Agora avec nous : en échange de leurs retours, elles profitent d'un tarif réduit de 35 %, garanti à vie tant que la commune reste abonnée.</p>
-        <ul class="contact-avantages">
-          <li>Prise en main accompagnée, par un élu local</li>
-          <li>−35 % sur le tarif, garantis à vie</li>
-          <li>Un dossier prêt à présenter au conseil municipal (modèle de délibération inclus)</li>
-        </ul>
+        <div class="section-eyebrow">Nous contacter</div>
+        <h2 class="section-title">Activer votre commune</h2>
+        <p class="section-subtitle">Version gratuite, devis pour la version payante ou candidature commune fondatrice : une seule demande, nous vous rappelons.</p>
+        <div class="contact-fondatrice-encart"><strong>Communes fondatrices</strong> : 10 places, jusqu'au 31 mars 2027. −35 % garantis à vie tant que la commune reste abonnée, prise en main accompagnée par un élu local.</div>
       </div>
       <div data-reveal>
         <form class="contact-form" id="form-fondatrice" novalidate>
+          <div class="plein">
+            <label for="cf-demande">Votre demande</label>
+            <select id="cf-demande" name="demande" required>
+              <option value="">Choisir…</option>
+              <option value="gratuit">Activer la version gratuite</option>
+              <option value="devis">Recevoir un devis (version payante)</option>
+              <option value="fondatrice">Devenir commune fondatrice</option>
+            </select>
+          </div>
           <div>
             <label for="cf-nom">Nom et prénom</label>
             <input id="cf-nom" name="nom" type="text" autocomplete="name" required minlength="2" maxlength="120" />
@@ -1880,7 +1930,7 @@
             <input id="cf-site" name="site_web" type="text" tabindex="-1" autocomplete="off" />
           </div>
           <div class="plein">
-            <button type="submit" class="btn-cta-green">Devenir commune fondatrice →</button>
+            <button type="submit" class="btn-cta-green">Envoyer ma demande →</button>
           </div>
           <p class="contact-statut plein" id="cf-statut" role="status"></p>
         </form>
@@ -1998,7 +2048,7 @@
       <div class="faq-grid">
         <div class="faq-item" data-reveal>
           <div class="faq-q">C'est vraiment gratuit ?</div>
-          <p class="faq-a">Oui : Agenda et Alertes sont accessibles gratuitement, sans limite de temps et sans carte bancaire. Le reste des modules s'active quand votre commune est prête à aller plus loin.</p>
+          <p class="faq-a">Oui : actualités, agenda, signalements, conseil municipal et lois sont gratuits, sans limite de temps et sans carte bancaire. Les autres onglets s'activent quand votre commune est prête à aller plus loin.</p>
         </div>
         <div class="faq-item" data-reveal>
           <div class="faq-q">Faut-il des compétences techniques ?</div>
@@ -2006,7 +2056,7 @@
         </div>
         <div class="faq-item" data-reveal>
           <div class="faq-q">Combien de temps pour être en ligne ?</div>
-          <p class="faq-a">Immédiatement : trouvez votre commune sur cette page et créez votre compte en 2 minutes, sans attendre personne. Vous préférez qu'on s'en occupe ? Écrivez-nous et votre espace sera prêt le jour même.</p>
+          <p class="faq-a">Sous 48 heures après votre demande : nous préparons votre espace avec vous, puis vous le pilotez seul.</p>
         </div>
         <div class="faq-item" data-reveal>
           <div class="faq-q">Peut-on personnaliser l'application ?</div>
@@ -2017,12 +2067,16 @@
           <p class="faq-a">Dans l'Union européenne : l'infrastructure est configurée pour que vos données y restent en permanence. Certains prestataires techniques ont leur siège à l'étranger, mais s'engagent contractuellement au respect du RGPD — aucune donnée n'est stockée ou traitée hors de ce cadre.</p>
         </div>
         <div class="faq-item" data-reveal>
+          <div class="faq-q">Et le RGPD ?</div>
+          <p class="faq-a">Plateforme-Agora agit comme sous-traitant de la commune : un contrat de sous-traitance (article 28 du RGPD) encadre le traitement des données de chaque commune, et vos données vous sont restituées sur simple demande.</p>
+        </div>
+        <div class="faq-item" data-reveal>
           <div class="faq-q">Comment régler la facture ?</div>
-          <p class="faq-a">Par virement bancaire, sur facture annuelle — exactement comme n'importe quel prestataire communal. Mandat administratif accepté.</p>
+          <p class="faq-a">Par virement ou mandat administratif, sur facture annuelle déposée sur Chorus Pro, exactement comme pour n'importe quel prestataire communal.</p>
         </div>
         <div class="faq-item" data-reveal>
           <div class="faq-q">Et si on veut arrêter ?</div>
-          <p class="faq-a">Sans engagement : une commune peut arrêter à tout moment, quelle que soit la formule choisie.</p>
+          <p class="faq-a">Sans engagement de durée : l'abonnement se renouvelle chaque année et s'arrête sur simple mail, 2 mois avant l'échéance. La version gratuite s'arrête à tout moment.</p>
         </div>
       </div>
     </div>
@@ -2034,16 +2088,16 @@
       <div class="section-eyebrow" style="text-align:center; margin-bottom:0.75rem;">Prêt à activer votre commune ?</div>
       <h2 class="section-title" style="font-size:2.9rem; text-align:center;">
         Votre espace, en ligne<br>
-        <em style="color:var(--orange); font-style:italic;">tout de suite.</em>
+        <em style="color:var(--orange); font-style:italic;">sous 48 heures.</em>
       </h2>
       <p class="section-subtitle" style="text-align:center;">
-        Trouvez votre commune et créez votre compte en 2 minutes. Gratuit pour commencer, activé sans carte bancaire.
+        Une demande en 2 minutes, sans carte bancaire. Gratuit pour commencer.
       </p>
       <div class="cta-final-actions">
-        <a href="rejoindre.html" class="btn-cta-green">Rejoindre ma commune →</a>
-        <a href="mailto:contact@plateforme-agora.fr" class="btn-cta-outline">Nous écrire</a>
+        <a href="#contact" class="btn-cta-green" data-demande="gratuit">Demander l'activation →</a>
         <a href="tel:+33648061097" class="btn-cta-outline">📞 Nous appeler</a>
       </div>
+      <a href="rejoindre.html" class="lien-habitant">Vous êtes habitant ? Rejoindre ma commune →</a>
       <p class="cta-note">Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</p>
     </div>
   </section>
@@ -2091,17 +2145,26 @@
 
   <script>
     (function () {
-      // Formulaire « Commune fondatrice » : envoi en JSON au Worker (même origine via /api).
+      // Formulaire de demande (gratuit, devis, commune fondatrice) : envoi en JSON au Worker (même origine via /api).
       // En cas d'échec réseau/serveur, on propose l'email direct plutôt que de perdre la demande.
       var form = document.getElementById('form-fondatrice');
       if (!form) return;
       var statut = document.getElementById('cf-statut');
+      // Un bouton « Demander l'activation » / « Devenir commune fondatrice » présélectionne le
+      // type de demande, sans écraser un choix déjà fait par le visiteur.
+      document.querySelectorAll('[data-demande]').forEach(function (lien) {
+        lien.addEventListener('click', function () {
+          var choix = document.getElementById('cf-demande');
+          if (choix && !choix.dataset.choisi) choix.value = lien.getAttribute('data-demande');
+        });
+      });
+      document.getElementById('cf-demande').addEventListener('change', function () { this.dataset.choisi = '1'; });
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         statut.className = 'contact-statut plein';
         if (!form.checkValidity()) {
           statut.classList.add('erreur');
-          statut.textContent = 'Merci de renseigner votre nom, votre fonction, votre commune et un email valide.';
+          statut.textContent = 'Merci d\u2019indiquer votre demande, votre nom, votre fonction, votre commune et un email valide.';
           var invalide = form.querySelector(':invalid');
           if (invalide) invalide.focus();
           return;
