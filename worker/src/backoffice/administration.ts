@@ -30,7 +30,7 @@ const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
 // Doit rester synchronisé avec ONGLETS_VALIDES dans worker/src/routes/moderation.ts (moins
 // 'profil', qui n'est pas un module désactivable — c'est le compte du citoyen lui-même).
-const TOUS_LES_ONGLETS = [
+export const TOUS_LES_ONGLETS = [
   'actualites', 'alertes', 'thermometre', 'mur', 'agenda', 'coups_de_main', 'chasse_tresor',
   'conseil', 'annuaire', 'bulletin', 'photo_du_jour', 'enigmes', 'lois', 'memoire',
 ] as const;

@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { departementDeLaCommune } from '../lib/regions';
-import { genererConventionHtml } from './convention-document';
+import { genererConventionHtml, LIBELLES_ONGLETS } from './convention-document';
 
 const COLONNES = 'id,commune_id,statut,numero_fondatrice,signataire_nom,signataire_qualite,deliberation_reference,'
   + 'deliberation_date,option_reconduction,siret_commune,code_service_chorus,facturation_nom,facturation_email,'
@@ -122,12 +122,16 @@ routesStaff.patch('/:id', async (c) => {
 routesStaff.get('/:id/document', async (c) => {
   const [conv] = await supabaseSelect(c.env, 'conventions', { select: COLONNES, id: `eq.${c.req.param('id')}` });
   if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
-  const [[commune], entreprise, departement] = await Promise.all([
+  const [[commune], entreprise, departement, onglets] = await Promise.all([
     supabaseSelect(c.env, 'communes', { select: 'nom,slug', id: `eq.${conv.commune_id}` }),
     chargerEntreprise(c.env),
     departementDeLaCommune(c.env, conv.commune_id),
+    supabaseSelect(c.env, 'onglets_config', { select: 'cle,actif', commune_id: `eq.${conv.commune_id}` }),
   ]);
-  return c.json({ html: genererConventionHtml(conv, commune, departement, entreprise), commune_nom: commune?.nom });
+  // Même règle que l'application (middleware/onglet.ts) : un onglet sans ligne est actif.
+  const desactives = onglets.filter((o: any) => o.actif === false).map((o: any) => o.cle);
+  const ongletsActifs = Object.keys(LIBELLES_ONGLETS).filter((cle) => !desactives.includes(cle));
+  return c.json({ html: genererConventionHtml(conv, commune, departement, entreprise, ongletsActifs), commune_nom: commune?.nom });
 });
 
 // ── Formulaire de la mairie (public, par jeton) ──

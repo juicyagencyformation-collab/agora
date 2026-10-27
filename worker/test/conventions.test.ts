@@ -5,7 +5,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { routesStaff, routesFormulaire } from '../src/backoffice/conventions';
-import { genererConventionHtml } from '../src/backoffice/convention-document';
+import { genererConventionHtml, LIBELLES_ONGLETS } from '../src/backoffice/convention-document';
+import { TOUS_LES_ONGLETS } from '../src/backoffice/administration';
 
 type Ligne = Record<string, any>;
 let db: Record<string, Ligne[]>;
@@ -135,6 +136,16 @@ describe('document', () => {
     expect(html).toContain('renouvelable chaque année par décision expresse');
     expect(html).not.toContain('reconductible tacitement 3 fois');
     expect(html).toContain('class="a-completer"');
+  });
+  it('liste les onglets cochés sur la fiche, ou « Tous » quand tout est coché', () => {
+    const tous = genererConventionHtml(base, { nom: 'Fay', slug: 'fay' }, '60', entreprise, Object.keys(LIBELLES_ONGLETS));
+    expect(tous).toContain('<td>Onglets</td><td>Tous, selon les besoins de la commune</td>');
+    const partiel = genererConventionHtml(base, { nom: 'Fay', slug: 'fay' }, '60', entreprise, ['agenda', 'actualites', 'memoire']);
+    expect(partiel).toContain('<td>Actualités, Agenda, Mémoire du village. Les autres onglets restent activables à tout moment');
+    expect(genererConventionHtml(base, { nom: 'Fay', slug: 'fay' }, '60', entreprise, [])).toContain('aucun onglet coché');
+  });
+  it('a un libellé pour chaque onglet de la plateforme', () => {
+    expect(Object.keys(LIBELLES_ONGLETS)).toEqual([...TOUS_LES_ONGLETS]);
   });
   it('neutralise un texte piégé saisi par la mairie', () => {
     const html = genererConventionHtml({ ...base, signataire_nom: '<img src=x onerror=alert(1)>' }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);

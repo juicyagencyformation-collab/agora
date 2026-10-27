@@ -29,11 +29,30 @@ export type DonneesConvention = {
   citation_autorisee: boolean | null;
 };
 
+// Libellés des onglets pour la ligne « Onglets » du tableau de l'article 3, dans l'ordre de
+// TOUS_LES_ONGLETS (administration.ts) — un test vérifie que les deux listes restent identiques.
+export const LIBELLES_ONGLETS: Record<string, string> = {
+  actualites: 'Actualités', alertes: 'Signalements', thermometre: 'Thermomètre du village', mur: 'Mur des voisins',
+  agenda: 'Agenda', coups_de_main: 'Coups de main', chasse_tresor: 'Chasse au trésor', conseil: 'Conseil municipal',
+  annuaire: 'Annuaire', bulletin: 'Bulletin municipal', photo_du_jour: 'Photo du jour', enigmes: 'Énigme photo',
+  lois: 'Lois européennes', memoire: 'Mémoire du village',
+};
+
+// ongletsActifs : onglets cochés sur la fiche de la commune (absent = tous, comme dans l'application).
+function ligneOnglets(ongletsActifs?: string[]): string {
+  const toutes = Object.keys(LIBELLES_ONGLETS);
+  const actifs = ongletsActifs ? toutes.filter((cle) => ongletsActifs.includes(cle)) : toutes;
+  if (actifs.length === toutes.length) return 'Tous, selon les besoins de la commune';
+  if (!actifs.length) return A_COMPLETER('[aucun onglet coché sur la fiche]');
+  return `${actifs.map((cle) => LIBELLES_ONGLETS[cle]).join(', ')}. Les autres onglets restent activables à tout moment, selon les besoins de la commune.`;
+}
+
 export function genererConventionHtml(
   conv: DonneesConvention,
   commune: { nom: string; slug: string },
   departement: string | null,
   entreprise: Record<string, string>,
+  ongletsActifs?: string[],
 ): string {
   const nomCommune = echapper(commune.nom);
   const lieuCommune = departement ? ` (${echapper(NOMS_DEPARTEMENTS[departement] ?? '')}${NOMS_DEPARTEMENTS[departement] ? ', ' : ''}${echapper(departement)})` : '';
@@ -114,7 +133,7 @@ export function genererConventionHtml(
         <tbody>
           <tr><td>Prix</td><td>1 €</td><td>Grille du site − 35 %, tant que l'abonnement est continu</td></tr>
           <tr><td>Durée</td><td>12 mois à compter de la mise en service</td><td>${dureeTableau}</td></tr>
-          <tr><td>Onglets</td><td>Tous</td><td>Selon l'offre choisie</td></tr>
+          <tr><td>Onglets</td><td>${ligneOnglets(ongletsActifs)}</td><td>Selon l'offre choisie</td></tr>
           <tr><td>Si aucune décision</td><td>—</td><td>Version gratuite, données conservées</td></tr>
         </tbody>
       </table>
