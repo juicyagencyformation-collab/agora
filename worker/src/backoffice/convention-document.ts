@@ -95,9 +95,12 @@ export function genererConventionHtml(
         <li><strong>Tous les onglets et modules</strong> disponibles à la mise en service : actualités, agenda, alertes météo et vigilance, Conseil municipal, sondages, annuaire, mur des voisins et entraide, carte du village, chasse au trésor patrimoine, ainsi que les modules ajoutés pendant la période fondatrice.</li>
         <li><strong>Un espace dédié</strong> à l'adresse plateforme-agora.fr/${echapper(commune.slug)}, administré par la mairie.</li>
         <li><strong>Un accès prioritaire au Prestataire</strong> pour le support et la prise en compte des demandes d'évolution.</li>
-        <li><strong>La mention « Commune fondatrice »</strong> dans l'application, si la Commune le souhaite.</li>
       </ul>
-      <p>Les packs de contenus vendus à l'unité (Thermomètre du village, Saisons du village, etc.) ne sont pas inclus ; ils bénéficient de la réduction fondatrice de l'article 3.</p>
+      <p>Ne sont pas inclus, et bénéficient de la réduction fondatrice de l'article 3 :</p>
+      <ul>
+        <li>les <strong>packs de sondages</strong> pour le Thermomètre du village, vendus à l'unité ;</li>
+        <li>le <strong>pack Valorisation du patrimoine</strong> : conception par le Prestataire de chasses au trésor interactives, sur devis (l'outil chasse au trésor lui-même reste inclus).</li>
+      </ul>
 
       <h2>Article 3 — Conditions financières</h2>
       <p><strong>Période fondatrice (12 mois)</strong> — la Commune verse <strong>1 € symbolique</strong> pour 12 mois d'accès complet. Cette période démarre à la date de mise en service de l'espace, confirmée par mail par le Prestataire${conv.date_debut_souhaitee ? ` (date souhaitée par la Commune : ${echapper(dateFr(conv.date_debut_souhaitee))})` : ''}. Cette somme remercie la Commune pour ses retours (article 4) et formalise la relation contractuelle.</p>
