@@ -127,7 +127,7 @@ export function genererConventionHtml(
       <p>La réduction est garantie sans limite de durée tant que l'abonnement se poursuit sans interruption. Une interruption de plus de 3 mois met fin au tarif fondateur. Elle s'applique aussi aux packs de contenus.</p>
       ${preavis}
       <p><strong>Paiement</strong> — l'abonnement est facturé annuellement, en début de période.</p>
-      <p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (actualités, agenda, alertes) : rien n'est supprimé et les habitants gardent leur compte.</p>
+      <p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (actualités, agenda, signalements, Conseil municipal, lois) : rien n'est supprimé et les habitants gardent leur compte.</p>
       <table>
         <thead><tr><th></th><th>Période fondatrice</th><th>Après 12 mois</th></tr></thead>
         <tbody>
