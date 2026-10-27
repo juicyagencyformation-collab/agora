@@ -144,6 +144,21 @@ describe('document', () => {
     expect(partiel).toContain('<td>Actualités, Agenda, Mémoire du village. Les autres onglets restent activables à tout moment');
     expect(genererConventionHtml(base, { nom: 'Fay', slug: 'fay' }, '60', entreprise, [])).toContain('aucun onglet coché');
   });
+  it('ne parle de 1 € que si l\'accord exceptionnel est coché', () => {
+    const standard = genererConventionHtml({ ...base, option_reconduction: 'tacite' }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
+    expect(standard).not.toMatch(/1 €|euro versé|Période fondatrice/);
+    expect(standard).toContain('<strong>Tarif fondateur</strong> — dès la mise en service');
+    expect(standard).toContain('<th>Abonnement fondateur</th>');
+    expect(standard).toContain('une facture annuelle');
+    expect(standard).toContain("l'année en cours reste due");
+    expect(standard).toContain('modules ajoutés par la suite');
+    const unEuro = genererConventionHtml({ ...base, option_reconduction: 'tacite', un_euro_premiere_annee: true }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
+    expect(unEuro).toContain('1 € symbolique pendant 12 mois');
+    expect(unEuro).toContain('<strong>Période fondatrice (12 mois)</strong>');
+    expect(unEuro).toContain('une facture de 1 €');
+    expect(unEuro).toContain("l'euro versé reste acquis");
+    expect(unEuro).not.toContain('<th>Abonnement fondateur</th>');
+  });
   it('a un libellé pour chaque onglet de la plateforme', () => {
     expect(Object.keys(LIBELLES_ONGLETS)).toEqual([...TOUS_LES_ONGLETS]);
   });

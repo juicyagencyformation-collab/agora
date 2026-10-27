@@ -2500,6 +2500,7 @@ function backoffice() {
         'option_reconduction', 'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee'];
       const corps = Object.fromEntries(champs.map((k) => [k, c[k] ?? null]));
       corps.citation_autorisee = c.citation_autorisee === '' ? null : c.citation_autorisee === 'true';
+      corps.un_euro_premiere_annee = !!c.un_euro_premiere_annee;
       if (['signee', 'annulee'].includes(c.statut) && !confirm(c.statut === 'signee'
         ? 'Marquer la convention comme signée ? Le lien de la secrétaire cessera de fonctionner.'
         : 'Annuler la convention ? Son numéro de commune fondatrice sera libéré et le lien de la secrétaire désactivé.')) {

@@ -71,7 +71,7 @@
 
       <section class="carte">
         <h2>Délibération</h2>
-        <p class="aide">Même pour 1 €, le maire doit être habilité à signer : par une délibération du conseil municipal, ou par sa délégation générale (article L2122-22 du CGCT). Si la délibération n'est pas encore votée, laissez vide et revenez plus tard.</p>
+        <p class="aide" id="aide-deliberation">Le maire doit être habilité à signer : par une délibération du conseil municipal, ou par sa délégation générale (article L2122-22 du CGCT). Si la délibération n'est pas encore votée, laissez vide et revenez plus tard.</p>
         <div class="deux">
           <div><label for="deliberation_reference">Numéro</label><input type="text" id="deliberation_reference" maxlength="100" placeholder="ex. 2026-45"></div>
           <div><label for="deliberation_date">Date</label><input type="date" id="deliberation_date"></div>
@@ -79,8 +79,8 @@
       </section>
 
       <section class="carte">
-        <h2>Après la période fondatrice</h2>
-        <p class="aide">Après les 12 mois à 1 €, rien ne devient payant sans une décision de votre part. Si vous choisissez de continuer, comment préférez-vous gérer l'abonnement ?</p>
+        <h2 id="titre-renouvellement">Renouvellement de l'abonnement</h2>
+        <p class="aide" id="aide-renouvellement">L'abonnement est conclu pour 1 an. Comment préférez-vous gérer son renouvellement ?</p>
         <label class="option"><input type="radio" name="option_reconduction" value="tacite">
           <div><strong>Reconduction automatique<span class="badge">Recommandé</span></strong>
           <span>Une seule décision : l'abonnement se renouvelle chaque année, jusqu'à 4 ans, sans repasser en conseil. Vous restez libres d'arrêter avec un simple mail, 2 mois avant la date anniversaire.</span></div></label>
@@ -91,7 +91,7 @@
 
       <section class="carte">
         <h2>Facturation</h2>
-        <p class="aide">La facture de 1 € sera déposée sur Chorus Pro, comme pour tout achat de la commune.</p>
+        <p class="aide" id="aide-facturation">Les factures seront déposées sur Chorus Pro, comme pour tout achat de la commune.</p>
         <div class="deux">
           <div><label for="siret_commune">SIRET de la commune</label><input type="text" id="siret_commune" inputmode="numeric" maxlength="20" placeholder="14 chiffres"></div>
           <div><label for="code_service_chorus">Code service Chorus Pro <span class="facultatif">(si demandé)</span></label><input type="text" id="code_service_chorus" maxlength="50"></div>
@@ -137,6 +137,13 @@
         }
         document.getElementById('titre').textContent = 'Convention « Commune fondatrice » — ' + d.commune_nom;
         document.title = 'Convention — ' + d.commune_nom;
+        // « 1 € la première année » : accord exceptionnel coché par Plateforme-Agora sur la fiche.
+        if (d.un_euro) {
+          document.getElementById('aide-deliberation').textContent = "Même pour 1 €, le maire doit être habilité à signer : par une délibération du conseil municipal, ou par sa délégation générale (article L2122-22 du CGCT). Si la délibération n'est pas encore votée, laissez vide et revenez plus tard.";
+          document.getElementById('titre-renouvellement').textContent = 'Après la période fondatrice';
+          document.getElementById('aide-renouvellement').textContent = "Après les 12 mois à 1 €, rien ne devient payant sans une décision de votre part. Si vous choisissez de continuer, comment préférez-vous gérer l'abonnement ?";
+          document.getElementById('aide-facturation').textContent = 'La facture de 1 € sera déposée sur Chorus Pro, comme pour tout achat de la commune.';
+        }
         for (const k of CHAMPS_TEXTE) document.getElementById(k).value = d.champs[k] || '';
         const option = form.querySelector(`input[name=option_reconduction][value="${d.champs.option_reconduction}"]`);
         if (option) option.checked = true;

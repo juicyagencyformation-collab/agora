@@ -27,6 +27,7 @@ export type DonneesConvention = {
   facturation_email: string | null;
   date_debut_souhaitee: string | null;
   citation_autorisee: boolean | null;
+  un_euro_premiere_annee?: boolean | null;
 };
 
 // Libellés des onglets pour la ligne « Onglets » du tableau de l'article 3, dans l'ordre de
@@ -71,6 +72,10 @@ export function genererConventionHtml(
     ? "<p><strong>Échéance</strong> — sans nouvelle décision de la Commune, l'abonnement prend fin à sa date anniversaire, sans démarche particulière.</p>"
     : '<p><strong>Préavis</strong> — la Commune peut refuser la reconduction par mail, au moins 2 mois avant la date anniversaire de l\'abonnement.</p>';
   const dureeTableau = tacite ? '1 an, reconductible tacitement 3 fois' : annuelle ? '1 an, renouvelable chaque année sur décision de la Commune' : A_COMPLETER('[selon l\'option choisie]');
+  // « 1 € la première année » : accord exceptionnel (Fay-les-Étangs, Tourly), coché sur la fiche.
+  // Sans lui, pas de période fondatrice : l'abonnement à −35 % démarre dès la mise en service.
+  const unEuro = !!conv.un_euro_premiere_annee;
+  const dateSouhaitee = conv.date_debut_souhaitee ? ` (date souhaitée par la Commune : ${echapper(dateFr(conv.date_debut_souhaitee))})` : '';
   const case_ = (coche: boolean) => (coche ? '☒' : '☐');
   const citation = conv.citation_autorisee === null || conv.citation_autorisee === undefined
     ? `☐ oui ☐ non ${A_COMPLETER('[à cocher]')}`
@@ -100,7 +105,7 @@ export function genererConventionHtml(
     <div class="contrat">
       <h1>Convention « Commune fondatrice » — ${nomCommune}</h1>
       <div class="sous-titre">Plateforme-Agora</div>
-      <p class="chapeau">La commune de ${nomCommune} devient commune fondatrice de Plateforme-Agora : accès complet à tous les onglets pour 1 € symbolique pendant 12 mois, puis 35 % de réduction garantis tant que son abonnement se poursuit sans interruption, en échange de ses retours d'expérience.</p>
+      <p class="chapeau">La commune de ${nomCommune} devient commune fondatrice de Plateforme-Agora : ${unEuro ? 'accès complet à tous les onglets pour 1 € symbolique pendant 12 mois, puis 35 % de réduction garantis' : '35 % de réduction sur la grille publique, garantis'} tant que son abonnement se poursuit sans interruption, en échange de ses retours d'expérience.</p>
 
       <h2>Article 1 — Les parties</h2>
       <p><strong>Le prestataire</strong> — Léandre SALLE, ${echapper((entreprise.entreprise_forme_juridique || 'entrepreneur individuel').toLowerCase())} (« ${ou(entreprise.entreprise_raison_sociale)} »), éditeur de Plateforme-Agora. Siège : ${ou(entreprise.entreprise_adresse)}, ${ou(entreprise.entreprise_cp_ville)} — SIREN ${ou(sirenFormate)}, RCS Amiens. Contact : ${ou(entreprise.entreprise_email)}. Ci-après « le Prestataire ».</p>
@@ -111,7 +116,7 @@ export function genererConventionHtml(
       <p>Ce statut est réservé aux 10 premières communes signataires. La Commune est la commune fondatrice n° ${ou(conv.numero_fondatrice)} / 10.</p>
       <p>Il comprend :</p>
       <ul>
-        <li><strong>Tous les onglets et modules</strong> disponibles à la mise en service : actualités, agenda, alertes météo et vigilance, Conseil municipal, sondages, annuaire, mur des voisins et entraide, carte du village, chasse au trésor patrimoine, ainsi que les modules ajoutés pendant la période fondatrice.</li>
+        <li><strong>Tous les onglets et modules</strong> disponibles à la mise en service : actualités, agenda, alertes météo et vigilance, Conseil municipal, sondages, annuaire, mur des voisins et entraide, carte du village, chasse au trésor patrimoine, ainsi que les modules ajoutés ${unEuro ? 'pendant la période fondatrice' : 'par la suite'}.</li>
         <li><strong>Un espace dédié</strong> à l'adresse plateforme-agora.fr/${echapper(commune.slug)}, administré par la mairie.</li>
         <li><strong>Un accès prioritaire au Prestataire</strong> pour le support et la prise en compte des demandes d'évolution.</li>
       </ul>
@@ -122,12 +127,15 @@ export function genererConventionHtml(
       </ul>
 
       <h2>Article 3 — Conditions financières</h2>
-      <p><strong>Période fondatrice (12 mois)</strong> — la Commune verse <strong>1 € symbolique</strong> pour 12 mois d'accès complet. Cette période démarre à la date de mise en service de l'espace, confirmée par mail par le Prestataire${conv.date_debut_souhaitee ? ` (date souhaitée par la Commune : ${echapper(dateFr(conv.date_debut_souhaitee))})` : ''}. Cette somme remercie la Commune pour ses retours (article 4) et formalise la relation contractuelle.</p>
-      <p><strong>Tarif fondateur, ensuite</strong> — à l'issue des 12 mois, la Commune peut souscrire l'offre de son choix avec <strong>35 % de réduction sur la grille publique</strong> de plateforme-agora.fr en vigueur. ${dureeAbonnement}</p>
+      ${unEuro ? `<p><strong>Période fondatrice (12 mois)</strong> — la Commune verse <strong>1 € symbolique</strong> pour 12 mois d'accès complet. Cette période démarre à la date de mise en service de l'espace, confirmée par mail par le Prestataire${dateSouhaitee}. Cette somme remercie la Commune pour ses retours (article 4) et formalise la relation contractuelle.</p>
+      <p><strong>Tarif fondateur, ensuite</strong> — à l'issue des 12 mois, la Commune peut souscrire l'offre de son choix avec <strong>35 % de réduction sur la grille publique</strong> de plateforme-agora.fr en vigueur. ${dureeAbonnement}</p>`
+        : `<p><strong>Tarif fondateur</strong> — dès la mise en service de l'espace, confirmée par mail par le Prestataire${dateSouhaitee}, la Commune souscrit l'offre de son choix avec <strong>35 % de réduction sur la grille publique</strong> de plateforme-agora.fr en vigueur. ${dureeAbonnement}</p>`}
       <p>La réduction est garantie sans limite de durée tant que l'abonnement se poursuit sans interruption. Une interruption de plus de 3 mois met fin au tarif fondateur. Elle s'applique aussi aux packs de contenus.</p>
       ${preavis}
       <p><strong>Paiement</strong> — l'abonnement est facturé annuellement, en début de période.</p>
-      <p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (actualités, agenda, signalements, Conseil municipal, lois) : rien n'est supprimé et les habitants gardent leur compte.</p>
+      ${unEuro ? `<p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (actualités, agenda, signalements, Conseil municipal, lois) : rien n'est supprimé et les habitants gardent leur compte.</p>`
+        : `<p><strong>Fin de l'abonnement</strong> — si l'abonnement n'est pas reconduit, l'espace bascule sur la version gratuite (actualités, agenda, signalements, Conseil municipal, lois) : rien n'est supprimé et les habitants gardent leur compte.</p>`}
+      ${unEuro ? `
       <table>
         <thead><tr><th></th><th>Période fondatrice</th><th>Après 12 mois</th></tr></thead>
         <tbody>
@@ -137,7 +145,17 @@ export function genererConventionHtml(
           <tr><td>Si aucune décision</td><td>Rien à décider : l'accès complet court jusqu'au terme des 12 mois</td><td>Version gratuite, données conservées</td></tr>
         </tbody>
       </table>
-      <p><strong>Facturation</strong> — une facture de 1 €, déposée sur Chorus Pro${conv.code_service_chorus ? ` (code service : ${echapper(conv.code_service_chorus)})` : ''}, avec la mention « ${ou(entreprise.entreprise_mention_tva)} ». Contact facturation de la Commune : ${contactFacturation}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>
+      ` : `
+      <table>
+        <thead><tr><th></th><th>Abonnement fondateur</th></tr></thead>
+        <tbody>
+          <tr><td>Prix</td><td>Grille du site − 35 %, tant que l'abonnement est continu</td></tr>
+          <tr><td>Durée</td><td>${dureeTableau}</td></tr>
+          <tr><td>Onglets</td><td>${ligneOnglets(ongletsActifs)}</td></tr>
+          <tr><td>Fin d'abonnement</td><td>Version gratuite, données conservées</td></tr>
+        </tbody>
+      </table>`}
+      <p><strong>Facturation</strong> — ${unEuro ? 'une facture de 1 €' : 'une facture annuelle'}, déposée sur Chorus Pro${conv.code_service_chorus ? ` (code service : ${echapper(conv.code_service_chorus)})` : ''}, avec la mention « ${ou(entreprise.entreprise_mention_tva)} ». Contact facturation de la Commune : ${contactFacturation}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>
 
       <h2>Article 4 — Engagements réciproques</h2>
       <p><strong>La Commune s'engage à :</strong></p>
@@ -157,8 +175,10 @@ export function genererConventionHtml(
       <p><strong>Données personnelles</strong> — la Commune est responsable du traitement des données de ses habitants ; le Prestataire agit comme sous-traitant (article 28 du RGPD). Les données sont hébergées dans l'Union européenne et ne sont ni vendues ni utilisées à des fins publicitaires. L'accord de sous-traitance (DPA) est joint en annexe.</p>
 
       <h2>Article 5 — Durée, résiliation et données</h2>
-      <p><strong>Durée</strong> — la période fondatrice court 12 mois à compter de la mise en service. Le statut de Commune fondatrice et la réduction de 35 % restent acquis au-delà, dans les conditions de l'article 3.</p>
-      <p><strong>Résiliation</strong> — la Commune peut mettre fin à la convention à tout moment, par simple mail, sans pénalité ; l'euro versé reste acquis. Le Prestataire ne peut résilier qu'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>
+      ${unEuro ? `<p><strong>Durée</strong> — la période fondatrice court 12 mois à compter de la mise en service. Le statut de Commune fondatrice et la réduction de 35 % restent acquis au-delà, dans les conditions de l'article 3.</p>`
+        : '<p><strong>Durée</strong> — la convention court pour la durée de l\'abonnement. Le statut de Commune fondatrice et la réduction de 35 % restent acquis tant que l\'abonnement se poursuit sans interruption.</p>'}
+      ${unEuro ? `<p><strong>Résiliation</strong> — la Commune peut mettre fin à la convention à tout moment, par simple mail, sans pénalité ; l'euro versé reste acquis. Le Prestataire ne peut résilier qu'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>`
+        : '<p><strong>Résiliation</strong> — la Commune peut mettre fin à l\'abonnement à sa date anniversaire, dans les conditions de l\'article 3 ; l\'année en cours reste due. Le Prestataire ne peut résilier qu\'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>'}
       <p><strong>Fin de la convention</strong> — la Commune reçoit sur demande un export de ses contenus. Les données sont supprimées dans les 3 mois, sauf obligation légale de conservation.</p>
       <p><strong>Droit applicable</strong> — droit français. En cas de désaccord, les parties cherchent d'abord une solution amiable ; à défaut, le tribunal administratif d'Amiens est compétent.</p>
       <p><strong>Annexes</strong> — 1. Accord de sous-traitance des données (DPA) ; 2. Grille tarifaire en vigueur à la signature (plateforme-agora.fr).</p>
