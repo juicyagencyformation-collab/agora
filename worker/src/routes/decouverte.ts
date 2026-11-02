@@ -168,11 +168,21 @@ app.get('/communes/rechercher', async (c) => {
   const q = (c.req.query('q') || '').trim().slice(0, 100);
   if (q.length < 2) return c.json({ resultats: [] });
 
-  const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_postal,departement',
-    ...filtreRechercheCommune(q),
+  // population et espace_pret servent à la page d'accueil (prix et message personnalisés dès la
+  // recherche) ; commune_id lui-même n'est jamais renvoyé, seulement son existence.
+  const colonnes = 'id,nom,code_postal,departement,population,commune_id';
+  const filtre = filtreRechercheCommune(q);
+  // Par nom : les communes qui COMMENCENT par la saisie d'abord (« fay » → Fay-les-Étangs avant
+  // Belfays), complétées par celles qui la contiennent.
+  const debut = filtre.nom
+    ? await supabaseSelect(c.env, 'prospects', { select: colonnes, nom: `ilike.${q}*`, order: 'nom.asc', limit: filtre.limit })
+    : [];
+  const autres = debut.length < Number(filtre.limit) ? await supabaseSelect(c.env, 'prospects', { select: colonnes, ...filtre }) : [];
+  const vus = new Set<string>();
+  const prospects = [...debut, ...autres].filter((p: any) => !vus.has(p.id) && vus.add(p.id)).slice(0, Number(filtre.limit));
+  return c.json({
+    resultats: prospects.map(({ commune_id, ...p }: any) => ({ ...p, espace_pret: Boolean(commune_id) })),
   });
-  return c.json({ resultats: prospects });
 });
 
 const demandeAccesSchema = z.object({

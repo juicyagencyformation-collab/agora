@@ -122,6 +122,17 @@ describe('GET /communes/rechercher', () => {
     const { resultats } = await res.json();
     expect(resultats).toHaveLength(1);
     expect(resultats[0].nom).toBe('Testville');
+    expect(resultats[0].espace_pret).toBe(true);
+    expect(resultats[0]).not.toHaveProperty('commune_id');
+  });
+
+  it('place les noms qui commencent par la saisie avant ceux qui la contiennent', async () => {
+    ajouterProspect({ nom: 'Belfays' });
+    ajouterProspect({ nom: 'Fay-les-Étangs' });
+    const res = await decouverte.request('/communes/rechercher?q=fay', {}, ENV);
+    const { resultats } = await res.json();
+    expect(resultats.map((r: any) => r.nom)).toEqual(['Fay-les-Étangs', 'Belfays']);
+    expect(resultats[1].espace_pret).toBe(false);
   });
 });
 
