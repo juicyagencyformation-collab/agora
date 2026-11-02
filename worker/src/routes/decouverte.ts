@@ -28,6 +28,52 @@ function echapper(s: string): string {
 
 // Distance à vol d'oiseau importée depuis lib/geo.ts (voir plus haut)
 
+// GET /chiffres — bandeau « chiffres réels » de la page d'accueil (décidé le 2026-11-02) :
+// 4 totaux de TOUTE la plateforme, jamais par commune (aucune commune nommée, rien de personnel),
+// démo (acces_libre), commune nationale et commune de test exclues. Calculé au plus une fois par
+// jour et par datacenter Cloudflare (Cache API, 24 h) : 6 requêtes Supabase par jour, pas par visite.
+// Un comptage en échec renvoie 503 (jamais un faux « 0 ») : la page garde alors ses valeurs écrites.
+export const CLE_CACHE_CHIFFRES = 'https://cache.plateforme-agora.fr/decouverte/chiffres-v1';
+const DUREE_CACHE_CHIFFRES_S = 24 * 3600;
+
+async function compter(env: any, table: string, filtres: Record<string, string>): Promise<number> {
+  const params = new URLSearchParams({ ...filtres, select: 'id' });
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${table}?${params}`, {
+    headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`, Prefer: 'count=exact', Range: '0-0' },
+  });
+  const total = res.headers.get('content-range')?.split('/')[1];
+  if (!res.ok || !total || total === '*') throw new Error(`Comptage ${table} impossible (${res.status})`);
+  return parseInt(total, 10);
+}
+
+app.get('/chiffres', async (c) => {
+  const cache = caches.default;
+  const enCache = await cache.match(CLE_CACHE_CHIFFRES);
+  if (enCache) return new Response(enCache.body, enCache);
+
+  try {
+    const exclues = await supabaseSelect(c.env, 'communes', {
+      select: 'id', or: '(acces_libre.eq.true,niveau_national.eq.true,slug.eq.test)',
+    });
+    const filtre: Record<string, string> = exclues.length ? { commune_id: `not.in.(${exclues.map((e: any) => e.id).join(',')})` } : {};
+    const [visites, lectures, votes, votesActus, actualites] = await Promise.all([
+      compter(c.env, 'connexions_journalieres', filtre),
+      compter(c.env, 'articles_lus_par_utilisateur', filtre),
+      compter(c.env, 'votes', filtre),
+      compter(c.env, 'article_sondage_votes', filtre),
+      compter(c.env, 'articles', filtre),
+    ]);
+    const reponse = new Response(JSON.stringify({
+      visites, lectures, votes: votes + votesActus, actualites, calcule_le: new Date().toISOString(),
+    }), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${DUREE_CACHE_CHIFFRES_S}` } });
+    c.executionCtx.waitUntil(cache.put(CLE_CACHE_CHIFFRES, reponse.clone()));
+    return reponse;
+  } catch (e) {
+    console.error('[decouverte/chiffres]', e);
+    return c.json({ erreur: 'Chiffres indisponibles pour le moment' }, 503);
+  }
+});
+
 app.get('/evenements', async (c) => {
   const lat = parseFloat(c.req.query('lat') || '');
   const lng = parseFloat(c.req.query('lng') || '');
