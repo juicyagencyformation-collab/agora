@@ -1,2196 +1,688 @@
 <!DOCTYPE html>
-<!-- frontend/accueil.html — page marketing publique, servie à la racine de plateforme-agora.fr
+<!-- frontend/accueil.html — page d'accueil publique, servie à la racine de plateforme-agora.fr
      (voir frontend/functions/[[path]].js, branche segments.length === 0). Distincte de index.html
      (coquille de l'appli citoyenne, servie sous /<slug>/) : ne jamais fusionner les deux.
-     Design 2026-08-21 : nouvelle landing page (palette navy/vert/orange/corail), avec démo live
-     embarquée (commune Bonvivre, voir niveau_national=false, statut_client=active en base).
-     2026-08-21 (v2) : chaque section a un conteneur .wrap (max-width 1280px, centré) séparé de son
-     fond pleine largeur — sans lui, le contenu s'étirait bord à bord sur grand écran et paraissait
-     vide/décentré. Ajout d'un système de révélation au scroll (IntersectionObserver, respecte
-     prefers-reduced-motion) sur les blocs principaux, avec un décalage échelonné par grille. -->
+     Refonte du 2026-11-02 (maquette validée par Léandre) : la recherche de commune personnalise toute
+     la page (titre, prix, boutons, formulaire) ; démo live Bonvivre + visite guidée en haut ; bandeau
+     de chiffres réels de toute la plateforme, jamais d'une commune nommée (/api/decouverte/chiffres,
+     mis à jour chaque jour) ; une seule action : la demande, traitée à la main (aucune activation ni
+     aucun email envoyé à une mairie depuis le site, décision du 2026-10-27).
+     APIs publiques : /api/decouverte/communes/rechercher, /api/decouverte/chiffres,
+     /api/backoffice/tarifs-contenu (barème + textes des offres édités dans le backoffice),
+     /api/backoffice/demande-contact (email à Léandre seul). -->
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Informer, alerter et faire participer vos habitants depuis une application mobile simple, conçue en France, données hébergées en Europe — pilotée par la mairie seule. Gratuit pour commencer." />
-  <title>Plateforme Agora — La place publique numérique des petites communes</title>
-  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260817-1" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,700;0,900;1,300;1,700;1,900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="L'application de votre commune : la mairie informe, les habitants participent, le secrétariat gagne du temps. Conçue en France, données hébergées en Europe. Gratuit pour commencer.">
+  <meta name="theme-color" content="#1B2A4A">
+  <title>Plateforme-Agora — La place du village, dans chaque poche</title>
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20260817-1">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    /* Identité existante : marine, vert, orange, corail sur fond crème ; Fraunces + Inter. */
     :root {
-      --navy: #1B2A4A;
-      --navy-light: #2d4270;
-      --green: #2EAB7B;
-      --green-light: #e8f7f1;
-      --orange: #F4A529;
-      --orange-light: #fef5e4;
-      --coral: #E8623A;
-      --coral-light: #fdeee9;
-      --indigo-light: #eef2ff;
-      --white: #FFFFFF;
-      --cream: #F8F7F4;
-      --text-muted: #6b7280;
-      --border-light: #e8e6e1;
+      --navy: #1B2A4A; --navy-2: #24365e; --green: #2EAB7B; --green-light: #e8f7f1; --green-dark: #1f8a62;
+      --orange: #F4A529; --orange-light: #fef5e4; --coral: #E8623A; --coral-light: #fdeee9;
+      --cream: #F8F7F4; --white: #fff; --muted: #626b7a; --border: #e6e3dc;
+      --titre: 'Fraunces', Georgia, serif; --texte: 'Inter', system-ui, sans-serif;
+      --ombre: 0 18px 50px rgba(27, 42, 74, .12);
     }
-
+    * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      color: var(--navy);
-      background: var(--white);
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* Conteneur centré, réutilisé dans chaque section pleine largeur : le fond/la couleur restent
-       bord à bord, seul le contenu est capé et centré — sinon tout s'étire sur grand écran. */
-    .wrap { max-width: 1280px; margin: 0 auto; width: 100%; }
-
-    /* — RÉVÉLATION AU SCROLL — */
-    [data-reveal] {
-      opacity: 0;
-      transform: translateY(26px);
-      transition: opacity 0.7s cubic-bezier(.16,.8,.28,1), transform 0.7s cubic-bezier(.16,.8,.28,1);
-      will-change: opacity, transform;
-    }
-    [data-reveal].is-visible { opacity: 1; transform: translateY(0); }
-    /* Décalage échelonné : chaque grille l'applique à ses propres enfants via nth-child, pas besoin
-       de le poser à la main sur chaque carte (12 modules, 6 FAQ...). */
-    .pillars-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .pillars-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
-    .pillars-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
-    .pillars-grid > [data-reveal]:nth-child(4) { transition-delay: .24s; }
-    .steps-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .steps-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
-    .steps-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
-    .modules-grid > [data-reveal]:nth-child(n) { transition-delay: calc((var(--i, 0)) * 0.05s); }
-    .values-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .values-grid > [data-reveal]:nth-child(2) { transition-delay: .08s; }
-    .values-grid > [data-reveal]:nth-child(3) { transition-delay: .16s; }
-    .values-grid > [data-reveal]:nth-child(4) { transition-delay: .24s; }
-    .faq-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .faq-grid > [data-reveal]:nth-child(2) { transition-delay: .06s; }
-    .faq-grid > [data-reveal]:nth-child(3) { transition-delay: .12s; }
-    .faq-grid > [data-reveal]:nth-child(4) { transition-delay: .18s; }
-    .faq-grid > [data-reveal]:nth-child(5) { transition-delay: .24s; }
-    .faq-grid > [data-reveal]:nth-child(6) { transition-delay: .3s; }
-    .pricing-grid > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .pricing-grid > [data-reveal]:nth-child(2) { transition-delay: .1s; }
-    .pricing-grid > [data-reveal]:nth-child(3) { transition-delay: .2s; }
-    .stats-bar .wrap > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .stats-bar .wrap > [data-reveal]:nth-child(2) { transition-delay: .08s; }
-    .stats-bar .wrap > [data-reveal]:nth-child(3) { transition-delay: .16s; }
-    .stats-bar .wrap > [data-reveal]:nth-child(4) { transition-delay: .24s; }
-    .hero-left > [data-reveal]:nth-child(1) { transition-delay: 0s; }
-    .hero-left > [data-reveal]:nth-child(2) { transition-delay: .1s; }
-    .hero-left > [data-reveal]:nth-child(3) { transition-delay: .2s; }
-    .hero-left > [data-reveal]:nth-child(4) { transition-delay: .3s; }
-
-    @media (prefers-reduced-motion: reduce) {
-      [data-reveal] { opacity: 1; transform: none; transition: none; }
-      .hero-badge::before, .demo-live-badge::before, .btn-cta-green, .btn-cta-outline, .hero-brand-block, .demo-cta {
-        animation: none;
-      }
-    }
-
-    /* — NAV — */
-    nav {
-      background: var(--white);
-      border-bottom: 1px solid var(--border-light);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      transition: box-shadow 0.25s;
-    }
-
-    nav.is-scrolled { box-shadow: 0 4px 20px rgba(27,42,74,0.06); }
-
-    nav .wrap {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 3rem;
-    }
-
-    .nav-logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-    }
-
-    .nav-logo img {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-    }
-
-    .nav-wordmark {
-      font-family: 'Fraunces', serif;
-      font-weight: 700;
-      font-size: 1.15rem;
-      color: var(--navy);
-      line-height: 1;
-    }
-
-    .nav-wordmark span {
-      display: block;
-      font-size: 0.58rem;
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-top: 2px;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-      list-style: none;
-      align-items: center;
-    }
-
-    .nav-links a {
-      text-decoration: none;
-      color: var(--navy);
-      font-size: 0.88rem;
-      font-weight: 500;
-      opacity: 0.65;
-      transition: opacity 0.2s;
-    }
-
-    .nav-links a:hover { opacity: 1; }
-
-    .nav-cta {
-      background: var(--green) !important;
-      color: white !important;
-      opacity: 1 !important;
-      padding: 0.55rem 1.2rem;
-      border-radius: 6px;
-      font-weight: 600 !important;
-      font-size: 0.84rem !important;
-    }
-
-    /* — HERO — */
-    .hero { padding: 4rem 3rem; }
-
-    .hero .wrap {
-      min-height: 78vh;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      align-items: center;
-      gap: 3rem;
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--green-light);
-      color: var(--green);
-      border-radius: 100px;
-      padding: 0.4rem 1rem;
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      margin-bottom: 1.75rem;
-    }
-
-    .hero-badge::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse-dot 2s ease-in-out infinite;
-      flex-shrink: 0;
-    }
-
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.5); opacity: 0.6; }
-    }
-
-    .hero-title {
-      font-family: 'Fraunces', serif;
-      font-weight: 900;
-      font-size: 3.6rem;
-      line-height: 1.04;
-      color: var(--navy);
-      margin-bottom: 1.5rem;
-      letter-spacing: -0.02em;
-    }
-
-    .hero-title .accent-green { color: var(--green); font-style: italic; }
-    .hero-title .accent-orange { color: var(--orange); }
-
-    .hero-subtitle {
-      font-size: 1.05rem;
-      line-height: 1.7;
-      color: var(--text-muted);
-      max-width: 490px;
-      margin-bottom: 2.5rem;
-    }
-
-    .hero-actions {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .btn-primary {
-      background: var(--navy);
-      color: white;
-      border: none;
-      padding: 0.9rem 1.8rem;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: background 0.2s, transform 0.15s;
-    }
-
-    .btn-primary:hover { background: var(--navy-light); transform: translateY(-1px); }
-
-    .btn-secondary {
-      background: transparent;
-      color: var(--navy);
-      border: 1.5px solid var(--border-light);
-      padding: 0.9rem 1.5rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: border-color 0.2s;
-    }
-
-    .btn-secondary:hover { border-color: var(--navy); }
-
-    .hero-proof {
-      margin-top: 2.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    .hero-proof-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--green);
-      flex-shrink: 0;
-    }
-
-    /* Hero visual */
-    .hero-right {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .hero-brand-block {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1.5rem;
-      animation: float 5s ease-in-out infinite;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
-
-    .hero-logo-full {
-      width: 260px;
-      max-width: 100%;
-      height: auto;
-      filter: drop-shadow(0 20px 40px rgba(27,42,74,0.12));
-    }
-
-    .hero-wordmark-full {
-      font-family: 'Fraunces', serif;
-      font-weight: 900;
-      font-size: 2.4rem;
-      color: var(--navy);
-      letter-spacing: -0.01em;
-    }
-
-    .hero-wordmark-full em { color: var(--green); font-style: italic; }
-    /* « Plateforme-Agora » fait ~353 px en 2.4rem : réduit sous 420 px pour tenir sur une ligne. */
-    @media (max-width: 420px) { .hero-wordmark-full { font-size: 1.8rem; } }
-
-    /* Pills en ligne sous le logo */
-    .hero-pills-row {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .hero-pill-inline {
-      background: white;
-      border: 1px solid var(--border-light);
-      border-radius: 100px;
-      padding: 0.5rem 1.1rem 0.5rem 0.55rem;
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--navy);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-      white-space: nowrap;
-    }
-
-    .pill-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-    }
-
-    /* — STATS BAR — */
-    .stats-bar { background: var(--navy); padding: 2.25rem 3rem; }
-
-    .stats-bar .wrap {
-      display: flex;
-      justify-content: center;
-      gap: 5rem;
-      flex-wrap: wrap;
-    }
-
-    .stat-item { text-align: center; color: white; }
-
-    .stat-number {
-      font-family: 'Fraunces', serif;
-      font-size: 2.6rem;
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 0.3rem;
-    }
-
-    .stat-label {
-      font-size: 0.76rem;
-      opacity: 0.55;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    /* — GENERIC SECTION — */
-    .section { padding: 5rem 3rem; }
-
-    .section-eyebrow {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 0.75rem;
-    }
-
-    .section-title {
-      font-family: 'Fraunces', serif;
-      font-size: 2.4rem;
-      font-weight: 800;
-      line-height: 1.1;
-      color: var(--navy);
-      margin-bottom: 1rem;
-    }
-
-    .section-subtitle {
-      font-size: 1rem;
-      color: var(--text-muted);
-      line-height: 1.65;
-      margin-bottom: 3rem;
-    }
-
-    /* — PILIERS — */
-    .pillars { background: var(--cream); }
-
-    .pillars-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-    }
-
-    .steps-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-
-    .pillar-card {
-      background: white;
-      border-radius: 18px;
-      padding: 2rem;
-      border: 1px solid var(--border-light);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .pillar-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 28px rgba(27,42,74,0.09);
-    }
-
-    .pillar-icon {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.25rem;
-      font-size: 1.4rem;
-    }
-
-    .pillar-num {
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      opacity: 0.35;
-      margin-bottom: 0.4rem;
-    }
-
-    .pillar-title {
-      font-family: 'Fraunces', serif;
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 0.75rem;
-      line-height: 1.2;
-    }
-
-    .pillar-desc {
-      font-size: 0.87rem;
-      line-height: 1.65;
-      color: var(--text-muted);
-      margin-bottom: 1.25rem;
-    }
-
-    .pillar-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-
-    .tag {
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 0.25rem 0.65rem;
-      border-radius: 100px;
-      border: 1px solid transparent;
-    }
-
-    /* — MODULES — */
-    .modules { background: white; }
-
-    .modules-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-    }
-
-    .module-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 1.25rem;
-      border-radius: 10px;
-      border: 1px solid var(--border-light);
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-    }
-
-    .module-item:hover {
-      border-color: var(--green);
-      box-shadow: 0 2px 12px rgba(46,171,123,0.08);
-      transform: translateY(-2px);
-    }
-
-    .module-dot {
-      width: 34px;
-      height: 34px;
-      border-radius: 9px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-    }
-
-    .module-text strong {
-      display: block;
-      font-size: 0.87rem;
-      font-weight: 600;
-      color: var(--navy);
-      margin-bottom: 2px;
-    }
-
-    .module-text span {
-      font-size: 0.77rem;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    /* — VALEURS — */
-    .values { background: white; }
-
-    .values-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
-    }
-
-    .value-item { text-align: center; padding: 2rem 1rem; }
-
-    .value-icon {
-      width: 62px;
-      height: 62px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      margin: 0 auto 1rem;
-    }
-
-    .value-title {
-      font-family: 'Fraunces', serif;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--navy);
-      margin-bottom: 0.5rem;
-    }
-
-    .value-desc {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { animation: none !important; transition: none !important; } }
+    body { margin: 0; font-family: var(--texte); color: var(--navy); background: var(--cream); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
+    section { padding-block: 88px; }
+    .surtitre { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--green); margin-bottom: 10px; }
+    h1, h2, h3 { font-family: var(--titre); margin: 0; text-wrap: balance; }
+    h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; font-weight: 800; }
+    .sous { color: var(--muted); font-size: 17px; max-width: 60ch; margin: 14px 0 0; }
+    .centre { text-align: center; } .centre .sous { margin-inline: auto; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: 12px; padding: 14px 22px; font: 600 15px var(--texte); cursor: pointer; text-decoration: none; transition: transform .15s, box-shadow .15s, background .15s; }
+    .btn:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
+    .btn--vert { background: var(--green); color: #fff; box-shadow: 0 8px 22px rgba(46,171,123,.35); }
+    .btn--vert:hover { background: var(--green-dark); transform: translateY(-1px); }
+    .btn--marine { background: var(--navy); color: #fff; }
+    .btn--contour { background: transparent; color: var(--navy); border: 1.5px solid var(--border); }
+
+    /* — En-tête — */
+    header.barre { position: sticky; top: 0; z-index: 20; background: rgba(248,247,244,.9); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+    header.barre .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-family: var(--titre); font-weight: 800; font-size: 19px; text-decoration: none; }
+    .logo span { width: 34px; height: 34px; border-radius: 50%; background: var(--navy); display: grid; place-items: center; color: #fff; font-size: 15px; }
+    nav.liens { display: flex; gap: 26px; font-size: 14.5px; font-weight: 500; }
+    nav.liens a { text-decoration: none; color: var(--muted); } nav.liens a:hover { color: var(--navy); }
+    header .btn { padding: 10px 16px; font-size: 14px; }
+    @media (max-width: 860px) { nav.liens { display: none; } }
+
+    /* — Haut de page : recherche + téléphone live — */
+    .hero { padding-block: 56px 72px; position: relative; overflow: hidden; }
+    .hero::before { content: ""; position: absolute; width: 720px; height: 720px; right: -220px; top: -260px; border-radius: 50%; background: radial-gradient(circle, rgba(46,171,123,.16), transparent 65%); pointer-events: none; }
+    .hero .wrap { display: grid; grid-template-columns: 1.08fr .92fr; gap: 48px; align-items: center; position: relative; }
+    .badge-live { display: inline-flex; align-items: center; gap: 8px; background: var(--green-light); color: var(--green-dark); font-weight: 600; font-size: 13px; padding: 6px 12px; border-radius: 100px; }
+    .badge-live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 1.8s infinite; }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(46,171,123,.5); } 50% { box-shadow: 0 0 0 6px rgba(46,171,123,0); } }
+    .hero h1 { font-size: clamp(40px, 6vw, 68px); line-height: 1.02; font-weight: 800; margin-top: 18px; letter-spacing: -.02em; }
+    .hero h1 em { color: var(--green); font-style: italic; font-weight: 600; }
+    .hero .sous { font-size: 18px; }
+    .recherche { margin-top: 30px; background: var(--white); border-radius: 18px; box-shadow: var(--ombre); padding: 18px; border: 1px solid var(--border); position: relative; }
+    .recherche label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+    .recherche .champ { display: flex; gap: 10px; }
+    .recherche input { flex: 1; min-width: 0; font: 500 17px var(--texte); padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 12px; color: var(--navy); }
+    .recherche input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 4px var(--green-light); }
+    .suggestions { list-style: none; margin: 6px 0 0; padding: 6px; position: absolute; left: 18px; right: 18px; background: #fff; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--ombre); z-index: 5; max-height: 280px; overflow-y: auto; }
+    .suggestions li { padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+    .suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--green-light); }
+    .suggestions small { color: var(--muted); white-space: nowrap; }
+    .resultat { margin-top: 14px; border-radius: 14px; background: var(--navy); color: #fff; padding: 18px 20px; display: grid; gap: 12px; animation: monte .35s ease-out; }
+    @keyframes monte { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .resultat .nom { font-family: var(--titre); font-size: 22px; font-weight: 800; }
+    .resultat .etat { display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px; color: #bff0dc; }
+    .resultat .prix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .resultat .prix div { background: rgba(255,255,255,.07); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: rgba(255,255,255,.75); }
+    .resultat .prix b { display: block; font-size: 19px; color: #fff; font-family: var(--titre); }
+    .resultat .btn { justify-content: center; }
+    .lien-habitant { display: inline-block; margin-top: 14px; font-size: 14px; color: var(--muted); }
+    .preuves-mini { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .preuves-mini span::before { content: "✓ "; color: var(--green); font-weight: 700; }
+
+    /* Téléphone live + missions */
+    .scene { display: grid; justify-items: center; gap: 18px; }
+    .telephone { width: 300px; height: 610px; border-radius: 46px; background: #0f1626; padding: 12px; box-shadow: 0 40px 80px rgba(27,42,74,.35), inset 0 0 0 2px #2b3650; position: relative; }
+    .telephone::before { content: ""; position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 92px; height: 24px; background: #0f1626; border-radius: 20px; z-index: 2; }
+    .telephone iframe { width: 100%; height: 100%; border: 0; border-radius: 36px; background: #fff; }
+    .etiquette-live { position: absolute; left: -26px; top: 70px; background: var(--coral); color: #fff; font-weight: 700; font-size: 12px; padding: 7px 12px; border-radius: 10px; transform: rotate(-6deg); box-shadow: 0 8px 20px rgba(232,98,58,.4); }
+    .missions { width: min(100%, 360px); background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 14px 16px; box-shadow: var(--ombre); }
+    .missions .entete { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; font-size: 14px; }
+    .missions .entete small { color: var(--muted); font-weight: 500; }
+    .jauge { height: 6px; background: var(--green-light); border-radius: 6px; margin: 10px 0 8px; overflow: hidden; }
+    .jauge span { display: block; height: 100%; width: 0; background: var(--green); border-radius: 6px; transition: width .4s; }
+    .missions label { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; padding: 6px 0; cursor: pointer; }
+    .missions input { accent-color: var(--green); width: 17px; height: 17px; margin-top: 2px; }
+    .missions label:has(input:checked) span { color: var(--muted); text-decoration: line-through; }
+    .bravo { margin-top: 8px; background: var(--green-light); color: var(--green-dark); border-radius: 10px; padding: 10px 12px; font-size: 13.5px; font-weight: 600; }
+    @media (max-width: 920px) { .hero .wrap { grid-template-columns: 1fr; } .scene { order: 2; } }
+
+    /* — Bandeau preuve — */
+    .preuve { background: var(--navy); color: #fff; padding-block: 44px; }
+    .preuve .wrap { display: grid; grid-template-columns: auto 1fr; gap: 36px; align-items: center; }
+    .preuve .lieu { font-family: var(--titre); font-size: 22px; font-weight: 800; }
+    .preuve .lieu small { display: block; font-family: var(--texte); font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,.55); margin-top: 4px; }
+    .chiffres { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .chiffres div { border-left: 2px solid rgba(255,255,255,.15); padding-left: 14px; }
+    .chiffres b { display: block; font-family: var(--titre); font-size: 34px; line-height: 1; color: var(--orange); font-variant-numeric: tabular-nums; }
+    .chiffres span { font-size: 13px; color: rgba(255,255,255,.7); }
+    @media (max-width: 860px) { .preuve .wrap { grid-template-columns: 1fr; } .chiffres { grid-template-columns: repeat(2, 1fr); } }
+
+    /* — Une semaine à la mairie — */
+    .semaine { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; margin-top: 44px; }
+    .jour { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 16px 14px; display: grid; gap: 8px; align-content: start; position: relative; transition: transform .2s, box-shadow .2s; }
+    .jour:hover { transform: translateY(-4px); box-shadow: var(--ombre); }
+    .jour .quand { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .jour .icone { font-size: 26px; }
+    .jour h3 { font-size: 16px; line-height: 1.25; font-weight: 800; }
+    .jour p { margin: 0; font-size: 13px; color: var(--muted); }
+    .jour .avant, .jour .avec { margin: 0; font-size: 13px; display: grid; grid-template-columns: 16px 1fr; gap: 6px; }
+    .jour .avant { color: var(--muted); }
+    .jour .avant::before { content: "✕"; color: #b9b3a8; font-weight: 700; }
+    .jour .avec { color: var(--navy); font-weight: 500; }
+    .jour .avec::before { content: "✓"; color: var(--green); font-weight: 700; }
+    .jour .module { justify-self: start; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 100px; }
+    @media (max-width: 1080px) { .semaine { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 230px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; } .jour { scroll-snap-align: start; } }
+
+    /* — Calculateur de temps — */
+    .temps { background: var(--white); }
+    .temps .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+    .curseurs { display: grid; gap: 22px; }
+    .curseur label { display: flex; justify-content: space-between; font-weight: 600; font-size: 14.5px; margin-bottom: 8px; }
+    .curseur output { font-family: var(--titre); font-weight: 800; color: var(--green-dark); font-variant-numeric: tabular-nums; }
+    .curseur input { width: 100%; accent-color: var(--green); }
+    .total { background: var(--cream); border-radius: 22px; padding: 34px; text-align: center; border: 1px solid var(--border); }
+    .total b { display: block; font-family: var(--titre); font-size: clamp(64px, 9vw, 104px); line-height: 1; color: var(--navy); font-variant-numeric: tabular-nums; }
+    .total .unite { font-size: 18px; font-weight: 600; }
+    .total p { color: var(--muted); font-size: 14.5px; margin: 14px auto 0; max-width: 36ch; }
+    .total .equivalent { margin-top: 18px; display: inline-block; background: var(--orange-light); color: #8a5a0a; font-weight: 600; font-size: 14px; padding: 8px 14px; border-radius: 100px; }
+    @media (max-width: 860px) { .temps .wrap { grid-template-columns: 1fr; } }
+
+    /* — Modules par onglets — */
+    .onglets-modules { display: inline-flex; gap: 6px; background: var(--white); border: 1px solid var(--border); border-radius: 100px; padding: 5px; margin-top: 28px; }
+    .onglets-modules button { border: 0; background: transparent; padding: 10px 18px; border-radius: 100px; font: 600 14.5px var(--texte); color: var(--muted); cursor: pointer; }
+    .onglets-modules button[aria-selected="true"] { background: var(--navy); color: #fff; }
+    .grille-modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 28px; text-align: left; }
+    .carte-module { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: start; }
+    .carte-module .pastille { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; }
+    .carte-module strong { display: block; font-size: 15px; }
+    .carte-module span { font-size: 13.5px; color: var(--muted); }
+    .gratuit-tag { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 700; color: var(--green-dark); background: var(--green-light); padding: 1px 7px; border-radius: 100px; vertical-align: 2px; }
+
+    /* — Tarifs — */
+    .tarifs { background: var(--white); }
+    .reglage { max-width: 620px; margin: 30px auto 0; background: var(--green-light); border-radius: 16px; padding: 18px 22px; }
+    .reglage .ligne { display: flex; justify-content: space-between; font-weight: 600; }
+    .reglage .ligne b { font-family: var(--titre); font-size: 22px; color: var(--green-dark); }
+    .reglage input { width: 100%; accent-color: var(--green); margin-top: 10px; }
+    .reglage small { color: var(--muted); }
+    .offres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 30px; align-items: stretch; }
+    .offre { border: 1px solid var(--border); border-radius: 20px; padding: 26px; display: grid; gap: 14px; align-content: start; background: var(--cream); position: relative; }
+    .offre--mise-en-avant { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .offre .nom { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--green); }
+    .offre h3 { font-size: 22px; }
+    .offre .montant { font-family: var(--titre); font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .offre .montant small { font-family: var(--texte); font-size: 14px; font-weight: 500; opacity: .7; }
+    .offre ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; font-size: 14px; }
+    .offre li::before { content: "✓  "; color: var(--green); font-weight: 700; }
+    .offre .fondateur { font-size: 13px; background: var(--coral-light); color: #a53a17; padding: 8px 10px; border-radius: 10px; }
+    .offre--mise-en-avant .fondateur { background: rgba(232,98,58,.2); color: #ffd3c4; }
+    .offre .btn { justify-content: center; margin-top: auto; }
+    .offre .ruban { position: absolute; top: -12px; right: 18px; background: var(--orange); color: var(--navy); font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 100px; }
+    .options { text-align: center; margin-top: 22px; font-size: 14px; color: var(--muted); }
+    @media (max-width: 920px) { .offres { grid-template-columns: 1fr; } }
+
+    /* — Fondateur — */
+    .fondateur-bloc { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; background: var(--white); border-radius: 22px; padding: 30px; border: 1px solid var(--border); }
+    .portrait { width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, var(--green), var(--navy)); display: grid; place-items: center; color: #fff; font-family: var(--titre); font-size: 36px; font-weight: 800; }
+    .fondateur-bloc blockquote { margin: 0; font-family: var(--titre); font-size: 22px; line-height: 1.35; font-style: italic; }
+    .fondateur-bloc cite { display: block; margin-top: 10px; font-style: normal; font-size: 14px; color: var(--muted); }
+    @media (max-width: 700px) { .fondateur-bloc { grid-template-columns: 1fr; } }
 
     /* — FAQ — */
-    .faq { background: var(--cream); }
-
-    .faq-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.25rem;
-    }
-
-    .faq-item {
-      background: white;
-      border-radius: 12px;
-      padding: 1.5rem;
-      border: 1px solid var(--border-light);
-    }
-
-    .faq-q {
-      font-weight: 600;
-      font-size: 0.92rem;
-      color: var(--navy);
-      margin-bottom: 0.6rem;
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .faq-q::before {
-      content: '?';
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: var(--green-light);
-      color: var(--green);
-      font-size: 0.75rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    .faq-a {
-      font-size: 0.84rem;
-      color: var(--text-muted);
-      line-height: 1.6;
-      padding-left: 32px;
-    }
-
-    /* — TARIFS — */
-    .pricing { background: white; }
-
-    .pricing-slider-box {
-      max-width: 620px;
-      margin: 0 auto 2.5rem;
-      background: var(--green-light);
-      border-radius: 16px;
-      padding: 1.5rem 1.75rem;
-    }
-
-    .pricing-slider-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--navy);
-      margin-bottom: 0.9rem;
-    }
-
-    .pricing-slider-valeur {
-      font-family: 'Fraunces', serif;
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--green);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .pricing-slider {
-      width: 100%;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 6px;
-      border-radius: 100px;
-      background: #ffffff;
-      outline: none;
-      cursor: pointer;
-      display: block;
-    }
-
-    .pricing-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--green);
-      border: 3px solid white;
-      box-shadow: 0 1px 4px rgba(27,42,74,0.3);
-      cursor: pointer;
-    }
-
-    .pricing-slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--green);
-      border: 3px solid white;
-      box-shadow: 0 1px 4px rgba(27,42,74,0.3);
-      cursor: pointer;
-    }
-
-    .pricing-slider-bornes {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      margin-top: 0.5rem;
-    }
-
-    .pricing-amount-prefix {
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      opacity: 0.55;
-      margin-bottom: 0.2rem;
-    }
-
-    .pricing-breakdown {
-      font-size: 0.76rem;
-      color: var(--text-muted);
-      margin: 0 0 1.5rem;
-      line-height: 1.4;
-    }
-
-    .pricing-conditions {
-      display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .pricing-conditions p {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-      display: flex;
-      gap: 8px;
-      align-items: baseline;
-    }
-
-    .pricing-conditions .tag { flex-shrink: 0; }
-
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.25rem;
-      max-width: 860px;
-      margin: 0 auto;
-    }
-
-    /* Prix ramené à l'habitant + encart « commune fondatrice » sous chaque prix */
-    .pricing-facturation { font-size: 0.78rem; color: var(--text-muted); opacity: 0.75; margin: -1.1rem 0 0.9rem; }
-    .pricing-card.featured .pricing-facturation { color: rgba(255,255,255,0.65); }
-    .pricing-par-hab {
-      display: inline-block; font-size: 0.92rem; font-weight: 700; color: var(--orange);
-      background: var(--orange-light); border-radius: 10px; padding: 0.4rem 0.75rem;
-      margin: 0 0 1rem;
-    }
-    .pricing-card.featured .pricing-par-hab { color: white; background: rgba(255,255,255,0.16); }
-    .pricing-fondatrice {
-      background: var(--green-light); color: #1d6e4f; border-radius: 12px;
-      padding: 0.7rem 0.9rem; font-size: 0.85rem; line-height: 1.45; margin: 0 0 1.2rem;
-    }
-    .pricing-card.featured .pricing-fondatrice { background: rgba(46,171,123,0.18); color: #bff0dc; }
-    .pricing-option { text-align: center; font-size: 0.9rem; margin-top: 1.5rem; color: var(--text-muted); }
-    .pricing-option a { color: var(--navy); font-weight: 600; }
-    @media (max-width: 760px) { .pricing-grid { grid-template-columns: 1fr; } }
-
-    .pricing-card {
-      background: white;
-      border-radius: 18px;
-      padding: 2rem 1.75rem;
-      border: 1.5px solid var(--border-light);
-      position: relative;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .pricing-card:hover { transform: translateY(-4px); box-shadow: 0 14px 34px rgba(27,42,74,0.1); }
-
-    .pricing-card.featured {
-      border-color: var(--navy);
-      background: var(--navy);
-      color: white;
-    }
-
-    .pricing-badge {
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--orange);
-      color: white;
-      font-size: 0.65rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 0.25rem 0.8rem;
-      border-radius: 100px;
-      white-space: nowrap;
-    }
-
-    .pricing-label {
-      font-size: 0.68rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      opacity: 0.45;
-      margin-bottom: 0.4rem;
-    }
-
-    .pricing-title {
-      font-family: 'Fraunces', serif;
-      font-size: 1.2rem;
-      font-weight: 700;
-      margin-bottom: 1.25rem;
-    }
-
-    .pricing-amount { margin-bottom: 1.5rem; }
-
-    .pricing-amount .amount {
-      font-family: 'Fraunces', serif;
-      font-size: 2.6rem;
-      font-weight: 900;
-      line-height: 1;
-    }
-
-    .pricing-amount .period { font-size: 0.85rem; opacity: 0.55; }
-
-    .pricing-features {
-      list-style: none;
-      margin-bottom: 2rem;
-    }
-
-    .pricing-features li {
-      font-size: 0.84rem;
-      padding: 0.4rem 0;
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      opacity: 0.85;
-      line-height: 1.4;
-    }
-
-    .pricing-features li::before {
-      content: '✓';
-      font-weight: 700;
-      color: var(--green);
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-
-    .pricing-card.featured .pricing-features li::before { color: var(--orange); }
-
-    .btn-pricing {
-      width: 100%;
-      padding: 0.85rem;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      font-weight: 600;
-      cursor: pointer;
-      border: 1.5px solid;
-      transition: all 0.2s;
-      text-align: center;
-      display: block;
-      text-decoration: none;
-    }
-
-    .btn-pricing-light { border-color: var(--navy); color: var(--navy); background: transparent; }
-    .btn-pricing-light:hover { background: var(--navy); color: white; }
-
-    .btn-pricing-white { border-color: white; color: var(--navy); background: white; }
-    .btn-pricing-white:hover { background: var(--orange); border-color: var(--orange); color: white; }
-
-    /* — CTA FINAL — */
-    .cta-final {
-      background: var(--navy);
-      padding: 6rem 3rem;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-final::before {
-      content: '';
-      position: absolute;
-      top: -120px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 700px;
-      height: 700px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(46,171,123,0.1) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .cta-final .wrap { max-width: 640px; position: relative; z-index: 1; }
-
-    .cta-final .section-title { color: white; max-width: none; margin: 0 auto 1rem; }
-    .cta-final .section-subtitle { color: rgba(255,255,255,0.55); max-width: 500px; margin: 0 auto 2.5rem; }
-
-    .cta-final-actions {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
-      margin-bottom: 2rem;
-    }
-
-    /* Halo qui pulse en continu autour des deux boutons du CTA final — attire l'œil sur l'action
-       la plus importante de la page sans être criard (pas de mouvement du bouton lui-même). */
-    @keyframes pulse-ring-green {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(46,171,123,0.45); }
-      50% { box-shadow: 0 0 0 12px rgba(46,171,123,0); }
-    }
-    @keyframes pulse-ring-white {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.28); }
-      50% { box-shadow: 0 0 0 12px rgba(255,255,255,0); }
-    }
-
-    .btn-cta-green {
-      background: var(--green);
-      color: white;
-      border: none;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: background 0.2s, transform 0.15s;
-      animation: pulse-ring-green 2.6s ease-in-out infinite;
-    }
-
-    .btn-cta-green:hover { background: #26976c; transform: translateY(-1px); }
-
-    .btn-cta-outline {
-      background: transparent;
-      color: white;
-      border: 1.5px solid rgba(255,255,255,0.28);
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 500;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: border-color 0.2s;
-      animation: pulse-ring-white 2.6s ease-in-out infinite;
-      animation-delay: 0.6s;
-    }
-
-    .btn-cta-outline:hover { border-color: rgba(255,255,255,0.6); }
-
-    .cta-note { font-size: 0.78rem; color: rgba(255,255,255,0.3); margin-top: 0.5rem; }
-
-    /* — FOOTER — */
-    footer { background: #0f1928; padding: 2rem 3rem; }
-
-    footer .wrap {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .footer-brand {
-      font-family: 'Fraunces', serif;
-      font-weight: 700;
-      font-size: 1rem;
-      color: white;
-    }
-
-    .footer-brand em { color: var(--green); font-style: italic; }
-
-    .footer-links { display: flex; gap: 1.5rem; list-style: none; }
-
-    .footer-links a {
-      font-size: 0.78rem;
-      color: rgba(255,255,255,0.35);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .footer-links a:hover { color: rgba(255,255,255,0.75); }
-
-    .footer-copy {
-      font-size: 0.72rem;
-      color: rgba(255,255,255,0.22);
-      text-align: right;
-      line-height: 1.5;
-    }
-
-    /* — DEMO LIVE — */
-    .demo-section {
-      background: var(--navy);
-      padding: 5rem 3rem;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .demo-section::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 70% 50%, rgba(46,171,123,0.12) 0%, transparent 60%);
-      pointer-events: none;
-    }
-
-    .demo-section .wrap {
-      display: flex;
-      align-items: center;
-      gap: 5rem;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-    }
-
-    .demo-text { max-width: 420px; flex-shrink: 0; }
-
-    .demo-text .section-eyebrow { color: var(--green); }
-
-    .demo-text .section-title { color: white; font-size: 2.2rem; }
-
-    .demo-text .section-subtitle { color: rgba(255,255,255,0.55); margin-bottom: 2rem; }
-
-    .demo-live-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(46,171,123,0.15);
-      border: 1px solid rgba(46,171,123,0.3);
-      color: var(--green);
-      border-radius: 100px;
-      padding: 0.45rem 1rem;
-      font-size: 0.76rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      margin-bottom: 2rem;
-    }
-
-    .demo-live-badge::before {
-      content: '';
-      width: 7px;
-      height: 7px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse-dot 1.5s ease-in-out infinite;
-      flex-shrink: 0;
-    }
-
-    .demo-feature {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 1rem;
-    }
-
-    .demo-feature-dot {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.9rem;
-      margin-top: 1px;
-    }
-
-    .demo-feature-text strong {
-      display: block;
-      color: white;
-      font-size: 0.88rem;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .demo-feature-text span {
-      color: rgba(255,255,255,0.45);
-      font-size: 0.8rem;
-    }
-
-    /* Bouton plein (pas un simple lien discret) + même halo pulsant que les CTA principaux du
-       bas de page (pulse-ring-green, défini plus haut) — on veut que ce lien saute aux yeux
-       immédiatement, pas qu'on le découvre en lisant la liste des fonctionnalités. */
-    /* Le bouton entier glisse de droite à gauche sur la moitié de sa propre largeur (translateX
-       en %, relatif à sa propre boîte) en plus de son halo pulsant — deux animations combinées
-       sur le même élément, chacune sur sa propre propriété (box-shadow / transform). En pause
-       au survol : on ne veut pas de mouvement qui gêne pendant qu'on vise le bouton. */
-    @keyframes bouton-glisse {
-      0%, 100% { transform: translateX(0); }
-      50% { transform: translateX(-50%); }
-    }
-
-    .demo-cta {
-      margin-top: 2rem;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--green);
-      color: white;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-decoration: none;
-      padding: 0.85rem 1.6rem;
-      border-radius: 100px;
-      transition: background 0.2s;
-      animation: pulse-ring-green 2.6s ease-in-out infinite, bouton-glisse 2.2s ease-in-out infinite;
-    }
-
-    .demo-cta:hover { background: #26976c; animation-play-state: paused; }
-
-    /* iPhone mockup */
-    .iphone-wrap {
-      overflow: visible;
-      position: relative;
-      z-index: 1;
-      flex-shrink: 0;
-    }
-
-    .iphone {
-      width: 280px;
-      height: 572px;
-      background: #0a0a0a;
-      border-radius: 48px;
-      padding: 14px;
-      position: relative;
-      box-shadow:
-        0 0 0 1px #2a2a2a,
-        0 0 0 3px #1a1a1a,
-        0 40px 80px rgba(0,0,0,0.6),
-        0 20px 40px rgba(0,0,0,0.4),
-        inset 0 0 0 1px #3a3a3a;
-    }
-
-    /* Boutons côté */
-    .iphone::before {
-      content: '';
-      position: absolute;
-      left: -3px;
-      top: 100px;
-      width: 3px;
-      height: 32px;
-      background: #2a2a2a;
-      border-radius: 2px 0 0 2px;
-      box-shadow: 0 42px 0 #2a2a2a, 0 84px 0 #2a2a2a;
-    }
-
-    .iphone::after {
-      content: '';
-      position: absolute;
-      right: -3px;
-      top: 140px;
-      width: 3px;
-      height: 60px;
-      background: #2a2a2a;
-      border-radius: 0 2px 2px 0;
-    }
-
-    .iphone-inner {
-      width: 100%;
-      height: 100%;
-      background: #f2f2f7;
-      border-radius: 36px;
-      overflow: hidden;
-      position: relative;
-      isolation: isolate;
-    }
-
-    /* Dynamic Island */
-    .dynamic-island {
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 110px;
-      height: 32px;
-      background: #0a0a0a;
-      border-radius: 20px;
-      z-index: 10;
-    }
-
-    /* Barre de statut */
-    .status-bar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 50px;
-      background: white;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      padding: 0 18px 6px;
-      z-index: 9;
-      font-size: 11px;
-      font-weight: 600;
-      color: #0a0a0a;
-      font-family: -apple-system, sans-serif;
-    }
-
-    .status-time { font-size: 14px; font-weight: 700; }
-
-    .status-icons {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .status-icons svg { display: block; }
-
-    .iphone-iframe {
-      position: absolute;
-      top: 50px;
-      left: 0;
-      border: none;
-      border-radius: 0 0 36px 36px;
-      /* 390px = viewport iPhone réel — scale 0.6462 pour tenir dans 252px
-         Hauteur : zone dispo = 494px — 494 / 0.6462 = 765px pour tout remplir */
-      width: 390px;
-      height: 765px;
-      transform-origin: top left;
-      transform: scale(0.6462);
-    }
-
-    /* Reflet écran */
-    .iphone-glare {
-      position: absolute;
-      top: 14px;
-      left: 14px;
-      width: 50px;
-      height: 120px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 60%);
-      border-radius: 36px 0 0 0;
-      pointer-events: none;
-      z-index: 20;
-    }
-
-
-    /* — RUBAN « COMMUNE FONDATRICE » EN TRAVERS DES TARIFS (esprit filigrane) —
-       Bande inclinée posée par-dessus la grille des tarifs, cliquable, qui renvoie vers le
-       formulaire #contact. Seule la bande capte les clics : les boutons des cartes restent
-       utilisables au-dessus et en dessous. Sur mobile (cartes empilées), elle passe au-dessus de
-       la grille, à peine inclinée. */
-    .pricing { overflow: hidden; }
-    .pricing-zone { position: relative; }
-    .ruban-fondatrice {
-      /* Bande posée au-dessus des 2 cartes (plus par-dessus : depuis le 2026-10-08, chaque carte
-         affiche son propre encart « commune fondatrice » que la bande ne doit pas masquer). */
-      position: relative;
-      max-width: 940px;
-      margin: 0 auto 2.5rem;
-      transform: rotate(-1.5deg);
-      display: flex; align-items: center; justify-content: center; gap: 1.1rem; flex-wrap: wrap;
-      padding: 1.05rem 2rem;
-      background: linear-gradient(90deg, rgba(232,98,58,0.94), rgba(244,165,41,0.94));
-      color: white;
-      text-decoration: none;
-      box-shadow: 0 12px 34px rgba(27,42,74,0.22);
-      border-top: 1px solid rgba(255,255,255,0.45);
-      border-bottom: 1px solid rgba(255,255,255,0.45);
-      transition: filter 0.2s, box-shadow 0.2s;
-    }
-    .ruban-fondatrice:hover { filter: brightness(1.05); box-shadow: 0 16px 40px rgba(27,42,74,0.3); }
-    .ruban-fondatrice:focus-visible { outline: 3px solid var(--navy); outline-offset: 3px; }
-    .ruban-texte {
-      font-family: 'Fraunces', serif;
-      font-size: 1.55rem;
-      font-weight: 900;
-      letter-spacing: 0.01em;
-      text-transform: uppercase;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.12);
-      text-align: center;
-    }
-    .ruban-texte em { font-style: italic; font-weight: 700; text-transform: none; }
-    .ruban-cta {
-      background: white;
-      color: var(--coral);
-      font-size: 0.85rem;
-      font-weight: 700;
-      padding: 0.5rem 1rem;
-      border-radius: 100px;
-      white-space: nowrap;
-    }
-
-    /* — FORMULAIRE COMMUNE FONDATRICE — */
-    .contact-fondatrice { background: var(--cream); }
-    .contact-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 3rem; align-items: start; }
-    .lien-habitant { display: inline-block; margin-top: 0.9rem; font-size: 0.88rem; color: inherit; opacity: 0.75; text-decoration: underline; text-underline-offset: 3px; }
-    .lien-habitant:hover { opacity: 1; }
-    .contact-fondatrice-encart { margin-top: 1.5rem; padding: 1rem 1.2rem; border-radius: 12px; background: var(--white); border: 1px solid var(--border-light); font-size: 0.92rem; line-height: 1.55; }
-    .contact-fondatrice-encart strong { color: var(--coral); }
-    .contact-avantages { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; margin-top: 1.5rem; }
-    .contact-avantages li { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.95rem; line-height: 1.5; }
-    .contact-avantages li::before { content: '✓'; color: var(--green); font-weight: 700; }
-    .contact-form {
-      background: white; border: 1.5px solid var(--border-light); border-radius: 18px;
-      padding: 2rem 1.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.1rem;
-    }
-    .contact-form .plein { grid-column: 1 / -1; }
-    .contact-form label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.35rem; }
-    .contact-form label span { font-weight: 400; color: var(--text-muted); }
-    .contact-form input, .contact-form select, .contact-form textarea {
-      width: 100%; font: inherit; font-size: 0.95rem; color: var(--navy);
-      border: 1.5px solid var(--border-light); border-radius: 10px; padding: 0.7rem 0.85rem; background: white;
-    }
-    .contact-form textarea { min-height: 96px; resize: vertical; }
-    .contact-form input:focus, .contact-form select:focus, .contact-form textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
-    .contact-form .piege { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
-    .contact-form button { justify-self: start; font-family: inherit; }
-    .contact-form button[disabled] { opacity: 0.6; cursor: wait; }
-    .contact-statut { font-size: 0.9rem; line-height: 1.5; }
-    .contact-statut.erreur { color: #b5431f; }
-    .contact-merci { text-align: center; padding: 1rem 0; }
-    .contact-merci strong { display: block; font-family: 'Fraunces', serif; font-size: 1.5rem; margin-bottom: 0.4rem; }
-
-    @media (max-width: 900px) {
-      .ruban-fondatrice {
-        position: relative; left: auto; right: auto; top: auto;
-        margin: 0 -1.5rem 1.75rem; transform: rotate(-2deg); padding: 0.9rem 1.25rem;
-      }
-      .ruban-texte { font-size: 1.15rem; }
-      .contact-grid { grid-template-columns: 1fr; gap: 2rem; }
-      .contact-form { grid-template-columns: 1fr; padding: 1.5rem 1.25rem; }
-    }
-
-    /* — RESPONSIVE — */
-    @media (max-width: 900px) {
-      .demo-section .wrap { flex-direction: column; gap: 2rem; }
-      .demo-section { padding: 3rem 1.25rem; }
-      .iphone { width: 260px; height: 531px; }
-      .iphone-iframe { width: 390px; height: 762px; transform: scale(0.5949); }
-      .demo-text { max-width: none; order: 2; }
-      .iphone-wrap { order: 1; }
-      .demo-cta { display: none; }
-
-      nav .wrap { padding: 1rem 1.5rem; }
-      .nav-links { display: none; }
-      .hero { padding: 3rem 1.5rem; }
-      .hero .wrap { grid-template-columns: 1fr; min-height: auto; }
-      .hero-right { display: flex; justify-content: center; margin-top: 1rem; }
-      .hero-logo-full { width: 200px; }
-      .hero-pills-row { display: none; }
-      .hero-title { font-size: 2.5rem; }
-      .stats-bar { padding: 2rem 1.5rem; }
-      .stats-bar .wrap { gap: 2.5rem; }
-      .section { padding: 3.5rem 1.5rem; }
-      .pillars-grid, .pricing-grid, .faq-grid, .steps-grid { grid-template-columns: 1fr; }
-      .modules-grid { grid-template-columns: repeat(2, 1fr); }
-      .values-grid { grid-template-columns: repeat(2, 1fr); }
-      .section-title { font-size: 1.9rem; }
-      footer { padding: 2rem 1.5rem; }
-      footer .wrap { flex-direction: column; align-items: flex-start; }
-      .footer-copy { text-align: left; }
-    }
-
-    /* Très petits écrans < 380px */
-    @media (max-width: 380px) {
-      .iphone { width: 230px; height: 470px; }
-      .iphone-iframe { width: 390px; height: 727px; transform: scale(0.5231); }
-    }
+    .faq { max-width: 820px; margin: 34px auto 0; display: grid; gap: 10px; }
+    .faq details { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 4px 18px; }
+    .faq summary { cursor: pointer; font-weight: 600; padding: 14px 0; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+    .faq summary::-webkit-details-marker { display: none; }
+    .faq summary::after { content: "+"; font-size: 20px; color: var(--green); line-height: 1; }
+    .faq details[open] summary::after { content: "–"; }
+    .faq p { margin: 0 0 16px; color: var(--muted); }
+
+    /* — Formulaire final — */
+    .final { background: var(--navy); color: #fff; }
+    .final .wrap { display: grid; grid-template-columns: .9fr 1.1fr; gap: 48px; align-items: start; }
+    .final h2 em { color: var(--orange); font-style: italic; }
+    .final .sous { color: rgba(255,255,255,.7); }
+    .etapes { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 16px; counter-reset: e; }
+    .etapes li { display: grid; grid-template-columns: 34px 1fr; gap: 12px; counter-increment: e; font-size: 15px; color: rgba(255,255,255,.85); }
+    .etapes li::before { content: counter(e); width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,.1); display: grid; place-items: center; font-weight: 700; color: var(--orange); }
+    .etapes b { color: #fff; display: block; }
+    form.demande { background: var(--white); color: var(--navy); border-radius: 22px; padding: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    form.demande .plein { grid-column: 1 / -1; }
+    form.demande label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    form.demande input, form.demande select, form.demande textarea { width: 100%; padding: 11px 13px; border: 1.5px solid var(--border); border-radius: 10px; font: 15px var(--texte); color: var(--navy); background: #fff; }
+    form.demande textarea { min-height: 80px; resize: vertical; }
+    form.demande input:focus, form.demande select:focus, form.demande textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+    form.demande .btn { justify-content: center; }
+    .merci { grid-column: 1 / -1; background: var(--green-light); color: var(--green-dark); border-radius: 12px; padding: 16px; font-weight: 600; }
+    @media (max-width: 860px) { .final .wrap { grid-template-columns: 1fr; } form.demande { grid-template-columns: 1fr; } }
+
+    footer { padding-block: 30px; font-size: 13px; color: var(--muted); }
+    footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+
+    /* Barre d'action mobile */
+    .barre-mobile { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 10px max(14px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-right)); background: rgba(255,255,255,.96); border-top: 1px solid var(--border); display: none; }
+    .barre-mobile .btn { width: 100%; justify-content: center; }
+    @media (max-width: 760px) { .barre-mobile { display: block; } body { padding-bottom: 76px; } header.barre .btn { display: none; } }
+
+    /* — Version 3 : haut de page sur fond marine (comme le bas), preuve sur fond clair, avant / avec bien séparés — */
+    header.barre { background: rgba(27,42,74,.95); border-bottom-color: rgba(255,255,255,.08); }
+    .logo { color: #fff; } .logo span { background: #fff; color: var(--navy); }
+    nav.liens a { color: rgba(255,255,255,.7); } nav.liens a:hover { color: #fff; }
+    .hero { background: var(--navy); color: #fff; padding-block: 56px 84px; }
+    .hero::before { background: radial-gradient(circle, rgba(46,171,123,.30), transparent 65%); }
+    .hero::after { content: ""; position: absolute; width: 520px; height: 520px; left: -240px; bottom: -300px; border-radius: 50%; background: radial-gradient(circle, rgba(244,165,41,.16), transparent 65%); pointer-events: none; }
+    .hero h1 { color: #fff; }
+    .hero .sous { color: rgba(255,255,255,.72); }
+    .badge-live { background: rgba(46,171,123,.2); color: #bff0dc; }
+    .recherche { border-color: transparent; box-shadow: 0 26px 60px rgba(0,0,0,.35); color: var(--navy); }
+    .lien-habitant { color: rgba(255,255,255,.72); }
+    .preuves-mini { color: rgba(255,255,255,.68); }
+    .telephone { box-shadow: 0 40px 90px rgba(0,0,0,.5), inset 0 0 0 2px #3a4868; }
+    .missions { color: var(--navy); border-color: transparent; }
+    .preuve { background: var(--white); color: var(--navy); border-bottom: 1px solid var(--border); }
+    .preuve .lieu small { color: var(--muted); }
+    .maj::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; vertical-align: 1px; animation: pulse 1.8s infinite; }
+    .chiffres div { border-left-color: var(--border); }
+    .chiffres b { color: var(--green-dark); }
+    .chiffres span { color: var(--muted); }
+    .jour .avant, .jour .avec { display: block; padding: 9px 11px; border-radius: 10px; font-size: 13px; line-height: 1.45; }
+    .jour .avant { background: #f1efea; color: var(--muted); }
+    .jour .avec { background: var(--green-light); color: var(--navy); font-weight: 600; }
+    .jour .avant::before, .jour .avec::before { display: block; font-size: 10px; font-weight: 700; letter-spacing: .1em; margin-bottom: 3px; }
+    .jour .avant::before { content: "AVANT"; color: #9a9387; }
+    .jour .avec::before { content: "AVEC AGORA"; color: var(--green-dark); }
+    .logo img { width: 36px; height: 36px; display: block; }
+    .piege { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .statut-envoi { font-size: 13.5px; color: var(--coral); margin: 0; min-height: 1em; }
+    .appel { margin-top: 26px; color: rgba(255,255,255,.75); font-size: 15px; }
+    .appel b { color: #fff; user-select: all; }
+    footer a { text-decoration: none; } footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
-  <!-- — NAV — -->
-  <nav>
-    <div class="wrap">
-      <a class="nav-logo" href="#">
-        <img src="/icons/icon-192.png?v=20260817-1" alt="Agora" style="width:40px;height:40px;object-fit:contain;" />
-        <div class="nav-wordmark">
-          Agora
-          <span>Plateforme citoyenne</span>
-        </div>
-      </a>
-      <ul class="nav-links">
-        <li><a href="#fonctionnalites">Fonctionnalités</a></li>
-        <li><a href="#tarifs">Tarifs</a></li>
-        <li><a href="#faq">FAQ</a></li>
-        <li><a href="#contact" id="cta-nav-activer" class="nav-cta" data-demande="gratuit">Demander l'activation →</a></li>
-      </ul>
-    </div>
-  </nav>
-
-  <!-- — HERO — -->
-  <section class="hero">
-    <div class="wrap">
-      <div class="hero-left">
-        <div class="hero-badge" data-reveal>Déjà actif à Eaucourt-sur-Somme</div>
-        <h1 class="hero-title" data-reveal>
-          La place du<br>
-          <span class="accent-green">village,</span><br>
-          dans chaque poche.
-        </h1>
-        <p class="hero-subtitle" data-reveal>
-          Une application pensée pour les petites communes — où habitants et élus se retrouvent, échangent et agissent ensemble, sans aucune compétence technique requise.
-        </p>
-        <div data-reveal>
-          <div class="hero-actions">
-            <a href="#contact" id="cta-hero-activer" class="btn-primary" data-demande="gratuit">Demander l'activation gratuite →</a>
-            <a href="#fonctionnalites" class="btn-secondary">Voir les fonctionnalités</a>
-          </div>
-          <a href="rejoindre.html" class="lien-habitant">Vous êtes habitant ? Rejoindre ma commune →</a>
-          <div class="hero-proof">
-            <div class="hero-proof-dot"></div>
-            <span>Gratuit · Conçue en France · Données hébergées en Europe</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="hero-right">
-        <div class="hero-brand-block">
-          <img
-            src="/icons/agora-icone-1024-fond-transparent.png"
-            alt="Plateforme Agora — Échanger, Participer, Agir ensemble"
-            class="hero-logo-full"
-          />
-          <div class="hero-wordmark-full">Plateforme-<em>Agora</em></div>
-          <div class="hero-pills-row">
-            <div class="hero-pill-inline">
-              <div class="pill-icon" style="background:var(--green-light);">📰</div>
-              ACTUALITÉS
-            </div>
-            <div class="hero-pill-inline">
-              <div class="pill-icon" style="background:var(--orange-light);">🔔</div>
-              ALERTES
-            </div>
-            <div class="hero-pill-inline">
-              <div class="pill-icon" style="background:var(--coral-light);">📅</div>
-              AGENDA
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- — STATS BAR — -->
-  <div class="stats-bar">
-    <div class="wrap">
-      <div class="stat-item" data-reveal>
-        <div class="stat-number" style="color:var(--green);">16</div>
-        <div class="stat-label">modules intégrés</div>
-      </div>
-      <div class="stat-item" data-reveal>
-        <div class="stat-number" style="color:var(--orange);">100 %</div>
-        <div class="stat-label">RGPD : export &amp; effacement en 1 clic</div>
-      </div>
-      <div class="stat-item" data-reveal>
-        <div class="stat-number" style="color:var(--coral);">0</div>
-        <div class="stat-label">compétence technique requise</div>
-      </div>
-      <div class="stat-item" data-reveal>
-        <div class="stat-number" style="color:white;">Gratuit</div>
-        <div class="stat-label">version gratuite</div>
-      </div>
-    </div>
+<header class="barre">
+  <div class="wrap">
+    <a class="logo" href="#haut"><img src="/icons/agora-icone-1024-fond-transparent.png" alt="">Plateforme-Agora</a>
+    <nav class="liens" aria-label="Sections">
+      <a href="#demo">Démo live</a><a href="#semaine">Au quotidien</a><a href="#temps">Temps gagné</a><a href="#tarifs">Tarifs</a><a href="#faq">Questions</a>
+    </nav>
+    <a class="btn btn--vert" href="#demande" data-cta>Demander l'activation</a>
   </div>
+</header>
 
-  <!-- — DEMO LIVE — -->
-  <section class="demo-section">
+<main id="haut">
+  <!-- 1. Haut de page : la commune du visiteur + la vraie application -->
+  <section class="hero" id="demo">
     <div class="wrap">
-      <div class="demo-text" data-reveal>
-        <div class="demo-live-badge">Commune de démonstration — live</div>
-        <h2 class="section-title" style="font-family:'Fraunces',serif; font-size:2.2rem; font-weight:800; line-height:1.1; color:white; margin-bottom:1rem;">
-          Testez l'application<br>
-          <em style="color:var(--green); font-style:italic;">maintenant, ici.</em>
-        </h2>
-        <p class="section-subtitle">
-          Ce n'est pas une maquette. C'est la vraie plateforme, sur une commune de démonstration. Naviguez librement — actualités, agenda, mur des voisins, chasse au trésor…
-        </p>
+      <div>
+        <span class="badge-live">Déjà en service dans des communes de la Somme</span>
+        <h1 id="titre-hero">La place du <em>village</em>, dans chaque poche.</h1>
+        <p class="sous">L'application de votre commune : la mairie informe, les habitants participent, le secrétariat respire. Pilotée seule par la mairie, sans compétence technique.</p>
 
-        <div class="demo-feature">
-          <div class="demo-feature-dot" style="background:var(--green-light);">📰</div>
-          <div class="demo-feature-text">
-            <strong>Actualités &amp; alertes</strong>
-            <span>Publiées en 30 secondes depuis l'interface mairie</span>
+        <div class="recherche" role="search">
+          <label for="recherche-commune">Votre commune est-elle prête ?</label>
+          <div class="champ">
+            <input id="recherche-commune" type="text" autocomplete="off" placeholder="Tapez le nom de votre commune…" aria-autocomplete="list" aria-controls="liste-communes">
           </div>
+          <ul class="suggestions" id="liste-communes" role="listbox" hidden></ul>
+          <div id="resultat-commune" aria-live="polite"></div>
         </div>
-        <div class="demo-feature">
-          <div class="demo-feature-dot" style="background:var(--orange-light);">📅</div>
-          <div class="demo-feature-text">
-            <strong>Agenda interactif</strong>
-            <span>Inscription en un tap, rappel automatique</span>
-          </div>
-        </div>
-        <div class="demo-feature">
-          <div class="demo-feature-dot" style="background:var(--coral-light);">🗺️</div>
-          <div class="demo-feature-text">
-            <strong>Chasse au trésor</strong>
-            <span>Parcours géolocalisé du patrimoine local</span>
-          </div>
-        </div>
-        <div class="demo-feature">
-          <div class="demo-feature-dot" style="background:var(--indigo-light);">💬</div>
-          <div class="demo-feature-text">
-            <strong>Mur des voisins</strong>
-            <span>Fil de discussion exclusivement local</span>
-          </div>
-        </div>
-
-        <a href="https://plateforme-agora.fr/bonvivre/" target="_blank" class="demo-cta">
-          Ouvrir en plein écran →
-        </a>
+        <a class="lien-habitant" href="/rejoindre.html">Vous êtes habitant ? Rejoindre ma commune →</a>
+        <div class="preuves-mini"><span>Gratuit pour commencer</span><span>Conçue en France</span><span>Données hébergées en Europe</span><span>Par un élu, pour des élus</span></div>
       </div>
 
-      <!-- iPhone mockup -->
-      <div class="iphone-wrap" data-reveal>
-        <div class="iphone">
-          <div class="iphone-inner">
-            <div class="dynamic-island"></div>
-
-            <!-- Status bar -->
-            <div class="status-bar">
-              <span class="status-time">9:41</span>
-              <div class="status-icons">
-                <!-- Signal -->
-                <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
-                  <rect x="0" y="7" width="3" height="5" rx="0.8" fill="#0a0a0a"/>
-                  <rect x="4.5" y="5" width="3" height="7" rx="0.8" fill="#0a0a0a"/>
-                  <rect x="9" y="2.5" width="3" height="9.5" rx="0.8" fill="#0a0a0a"/>
-                  <rect x="13.5" y="0" width="3" height="12" rx="0.8" fill="#0a0a0a"/>
-                </svg>
-                <!-- Wifi -->
-                <svg width="16" height="12" viewBox="0 0 16 12" fill="none">
-                  <path d="M8 9.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" fill="#0a0a0a"/>
-                  <path d="M3.5 6.5C4.9 5.1 6.4 4.4 8 4.4s3.1.7 4.5 2.1" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-                  <path d="M1 4C3.2 1.8 5.5.8 8 .8s4.8 1 7 3.2" stroke="#0a0a0a" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-                </svg>
-                <!-- Batterie -->
-                <svg width="25" height="12" viewBox="0 0 25 12" fill="none">
-                  <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#0a0a0a" stroke-opacity="0.35"/>
-                  <rect x="2" y="2" width="16" height="8" rx="2" fill="#0a0a0a"/>
-                  <path d="M23 4v4a2 2 0 0 0 0-4z" fill="#0a0a0a" fill-opacity="0.4"/>
-                </svg>
-              </div>
-            </div>
-
-            <!-- iframe app -->
-            <iframe
-              class="iphone-iframe"
-              src="https://plateforme-agora.fr/bonvivre/"
-              title="Démonstration Agora — Commune de Bonvivre"
-              loading="lazy"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            ></iframe>
-          </div>
-          <div class="iphone-glare"></div>
+      <div class="scene">
+        <div class="telephone">
+          <span class="etiquette-live">En direct : touchez !</span>
+          <iframe src="/bonvivre/" title="Démonstration Plateforme-Agora, commune de Bonvivre" loading="eager"></iframe>
+        </div>
+        <div class="missions" id="missions">
+          <div class="entete">Visite guidée <small id="compteur-missions">0 / 3</small></div>
+          <div class="jauge" aria-hidden="true"><span id="jauge-missions"></span></div>
+          <label><input type="checkbox"> <span>Lisez la dernière actualité de Bonvivre</span></label>
+          <label><input type="checkbox"> <span>Ouvrez « Plus » et répondez au Thermomètre du village</span></label>
+          <label><input type="checkbox"> <span>Lancez la chasse au trésor du village</span></label>
+          <div class="bravo" id="bravo" hidden>Vous avez fait le tour. Imaginez-la aux couleurs de votre commune : <a href="#demande">demandez l'activation →</a></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- — 3 ÉTAPES — -->
-  <section class="section steps">
+  <!-- 2. Preuve : totaux réels de la plateforme, aucune commune nommée (démo et test exclus) -->
+  <section class="preuve" aria-label="La plateforme en chiffres">
     <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
-        <div class="section-eyebrow">Comment ça marche</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">En ligne en 48 heures, sans aucune compétence technique</h2>
-      </div>
-      <div class="steps-grid">
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--green-light); font-size:3.5rem; text-align:center;">🔍</div>
-          <div class="pillar-num" style="font-size:1.496rem;">01 — Faites votre demande</div>
-          <div class="pillar-title">Un formulaire, 2 minutes</div>
-          <p class="pillar-desc">Indiquez votre commune et vos coordonnées, sans carte bancaire.</p>
-        </div>
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--orange-light); font-size:3.5rem; text-align:center;">✍️</div>
-          <div class="pillar-num" style="font-size:1.496rem;">02 — Nous vous rappelons</div>
-          <div class="pillar-title">Pour vous présenter l'application</div>
-          <p class="pillar-desc">Nous préparons ensuite votre espace avec vous et vous transmettons les documents utiles : contrat RGPD, devis si besoin.</p>
-        </div>
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--coral-light); font-size:3.5rem; text-align:center;">🚀</div>
-          <div class="pillar-num" style="font-size:1.496rem;">03 — Vous créez votre compte</div>
-          <div class="pillar-title">Puis vous pilotez seul</div>
-          <p class="pillar-desc">Actualités, agenda, signalements, conseil municipal et lois sont actifs dès votre premier jour. Les autres onglets s'ajoutent quand votre commune est prête.</p>
-        </div>
+      <div class="lieu">Sur Plateforme-Agora<small class="maj">chiffres réels, mis à jour chaque jour · <span id="maj-date">2 novembre 2026</span></small></div>
+      <div class="chiffres">
+        <div><b data-chiffre="visites">673</b><span>visites d'habitants</span></div>
+        <div><b data-chiffre="lectures">243</b><span>lectures d'actualités</span></div>
+        <div><b data-chiffre="votes">159</b><span>votes aux sondages</span></div>
+        <div><b data-chiffre="actualites">66</b><span>actualités publiées</span></div>
       </div>
     </div>
   </section>
 
-  <!-- — PILIERS — -->
-  <section class="section pillars" id="fonctionnalites">
+  <!-- 3. Une semaine à la mairie : la promesse racontée -->
+  <section id="semaine">
     <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
-        <div class="section-eyebrow">Quatre piliers</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Une seule app, quatre raisons de l'adopter</h2>
-        <p class="section-subtitle" style="text-align:center; max-width:540px; margin:0.5rem auto 0;">De la délibération municipale au patrimoine local, tout ce qu'une commune vivante a besoin de partager.</p>
-      </div>
-      <div class="pillars-grid">
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--green-light); font-size:3.5rem;">🤝</div>
-          <div class="pillar-num" style="font-size:1.496rem;">01 — Engagement citoyen</div>
-          <div class="pillar-title">Des habitants qui participent, vraiment</div>
-          <p class="pillar-desc">Inscriptions, présence vérifiée par géolocalisation, points citoyens et badges. La participation devient visible et mesurable — sans déclaratif, sans triche possible.</p>
-          <div class="pillar-tags">
-            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Agenda &amp; inscriptions</span>
-            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Points citoyens</span>
-            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Coups de main</span>
-            <span class="tag" style="background:var(--green-light); color:#1a7a55; border-color:var(--green-light);">Badges &amp; niveaux</span>
-          </div>
-        </div>
-
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--orange-light); font-size:3.5rem;">🏛️</div>
-          <div class="pillar-num" style="font-size:1.496rem;">02 — Conseil municipal</div>
-          <div class="pillar-title">La mairie, accessible à tous</div>
-          <p class="pillar-desc">Délibérations, comptes-rendus et trombinoscope publiés dans l'appli. Alertes urgentes en un instant, signalements des habitants dans les deux sens.</p>
-          <div class="pillar-tags">
-            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Délibérations &amp; PV</span>
-            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Alertes urgentes</span>
-            <span class="tag" style="background:var(--orange-light); color:#a06910; border-color:var(--orange-light);">Thermomètre du village</span>
-          </div>
-        </div>
-
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--coral-light); font-size:3.5rem;">🏪</div>
-          <div class="pillar-num" style="font-size:1.496rem;">03 — Vie locale</div>
-          <div class="pillar-title">Commerces &amp; associations, enfin visibles</div>
-          <p class="pillar-desc">Boulangerie, artisan menuisier, club de pétanque : chacun a sa fiche classée par catégorie. Plus de numéro punaisé sur un panneau depuis trois ans.</p>
-          <div class="pillar-tags">
-            <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Annuaire local</span>
-            <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Mur des voisins</span>
-            <span class="tag" style="background:var(--coral-light); color:#9e3f20; border-color:var(--coral-light);">Fiches complètes</span>
-          </div>
-        </div>
-
-        <div class="pillar-card" data-reveal>
-          <div class="pillar-icon" style="background:var(--indigo-light); font-size:3.5rem;">🗺️</div>
-          <div class="pillar-num" style="font-size:1.496rem;">04 — Patrimoine &amp; territoire</div>
-          <div class="pillar-title">Le village, raconté autrement</div>
-          <p class="pillar-desc">Une chasse au trésor géolocalisée fait redécouvrir le patrimoine en famille. « La mémoire du village » recueille témoignages et photos des anciens.</p>
-          <div class="pillar-tags">
-            <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Chasse au trésor</span>
-            <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Mémoire du village</span>
-            <span class="tag" style="background:var(--indigo-light); color:#3730a3; border-color:var(--indigo-light);">Carte interactive</span>
-          </div>
-        </div>
+      <div class="surtitre">Au quotidien</div>
+      <h2>Une semaine à la mairie avec Agora</h2>
+      <p class="sous">Avant, et avec Agora : ce qui change concrètement, du lundi au dimanche.</p>
+      <div class="semaine">
+        <article class="jour"><span class="quand">Lundi, 9 h</span><span class="icone">🏛️</span><h3>Le compte rendu du conseil</h3><p class="avant">Affiché sur le panneau, lu par quelques passants.</p><p class="avec">Publié une fois, lu par tout le village.</p><span class="module" style="background:var(--green-light);color:var(--green-dark)">Conseil municipal</span></article>
+        <article class="jour"><span class="quand">Mardi, 14 h</span><span class="icone">🚨</span><h3>Coupure d'eau rue de l'Église</h3><p class="avant">Un avis à photocopier et à distribuer dans l'urgence.</p><p class="avec">Une notification sur les téléphones, en une minute.</p><span class="module" style="background:var(--coral-light);color:#a53a17">Alertes</span></article>
+        <article class="jour"><span class="quand">Mercredi</span><span class="icone">🌡️</span><h3>Faut-il illuminer l'église à Noël ?</h3><p class="avant">Un questionnaire papier à ramasser et dépouiller.</p><p class="avec">Les réponses se comptent toutes seules.</p><span class="module" style="background:var(--orange-light);color:#8a5a0a">Thermomètre du village</span></article>
+        <article class="jour"><span class="quand">Jeudi</span><span class="icone">📰</span><h3>Le bulletin d'hiver</h3><p class="avant">Des relances par mail et des versions Word qui se croisent.</p><p class="avec">Chacun écrit sa rubrique, au même endroit.</p><span class="module" style="background:var(--green-light);color:var(--green-dark)">Bulletin</span></article>
+        <article class="jour"><span class="quand">Vendredi</span><span class="icone">🤝</span><h3>Mme Martin cherche quelqu'un pour ses courses</h3><p class="avant">Elle appelle la mairie, qui cherche un bénévole.</p><p class="avec">Un voisin lui répond directement.</p><span class="module" style="background:#eef0fb;color:#3730a3">Coups de main</span></article>
+        <article class="jour"><span class="quand">Samedi</span><span class="icone">🗺️</span><h3>Le lavoir du village</h3><p class="avant">On passe devant sans le voir.</p><p class="avec">Les familles le redécouvrent en jouant.</p><span class="module" style="background:#eef0fb;color:#3730a3">Chasse au trésor</span></article>
+        <article class="jour"><span class="quand">Dimanche</span><span class="icone">📸</span><h3>Le lever de soleil sur la Somme</h3><p class="avant">Les belles photos restent dans les téléphones.</p><p class="avec">Le village se raconte lui-même.</p><span class="module" style="background:var(--orange-light);color:#8a5a0a">Photo du jour</span></article>
       </div>
     </div>
   </section>
 
-  <!-- — MODULES — -->
-  <section class="section modules">
+  <!-- 4. Le temps gagné, calculé avec les chiffres du visiteur -->
+  <section class="temps" id="temps">
     <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
-        <div class="section-eyebrow">16 modules</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Une application, toute la vie du village</h2>
+      <div>
+        <div class="surtitre">Pour la mairie</div>
+        <h2>Combien d'heures Agora rend-elle à votre secrétariat ?</h2>
+        <p class="sous">Réglez avec vos propres chiffres.</p>
+        <div class="curseurs" style="margin-top:28px">
+          <div class="curseur"><label for="c-avis">Avis distribués dans les boîtes aux lettres, par an <output id="o-avis"></output></label><input id="c-avis" type="range" min="0" max="24" value="6"></div>
+          <div class="curseur"><label for="c-appels">Appels pour une question courante, par semaine <output id="o-appels"></output></label><input id="c-appels" type="range" min="0" max="20" value="5"></div>
+          <div class="curseur"><label for="c-bulletins">Bulletins municipaux par an <output id="o-bulletins"></output></label><input id="c-bulletins" type="range" min="0" max="4" value="2"></div>
+          <div class="curseur"><label for="c-sondages">Consultations papier des habitants, par an <output id="o-sondages"></output></label><input id="c-sondages" type="range" min="0" max="4" value="1"></div>
+        </div>
       </div>
-      <div class="modules-grid">
-        <div class="module-item" data-reveal style="--i:0">
-          <div class="module-dot" style="background:var(--green-light);">📰</div>
-          <div class="module-text"><strong>Actualités</strong><span>Publier une fois, être lu partout</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:1">
-          <div class="module-dot" style="background:var(--orange-light);">📅</div>
-          <div class="module-text"><strong>Agenda</strong><span>Le calendrier vivant de la commune</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:2">
-          <div class="module-dot" style="background:var(--coral-light);">🚨</div>
-          <div class="module-text"><strong>Alertes &amp; signalements</strong><span>Mairie ↔ habitants, bidirectionnel</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:3">
-          <div class="module-dot" style="background:var(--indigo-light);">🌡️</div>
-          <div class="module-text"><strong>Thermomètre du village</strong><span>Sondage rapide avant une décision</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:4">
-          <div class="module-dot" style="background:var(--green-light);">🤝</div>
-          <div class="module-text"><strong>Coups de main</strong><span>Entraide locale organisée</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:5">
-          <div class="module-dot" style="background:var(--orange-light);">⭐</div>
-          <div class="module-text"><strong>Badges &amp; niveaux</strong><span>La régularité devient visible</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:0">
-          <div class="module-dot" style="background:var(--coral-light);">🏛️</div>
-          <div class="module-text"><strong>Conseil municipal</strong><span>PV, délibérations, trombinoscope</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:1">
-          <div class="module-dot" style="background:var(--indigo-light);">📋</div>
-          <div class="module-text"><strong>Bulletin municipal</strong><span>Sans dépendre de la boîte aux lettres</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:2">
-          <div class="module-dot" style="background:var(--green-light);">🗺️</div>
-          <div class="module-text"><strong>Chasse au trésor</strong><span>Parcours géolocalisé du patrimoine</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:3">
-          <div class="module-dot" style="background:var(--orange-light);">🏘️</div>
-          <div class="module-text"><strong>Mur des voisins</strong><span>Fil de discussion locale</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:4">
-          <div class="module-dot" style="background:var(--coral-light);">🗑️</div>
-          <div class="module-text"><strong>Calendrier des déchets</strong><span>Le bon jour, au bon moment</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:5">
-          <div class="module-dot" style="background:var(--indigo-light);">📸</div>
-          <div class="module-text"><strong>Mémoire du village</strong><span>Témoignages et photos des anciens</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:0">
-          <div class="module-dot" style="background:var(--green-light);">📇</div>
-          <div class="module-text"><strong>Annuaire</strong><span>Commerces et associations, classés</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:1">
-          <div class="module-dot" style="background:var(--orange-light);">📷</div>
-          <div class="module-text"><strong>Photo du jour</strong><span>Un cliché de la commune, chaque jour</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:2">
-          <div class="module-dot" style="background:var(--coral-light);">🧩</div>
-          <div class="module-text"><strong>Énigme photo</strong><span>Un jeu local à résoudre en famille</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:3">
-          <div class="module-dot" style="background:var(--indigo-light);">⚖️</div>
-          <div class="module-text"><strong>Lois</strong><span>Les textes votés en France et en Europe</span></div>
-        </div>
+      <div class="total" aria-live="polite">
+        <b id="total-heures">0</b><span class="unite">heures rendues par an</span>
+        <p>Calculé avec vos chiffres : 3 h par avis (impression et tournée), 5 min par appel (jour des poubelles, horaires, date d'une fête…), 6 h de relances et de collecte des textes par bulletin, 5 h par consultation papier.</p>
+        <span class="equivalent" id="equivalent"></span>
       </div>
     </div>
   </section>
 
-  <!-- — VALEURS — -->
-  <section class="section values" style="background:var(--cream);">
+  <!-- 5. Les modules, rangés par usage -->
+  <section id="modules">
+    <div class="wrap centre">
+      <div class="surtitre">16 modules</div>
+      <h2>Une application, toute la vie du village</h2>
+      <div class="onglets-modules" role="tablist" aria-label="Familles de modules">
+        <button role="tab" aria-selected="true" data-famille="mairie">Pour la mairie</button>
+        <button role="tab" aria-selected="false" data-famille="village">Pour faire vivre le village</button>
+      </div>
+      <div class="grille-modules" id="grille-modules" role="tabpanel"></div>
+    </div>
+  </section>
+
+  <!-- 6. Tarifs personnalisés -->
+  <section class="tarifs" id="tarifs">
+    <div class="wrap centre">
+      <div class="surtitre">Tarifs</div>
+      <h2 id="titre-tarifs">Un prix qui s'ajuste à votre commune</h2>
+      <div class="reglage">
+        <div class="ligne"><label for="c-habitants">Nombre d'habitants</label><b><span id="o-habitants">480</span> hab.</b></div>
+        <input id="c-habitants" type="range" min="50" max="8000" step="1" value="480">
+        <small>Au-delà de 8 000 habitants, nous consulter</small>
+      </div>
+      <div class="offres" style="text-align:left">
+        <div class="offre">
+          <div class="nom">Gratuit</div><h3>Informer</h3>
+          <div class="montant">0 €<small> / mois</small></div>
+          <ul><li>Actualités</li><li>Agenda</li><li>Signalements</li><li>Conseil municipal</li><li>Lois votées en France et en Europe</li></ul>
+          <a class="btn btn--contour" href="#demande" data-demande="gratuit">Activer gratuitement</a>
+        </div>
+        <div class="offre">
+          <div class="nom" id="label-autonomie">Autonomie</div><h3 id="titre-autonomie">Vous pilotez seul</h3>
+          <div class="montant"><span id="prix-autonomie">24 €</span><small> / mois</small></div>
+          <ul id="features-autonomie"><li>Tous les modules</li><li>Modération par la mairie</li><li>Support par email</li></ul>
+          <div class="fondateur">Commune fondatrice : <b id="fond-autonomie"></b> / mois, à vie</div>
+          <a class="btn btn--marine" href="#demande" data-demande="devis">Recevoir un devis</a>
+        </div>
+        <div class="offre offre--mise-en-avant">
+          <span class="ruban" id="badge-accompagne">Le plus demandé</span>
+          <div class="nom" id="label-accompagne">Accompagné</div><h3 id="titre-accompagne">On s'occupe du quotidien</h3>
+          <div class="montant"><span id="prix-accompagne">41 €</span><small> / mois</small></div>
+          <ul id="features-accompagne"><li>Tout Autonomie</li><li>Modération automatique des photos</li><li>Support prioritaire</li><li>Bilan mensuel envoyé par mail</li></ul>
+          <div class="fondateur">Commune fondatrice : <b id="fond-accompagne"></b> / mois, à vie</div>
+          <a class="btn btn--vert" href="#demande" data-demande="devis">Recevoir un devis</a>
+        </div>
+      </div>
+      <p class="options">Facturé annuellement, déposé sur Chorus Pro · Options : chasse au trésor patrimoine créée avec vous (sur devis), packs de sondages pour le Thermomètre du village (à l'unité) · <a href="#demande" data-demande="fondatrice"><b>Communes fondatrices : −35 % à vie, 10 places jusqu'au 31 mars 2027</b></a></p>
+    </div>
+  </section>
+
+  <!-- 7. Le fondateur -->
+  <section>
     <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
-        <div class="section-eyebrow">L'esprit du projet</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Des outils dignes de l'engagement communal</h2>
-      </div>
-      <div class="values-grid">
-        <div class="value-item" data-reveal>
-          <div class="value-icon" style="background:var(--green-light);">🇫🇷</div>
-          <div class="value-title">Indépendant</div>
-          <p class="value-desc">Code propriétaire sur mesure, zéro dépendance à Firebase ou un framework fermé — jamais prisonnier d'un éditeur</p>
-        </div>
-        <div class="value-item" data-reveal>
-          <div class="value-icon" style="background:var(--orange-light);">🔒</div>
-          <div class="value-title">RGPD natif</div>
-          <p class="value-desc">Droit à l'effacement, export des données, consentement clair</p>
-        </div>
-        <div class="value-item" data-reveal>
-          <div class="value-icon" style="background:var(--coral-light);">👨‍💼</div>
-          <div class="value-title">Piloté par la mairie</div>
-          <p class="value-desc">Zéro compétence technique, géré seul par le secrétariat</p>
-        </div>
-        <div class="value-item" data-reveal>
-          <div class="value-icon" style="background:var(--indigo-light);">📱</div>
-          <div class="value-title">Mobile d'abord</div>
-          <p class="value-desc">Aucune installation lourde, ça marche dans la poche</p>
+      <div class="fondateur-bloc">
+        <div class="portrait" aria-hidden="true">LS</div>
+        <div>
+          <blockquote>« Je suis élu dans un village de la Somme. J'ai créé l'outil que j'aurais voulu trouver : simple pour la mairie, utile pour les habitants. »</blockquote>
+          <cite>Léandre Sallé, élu municipal dans la Somme, fondateur de Plateforme-Agora</cite>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- — POUR LA MAIRIE : LE TEMPS GAGNÉ — argument n° 1 auprès du conseil municipal qui vote le
-       budget (ligne d'offre validée le 2026-10-27). Réutilise la grille des modules. -->
-  <section class="section modules">
+  <!-- 8. Questions -->
+  <section id="faq" style="padding-top:0">
+    <div class="wrap centre">
+      <div class="surtitre">Questions</div>
+      <h2>Ce que les élus nous demandent</h2>
+      <div class="faq" style="text-align:left">
+        <details><summary>C'est vraiment gratuit ?</summary><p>Oui : actualités, agenda, signalements, conseil municipal et lois sont gratuits, sans limite de temps et sans carte bancaire. Les autres onglets s'activent quand votre commune est prête à aller plus loin.</p></details>
+        <details><summary>Combien de temps pour être en ligne ?</summary><p>Sous 48 heures après votre demande : nous préparons votre espace avec vous, puis vous le pilotez seul.</p></details>
+        <details><summary>Faut-il des compétences techniques ?</summary><p>Non. Un maire ou un secrétariat de mairie la pilote seul, au quotidien.</p></details>
+        <details><summary>Et le RGPD ?</summary><p>Plateforme-Agora agit comme sous-traitant de la commune : un contrat de sous-traitance (article 28 du RGPD) encadre le traitement des données de chaque commune, et vos données vous sont restituées sur simple demande. Hébergement dans l'Union européenne.</p></details>
+        <details><summary>Comment régler la facture ?</summary><p>Par virement ou mandat administratif, sur facture annuelle déposée sur Chorus Pro, comme pour n'importe quel prestataire communal.</p></details>
+        <details><summary>Et si on veut arrêter ?</summary><p>Sans engagement de durée : l'abonnement se renouvelle chaque année et s'arrête sur simple mail, 2 mois avant l'échéance. La version gratuite s'arrête à tout moment.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. Demande : la seule action, rappelée partout -->
+  <section class="final" id="demande">
     <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
-        <div class="section-eyebrow">Pour la mairie</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Du temps rendu au secrétariat</h2>
+      <div>
+        <div class="surtitre" style="color:var(--orange)">Nous contacter</div>
+        <h2 id="titre-demande">Votre espace, en ligne <em>sous 48 heures.</em></h2>
+        <p class="sous">Une demande en 2 minutes, sans carte bancaire. Nous vous rappelons.</p>
+        <ol class="etapes">
+          <li><span><b>Vous faites la demande</b>2 minutes, sans carte bancaire.</span></li>
+          <li><span><b>Nous vous rappelons</b>Pour vous présenter l'application et préparer votre espace avec vous.</span></li>
+          <li><span><b>Vous créez votre compte</b>Puis vous pilotez seul, à votre rythme.</span></li>
+        </ol>
+        <p class="appel">Vous préférez téléphoner ? <b>06 48 06 10 97</b></p>
       </div>
-      <div class="modules-grid">
-        <div class="module-item" data-reveal style="--i:0">
-          <div class="module-dot" style="background:var(--green-light);">📰</div>
-          <div class="module-text"><strong>Bulletin municipal</strong><span>Rédigé à plusieurs et à distance : fini les relances par mail et les versions Word qui se croisent</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:1">
-          <div class="module-dot" style="background:var(--orange-light);">🌡️</div>
-          <div class="module-text"><strong>Thermomètre du village</strong><span>Un sondage en ligne au lieu de questionnaires papier à distribuer, ramasser et dépouiller</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:2">
-          <div class="module-dot" style="background:var(--coral-light);">🏪</div>
-          <div class="module-text"><strong>Annuaire</strong><span>Commerçants et associations tiennent leur fiche à jour eux-mêmes</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:3">
-          <div class="module-dot" style="background:var(--indigo-light);">🤝</div>
-          <div class="module-text"><strong>Coups de main</strong><span>Les habitants s'entraident directement, sans passer par la mairie</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:4">
-          <div class="module-dot" style="background:var(--green-light);">💬</div>
-          <div class="module-text"><strong>Mur des voisins</strong><span>Les questions courantes trouvent réponse entre habitants</span></div>
-        </div>
-        <div class="module-item" data-reveal style="--i:5">
-          <div class="module-dot" style="background:var(--orange-light);">📊</div>
-          <div class="module-text"><strong>Bilan mensuel</strong><span>Formule Accompagné : le résumé du mois (signalements, actualités, habitants) arrive tout seul par mail</span></div>
-        </div>
-      </div>
+      <form class="demande" id="form-demande" novalidate>
+        <div class="plein"><label for="f-demande">Votre demande</label>
+          <select id="f-demande" required><option value="">Choisir…</option><option value="gratuit">Activer la version gratuite</option><option value="devis">Recevoir un devis (version payante)</option><option value="fondatrice">Devenir commune fondatrice</option></select></div>
+        <div><label for="f-nom">Nom et prénom</label><input id="f-nom" required autocomplete="name"></div>
+        <div><label for="f-fonction">Fonction</label><select id="f-fonction" required><option value="">Choisir…</option><option>Maire</option><option>Adjoint(e)</option><option>Conseiller(e) municipal(e)</option><option>Secrétaire de mairie</option><option>Autre</option></select></div>
+        <div class="plein"><label for="f-commune">Commune</label><input id="f-commune" required placeholder="Nom ou code postal"></div>
+        <div><label for="f-email">Email</label><input id="f-email" type="email" required autocomplete="email"></div>
+        <div><label for="f-tel">Téléphone (facultatif)</label><input id="f-tel" type="tel" autocomplete="tel"></div>
+        <div class="plein"><label for="f-message">Message (facultatif)</label><textarea id="f-message" placeholder="Le meilleur moment pour vous rappeler…"></textarea></div>
+        <div class="plein"><button class="btn btn--vert" type="submit" style="width:100%">Envoyer ma demande →</button></div>
+        <div class="piege" aria-hidden="true"><label for="f-site">Site web</label><input id="f-site" tabindex="-1" autocomplete="off"></div>
+        <p class="plein statut-envoi" id="f-statut" role="status"></p>
+      </form>
     </div>
   </section>
+</main>
 
-  <!-- — TARIFS — -->
-  <section class="section pricing" id="tarifs">
-    <div class="wrap">
-      <div style="text-align:center; margin-bottom:2.5rem;" data-reveal>
-        <div class="section-eyebrow">Tarifs</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Un prix qui s'ajuste à votre commune</h2>
-        <p class="section-subtitle" style="text-align:center; max-width:520px; margin:0.5rem auto 0;">Indiquez le nombre d'habitants : le prix se calcule en direct et sert de base à votre devis personnalisé.</p>
-      </div>
+<footer>
+  <div class="wrap"><span>Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</span><span><a href="/mentions-legales">Mentions légales</a> · <a href="/confidentialite">Confidentialité</a> · <a href="/conditions-utilisation">CGU</a></span></div>
+</footer>
 
-      <div class="pricing-slider-box" data-reveal>
-        <div class="pricing-slider-head">
-          <span>Nombre d'habitants de votre commune</span>
-          <span class="pricing-slider-valeur"><span id="nombre-habitants">480</span> hab.</span>
-        </div>
-        <input type="range" id="curseur-habitants" class="pricing-slider" min="50" max="8000" step="10" value="480" aria-label="Nombre d'habitants" />
-        <div class="pricing-slider-bornes">
-          <span>50 hab.</span>
-          <span>Au-delà de 8 000 habitants, nous consulter</span>
-        </div>
-      </div>
+<div class="barre-mobile"><a class="btn btn--vert" href="#demande" data-cta>Demander l'activation</a></div>
 
-      <div class="pricing-zone">
-      <a href="#contact" class="ruban-fondatrice" data-demande="fondatrice" aria-label="Communes fondatrices : moins 35 % à vie. Je candidate">
-        <span class="ruban-texte">−35 % à vie <em>· 10 communes fondatrices</em></span>
-        <span class="ruban-cta">Je candidate →</span>
-      </a>
-      <div class="pricing-grid">
-        <div class="pricing-card" data-reveal>
-          <div class="pricing-label" id="label-autonomie">Autonomie</div>
-          <div class="pricing-title" id="titre-autonomie">Vous pilotez seul</div>
-          <div class="pricing-amount">
-            <span class="amount"><span id="prix-autonomie">24 €</span></span>
-            <span class="period"> / mois</span>
-          </div>
-          <p class="pricing-facturation">Facturé annuellement</p>
-          <div class="pricing-par-hab" id="parhab-autonomie"></div>
-          <div class="pricing-fondatrice"><strong>Commune fondatrice :</strong> <strong id="fondateur-autonomie">—</strong> / mois, à vie (−35 %)</div>
-          <ul class="pricing-features" id="features-autonomie">
-            <li>Tous les modules citoyens</li>
-            <li>Modération assurée par la mairie</li>
-            <li>Support email</li>
-            <li>Valorisation du patrimoine en option, sur devis</li>
-          </ul>
-          <a href="#contact" class="btn-pricing btn-pricing-light" data-demande="fondatrice">Devenir commune fondatrice</a>
-        </div>
+<script>
+(function () {
+  var champ = document.getElementById('recherche-commune');
+  var liste = document.getElementById('liste-communes');
+  var zone = document.getElementById('resultat-commune');
 
-        <div class="pricing-card featured" data-reveal>
-          <div class="pricing-badge" id="badge-accompagne">Le plus demandé</div>
-          <div class="pricing-label" id="label-accompagne">Accompagné</div>
-          <div class="pricing-title" id="titre-accompagne">On s'occupe du quotidien</div>
-          <div class="pricing-amount">
-            <span class="amount"><span id="prix-accompagne">41 €</span></span>
-            <span class="period"> / mois</span>
-          </div>
-          <p class="pricing-facturation">Facturé annuellement</p>
-          <div class="pricing-par-hab" id="parhab-accompagne"></div>
-          <div class="pricing-fondatrice"><strong>Commune fondatrice :</strong> <strong id="fondateur-accompagne">—</strong> / mois, à vie (−35 %)</div>
-          <ul class="pricing-features" id="features-accompagne">
-            <li>Tout Autonomie, plus :</li>
-            <li>Modération automatique des photos</li>
-            <li>Support prioritaire</li>
-            <li>Bilan mensuel</li>
-          </ul>
-          <a href="#contact" class="btn-pricing btn-pricing-white" data-demande="fondatrice">Devenir commune fondatrice</a>
-        </div>
-      </div>
-      </div>
-      <p class="pricing-option"><strong>Options :</strong> valorisation du patrimoine par une chasse au trésor numérique, créée avec vous sur place, sur devis · packs de sondages pour le Thermomètre du village, vendus à l'unité. <a href="#contact" data-demande="devis">Demander un devis</a></p>
-      <p style="text-align:center; font-size:0.82rem; color:var(--text-muted); margin-top:2rem;">
-        Gratuit pour commencer · Actualités, agenda, signalements, conseil municipal et lois, sans carte bancaire ni limite de temps · Prix indicatif, base de votre devis personnalisé
-      </p>
-    </div>
-  </section>
+  // ── Tarifs : barème public (worker/src/backoffice/tarification.ts). Repli local = valeurs de la
+  // migration 050, remplacées par celles du serveur dès qu'elles arrivent.
+  var B = { taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2, prix_plancher: 290, supplement_accompagne: 200 };
+  var autonomie = function (h) { var brut = Math.min(h, B.seuil_degressif) * B.taux_base + Math.max(0, h - B.seuil_degressif) * B.taux_degressif; return Math.max(brut, B.prix_plancher); };
+  var mensuel = function (an) { return Math.round(an / 12).toLocaleString('fr-FR') + ' €'; };
+  var curseurHab = document.getElementById('c-habitants');
+  function majTarifs() {
+    var h = parseInt(curseurHab.value, 10);
+    document.getElementById('o-habitants').textContent = h.toLocaleString('fr-FR');
+    var a = autonomie(h), acc = a + B.supplement_accompagne;
+    document.getElementById('prix-autonomie').textContent = mensuel(a);
+    document.getElementById('prix-accompagne').textContent = mensuel(acc);
+    document.getElementById('fond-autonomie').textContent = mensuel(a * 0.65);
+    document.getElementById('fond-accompagne').textContent = mensuel(acc * 0.65);
+  }
+  curseurHab.addEventListener('input', majTarifs); majTarifs();
+  // Libellés, accroches, badge et listes des offres édités depuis le backoffice : repli silencieux
+  // sur le texte écrit ci-dessus si le réseau échoue ou qu'une clé manque.
+  function appliquerTexteOffre(prefixe, offre) {
+    if (!offre) return;
+    var el = function (id) { return document.getElementById(id + '-' + prefixe); };
+    if (el('label') && offre.label) el('label').textContent = offre.label;
+    if (el('titre') && offre.titre) el('titre').textContent = offre.titre;
+    if (el('badge') && offre.badge) el('badge').textContent = offre.badge;
+    if (el('features') && offre.features && offre.features.length) {
+      el('features').innerHTML = '';
+      offre.features.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; el('features').appendChild(li); });
+    }
+  }
+  fetch('/api/backoffice/tarifs-contenu').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    B = d; majTarifs();
+    if (d.offres) { appliquerTexteOffre('autonomie', d.offres.autonomie); appliquerTexteOffre('accompagne', d.offres.accompagne); }
+  }).catch(function () {});
 
-  <!-- — FORMULAIRE DE DEMANDE (version gratuite, devis, commune fondatrice) —
-       Les activations sont faites à la main par Léandre (décision du 2026-10-27 : aucun
-       parcours automatique ni email envoyé à une mairie depuis le site). Les boutons portant
-       data-demande présélectionnent le type de demande.
-       Cible du ruban des tarifs. Envoi vers /api/backoffice/demande-contact (Worker,
-       voir worker/src/backoffice/demande-contact.ts) : un vrai formulaire plutôt qu'un mailto:,
-       qui échoue chez qui n'a pas de logiciel de messagerie (fréquent en mairie). -->
-  <section class="section contact-fondatrice" id="contact">
-    <div class="wrap contact-grid">
-      <div data-reveal>
-        <div class="section-eyebrow">Nous contacter</div>
-        <h2 class="section-title">Activer votre commune</h2>
-        <p class="section-subtitle">Version gratuite, devis pour la version payante ou candidature commune fondatrice : une seule demande, nous vous rappelons.</p>
-        <div class="contact-fondatrice-encart"><strong>Communes fondatrices</strong> : 10 places, jusqu'au 31 mars 2027. −35 % garantis à vie tant que la commune reste abonnée, prise en main accompagnée.</div>
-      </div>
-      <div data-reveal>
-        <form class="contact-form" id="form-fondatrice" novalidate>
-          <div class="plein">
-            <label for="cf-demande">Votre demande</label>
-            <select id="cf-demande" name="demande" required>
-              <option value="">Choisir…</option>
-              <option value="gratuit">Activer la version gratuite</option>
-              <option value="devis">Recevoir un devis (version payante)</option>
-              <option value="fondatrice">Devenir commune fondatrice</option>
-            </select>
-          </div>
-          <div>
-            <label for="cf-nom">Nom et prénom</label>
-            <input id="cf-nom" name="nom" type="text" autocomplete="name" required minlength="2" maxlength="120" />
-          </div>
-          <div>
-            <label for="cf-fonction">Fonction</label>
-            <select id="cf-fonction" name="fonction" required>
-              <option value="">Choisir…</option>
-              <option>Maire</option>
-              <option>Adjoint(e)</option>
-              <option>Conseiller(e) municipal(e)</option>
-              <option>Secrétaire de mairie</option>
-              <option>Autre</option>
-            </select>
-          </div>
-          <div class="plein">
-            <label for="cf-commune">Commune</label>
-            <input id="cf-commune" name="commune" type="text" required minlength="2" maxlength="120" placeholder="Nom ou code postal" />
-          </div>
-          <div>
-            <label for="cf-email">Email</label>
-            <input id="cf-email" name="email" type="email" autocomplete="email" required maxlength="200" />
-          </div>
-          <div>
-            <label for="cf-telephone">Téléphone <span>(facultatif)</span></label>
-            <input id="cf-telephone" name="telephone" type="tel" autocomplete="tel" maxlength="30" />
-          </div>
-          <div class="plein">
-            <label for="cf-message">Message <span>(facultatif)</span></label>
-            <textarea id="cf-message" name="message" maxlength="2000" placeholder="Le meilleur moment pour vous rappeler, une question…"></textarea>
-          </div>
-          <div class="piege" aria-hidden="true">
-            <label for="cf-site">Site web</label>
-            <input id="cf-site" name="site_web" type="text" tabindex="-1" autocomplete="off" />
-          </div>
-          <div class="plein">
-            <button type="submit" class="btn-cta-green">Envoyer ma demande →</button>
-          </div>
-          <p class="contact-statut plein" id="cf-statut" role="status"></p>
-        </form>
-      </div>
-    </div>
-  </section>
+  // ── Recherche de commune (toute la France, même route que la page « Rejoindre »), puis
+  // personnalisation de toute la page. Tout ce qui vient du serveur passe par textContent.
+  var minuteur = null, derniereSaisie = '';
+  function proposer() {
+    var q = champ.value.trim();
+    clearTimeout(minuteur);
+    if (q.length < 2) { liste.hidden = true; liste.innerHTML = ''; return; }
+    minuteur = setTimeout(function () {
+      derniereSaisie = q;
+      fetch('/api/decouverte/communes/rechercher?q=' + encodeURIComponent(q))
+        .then(function (r) { return r.ok ? r.json() : { resultats: [] }; })
+        .then(function (d) { if (q === derniereSaisie) afficherSuggestions(d.resultats || []); })
+        .catch(function () { afficherSuggestions([]); });
+    }, 250);
+  }
+  function afficherSuggestions(resultats) {
+    liste.innerHTML = '';
+    if (!resultats.length) {
+      var vide = document.createElement('li'); vide.textContent = 'Aucune commune trouvée. Essayez le code postal.'; liste.appendChild(vide);
+    }
+    resultats.forEach(function (r, i) {
+      var li = document.createElement('li'); li.setAttribute('role', 'option'); li.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      var nom = document.createElement('span'); nom.textContent = r.nom;
+      var info = document.createElement('small'); info.textContent = r.code_postal + (r.population ? ' · ' + r.population.toLocaleString('fr-FR') + ' hab.' : '');
+      li.appendChild(nom); li.appendChild(info);
+      li.addEventListener('mousedown', function (e) { e.preventDefault(); choisir(r); });
+      liste.appendChild(li);
+    });
+    liste.hidden = false;
+  }
+  champ.addEventListener('input', proposer);
+  champ.addEventListener('keydown', function (e) {
+    var items = [].slice.call(liste.querySelectorAll('[role=option]'));
+    var i = items.findIndex(function (li) { return li.getAttribute('aria-selected') === 'true'; });
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); if (!items.length) return;
+      var j = (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items.forEach(function (li, k) { li.setAttribute('aria-selected', k === j ? 'true' : 'false'); });
+      items[j].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter' && i >= 0) { e.preventDefault(); items[i].dispatchEvent(new MouseEvent('mousedown')); }
+    else if (e.key === 'Escape') { liste.hidden = true; }
+  });
+  champ.addEventListener('blur', function () { setTimeout(function () { liste.hidden = true; }, 120); });
 
+  function choisir(r) {
+    liste.hidden = true; champ.value = r.nom;
+    if (r.population) { curseurHab.value = Math.min(8000, Math.max(50, r.population)); majTarifs(); }
+    zone.innerHTML = '';
+    var carte = document.createElement('div'); carte.className = 'resultat';
+    var nom = document.createElement('div'); nom.className = 'nom'; nom.textContent = r.nom;
+    var etat = document.createElement('div'); etat.className = 'etat';
+    etat.textContent = (r.espace_pret ? '● Son espace existe déjà : il n\u2019attend que la mairie.' : '● Nous préparons son espace sous 48 heures.')
+      + (r.population ? '  ' + r.population.toLocaleString('fr-FR') + ' habitants.' : '');
+    var prix = document.createElement('div'); prix.className = 'prix';
+    prix.innerHTML = '<div><b>0 €</b>Version gratuite</div><div><b></b>Version complète, dès</div>';
+    prix.querySelectorAll('b')[1].textContent = mensuel(autonomie(r.population || 0)) + ' / mois';
+    var btn = document.createElement('a'); btn.className = 'btn btn--vert'; btn.href = '#demande'; btn.textContent = 'Activer ' + r.nom + ' →';
+    btn.addEventListener('click', function () { var d = document.getElementById('f-demande'); if (!d.value) d.value = 'gratuit'; });
+    carte.append(nom, etat, prix, btn); zone.appendChild(carte);
+    // La page entière parle désormais de cette commune
+    document.getElementById('titre-hero').innerHTML = '<em></em>, dans chaque poche.';
+    document.querySelector('#titre-hero em').textContent = r.nom;
+    document.getElementById('titre-tarifs').textContent = 'Le prix pour ' + r.nom;
+    document.getElementById('titre-demande').innerHTML = '<span></span>, en ligne <em>sous 48 heures.</em>';
+    document.querySelector('#titre-demande span').textContent = r.nom;
+    document.getElementById('f-commune').value = r.nom + ' (' + r.code_postal + ')';
+    document.querySelectorAll('[data-cta]').forEach(function (b) { b.textContent = 'Activer ' + r.nom; });
+  }
 
-  <script>
-    (function () {
-      var curseur = document.getElementById('curseur-habitants');
-      var champHabitants = document.getElementById('nombre-habitants');
-      var elAutonomie = document.getElementById('prix-autonomie');
-      var elAccompagne = document.getElementById('prix-accompagne');
-      var REMISE_FONDATRICE = 0.35; // −35 % à vie pour les communes fondatrices (décision du 2026-10-08)
-      if (!curseur) return;
+  // ── Bandeau de preuve : totaux de toute la plateforme recalculés une fois par jour par le
+  // serveur (GET /api/decouverte/chiffres, cache 24 h). En cas d'échec, les valeurs écrites restent.
+  fetch('/api/decouverte/chiffres').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    document.querySelectorAll('[data-chiffre]').forEach(function (b) { var v = d[b.dataset.chiffre]; if (typeof v === 'number') b.textContent = v.toLocaleString('fr-FR'); });
+    if (d.calcule_le) document.getElementById('maj-date').textContent = new Date(d.calcule_le).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  }).catch(function () {});
 
-      // Repli local si l'appel réseau échoue — mêmes valeurs que la migration
-      // 050_bareme_habitant.sql (voir worker/src/backoffice/tarification.ts, formule identique,
-      // à répercuter ici à la main si elle change côté serveur).
-      var bareme = {
-        taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2,
-        prix_plancher: 290, supplement_accompagne: 200, prix_patrimoine_premium: 749,
-      };
+  // ── Visite guidée de la démo
+  var cases = [].slice.call(document.querySelectorAll('#missions input'));
+  cases.forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      var n = cases.filter(function (x) { return x.checked; }).length;
+      document.getElementById('compteur-missions').textContent = n + ' / 3';
+      document.getElementById('jauge-missions').style.width = (n / 3 * 100) + '%';
+      document.getElementById('bravo').hidden = n < 3;
+    });
+  });
 
-      function calculerAutonomie(habitants) {
-        var b = Math.max(0, Math.floor(habitants || 0));
-        var brut = Math.min(b, bareme.seuil_degressif) * bareme.taux_base
-          + Math.max(0, b - bareme.seuil_degressif) * bareme.taux_degressif;
-        return Math.max(brut, bareme.prix_plancher);
-      }
+  // ── Calculateur de temps rendu
+  var ids = ['avis', 'appels', 'bulletins', 'sondages'];
+  function majTemps() {
+    var v = {}; ids.forEach(function (id) { v[id] = parseInt(document.getElementById('c-' + id).value, 10); document.getElementById('o-' + id).textContent = v[id]; });
+    var heures = Math.round(v.avis * 3 + v.appels * 47 * 5 / 60 + v.bulletins * 6 + v.sondages * 5);
+    document.getElementById('total-heures').textContent = heures;
+    var jours = Math.round(heures / 7);
+    document.getElementById('equivalent').textContent = jours >= 1 ? 'soit environ ' + jours + ' journée' + (jours > 1 ? 's' : '') + ' de travail' : 'à ajuster avec vos chiffres';
+  }
+  ids.forEach(function (id) { document.getElementById('c-' + id).addEventListener('input', majTemps); }); majTemps();
 
-      // Le tarif reste annuel côté facturation (voir FAQ "Comment régler la facture") — on
-      // affiche seulement un équivalent mensuel, plus lisible pour un budget communal, d'où
-      // la mention "Facturé annuellement" sous le prix.
-      function formaterPrixMensuel(prixAnnuel) {
-        return Math.round(prixAnnuel / 12).toLocaleString('fr-FR') + ' €';
-      }
+  // ── Modules par famille
+  var MODULES = {
+    mairie: [
+      ['📰', 'Actualités', 'Publier une fois, être lu partout', 1, 'var(--green-light)'], ['📅', 'Agenda', 'Le calendrier vivant de la commune', 1, 'var(--orange-light)'],
+      ['🚨', 'Alertes et signalements', 'Mairie et habitants, dans les deux sens', 1, 'var(--coral-light)'], ['🏛️', 'Conseil municipal', 'PV, délibérations, trombinoscope', 1, 'var(--green-light)'],
+      ['⚖️', 'Lois', 'Les textes votés en France et en Europe', 1, '#eef0fb'], ['📝', 'Bulletin municipal', 'Rédigé à plusieurs, à distance', 0, 'var(--orange-light)'],
+      ['🌡️', 'Thermomètre du village', 'Sondage rapide avant une décision', 0, 'var(--coral-light)'], ['🗑️', 'Calendrier des déchets', 'Le bon jour, au bon moment', 0, 'var(--green-light)'],
+      ['🏪', 'Annuaire', 'Commerces et associations, tenus à jour par eux', 0, '#eef0fb'],
+    ],
+    village: [
+      ['🤝', 'Coups de main', 'L’entraide entre voisins', 0, '#eef0fb'], ['💬', 'Mur des voisins', 'Le fil de discussion du village', 0, 'var(--green-light)'],
+      ['🗺️', 'Chasse au trésor', 'Parcours géolocalisé du patrimoine', 0, 'var(--orange-light)'], ['🕯️', 'Mémoire du village', 'Témoignages et photos des anciens', 0, 'var(--coral-light)'],
+      ['📸', 'Photo du jour', 'Un cliché de la commune, chaque jour', 0, 'var(--green-light)'], ['🧩', 'Énigme photo', 'Un jeu local à résoudre en famille', 0, '#eef0fb'],
+      ['🏅', 'Badges et niveaux', 'La participation devient visible', 0, 'var(--orange-light)'],
+    ],
+  };
+  var grille = document.getElementById('grille-modules');
+  function afficherFamille(f) {
+    grille.innerHTML = '';
+    MODULES[f].forEach(function (m) {
+      var d = document.createElement('div'); d.className = 'carte-module';
+      var p = document.createElement('div'); p.className = 'pastille'; p.style.background = m[4]; p.textContent = m[0];
+      var t = document.createElement('div'); var s = document.createElement('strong'); s.textContent = m[1];
+      if (m[3]) { var g = document.createElement('span'); g.className = 'gratuit-tag'; g.textContent = 'Gratuit'; s.appendChild(g); }
+      var desc = document.createElement('span'); desc.textContent = m[2];
+      t.append(s, desc); d.append(p, t); grille.appendChild(d);
+    });
+  }
+  document.querySelectorAll('.onglets-modules button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.onglets-modules button').forEach(function (x) { x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
+      afficherFamille(b.dataset.famille);
+    });
+  });
+  afficherFamille('mairie');
 
-      // Prix par habitant affiché seulement quand il est parlant (≤ 1 €) : sous le plancher, une
-      // très petite commune verrait « 5,80 € par habitant », ce qui dessert le message.
-      function afficherParHabitant(el, prix, habitants) {
-        if (!el) return;
-        var parHab = habitants > 0 ? prix / habitants : 0;
-        el.textContent = parHab > 0 && parHab <= 1
-          ? 'soit ' + parHab.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € par habitant et par an'
-          : '';
-      }
-
-      function afficherFondateur(id, prix) {
-        var el = document.getElementById(id);
-        if (el) el.textContent = formaterPrixMensuel(prix * (1 - REMISE_FONDATRICE));
-      }
-
-      function actualiser() {
-        var habitants = parseInt(curseur.value, 10) || 0;
-        champHabitants.textContent = habitants.toLocaleString('fr-FR');
-        var autonomie = calculerAutonomie(habitants);
-        var accompagne = autonomie + bareme.supplement_accompagne;
-        elAutonomie.textContent = formaterPrixMensuel(autonomie);
-        elAccompagne.textContent = formaterPrixMensuel(accompagne);
-        afficherParHabitant(document.getElementById('parhab-autonomie'), autonomie, habitants);
-        afficherParHabitant(document.getElementById('parhab-accompagne'), accompagne, habitants);
-        afficherFondateur('fondateur-autonomie', autonomie);
-        afficherFondateur('fondateur-accompagne', accompagne);
-      }
-
-      curseur.addEventListener('input', actualiser);
-      actualiser();
-
-      // Labels/accroches/badge/fonctionnalités des 3 offres, édités depuis le backoffice (voir
-      // tarification.ts, structurerOffresTexte) — repli silencieux sur le texte déjà écrit en dur
-      // ci-dessus si le réseau échoue ou qu'une clé manque, jamais de carte à moitié vide.
-      function appliquerTexteOffre(prefixe, offre) {
-        if (!offre) return;
-        var elLabel = document.getElementById('label-' + prefixe);
-        var elTitre = document.getElementById('titre-' + prefixe);
-        var elBadge = document.getElementById('badge-' + prefixe);
-        var elFeatures = document.getElementById('features-' + prefixe);
-        if (elLabel && offre.label) elLabel.textContent = offre.label;
-        if (elTitre && offre.titre) elTitre.textContent = offre.titre;
-        if (elBadge && offre.badge) elBadge.textContent = offre.badge;
-        if (elFeatures && offre.features && offre.features.length) {
-          elFeatures.innerHTML = '';
-          offre.features.forEach(function (texte) {
-            var li = document.createElement('li');
-            li.textContent = texte;
-            elFeatures.appendChild(li);
-          });
-        }
-      }
-
-      fetch('/api/backoffice/tarifs-contenu')
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (donnees) {
-          if (!donnees) return;
-          bareme = donnees;
-          actualiser();
-          if (donnees.offres) {
-            appliquerTexteOffre('autonomie', donnees.offres.autonomie);
-            appliquerTexteOffre('accompagne', donnees.offres.accompagne);
-          }
-        })
-        .catch(function () {});
-    })();
-  </script>
-
-  <!-- — FAQ — -->
-  <section class="section faq" id="faq">
-    <div class="wrap">
-      <div style="text-align:center; margin-bottom:3rem;" data-reveal>
-        <div class="section-eyebrow">FAQ</div>
-        <h2 class="section-title" style="text-align:center; max-width:none;">Ce que les élus nous demandent le plus souvent</h2>
-      </div>
-      <div class="faq-grid">
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">C'est vraiment gratuit ?</div>
-          <p class="faq-a">Oui : actualités, agenda, signalements, conseil municipal et lois sont gratuits, sans limite de temps et sans carte bancaire. Les autres onglets s'activent quand votre commune est prête à aller plus loin.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Faut-il des compétences techniques ?</div>
-          <p class="faq-a">Non. Agora est pensée pour qu'un maire ou un secrétariat de mairie la pilote seul, au quotidien, sans aucune notion technique.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Combien de temps pour être en ligne ?</div>
-          <p class="faq-a">Sous 48 heures après votre demande : nous préparons votre espace avec vous, puis vous le pilotez seul.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Peut-on personnaliser l'application ?</div>
-          <p class="faq-a">Oui, les couleurs et le logo de la commune s'adaptent à son identité visuelle. Chaque commune a son propre espace, totalement indépendant.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Où sont hébergées nos données ?</div>
-          <p class="faq-a">Dans l'Union européenne : l'infrastructure est configurée pour que vos données y restent en permanence. Certains prestataires techniques ont leur siège à l'étranger, mais s'engagent contractuellement au respect du RGPD — aucune donnée n'est stockée ou traitée hors de ce cadre.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Et le RGPD ?</div>
-          <p class="faq-a">Plateforme-Agora agit comme sous-traitant de la commune : un contrat de sous-traitance (article 28 du RGPD) encadre le traitement des données de chaque commune, et vos données vous sont restituées sur simple demande.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Comment régler la facture ?</div>
-          <p class="faq-a">Par virement ou mandat administratif, sur facture annuelle déposée sur Chorus Pro, exactement comme pour n'importe quel prestataire communal.</p>
-        </div>
-        <div class="faq-item" data-reveal>
-          <div class="faq-q">Et si on veut arrêter ?</div>
-          <p class="faq-a">Sans engagement de durée : l'abonnement se renouvelle chaque année et s'arrête sur simple mail, 2 mois avant l'échéance. La version gratuite s'arrête à tout moment.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- — CTA FINAL — -->
-  <section class="cta-final">
-    <div class="wrap" data-reveal>
-      <div class="section-eyebrow" style="text-align:center; margin-bottom:0.75rem;">Prêt à activer votre commune ?</div>
-      <h2 class="section-title" style="font-size:2.9rem; text-align:center;">
-        Votre espace, en ligne<br>
-        <em style="color:var(--orange); font-style:italic;">sous 48 heures.</em>
-      </h2>
-      <p class="section-subtitle" style="text-align:center;">
-        Une demande en 2 minutes, sans carte bancaire. Gratuit pour commencer.
-      </p>
-      <div class="cta-final-actions">
-        <a href="#contact" class="btn-cta-green" data-demande="gratuit">Demander l'activation →</a>
-        <a href="tel:+33648061097" class="btn-cta-outline">📞 Nous appeler</a>
-      </div>
-      <a href="rejoindre.html" class="lien-habitant">Vous êtes habitant ? Rejoindre ma commune →</a>
-      <p class="cta-note">Juicy Solutions · Léandre Sallé, élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472</p>
-    </div>
-  </section>
-
-  <!-- — FOOTER — -->
-  <footer>
-    <div class="wrap">
-      <div class="footer-brand">Plateforme <em>Agora</em></div>
-      <ul class="footer-links">
-        <li><a href="/mentions-legales">Mentions légales</a></li>
-        <li><a href="/confidentialite">Confidentialité</a></li>
-        <li><a href="/conditions-utilisation">CGU</a></li>
-      </ul>
-      <div class="footer-copy">© 2026 Juicy Solutions<br>plateforme-agora.fr</div>
-    </div>
-  </footer>
-
-  <script>
-    (function () {
-      // Ombre légère sous la nav dès qu'on quitte le haut de page.
-      var nav = document.querySelector('nav');
-      window.addEventListener('scroll', function () {
-        nav.classList.toggle('is-scrolled', window.scrollY > 8);
-      }, { passive: true });
-
-      // Révélation au scroll : discrète, jamais bloquante si prefers-reduced-motion.
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      var cibles = document.querySelectorAll('[data-reveal]');
-      if (!('IntersectionObserver' in window)) {
-        cibles.forEach(function (el) { el.classList.add('is-visible'); });
-        return;
-      }
-      var observateur = new IntersectionObserver(function (entrees) {
-        entrees.forEach(function (entree) {
-          if (entree.isIntersecting) {
-            entree.target.classList.add('is-visible');
-            observateur.unobserve(entree.target);
-          }
-        });
-      }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
-      cibles.forEach(function (el) { observateur.observe(el); });
-    })();
-  </script>
-
-
-  <script>
-    (function () {
-      // Formulaire de demande (gratuit, devis, commune fondatrice) : envoi en JSON au Worker (même origine via /api).
-      // En cas d'échec réseau/serveur, on propose l'email direct plutôt que de perdre la demande.
-      var form = document.getElementById('form-fondatrice');
-      if (!form) return;
-      var statut = document.getElementById('cf-statut');
-      // Un bouton « Demander l'activation » / « Devenir commune fondatrice » présélectionne le
-      // type de demande, sans écraser un choix déjà fait par le visiteur.
-      document.querySelectorAll('[data-demande]').forEach(function (lien) {
-        lien.addEventListener('click', function () {
-          var choix = document.getElementById('cf-demande');
-          if (choix && !choix.dataset.choisi) choix.value = lien.getAttribute('data-demande');
-        });
-      });
-      document.getElementById('cf-demande').addEventListener('change', function () { this.dataset.choisi = '1'; });
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        statut.className = 'contact-statut plein';
-        if (!form.checkValidity()) {
-          statut.classList.add('erreur');
-          statut.textContent = 'Merci d\u2019indiquer votre demande, votre nom, votre fonction, votre commune et un email valide.';
-          var invalide = form.querySelector(':invalid');
-          if (invalide) invalide.focus();
-          return;
-        }
-        var donnees = {};
-        new FormData(form).forEach(function (v, k) { donnees[k] = String(v).trim(); });
-        var bouton = form.querySelector('button[type="submit"]');
-        bouton.disabled = true;
-        statut.textContent = 'Envoi…';
-        fetch('/api/backoffice/demande-contact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(donnees),
-        }).then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          form.innerHTML = '<div class="contact-merci plein"><strong>Merci, c\u2019est bien reçu !</strong>'
-            + 'Léandre vous rappelle sous 48 h ouvrées pour en parler.</div>';
-        }).catch(function () {
-          bouton.disabled = false;
-          statut.classList.add('erreur');
-          statut.innerHTML = 'L\u2019envoi n\u2019a pas fonctionné. Écrivez-nous à '
-            + '<a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a> ou appelez le 06 48 06 10 97.';
-        });
-      });
-    })();
-  </script>
-
+  // ── Formulaire : présélection, puis envoi réel (un seul email, à Léandre ; champ piège anti-robot)
+  document.querySelectorAll('[data-demande]').forEach(function (l) {
+    l.addEventListener('click', function () { document.getElementById('f-demande').value = l.getAttribute('data-demande'); });
+  });
+  document.getElementById('form-demande').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target, statut = document.getElementById('f-statut');
+    var v = function (id) { return document.getElementById(id).value.trim(); };
+    if (!f.checkValidity()) {
+      statut.textContent = 'Merci d\u2019indiquer votre demande, votre nom, votre fonction, votre commune et un email valide.';
+      var inv = f.querySelector(':invalid'); if (inv) inv.focus(); return;
+    }
+    var bouton = f.querySelector('button[type="submit"]');
+    bouton.disabled = true; statut.textContent = 'Envoi…';
+    fetch('/api/backoffice/demande-contact', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ demande: v('f-demande'), nom: v('f-nom'), fonction: v('f-fonction'), commune: v('f-commune'),
+        email: v('f-email'), telephone: v('f-tel'), message: v('f-message'), site_web: v('f-site') }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      f.innerHTML = '<div class="merci">Merci, c\u2019est bien reçu ! Nous vous rappelons sous 48 h ouvrées.</div>';
+    }).catch(function () {
+      bouton.disabled = false;
+      statut.textContent = 'L\u2019envoi n\u2019a pas fonctionné. Écrivez-nous à contact@plateforme-agora.fr ou appelez le 06 48 06 10 97.';
+    });
+  });
+})();
+</script>
 </body>
 </html>

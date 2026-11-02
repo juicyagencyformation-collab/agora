@@ -6,7 +6,7 @@ import { filtreRechercheCommune } from '../src/routes/decouverte';
 
 describe('filtreRechercheCommune', () => {
   it('cherche par code postal (préfixe) pour 2 à 5 chiffres', () => {
-    expect(filtreRechercheCommune('03100')).toEqual({ code_postal: 'like.03100*', order: 'code_postal.asc,nom.asc', limit: '30' });
+    expect(filtreRechercheCommune('03100')).toEqual({ code_postal: 'like.03100*', order: 'code_postal.asc,nom.asc', limit: '60' });
     expect(filtreRechercheCommune('031').code_postal).toBe('like.031*');
   });
 

@@ -158,7 +158,7 @@ app.get('/evenements', async (c) => {
 // et a fini par envoyer une « demande d'activation » alors que sa commune existait déjà.
 // Limite : prospects.code_postal ne contient que le code PRINCIPAL de chaque commune.
 export function filtreRechercheCommune(q: string): Record<string, string> {
-  if (/^\d{2,5}$/.test(q)) return { code_postal: `like.${q}*`, order: 'code_postal.asc,nom.asc', limit: '30' };
+  if (/^\d{2,5}$/.test(q)) return { code_postal: `like.${q}*`, order: 'code_postal.asc,nom.asc', limit: '60' }; // un code postal peut desservir plus de 30 communes (60240 : 40+)
   return { nom: `ilike.*${q}*`, order: 'nom.asc', limit: '10' };
 }
 
