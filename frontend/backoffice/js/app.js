@@ -297,6 +297,14 @@ function backoffice() {
     // Onglet de la fiche d'une commune cliente (étape 2 du remaniement) : ensemble, echanges,
     // dossier, utilisateurs, configuration. Une fiche de simple prospect n'a pas d'onglets.
     ongletFiche: 'ensemble',
+    // Étape 3 : communes « en mouvement » avec leur parcours et leur tâche (GET /suivi/communes-suivies),
+    // partagé par les tâches de « Aujourd'hui » et la vue en colonnes de « Communes clientes ».
+    suivi: null,
+    vueCommunes: 'liste',
+    COLONNES_PARCOURS: [
+      ['espace_ouvert', 'Espace ouvert'], ['prise_en_main', 'Prise en main'], ['active', 'Active'],
+      ['abonnee', 'Fondatrice / Payante'], ['a_renouveler', 'À renouveler'], ['suspendue', 'Suspendue'],
+    ],
     ONGLETS_FICHE: [
       ['ensemble', 'Vue d’ensemble'], ['echanges', 'Échanges'], ['dossier', 'Dossier'],
       ['utilisateurs', 'Utilisateurs'], ['configuration', 'Configuration'],
@@ -1177,6 +1185,42 @@ function backoffice() {
       } catch {}
       // À part : une anomalie qui échoue à se calculer ne doit pas vider le reste de la page.
       try { this.ajAnomalies = (await boFetch('/suivi/anomalies')).anomalies; } catch {}
+      await this.chargerSuivi();
+    },
+    async chargerSuivi() {
+      try { this.suivi = await boFetch('/suivi/communes-suivies'); } catch {}
+    },
+    dateDans(jours) {
+      return new Date(Date.now() + jours * 86400000).toISOString().slice(0, 10);
+    },
+    // Tâches à afficher : une par commune (sa prochaine action), sauf celles masquées (« Fait » ou
+    // reportées) jusqu'à une date pas encore atteinte. L'administratif des abonnées passe en premier.
+    tachesVisibles() {
+      if (!this.suivi) return [];
+      const aujourdhui = this.dateDans(0);
+      const priorite = { a_renouveler: 0, abonnee: 1, prise_en_main: 2, espace_ouvert: 3, active: 4 };
+      return this.suivi.communes
+        .filter((c) => c.tache && !(c.tache.masquee_jusqu_au && c.tache.masquee_jusqu_au > aujourdhui))
+        .sort((a, b) => (priorite[a.parcours.etape] ?? 9) - (priorite[b.parcours.etape] ?? 9) || a.nom.localeCompare(b.nom));
+    },
+    async agirTache(c, action, extra = {}) {
+      try {
+        await boFetch('/suivi/taches', { method: 'PUT', body: JSON.stringify({ cle: c.tache.cle, action, ...extra }) });
+        await this.chargerSuivi();
+      } catch (e) {
+        alert(e.message || 'Action impossible');
+      }
+    },
+    async ouvrirTache(c) {
+      await this.ouvrirFiche(c.id);
+      if (c.parcours.onglet) this.ongletFiche = c.parcours.onglet;
+    },
+    communesDeColonne(etape) {
+      return (this.suivi?.communes || []).filter((c) => c.parcours.etape === etape);
+    },
+    async basculerVueCommunes(v) {
+      this.vueCommunes = v;
+      if (v === 'colonnes') await this.chargerSuivi();
     },
     async allerAujourdhui() {
       this.vue = 'aujourdhui';
@@ -1195,7 +1239,8 @@ function backoffice() {
     },
     totalAujourdhui() {
       return this.ajProspectsRelance.length + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
-        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length + this.ajAnomalies.length;
+        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length + this.ajAnomalies.length
+        + this.tachesVisibles().length;
     },
     // « Tout traiter » : même bascule intelligente que le bouton Relancer d'une fiche
     // (présentation ou relance J+3 selon l'état), appliquée à toute la liste d'un coup — voir

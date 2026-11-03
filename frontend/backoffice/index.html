@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261103-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261104-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -106,6 +106,49 @@
                       </td>
                       <td><span class="bo-badge" :style="g.gravite === 'haute' ? 'background:#fde2e1;color:#b42318' : g.gravite === 'moyenne' ? 'background:#fef0c7;color:#93370d' : 'background:var(--bo-surface-2, #eef1f6);color:inherit'"
                                 x-text="{ haute: 'À corriger', moyenne: 'À vérifier', info: 'Pour info' }[g.gravite]"></span></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Tâches des communes (backoffice/suivi-communes.ts, étape 3) : la prochaine action de chaque
+               commune en mouvement ; une tâche réglée disparaît d'elle-même, « Fait » la masque 7 jours. -->
+          <div class="bo-tiroir" style="margin-bottom:20px" x-show="tachesVisibles().length > 0">
+            <div class="bo-tiroir__entete" style="cursor:pointer" @click="toggleTiroir('aj_taches_ferme')">
+              <span>✅ Tâches des communes<span class="bo-tiroir__compte" x-text="' — ' + tachesVisibles().length"></span></span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: !tiroirsOuverts.aj_taches_ferme}">▸</span>
+            </div>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="!tiroirsOuverts.aj_taches_ferme">
+              <table>
+                <thead><tr><th>Commune</th><th>À faire</th><th>Confiée à</th><th></th></tr></thead>
+                <tbody>
+                  <template x-for="c in tachesVisibles()" :key="c.tache.cle">
+                    <tr style="cursor:default">
+                      <td @click="ouvrirTache(c)" style="cursor:pointer">
+                        <div class="bo-nom-commune" x-text="c.nom"></div>
+                        <div class="bo-info" x-text="c.parcours.libelle + ' · ' + c.faites + '/' + c.total"></div>
+                      </td>
+                      <td @click="ouvrirTache(c)" style="cursor:pointer" x-text="c.parcours.prochaine_action"></td>
+                      <td>
+                        <select style="width:100%; max-width:220px" :value="c.tache.assignee_staff_id || ''"
+                                @change="agirTache(c, 'confier', { assignee_staff_id: $event.target.value || null })">
+                          <option value="">Personne</option>
+                          <template x-for="s in (suivi?.staff || [])" :key="s.id">
+                            <option :value="s.id" :selected="s.id === c.tache.assignee_staff_id" x-text="s.libelle"></option>
+                          </template>
+                        </select>
+                      </td>
+                      <td style="white-space:nowrap">
+                        <button class="bo-btn bo-btn--compact" title="Masquée 7 jours ; elle revient si ce n'est toujours pas réglé" @click="agirTache(c, 'faite')">✓ Fait</button>
+                        <select style="width:auto" @change="$event.target.value && agirTache(c, 'reporter', { jusqu_au: dateDans(Number($event.target.value)) }); $event.target.value = ''">
+                          <option value="">Reporter…</option>
+                          <option value="1">à demain</option>
+                          <option value="7">dans 1 semaine</option>
+                          <option value="30">dans 1 mois</option>
+                        </select>
+                      </td>
                     </tr>
                   </template>
                 </tbody>
@@ -394,7 +437,35 @@
             </div>
           </div>
 
-          <div class="bo-carte">
+          <!-- Bascule liste / colonnes par étape du parcours (étape 3 du remaniement) -->
+          <div class="bo-onglets-fiche" role="tablist" style="margin-top:20px">
+            <button type="button" role="tab" :aria-selected="vueCommunes === 'liste'" :class="{ actif: vueCommunes === 'liste' }" @click="basculerVueCommunes('liste')">Liste</button>
+            <button type="button" role="tab" :aria-selected="vueCommunes === 'colonnes'" :class="{ actif: vueCommunes === 'colonnes' }" @click="basculerVueCommunes('colonnes')">Par étape</button>
+          </div>
+
+          <div class="bo-colonnes-parcours" x-show="vueCommunes === 'colonnes'">
+            <template x-if="!suivi"><div class="bo-vide">Chargement…</div></template>
+            <template x-for="col in COLONNES_PARCOURS" :key="col[0]">
+              <section class="bo-colonne-parcours" x-show="suivi" :class="{ 'bo-colonne-parcours--vide': !communesDeColonne(col[0]).length }">
+                <header>
+                  <span x-text="col[1]"></span>
+                  <span class="bo-badge" x-text="communesDeColonne(col[0]).length"></span>
+                </header>
+                <div class="bo-info" x-show="col[0] === 'espace_ouvert' && suivi?.nb_espaces_inutilises"
+                     x-text="'+ ' + (suivi?.nb_espaces_inutilises || 0).toLocaleString('fr-FR') + ' espaces gratuits jamais utilisés'"></div>
+                <template x-for="c in communesDeColonne(col[0])" :key="c.id">
+                  <button type="button" class="bo-carte-parcours" @click="ouvrirTache(c)">
+                    <strong x-text="c.nom"></strong>
+                    <div class="bo-carte-parcours__barre"><div :style="{ width: Math.round(100 * c.faites / c.total) + '%' }"></div></div>
+                    <div class="bo-info" x-text="c.faites + '/' + c.total + ' étapes de démarrage'"></div>
+                    <div class="bo-carte-parcours__action" x-show="c.parcours.prochaine_action" x-text="'→ ' + c.parcours.prochaine_action"></div>
+                  </button>
+                </template>
+              </section>
+            </template>
+          </div>
+
+          <div class="bo-carte" x-show="vueCommunes === 'liste'">
             <table>
               <thead>
                 <tr>
@@ -443,7 +514,7 @@
               </tbody>
             </table>
           </div>
-          <div class="bo-outils" x-show="communes.length > 0" style="justify-content:space-between; margin-top:14px">
+          <div class="bo-outils" x-show="vueCommunes === 'liste' && communes.length > 0" style="justify-content:space-between; margin-top:14px">
             <span class="bo-info" x-text="communesTriees().length.toLocaleString('fr-FR') + ' commune(s) · page ' + pageCommunes + ' sur ' + nbPagesCommunes()"></span>
             <div style="display:flex; gap:8px">
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="allerPageCommunes(-1)" :disabled="pageCommunes <= 1">← Précédent</button>
@@ -4233,7 +4304,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261103-4"></script>
+  <script src="/backoffice/js/app.js?v=20261104-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
