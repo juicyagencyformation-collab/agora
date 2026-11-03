@@ -1087,17 +1087,19 @@ app.patch('/prospects/statut-lot', async (c) => {
     select: 'id,statut', id: `in.(${body.data.ids.join(',')})`,
   });
 
-  let modifies = 0;
-  for (const prospect of prospects) {
-    if (prospect.statut === body.data.statut) continue;
-    await supabaseUpdate(c.env, 'prospects', { statut: body.data.statut, updated_at: new Date().toISOString() }, { id: `eq.${prospect.id}` });
-    await supabaseInsert(c.env, 'prospect_interactions', {
-      prospect_id: prospect.id, staff_id: staffId,
-      type: 'statut', contenu: `Statut : ${prospect.statut} → ${body.data.statut} (action groupée)`,
+  // En deux écritures groupées (2026-11-03) plutôt que 2 requêtes par prospect : jusqu'à 400
+  // requêtes pour 200 prospects, lent, et un lot coupé en route laissait une moitié modifiée.
+  const aModifier = prospects.filter((p: any) => p.statut !== body.data.statut);
+  if (aModifier.length) {
+    await supabaseUpdate(c.env, 'prospects', { statut: body.data.statut, updated_at: new Date().toISOString() }, {
+      id: `in.(${aModifier.map((p: any) => p.id).join(',')})`,
     });
-    modifies += 1;
+    await supabaseInsert(c.env, 'prospect_interactions', aModifier.map((p: any) => ({
+      prospect_id: p.id, staff_id: staffId,
+      type: 'statut', contenu: `Statut : ${p.statut} → ${body.data.statut} (action groupée)`,
+    })));
   }
-  return c.json({ ok: true, modifies });
+  return c.json({ ok: true, modifies: aModifier.length });
 });
 
 // POST /prospects/corriger-statuts-actives — correction ponctuelle (bug découvert sur Talence le
