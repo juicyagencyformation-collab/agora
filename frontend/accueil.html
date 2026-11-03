@@ -347,18 +347,18 @@
     <div class="wrap">
       <div>
         <div class="surtitre">Pour la mairie</div>
-        <h2>Combien d'heures Agora rend-elle à votre secrétariat ?</h2>
+        <h2>Combien de temps votre mairie peut-elle gagner ?</h2>
         <p class="sous">Réglez avec vos propres chiffres.</p>
         <div class="curseurs" style="margin-top:28px">
           <div class="curseur"><label for="c-avis">Avis distribués dans les boîtes aux lettres, par an <output id="o-avis"></output></label><input id="c-avis" type="range" min="0" max="24" value="6"></div>
           <div class="curseur"><label for="c-appels">Appels pour une question courante, par semaine <output id="o-appels"></output></label><input id="c-appels" type="range" min="0" max="20" value="5"></div>
-          <div class="curseur"><label for="c-bulletins">Bulletins municipaux par an <output id="o-bulletins"></output></label><input id="c-bulletins" type="range" min="0" max="4" value="2"></div>
+          <div class="curseur"><label for="c-signalements">Signalements d'habitants (voirie, éclairage…), par mois <output id="o-signalements"></output></label><input id="c-signalements" type="range" min="0" max="20" value="4"></div>
           <div class="curseur"><label for="c-sondages">Consultations papier des habitants, par an <output id="o-sondages"></output></label><input id="c-sondages" type="range" min="0" max="4" value="1"></div>
         </div>
       </div>
       <div class="total" aria-live="polite">
         <b id="total-heures">0</b><span class="unite">heures rendues par an</span>
-        <p>Calculé avec vos chiffres : 3 h par avis (impression et tournée), 5 min par appel (jour des poubelles, horaires, date d'une fête…), 6 h de relances et de collecte des textes par bulletin, 5 h par consultation papier.</p>
+        <p>Calculé avec vos chiffres : 3 h par avis (impression et tournée), 5 min par appel (jour des poubelles, horaires, date d'une fête…), 15 min par signalement (rappeler l'habitant, situer le problème, aller voir), 5 h par consultation papier.</p>
         <span class="equivalent" id="equivalent"></span>
       </div>
     </div>
@@ -610,10 +610,10 @@
   });
 
   // ── Calculateur de temps rendu
-  var ids = ['avis', 'appels', 'bulletins', 'sondages'];
+  var ids = ['avis', 'appels', 'signalements', 'sondages'];
   function majTemps() {
     var v = {}; ids.forEach(function (id) { v[id] = parseInt(document.getElementById('c-' + id).value, 10); document.getElementById('o-' + id).textContent = v[id]; });
-    var heures = Math.round(v.avis * 3 + v.appels * 47 * 5 / 60 + v.bulletins * 6 + v.sondages * 5);
+    var heures = Math.round(v.avis * 3 + v.appels * 47 * 5 / 60 + v.signalements * 12 * 15 / 60 + v.sondages * 5);
     document.getElementById('total-heures').textContent = heures;
     var jours = Math.round(heures / 7);
     document.getElementById('equivalent').textContent = jours >= 1 ? 'soit environ ' + jours + ' journée' + (jours > 1 ? 's' : '') + ' de travail' : 'à ajuster avec vos chiffres';
