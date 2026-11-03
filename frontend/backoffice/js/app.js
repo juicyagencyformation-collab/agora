@@ -301,6 +301,11 @@ function backoffice() {
     // partagé par les tâches de « Aujourd'hui » et la vue en colonnes de « Communes clientes ».
     suivi: null,
     vueCommunes: 'liste',
+    documents: [],
+    typesDocuments: {},
+    docForm: { type: 'convention', libelle: '', signe_le: '' },
+    docEnCours: false,
+    docMsg: '',
     COLONNES_PARCOURS: [
       ['espace_ouvert', 'Espace ouvert'], ['prise_en_main', 'Prise en main'], ['active', 'Active'],
       ['abonnee', 'Fondatrice / Payante'], ['a_renouveler', 'À renouveler'], ['suspendue', 'Suspendue'],
@@ -464,6 +469,7 @@ function backoffice() {
           boFetch('/suivi/communes/' + communeId + '/demarrage')
             .then((d) => { if (this.communeActiveId === communeId) this.demarrage = d; })
             .catch(() => {});
+          this.chargerDocuments(communeId);
           try { this.frequentation = await boFetch('/administration/communes/' + communeId + '/frequentation'); } catch {}
           try { this.doublons = (await boFetch('/administration/communes/' + communeId + '/doublons')).doublons; } catch {}
           try { this.activiteCommune = (await boFetch('/administration/activite?commune_id=' + communeId + '&depuis=90')).evenements; } catch {}
@@ -2358,6 +2364,54 @@ function backoffice() {
         s.actif = nouveauActif;
       } catch (e) { alert(e.message || 'Échec'); }
     },
+    // — Dossier documentaire (backoffice/documents-commune.ts) : documents signés, bucket privé —
+    async chargerDocuments(communeId) {
+      this.documents = [];
+      this.docMsg = '';
+      try {
+        const r = await boFetch('/documents/communes/' + communeId);
+        if (this.communeActiveId !== communeId) return;
+        this.documents = r.documents;
+        this.typesDocuments = r.types;
+      } catch { /* table pas encore migrée : la liste reste vide */ }
+    },
+    // FormData (fichier) : pas boFetch, qui force un Content-Type JSON.
+    async deposerDocument(evenement) {
+      const formulaire = evenement.target;
+      const fichier = formulaire.querySelector('input[type=file]').files[0];
+      if (!fichier) { this.docMsg = 'Choisis un fichier.'; return; }
+      const fd = new FormData();
+      fd.set('type', this.docForm.type);
+      if (this.docForm.libelle) fd.set('libelle', this.docForm.libelle);
+      if (this.docForm.signe_le) fd.set('signe_le', this.docForm.signe_le);
+      fd.set('fichier', fichier);
+      this.docEnCours = true;
+      this.docMsg = '';
+      try {
+        const res = await fetch('/api/backoffice/documents/communes/' + this.communeActiveId, { method: 'POST', credentials: 'include', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.erreur || 'Dépôt impossible');
+        this.docForm = { type: 'convention', libelle: '', signe_le: '' };
+        formulaire.reset();
+        this.docMsg = 'Document déposé.';
+        await this.chargerDocuments(this.communeActiveId);
+      } catch (e) {
+        this.docMsg = e.message;
+      } finally {
+        this.docEnCours = false;
+      }
+    },
+    async supprimerDocument(d) {
+      if (!confirm(`Supprimer définitivement « ${this.typesDocuments[d.type] || d.type} » (${d.nom_fichier}) ?`)) return;
+      try {
+        await boFetch('/documents/' + d.id, { method: 'DELETE' });
+        await this.chargerDocuments(this.communeActiveId);
+      } catch (e) { alert(e.message || 'Suppression impossible'); }
+    },
+    tailleLisible(octets) {
+      return octets >= 1048576 ? (octets / 1048576).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(octets / 1024)) + ' Ko';
+    },
+
     // Rôle staff (migration 094) : un assistant ne voit pas les réglages qu'il ne peut de toute façon
     // pas modifier (le serveur les refuse aussi, voir exigerAdmin). Sans rôle connu : admin.
     estAdmin() {

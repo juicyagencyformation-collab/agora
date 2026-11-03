@@ -4,6 +4,7 @@
 // pour un slug de commune. Aucune route ici ne dépend d'un commune_id : périmètre transverse.
 import exportCommune from './export-commune';
 import suiviCommunes from './suivi-communes';
+import documentsCommune from './documents-commune';
 import { routesStaff as conventionsStaff, routesFormulaire as conventionFormulaire } from './conventions';
 import annoncesPlateforme from './annonces-plateforme';
 import { Hono } from 'hono';
@@ -208,6 +209,7 @@ app.route('/annonces-plateforme', annoncesPlateforme);
 app.route('/conventions', conventionsStaff);
 app.route('/export-commune', exportCommune);
 app.route('/suivi', suiviCommunes);
+app.route('/documents', documentsCommune);
 // Public, sans session : la secrétaire de mairie remplit les infos de la convention par jeton.
 app.route('/convention-formulaire', conventionFormulaire);
 
