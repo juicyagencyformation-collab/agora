@@ -79,12 +79,12 @@ export function calculerPrixAccompagne(habitants: number, b: BaremeTarifaire): n
 // item (correspond à un <textarea>, pas de JSON à parser côté client backoffice).
 export const DEFAUTS_OFFRES_TEXTE: Record<string, string> = {
   offre_autonomie_label: 'Autonomie',
-  offre_autonomie_titre: 'Vous pilotez seul',
-  offre_autonomie_features: 'Tous les modules citoyens\nModération assurée par la mairie\nSupport email\nValorisation du patrimoine en option, sur devis',
+  offre_autonomie_titre: 'Faire vivre le village et la mairie',
+  offre_autonomie_features: 'Tous les onglets de l’application\nModération assurée par la mairie\nSupport email\nValorisation du patrimoine en option, sur devis',
   offre_accompagne_label: 'Accompagné',
-  offre_accompagne_titre: 'On s\'occupe du quotidien',
+  offre_accompagne_titre: 'Accompagnement personnalisé',
   offre_accompagne_badge: 'Le plus demandé',
-  offre_accompagne_features: 'Tout Autonomie, plus :\nModération automatique des photos\nSupport prioritaire',
+  offre_accompagne_features: 'Tout Autonomie, plus :\nSupport prioritaire\nBilan mensuel de votre commune\nSuivi personnalisé de votre commune\nModération automatique des photos',
   offre_premium_label: 'Premium',
   offre_premium_titre: 'Patrimoine & découverte',
   offre_premium_features: 'Tout Accompagné, plus :\nChasse au trésor numérique de valorisation du patrimoine local',
