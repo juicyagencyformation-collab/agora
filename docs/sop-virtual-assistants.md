@@ -269,7 +269,7 @@ Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app p
 | 🔧 Diagnostic email (tests d'envoi) | ✅ Oui, sans risque (marqué "test", exclu des stats) |
 | 📝 Textes de l'app (popup module verrouillé, checklist) | ✅ Oui si demandé |
 | ✉️ Modèles d'email (A/B testing) | ⚠️ Modifier le texte oui, mais **ne jamais changer la variante active** sans validation |
-| 🆓 Palier gratuit | ❌ **Jamais sans validation** — rétroactif sur toutes les communes gratuites |
+| 🆓 Palier gratuit | ❌ **Jamais sans validation** — rétroactif sur toutes les communes gratuites (y compris les 9 qui ont gardé Conseil et Lois le 2026-11-03 : un ré-enregistrement les leur retirerait) |
 | 💶 Mois offerts / grille legacy | ❌ Jamais sans validation |
 | 📐 Tarification de la landing (barème + textes des offres) | ❌ Jamais sans validation — visible publiquement |
 | 🧾 Informations légales entreprise | ❌ Jamais sans validation — apparaît sur chaque facture |
