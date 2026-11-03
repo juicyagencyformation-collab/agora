@@ -37,6 +37,7 @@ function correspond(valeur: any, filtre: string): boolean {
   if (filtre.startsWith('eq.')) return String(valeur) === filtre.slice(3);
   if (filtre.startsWith('neq.')) return String(valeur) !== filtre.slice(4);
   if (filtre.startsWith('in.(')) return filtre.slice(4, -1).split(',').includes(String(valeur));
+  if (filtre.startsWith('imatch.')) return new RegExp(filtre.slice(7), 'i').test(String(valeur ?? ''));
   if (filtre.startsWith('ilike.') || filtre.startsWith('like.')) {
     const motif = filtre.slice(filtre.indexOf('.') + 1).replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
     return new RegExp('^' + motif + '$', 'i').test(String(valeur ?? ''));

@@ -57,7 +57,7 @@ app.get('/communes', async (c) => {
 
   const communes = await supabaseSelect(c.env, 'communes', {
     select: 'id,nom,slug,departement',
-    nom: `ilike.${motifNomCommune(q)}*`,
+    nom: `imatch.^${motifNomCommune(q)}`,
     statut_client: 'eq.active',
     niveau_national: 'not.is.true',
     acces_libre: 'not.is.true',
