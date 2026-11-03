@@ -13,6 +13,13 @@ binding = "BUCKET_R2"
 bucket_name = "agora-uploads-eu"
 jurisdiction = "eu"
 
+# Documents signés des communes (backoffice/documents-commune.ts) : bucket PRIVÉ créé le
+# 2026-11-04 — ne JAMAIS lui attacher de domaine public ni activer son adresse r2.dev.
+[[r2_buckets]]
+binding = "BUCKET_DOCUMENTS"
+bucket_name = "agora-documents-eu"
+jurisdiction = "eu"
+
 [ai]
 binding = "AI"
 
