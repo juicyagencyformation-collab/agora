@@ -266,6 +266,8 @@ Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app p
 
 ## 8. Réglages — ce qui est routine vs ce qui nécessite validation de Léandre
 
+Depuis le 4 novembre 2026, ton compte peut avoir le rôle **assistant** (Réglages → Comptes staff, choisi par Léandre) : tout ce qui est marqué ❌ ci-dessous t'est alors **techniquement impossible** (le backoffice le masque et le serveur le refuse), de même que la facturation libre, les informations prestataire du contrat DPA et l'activation d'une variante d'email. Les autres consignes de ce document restent valables telles quelles.
+
 | Tiroir | Peut être touché en routine ? |
 |---|---|
 | 🔧 Diagnostic email (tests d'envoi) | ✅ Oui, sans risque (marqué "test", exclu des stats) |
