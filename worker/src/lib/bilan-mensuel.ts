@@ -89,8 +89,8 @@ export function bilanMensuelHtml(nomCommune: string, periode: Date, b: BilanMens
 }
 
 // Envoi mensuel — branché sur le cron du 1er du mois à 3h (voir worker/src/index.ts). Réservé
-// aux formules "accompagne"/"premium" (même logique que la modération photo, voir
-// lib/moderation-image.ts) : l'argument de vente ne vaut que pour ceux qui le paient.
+// aux formules "accompagne"/"premium" (contrairement à la modération photo, ouverte aussi à
+// "autonomie" depuis le 2026-11-03) : l'argument de vente ne vaut que pour ceux qui le paient.
 export async function envoyerBilansMensuels(env: any): Promise<void> {
   const communes = await supabaseSelect(env, 'communes', {
     select: 'id,nom,slug,contact_email,email_mairie,formule',

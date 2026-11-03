@@ -1,8 +1,8 @@
 // worker/test/moderation-image.test.ts
 // Couvre photoSuspecte (src/lib/moderation-image.ts) : filtre préventif Cloudflare Workers AI
 // (modèle de vision, binding env.AI) sur les photos soumises par les citoyens, réservé aux
-// communes en formule "accompagne" ou "premium". Points les plus importants à vérifier : le
-// filtre par formule (argument commercial, jamais pour les communes en "autonomie") et le
+// communes en formule payante (autonomie, accompagne, premium). Points les plus importants à
+// vérifier : le filtre par formule (argument commercial, jamais sans formule payante) et le
 // fail-open (jamais de blocage de publication à cause d'un binding absent, d'une réponse
 // inattendue du modèle, d'une panne du modèle ou de Supabase).
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -39,8 +39,14 @@ describe('photoSuspecte', () => {
     expect(run).not.toHaveBeenCalled();
   });
 
-  it('n\'appelle jamais le modèle pour une commune en formule "autonomie"', async () => {
+  it('détecte une photo jugée à refuser pour une commune "autonomie"', async () => {
     stubSupabaseFormule('autonomie');
+    const suspecte = await photoSuspecte(envAvecAi(async () => ({ response: 'OUI' })), COMMUNE_ID, DONNEES, 'image/jpeg');
+    expect(suspecte).toBe(true);
+  });
+
+  it('n\'appelle jamais le modèle pour une commune en formule "personnalise"', async () => {
+    stubSupabaseFormule('personnalise');
     const run = vi.fn();
     const suspecte = await photoSuspecte(envAvecAi(run), COMMUNE_ID, DONNEES, 'image/jpeg');
     expect(suspecte).toBe(false);

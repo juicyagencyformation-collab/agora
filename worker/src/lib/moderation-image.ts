@@ -18,9 +18,9 @@
 // signalement citoyen existant ; un faux positif qui bloquerait l'appli entière ne l'est pas.
 // La modération humaine reste le filet de sécurité final, jamais cette fonction.
 //
-// Réservé aux formules payantes "Accompagné" et "Premium" (argument commercial, demande
-// explicite de Léandre le 2026-10-07) — une commune en "Autonomie" (ou sans formule définie)
-// n'a jamais ce filtre, de façon totalement transparente (ni dégradée, ni signalée).
+// Réservé aux formules payantes (argument commercial) : Accompagné et Premium depuis le
+// 2026-10-07, étendu à Autonomie le 2026-11-03 (demande de Léandre). Une commune gratuite,
+// "personnalisé" ou sans formule définie n'a jamais ce filtre, de façon totalement transparente.
 //
 // Prérequis compte Cloudflare (une seule fois, hors code) : accepter les conditions Meta pour ce
 // modèle, sinon chaque appel échoue (silencieusement laissé passer par le fail-open ci-dessous) :
@@ -29,7 +29,7 @@
 import { supabaseSelect } from '../db';
 
 const MODELE_VISION = '@cf/meta/llama-3.2-11b-vision-instruct';
-const FORMULES_AVEC_MODERATION = ['accompagne', 'premium'];
+const FORMULES_AVEC_MODERATION = ['autonomie', 'accompagne', 'premium'];
 
 const PROMPT_SYSTEME = "Tu es un modérateur de contenu pour une application municipale française grand public, utilisée par des habitants de tous âges. On te soumet une photo avant sa publication. Réponds UNIQUEMENT par un seul mot, sans aucune explication : OUI si l'image contient de la nudité, un contenu à caractère sexuel, ou de la violence graphique (sang, blessure grave, arme pointée, cadavre) — NON dans tous les autres cas, y compris les cas ambigus ou les simples doutes.";
 
