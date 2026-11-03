@@ -7,7 +7,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { setCookie } from 'hono/cookie';
-import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, journaliser } from '../db';
+import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, supabaseUpsert, journaliser } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
 import { OPTIONS_COOKIE } from '../lib/securite';
@@ -2047,38 +2047,79 @@ app.get('/onglets-gratuits', async (c) => {
   return c.json({ onglets, tous: TOUS_LES_ONGLETS });
 });
 
-// PUT /onglets-gratuits — redéfinit le périmètre du palier gratuit. Changement GLOBAL et
-// RÉTROACTIF (décidé avec Léandre le 2026-08-15) : réapplique immédiatement le nouveau
-// périmètre à toutes les communes actuellement sur forfait = 'Gratuit', pas seulement aux
-// futures. Retourne le nombre de communes mises à jour.
+// PUT /onglets-gratuits — redéfinit le périmètre du palier gratuit et l'applique aux communes
+// gratuites existantes selon la règle décidée avec Léandre le 2026-11-03 (celle des migrations
+// 091/092) : on ne retire jamais un acquis.
+// - module AJOUTÉ  → activé pour toutes les communes gratuites ;
+// - module RETIRÉ  → désactivé seulement pour les communes gratuites jamais utilisées (aucun
+//   vrai compte) ; une commune déjà utilisée le garde ;
+// - module inchangé → rien n'est touché (réenregistrer sans changement est sans effet).
+// En écritures groupées (upsert par lots) : l'ancienne version mettait à jour commune par
+// commune (~14 requêtes × 14 000 communes) et ne pouvait pas aller au bout.
 const ongletsGratuitsSchema = z.object({ onglets: z.array(z.enum(TOUS_LES_ONGLETS)) });
+const TAILLE_LOT_ONGLETS = 2000;
 
 app.put('/onglets-gratuits', async (c) => {
   const body = ongletsGratuitsSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Sélection de modules invalide' }, 400);
 
-  const actuels = await supabaseSelect(c.env, 'onglets_gratuits', { select: 'cle' });
-  const clesActuelles = new Set(actuels.map((o: any) => o.cle));
-  const nouvelles = new Set(body.data.onglets);
+  const actuels = (await supabaseSelect(c.env, 'onglets_gratuits', { select: 'cle' })).map((o: any) => o.cle);
+  const { ajoutes, retires } = differencePalier(actuels, body.data.onglets);
 
-  for (const cle of clesActuelles) {
-    if (!nouvelles.has(cle)) await supabaseDelete(c.env, 'onglets_gratuits', { cle: `eq.${cle}` });
-  }
-  for (const cle of nouvelles) {
-    if (!clesActuelles.has(cle)) await supabaseInsert(c.env, 'onglets_gratuits', { cle });
+  for (const cle of retires) await supabaseDelete(c.env, 'onglets_gratuits', { cle: `eq.${cle}` });
+  if (ajoutes.length) await supabaseInsert(c.env, 'onglets_gratuits', ajoutes.map((cle) => ({ cle })));
+
+  let plan = { lignes: [] as LigneOnglet[], nbConservees: 0 };
+  let nbCommunesGratuites = 0;
+  if (ajoutes.length || retires.length) {
+    // Pagination complète : plus de 1000 communes gratuites (activation à l'envoi de la présentation).
+    const communesGratuites = (await supabaseSelectTout(c.env, 'communes', {
+      select: 'id', forfait: 'eq.Gratuit', niveau_national: 'not.is.true',
+    })).map((cm: any) => cm.id);
+    nbCommunesGratuites = communesGratuites.length;
+    // « Utilisée » = au moins un vrai compte : ni provisionné, ni supprimé, ni visiteur démo, ni
+    // superadmin — même définition que la migration 091. Inutile à lire si rien n'est retiré.
+    const utilisees = retires.length ? new Set<string>((await supabaseSelectTout(c.env, 'users', {
+      select: 'commune_id', compte_provisionne: 'not.is.true', compte_supprime_le: 'is.null',
+      compte_visiteur_demo: 'not.is.true', role: 'neq.superadmin',
+    })).map((u: any) => u.commune_id)) : new Set<string>();
+    plan = planifierPalierGratuit(ajoutes, retires, communesGratuites, utilisees);
+    for (let i = 0; i < plan.lignes.length; i += TAILLE_LOT_ONGLETS) {
+      await supabaseUpsert(c.env, 'onglets_config', plan.lignes.slice(i, i + TAILLE_LOT_ONGLETS), 'commune_id,cle');
+    }
   }
 
-  // Pagination complète : le nombre de communes gratuites peut désormais dépasser 1000
-  // (activation automatique à l'envoi de la présentation), un simple limit ne suffit pas.
-  const communesGratuites = await supabaseSelectTout(c.env, 'communes', { select: 'id', forfait: 'eq.Gratuit' });
-  for (const commune of communesGratuites) {
-    await appliquerOngletsSurCommune(c.env, commune.id, body.data.onglets);
-  }
-
+  const nbRetraits = retires.length ? nbCommunesGratuites - plan.nbConservees : 0;
   await journaliser(c.env, c.get('staff_id'), 'palier_gratuit_modifie',
-    `Nouveau périmètre : ${body.data.onglets.join(', ')} — appliqué rétroactivement à ${communesGratuites.length} commune(s)`);
-  return c.json({ ok: true, onglets: body.data.onglets, nb_communes_mises_a_jour: communesGratuites.length });
+    `Nouveau périmètre : ${body.data.onglets.join(', ')} — ajoutés : ${ajoutes.join(', ') || 'aucun'} (${ajoutes.length ? nbCommunesGratuites : 0} commune(s)) ; retirés : ${retires.join(', ') || 'aucun'} (${nbRetraits} commune(s), ${plan.nbConservees} déjà utilisée(s) les gardent)`);
+  return c.json({
+    ok: true, onglets: body.data.onglets, ajoutes, retires,
+    nb_communes_gratuites: nbCommunesGratuites, nb_communes_conservees: plan.nbConservees,
+  });
 });
+
+type LigneOnglet = { commune_id: string; cle: string; actif: boolean };
+
+export function differencePalier(actuels: string[], nouveaux: string[]): { ajoutes: string[]; retires: string[] } {
+  return {
+    ajoutes: nouveaux.filter((cle) => !actuels.includes(cle)),
+    retires: actuels.filter((cle) => !nouveaux.includes(cle)),
+  };
+}
+
+// Lignes onglets_config à écrire (voir PUT /onglets-gratuits) : un module ajouté s'active partout,
+// un module retiré ne se désactive que là où la commune n'a jamais été utilisée.
+export function planifierPalierGratuit(ajoutes: string[], retires: string[], communesGratuites: string[], utilisees: Set<string>): { lignes: LigneOnglet[]; nbConservees: number } {
+  const lignes: LigneOnglet[] = [];
+  let nbConservees = 0;
+  for (const commune_id of communesGratuites) {
+    for (const cle of ajoutes) lignes.push({ commune_id, cle, actif: true });
+    if (!retires.length) continue;
+    if (utilisees.has(commune_id)) { nbConservees++; continue; }
+    for (const cle of retires) lignes.push({ commune_id, cle, actif: false });
+  }
+  return { lignes, nbConservees };
+}
 
 // GET /activite — flux d'activité citoyenne cross-communes façon CRM (inscriptions +
 // publications), pour repérer d'un coup d'œil qui est actif. Distinct de journal_activite

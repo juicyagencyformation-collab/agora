@@ -2143,7 +2143,7 @@ function backoffice() {
     },
 
     async enregistrerOngletsGratuits() {
-      if (!confirm('Ce périmètre sera appliqué immédiatement à toutes les communes actuellement sur le palier Gratuit. Continuer ?')) return;
+      if (!confirm('Les modules ajoutés seront activés pour toutes les communes gratuites. Les modules retirés seront désactivés seulement pour les communes gratuites jamais utilisées (celles qui ont de vrais comptes les gardent). Continuer ?')) return;
       this.ongletsGratuitsEnCours = true;
       this.ongletsGratuitsMsg = '';
       try {
@@ -2151,7 +2151,11 @@ function backoffice() {
           method: 'PUT',
           body: JSON.stringify({ onglets: this.ongletsGratuitsSelection }),
         });
-        this.ongletsGratuitsMsg = `Enregistré — ${r.nb_communes_mises_a_jour} commune(s) mise(s) à jour.`;
+        const libelles = (cles) => cles.map((cle) => this.libelleOnglet(cle)).join(', ');
+        const parts = [];
+        if (r.ajoutes.length) parts.push(`${libelles(r.ajoutes)} ajouté(s) pour ${r.nb_communes_gratuites} commune(s)`);
+        if (r.retires.length) parts.push(`${libelles(r.retires)} retiré(s) pour ${r.nb_communes_gratuites - r.nb_communes_conservees} commune(s), ${r.nb_communes_conservees} déjà utilisée(s) le(s) garde(nt)`);
+        this.ongletsGratuitsMsg = parts.length ? `Enregistré — ${parts.join(' ; ')}.` : 'Enregistré — aucun changement.';
       } catch (e) {
         this.ongletsGratuitsMsg = e.message || 'Échec';
       } finally {

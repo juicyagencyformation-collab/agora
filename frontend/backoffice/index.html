@@ -468,9 +468,11 @@
             </button>
             <div class="bo-tiroir__corps" x-show="tiroirsOuverts.palier_gratuit">
               <div class="bo-info" style="margin-bottom:12px">
-                Modules offerts dans la version gratuite. <strong>Changement global et rétroactif</strong> :
-                enregistrer applique immédiatement ce périmètre à toutes les communes actuellement sur le
-                palier Gratuit (pas seulement aux futures).
+                Modules offerts dans la version gratuite (nouvelles communes et bouton « Passer en Gratuit »).
+                Pour les communes déjà gratuites, <strong>on ne retire jamais un acquis</strong> : un module
+                <strong>ajouté</strong> est activé pour toutes ; un module <strong>retiré</strong> n'est
+                désactivé que pour celles jamais utilisées (aucun vrai compte). Réenregistrer sans rien
+                changer n'a aucun effet.
               </div>
               <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px">
                 <template x-for="cle in ongletsDisponibles" :key="cle">
@@ -4134,7 +4136,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261027-1"></script>
+  <script src="/backoffice/js/app.js?v=20261103-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
