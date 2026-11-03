@@ -13,6 +13,13 @@ describe('filtreRechercheCommune', () => {
   it('cherche par nom dans tous les autres cas', () => {
     expect(filtreRechercheCommune('Montluçon')).toEqual({ nom: 'ilike.*Montluçon*', order: 'nom.asc', limit: '10' });
     expect(filtreRechercheCommune('031000').nom).toBe('ilike.*031000*'); // 6 chiffres : pas un code postal
-    expect(filtreRechercheCommune('80 132').nom).toBe('ilike.*80 132*');
+    expect(filtreRechercheCommune('80 132').nom).toBe('ilike.*80*132*');
+  });
+
+  it('accepte les noms composés tapés sans tiret ni apostrophe', () => {
+    expect(filtreRechercheCommune('fontaine sur somme').nom).toBe('ilike.*fontaine*sur*somme*');
+    expect(filtreRechercheCommune('saint ouen l aumone').nom).toBe('ilike.*saint*ouen*l*aumone*');
+    expect(filtreRechercheCommune("L'Étoile").nom).toBe('ilike.*L*Étoile*');
+    expect(filtreRechercheCommune('Fontaine-sur-Somme').nom).toBe('ilike.*Fontaine*sur*Somme*');
   });
 });

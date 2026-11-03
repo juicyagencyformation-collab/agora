@@ -159,7 +159,14 @@ app.get('/evenements', async (c) => {
 // Limite : prospects.code_postal ne contient que le code PRINCIPAL de chaque commune.
 export function filtreRechercheCommune(q: string): Record<string, string> {
   if (/^\d{2,5}$/.test(q)) return { code_postal: `like.${q}*`, order: 'code_postal.asc,nom.asc', limit: '60' }; // un code postal peut desservir plus de 30 communes (60240 : 40+)
-  return { nom: `ilike.*${q}*`, order: 'nom.asc', limit: '10' };
+  return { nom: `ilike.*${motifNomCommune(q)}*`, order: 'nom.asc', limit: '10' };
+}
+
+// Espaces, tirets et apostrophes de la saisie deviennent des jokers (2026-11-03, demande de
+// Léandre) : « fontaine sur somme » trouve « Fontaine-sur-Somme », « saint ouen l aumone » trouve
+// « Saint-Ouen-l'Aumône »... à l'accent près (« aumone » ne trouve pas encore « Aumône »).
+export function motifNomCommune(q: string): string {
+  return q.trim().replace(/[\s\-'’]+/g, '*');
 }
 
 // GET /decouverte/communes/rechercher?q=... — recherche publique par nom ou code postal, aucune
@@ -175,7 +182,7 @@ app.get('/communes/rechercher', async (c) => {
   // Par nom : les communes qui COMMENCENT par la saisie d'abord (« fay » → Fay-les-Étangs avant
   // Belfays), complétées par celles qui la contiennent.
   const debut = filtre.nom
-    ? await supabaseSelect(c.env, 'prospects', { select: colonnes, nom: `ilike.${q}*`, order: 'nom.asc', limit: filtre.limit })
+    ? await supabaseSelect(c.env, 'prospects', { select: colonnes, nom: `ilike.${motifNomCommune(q)}*`, order: 'nom.asc', limit: filtre.limit })
     : [];
   const autres = debut.length < Number(filtre.limit) ? await supabaseSelect(c.env, 'prospects', { select: colonnes, ...filtre }) : [];
   const vus = new Set<string>();

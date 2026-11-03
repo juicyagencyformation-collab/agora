@@ -22,6 +22,7 @@ import {
   listerChassesJouables, finaliserValidationEtape, validerEtapeParPosition, validationPositionSchema, classementChasse,
 } from './chasses_tresor';
 import { listerEnigmesJouables, validerEnigme, validationEnigmeSchema, signalerEnigme } from './enigmes';
+import { motifNomCommune } from './decouverte';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -56,7 +57,7 @@ app.get('/communes', async (c) => {
 
   const communes = await supabaseSelect(c.env, 'communes', {
     select: 'id,nom,slug,departement',
-    nom: `ilike.${q}*`,
+    nom: `ilike.${motifNomCommune(q)}*`,
     statut_client: 'eq.active',
     niveau_national: 'not.is.true',
     acces_libre: 'not.is.true',
