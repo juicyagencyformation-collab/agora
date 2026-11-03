@@ -1174,6 +1174,17 @@ function backoffice() {
       this.vue = 'aujourdhui';
       await this.chargerAujourdhui();
     },
+    // Une ligne par commune (les anomalies arrivent une par problème, déjà triées par gravité) :
+    // gravité affichée = la plus haute de la commune.
+    anomaliesParCommune() {
+      const groupes = new Map();
+      for (const a of this.ajAnomalies) {
+        const cle = a.commune_id || 'global';
+        if (!groupes.has(cle)) groupes.set(cle, { cle, commune_id: a.commune_id, nom: a.commune_nom || 'Toutes les communes', slug: a.commune_slug, gravite: a.gravite, messages: [] });
+        groupes.get(cle).messages.push(a.message);
+      }
+      return [...groupes.values()];
+    },
     totalAujourdhui() {
       return this.ajProspectsRelance.length + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
         + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length + this.ajAnomalies.length;

@@ -19,7 +19,7 @@ const POPULATION_MAX_FONDATRICE = 8000;
 const PLACES_FONDATRICES = 10;
 const JOURS_CONVENTION_EN_ATTENTE = 30;
 
-export type Anomalie = { code: string; gravite: 'haute' | 'moyenne' | 'info'; commune_id: string | null; commune_nom: string | null; message: string };
+export type Anomalie = { code: string; gravite: 'haute' | 'moyenne' | 'info'; commune_id: string | null; commune_nom: string | null; commune_slug: string | null; message: string };
 
 // Communes réellement suivies : fondatrices et payantes, hors démo, commune nationale et test.
 async function communesSuivies(env: any) {
@@ -40,7 +40,7 @@ export function detecterAnomalies(
 ): Anomalie[] {
   const anomalies: Anomalie[] = [];
   const ajouter = (code: string, gravite: Anomalie['gravite'], cm: any, message: string) =>
-    anomalies.push({ code, gravite, commune_id: cm?.id ?? null, commune_nom: cm?.nom ?? null, message });
+    anomalies.push({ code, gravite, commune_id: cm?.id ?? null, commune_nom: cm?.nom ?? null, commune_slug: cm?.slug ?? null, message });
 
   for (const cm of communes) {
     if (!cm.formule) {

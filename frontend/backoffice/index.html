@@ -88,19 +88,24 @@
           <!-- Anomalies (backoffice/suivi-communes.ts) : en tête, ouvert par défaut tant qu'il y en a -->
           <div class="bo-tiroir" style="margin-bottom:20px" x-show="ajAnomalies.length > 0">
             <div class="bo-tiroir__entete" style="cursor:pointer" @click="toggleTiroir('aj_anomalies_ferme')">
-              <span>⚠ Anomalies à corriger<span class="bo-tiroir__compte" x-text="' — ' + ajAnomalies.length"></span></span>
+              <span>⚠ Anomalies à corriger<span class="bo-tiroir__compte" x-text="' — ' + anomaliesParCommune().length + ' commune(s)'"></span></span>
               <span class="bo-tiroir__chevron" :class="{ouvert: !tiroirsOuverts.aj_anomalies_ferme}">▸</span>
             </div>
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="!tiroirsOuverts.aj_anomalies_ferme">
               <table>
-                <thead><tr><th>Commune</th><th>Problème</th><th>Gravité</th></tr></thead>
+                <thead><tr><th>Commune</th><th>Problèmes</th><th>Gravité</th></tr></thead>
                 <tbody>
-                  <template x-for="(a, i) in ajAnomalies" :key="i">
-                    <tr @click="a.commune_id && ouvrirFiche(a.commune_id)" :style="a.commune_id ? '' : 'cursor:default'">
-                      <td class="bo-nom-commune" x-text="a.commune_nom || 'Toutes'"></td>
-                      <td x-text="a.message"></td>
-                      <td><span class="bo-badge" :style="a.gravite === 'haute' ? 'background:#fde2e1;color:#b42318' : a.gravite === 'moyenne' ? 'background:#fef0c7;color:#93370d' : 'background:var(--bo-surface-2, #eef1f6);color:inherit'"
-                                x-text="{ haute: 'À corriger', moyenne: 'À vérifier', info: 'Pour info' }[a.gravite]"></span></td>
+                  <template x-for="g in anomaliesParCommune()" :key="g.cle">
+                    <tr @click="g.commune_id && ouvrirFiche(g.commune_id)" :style="g.commune_id ? '' : 'cursor:default'">
+                      <td>
+                        <div class="bo-nom-commune" x-text="g.nom"></div>
+                        <div class="bo-info" x-show="g.slug" x-text="'/' + g.slug"></div>
+                      </td>
+                      <td>
+                        <template x-for="(m, i) in g.messages" :key="i"><div x-text="'• ' + m"></div></template>
+                      </td>
+                      <td><span class="bo-badge" :style="g.gravite === 'haute' ? 'background:#fde2e1;color:#b42318' : g.gravite === 'moyenne' ? 'background:#fef0c7;color:#93370d' : 'background:var(--bo-surface-2, #eef1f6);color:inherit'"
+                                x-text="{ haute: 'À corriger', moyenne: 'À vérifier', info: 'Pour info' }[g.gravite]"></span></td>
                     </tr>
                   </template>
                 </tbody>
@@ -2761,7 +2766,7 @@
               <span class="bo-info" x-text="demarrage ? demarrage.faites + ' / ' + demarrage.total + ' étapes' : ''"></span>
             </div>
             <div style="height:6px; border-radius:100px; background:var(--bo-border); overflow:hidden; margin-bottom:12px">
-              <div style="height:100%; background:var(--bo-vert)" :style="'width:' + (demarrage ? Math.round(100 * demarrage.faites / demarrage.total) : 0) + '%'"></div>
+              <div style="height:100%; background:var(--bo-vert)" :style="{ width: (demarrage ? Math.round(100 * demarrage.faites / demarrage.total) : 0) + '%' }"></div>
             </div>
             <template x-for="groupe in [['mairie', 'Côté mairie'], ['administratif', 'Côté administratif']]" :key="groupe[0]">
               <div x-show="demarrage && demarrage.etapes.some((e) => e.groupe === groupe[0])" style="margin-bottom:8px">
@@ -4182,7 +4187,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261103-2"></script>
+  <script src="/backoffice/js/app.js?v=20261103-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
