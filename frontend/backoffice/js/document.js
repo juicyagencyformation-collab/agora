@@ -5,7 +5,7 @@
 // (une facture adressée à une commune doit ensuite être déposée sur Chorus Pro).
 (async function () {
   const params = new URLSearchParams(location.search);
-  const type = ['facture', 'contrat-dpa', 'convention'].includes(params.get('type')) ? params.get('type') : 'devis';
+  const type = ['facture', 'contrat-dpa', 'convention', 'dossier'].includes(params.get('type')) ? params.get('type') : 'devis';
   const id = params.get('id');
 
   const echapper = (s) => (s || '').replace(/[&<>"']/g, (m) => (
@@ -27,6 +27,71 @@
       feuille.innerHTML = html;
     } catch (e) {
       feuille.textContent = 'Impossible de charger la convention : ' + (e.message || 'erreur inconnue');
+    }
+    return;
+  }
+
+  // Page de garde du dossier papier d'une commune (?type=dossier&id=<commune_id>) : identité, abonnement
+  // et sommaire des documents signés archivés (backoffice/documents-commune.ts), avec une case à cocher
+  // par pièce pour suivre ce qui est déjà classé dans le classeur.
+  if (type === 'dossier') {
+    try {
+      const [{ commune }, { documents, types }] = await Promise.all([
+        boFetch('/administration/communes/' + id),
+        boFetch('/documents/communes/' + id),
+      ]);
+      document.title = 'Dossier — ' + commune.nom + ' — Backoffice Plateforme-Agora';
+      const ligne = (lib, val) => val ? `<tr><th>${lib}</th><td>${echapper(String(val))}</td></tr>` : '';
+      const pieces = [...documents].sort((a, b) => (a.signe_le || a.created_at).localeCompare(b.signe_le || b.created_at));
+      feuille.innerHTML = `
+        <header>
+          <div>
+            <div class="marque">Plateforme-Agora</div>
+            <div class="emetteur">Dossier commune — document interne, confidentiel</div>
+          </div>
+          <div class="titre-doc">
+            <h1>${echapper(commune.nom)}</h1>
+            <div class="numero">Imprimé le ${dateFr(new Date().toISOString())}</div>
+          </div>
+        </header>
+        <div class="meta dossier-blocs">
+          <table class="dossier-fiche">
+            <caption>Commune</caption>
+            ${ligne('Application', 'plateforme-agora.fr/' + commune.slug)}
+            ${ligne('Population', commune.population ? commune.population.toLocaleString('fr-FR') + ' habitants' : '')}
+            ${ligne('Email', commune.email_mairie || commune.contact_email)}
+            ${ligne('Téléphone', commune.telephone_mairie)}
+          </table>
+          <table class="dossier-fiche">
+            <caption>Abonnement</caption>
+            ${ligne('Forfait', commune.forfait)}
+            ${ligne('Formule', commune.formule)}
+            ${ligne('Statut', { active: 'Active', suspendue: 'Suspendue', resiliee: 'Résiliée' }[commune.statut_client] || commune.statut_client)}
+            ${ligne('Cliente depuis', dateFr(commune.created_at))}
+            ${ligne('Prochaine échéance', commune.prochaine_echeance ? dateFr(commune.prochaine_echeance) : '')}
+          </table>
+        </div>
+        <h2 class="dossier-titre">Sommaire des pièces</h2>
+        <table class="lignes">
+          <thead><tr><th>N°</th><th>Pièce</th><th>Signée le</th><th>Archivée le</th><th>Classée</th></tr></thead>
+          <tbody>
+            ${pieces.length ? pieces.map((d, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td><b>${echapper(types[d.type] || d.type)}</b>${d.libelle ? `<br><span style="color:var(--gris);font-size:12.5px">${echapper(d.libelle)}</span>` : ''}</td>
+                <td>${d.signe_le ? dateFr(d.signe_le) : '—'}</td>
+                <td>${dateFr(d.created_at)}</td>
+                <td class="case">☐</td>
+              </tr>`).join('') : '<tr><td colspan="5" style="color:var(--gris)">Aucune pièce archivée dans le backoffice pour l’instant.</td></tr>'}
+            <tr><td></td><td style="color:var(--gris)">Autre pièce : ………………………………………</td><td></td><td></td><td class="case">☐</td></tr>
+          </tbody>
+        </table>
+        <h2 class="dossier-titre">Notes</h2>
+        <div class="dossier-notes"></div>
+        <footer>Plateforme-Agora — Juicy Solutions · Dossier confidentiel : contient des engagements contractuels et des données de la commune.</footer>
+      `;
+    } catch (e) {
+      feuille.textContent = 'Impossible de charger le dossier : ' + (e.message || 'erreur inconnue');
     }
     return;
   }

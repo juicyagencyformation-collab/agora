@@ -108,3 +108,16 @@ describe('dossier documentaire', () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe('impression', () => {
+  it('ouvre le document dans le navigateur avec ?affichage=1, toujours sans cache', async () => {
+    db = { communes: [{ id: COMMUNE, nom: 'Fay' }], documents_commune: [], staff_backoffice: [{ id: 'staff-1', role: 'admin' }], journal_activite: [] };
+    bucket = new Map();
+    vi.stubGlobal('fetch', fetchFake);
+    await deposer(pdf(7));
+    const res = await requete(`/${db.documents_commune[0].id}/fichier?affichage=1`);
+    expect(res.headers.get('Content-Disposition')).toMatch(/^inline;/);
+    expect(res.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(res.headers.get('Content-Type')).toBe('application/pdf');
+  });
+});

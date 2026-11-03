@@ -3355,7 +3355,10 @@
           <!-- Dossier documentaire (backoffice/documents-commune.ts) : documents signés, stockage privé -->
           <div class="bo-section-titre" style="margin-top:0">📁 Documents signés</div>
           <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px">
-            <div class="bo-info" style="margin-bottom:10px">Conservés dans un espace privé (jamais accessible par une adresse publique) : téléchargement depuis le backoffice uniquement.</div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px">
+              <div class="bo-info">Conservés dans un espace privé (jamais accessible par une adresse publique) : téléchargement depuis le backoffice uniquement. Pour le classeur papier : imprimez la page de garde, puis chaque pièce.</div>
+              <a class="bo-btn bo-btn--compact" :href="'/backoffice/document?type=dossier&id=' + fiche?.commune.id" target="_blank" rel="noopener" style="text-decoration:none">🖨 Page de garde du dossier</a>
+            </div>
             <template x-if="documents.length === 0"><div class="bo-vide" style="margin-bottom:12px">Aucun document pour l'instant.</div></template>
             <table x-show="documents.length > 0" style="margin-bottom:14px">
               <thead><tr><th>Document</th><th>Signé le</th><th>Fichier</th><th>Déposé le</th><th></th></tr></thead>
@@ -3367,6 +3370,7 @@
                     <td><span x-text="d.nom_fichier" style="word-break:break-all"></span> <span class="bo-info" x-text="'(' + tailleLisible(d.taille_octets) + ')'"></span></td>
                     <td x-text="formatDate(d.created_at)"></td>
                     <td style="white-space:nowrap">
+                      <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/api/backoffice/documents/' + d.id + '/fichier?affichage=1'" target="_blank" rel="noopener" style="text-decoration:none" title="Ouvre le document pour l'imprimer (Ctrl+P)">🖨 Imprimer</a>
                       <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/api/backoffice/documents/' + d.id + '/fichier'" style="text-decoration:none">⬇ Télécharger</a>
                       <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="estAdmin()" @click="supprimerDocument(d)">Supprimer</button>
                     </td>

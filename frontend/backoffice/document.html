@@ -56,6 +56,16 @@
     .signature__bloc { width: 240px; border: 1px dashed var(--bord); border-radius: 10px; padding: 14px 16px; text-align: center; font-size: 12.5px; color: var(--gris); }
     .signature__bloc b { display: block; font-size: 13.5px; color: var(--encre); margin-bottom: 30px; }
 
+    /* Page de garde du dossier papier d'une commune (?type=dossier, voir document.js) */
+    .dossier-blocs { align-items: flex-start; }
+    table.dossier-fiche { border-collapse: collapse; flex: 1; font-size: 13px; }
+    table.dossier-fiche caption { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); font-weight: 700; padding-bottom: 6px; }
+    table.dossier-fiche th { text-align: left; font-weight: 600; color: var(--gris); padding: 4px 12px 4px 0; white-space: nowrap; vertical-align: top; }
+    table.dossier-fiche td { padding: 4px 0; }
+    .dossier-titre { font-size: 15px; color: var(--navy); margin-top: 18px; }
+    table.lignes td.case { font-size: 18px; text-align: center; }
+    .dossier-notes { height: 45mm; border: 1px solid var(--bord); border-radius: 10px; margin-top: 8px; background: repeating-linear-gradient(transparent 0 9mm, var(--bord) 9mm calc(9mm + 1px)); }
+
     footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid var(--bord); font-size: 11px; color: var(--gris); text-align: center; }
 
     /* Contrat DPA : panneau « Informations à compléter » (voir initContratDpa dans document.js) */
@@ -113,6 +123,6 @@
   <div class="feuille" id="feuille">Chargement…</div>
 
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/document.js?v=20261027-1"></script>
+  <script src="/backoffice/js/document.js?v=20261104-1"></script>
 </body>
 </html>

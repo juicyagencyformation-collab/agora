@@ -94,10 +94,14 @@ app.get('/:docId/fichier', async (c) => {
   const objet = await c.env.BUCKET_DOCUMENTS.get(document.r2_key);
   if (!objet) return c.json({ erreur: 'Fichier introuvable dans le stockage' }, 404);
   const nom = document.nom_fichier.replace(/["\\\r\n]/g, '_');
+  // ?affichage=1 : ouvert dans le navigateur pour l'imprimer (dossier papier) plutôt que téléchargé.
+  // Sans risque d'exécution : seuls PDF/JPEG/PNG sont acceptés au dépôt, servis avec leur type exact
+  // et nosniff.
+  const disposition = c.req.query('affichage') === '1' ? 'inline' : 'attachment';
   return new Response(objet.body, {
     headers: {
       'Content-Type': document.content_type,
-      'Content-Disposition': `attachment; filename="${nom}"`,
+      'Content-Disposition': `${disposition}; filename="${nom}"`,
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     },
