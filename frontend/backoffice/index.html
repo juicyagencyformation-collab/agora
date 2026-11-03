@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261104-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261104-2" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -17,17 +17,22 @@
     <nav class="bo-nav">
       <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260818-1" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'aujourdhui' }" @click="allerAujourdhui()">🎯 Aujourd'hui<span class="bo-tiroir__compte" x-show="totalAujourdhui()" x-text="' ' + totalAujourdhui()"></span></div>
-      <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || (vue === 'fiche_unifiee' && fiche) }" @click="allerCommunes()">Communes clientes</div>
+      <!-- Menu par espace métier (étape 4 du remaniement, 2026-11-04) : mêmes vues qu'avant, regroupées. -->
+      <div class="bo-nav__groupe">Communes</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || (vue === 'fiche_unifiee' && fiche) }" @click="allerCommunes()">🏛 Communes clientes</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || (vue === 'fiche_unifiee' && !fiche) }" @click="allerProspection()">📞 Prospection</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'utilisateurs_global' || (vue === 'utilisateur' && retourUtilisateur === 'global') }" @click="allerUtilisateursGlobal()">👥 Utilisateurs</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">📈 Activité</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'avis' }" @click="allerAvis()">⭐ Avis</div>
-      <div class="bo-nav__lien" :class="{ actif: vue === 'prospection' || (vue === 'fiche_unifiee' && !fiche) }" @click="allerProspection()">Prospection</div>
-      <div class="bo-nav__lien" :class="{ actif: vue === 'activite' }" @click="allerActivite()">Activité</div>
+      <div class="bo-nav__groupe">Argent</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'chiffre_affaires' }" @click="allerChiffreAffaires()">💰 Chiffre d'affaires</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'toutes_factures' }" @click="allerToutesFactures()">📑 Toutes les factures</div>
-      <div class="bo-nav__lien" :class="{ actif: vue === 'facturation_libre' }" @click="allerFacturationLibre()">🧾 Facturation libre</div>
+      <div class="bo-nav__lien" x-show="estAdmin()" :class="{ actif: vue === 'facturation_libre' }" @click="allerFacturationLibre()">🧾 Facturation libre</div>
+      <div class="bo-nav__groupe">Communication</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'annonces' }" @click="allerAnnonces()">📣 Annonces</div>
       <a class="bo-nav__lien" href="/backoffice/stickers" target="_blank" rel="noopener" style="text-decoration:none; color:inherit">🏷 Stickers</a>
-      <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">Réglages</div>
+      <div class="bo-nav__groupe">Configuration</div>
+      <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">⚙️ Réglages</div>
       <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__favoris" x-show="favoris.length > 0">
         <div class="bo-nav__favoris-titre">⭐ Favoris</div>
@@ -560,7 +565,7 @@
             </div>
           </div>
 
-          <div class="bo-tiroir">
+          <div class="bo-tiroir" x-show="estAdmin()">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('palier_gratuit')">
               <span>🆓 Palier gratuit (modules inclus)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.palier_gratuit}">▸</span>
@@ -588,7 +593,7 @@
             </div>
           </div>
 
-          <div class="bo-tiroir">
+          <div class="bo-tiroir" x-show="estAdmin()">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('grille_tarifaire')">
               <span>💶 Mois offerts (engagement 3 ans) + ancienne grille par tranches (legacy)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.grille_tarifaire}">▸</span>
@@ -623,7 +628,7 @@
             </div>
           </div>
 
-          <div class="bo-tiroir">
+          <div class="bo-tiroir" x-show="estAdmin()">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('bareme_tarifaire')">
               <span>📐 Tarification de la landing page (Autonomie / Accompagné / Premium)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.bareme_tarifaire}">▸</span>
@@ -735,7 +740,7 @@
             </div>
           </div>
 
-          <div class="bo-tiroir">
+          <div class="bo-tiroir" x-show="estAdmin()">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('entreprise')">
               <span>🧾 Informations légales de l'entreprise (devis &amp; factures)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.entreprise}">▸</span>
@@ -803,7 +808,7 @@
             </div>
           </div>
 
-          <div class="bo-tiroir">
+          <div class="bo-tiroir" x-show="estAdmin()">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('staff')">
               <span>🧑‍💼 Comptes staff</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.staff}">▸</span>
@@ -811,16 +816,23 @@
             <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.staff" x-init="chargerStaff()">
               <div style="padding:14px 18px 4px" class="bo-info">
                 Aucune création de compte ici, volontairement : un compte staff ne se crée qu'en base directement
-                (même principe que le rôle superadmin). Tu peux désactiver/réactiver un compte existant et
+                (même principe que le rôle superadmin). Tu peux désactiver/réactiver un compte existant, choisir son rôle (un <strong>assistant</strong> ne peut techniquement pas toucher aux tarifs, à la version gratuite, à la variante d'email active, aux informations de l'entreprise, aux comptes staff ni à la facturation libre) et
                 réinitialiser son mot de passe.
               </div>
               <table>
-                <thead><tr><th>Nom</th><th>Email</th><th>Statut</th><th>Dernière connexion</th><th></th></tr></thead>
+                <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th><th>Dernière connexion</th><th></th></tr></thead>
                 <tbody>
                   <template x-for="s in staffListe" :key="s.id">
                     <tr style="cursor:default">
                       <td x-text="s.nom"></td>
-                      <td x-text="s.email"></td>
+                      <td style="word-break:break-all" x-text="s.email"></td>
+                      <td>
+                        <select style="width:auto" :disabled="s.id === staff?.id || s.role === undefined" @change="changerRoleStaff(s, $event.target.value)"
+                                :title="s.role === undefined ? 'Lance la migration 094 pour activer les rôles' : (s.id === staff?.id ? 'Tu ne peux pas changer ton propre rôle' : '')">
+                          <option value="admin" :selected="s.role !== 'assistant'">Administrateur</option>
+                          <option value="assistant" :selected="s.role === 'assistant'">Assistant</option>
+                        </select>
+                      </td>
                       <td>
                         <button class="bo-btn bo-btn--sec bo-btn--compact" @click="toggleStaffActif(s)" x-text="s.actif ? 'Actif — désactiver' : 'Inactif — réactiver'"></button>
                       </td>
@@ -4304,7 +4316,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261104-1"></script>
+  <script src="/backoffice/js/app.js?v=20261104-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

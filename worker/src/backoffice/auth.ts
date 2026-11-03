@@ -10,7 +10,7 @@ import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { supabaseSelect, supabaseInsert, supabaseUpdate } from '../db';
 import { verifierMotDePasse, hasherMotDePasse } from '../lib/password';
 import { OPTIONS_COOKIE, connexionVerrouillee, enregistrerEchecConnexion, effacerEchecsConnexion, MESSAGE_TROP_DE_TENTATIVES } from '../lib/securite';
-import { backofficeMiddleware } from '../middleware/backoffice';
+import { backofficeMiddleware, roleStaff } from '../middleware/backoffice';
 
 const app = new Hono();
 
@@ -110,7 +110,7 @@ app.get('/me', backofficeMiddleware, async (c) => {
     select: 'id,nom,email', id: `eq.${staff_id}`,
   });
   if (!staff) return c.json({ erreur: 'Compte introuvable' }, 401);
-  return c.json({ staff });
+  return c.json({ staff: { ...staff, role: await roleStaff(c) } });
 });
 
 export default app;

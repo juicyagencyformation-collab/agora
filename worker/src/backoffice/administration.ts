@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { setCookie } from 'hono/cookie';
 import { supabaseSelect, supabaseSelectTout, supabaseUpdate, supabaseInsert, supabaseDelete, supabaseCount, supabaseUpsert, journaliser } from '../db';
-import { backofficeMiddleware } from '../middleware/backoffice';
+import { backofficeMiddleware, exigerAdmin, roleStaff } from '../middleware/backoffice';
 import { hasherMotDePasse } from '../lib/password';
 import { OPTIONS_COOKIE } from '../lib/securite';
 import {
@@ -606,7 +606,7 @@ app.put('/modeles-presentation/:id', async (c) => {
 // POST /modeles-presentation/:id/activer — bascule la variante active. Désactive d'abord toutes
 // les autres (l'index unique idx_modeles_email_cle_actif interdit deux actives à la fois pour
 // le même cle), puis active la cible.
-app.post('/modeles-presentation/:id/activer', async (c) => {
+app.post('/modeles-presentation/:id/activer', exigerAdmin, async (c) => {
   const id = c.req.param('id');
   const [cible] = await supabaseSelect(c.env, 'modeles_email', {
     select: 'id,nom', cle: 'eq.presentation', id: `eq.${id}`,
@@ -702,7 +702,7 @@ app.put('/modeles-email/:cle/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-app.post('/modeles-email/:cle/:id/activer', async (c) => {
+app.post('/modeles-email/:cle/:id/activer', exigerAdmin, async (c) => {
   const cle = c.req.param('cle');
   if (!(CLES_MODELES_GENERIQUES as readonly string[]).includes(cle)) return c.json({ erreur: 'Type de modèle inconnu' }, 400);
   const id = c.req.param('id');
@@ -1723,7 +1723,7 @@ const grilleTarifaireSchema = z.object({
   mois_offerts_3ans: z.number().int().min(0).max(36),
 });
 
-app.put('/grille-tarifaire', async (c) => {
+app.put('/grille-tarifaire', exigerAdmin, async (c) => {
   const body = grilleTarifaireSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
@@ -1754,7 +1754,7 @@ const baremeTarifaireSchema = z.object({
   prix_patrimoine_premium: z.number().min(0),
 });
 
-app.put('/bareme-tarifaire', async (c) => {
+app.put('/bareme-tarifaire', exigerAdmin, async (c) => {
   const body = baremeTarifaireSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
@@ -1786,7 +1786,7 @@ const offresTarifairesTexteSchema = z.object(
   Object.fromEntries(CLES_OFFRES_TEXTE.map((cle) => [cle, z.string().min(1).max(2000).optional()])),
 );
 
-app.put('/offres-tarifaires-texte', async (c) => {
+app.put('/offres-tarifaires-texte', exigerAdmin, async (c) => {
   const body = offresTarifairesTexteSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
@@ -2042,7 +2042,7 @@ app.get('/onglets-gratuits', async (c) => {
 const ongletsGratuitsSchema = z.object({ onglets: z.array(z.enum(TOUS_LES_ONGLETS)) });
 const TAILLE_LOT_ONGLETS = 2000;
 
-app.put('/onglets-gratuits', async (c) => {
+app.put('/onglets-gratuits', exigerAdmin, async (c) => {
   const body = ongletsGratuitsSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Sélection de modules invalide' }, 400);
 
@@ -2250,22 +2250,33 @@ app.get('/apercu', async (c) => {
 // jamais stocké en clair, jamais envoyé par email automatiquement — à communiquer soi-même).
 
 app.get('/staff', async (c) => {
-  const staff = await supabaseSelect(c.env, 'staff_backoffice', {
-    select: 'id,email,nom,actif,derniere_connexion_at,created_at', order: 'nom.asc',
-  });
+  const colonnes = 'id,email,nom,actif,derniere_connexion_at,created_at';
+  // role : colonne de la migration 094 — lue seulement si elle existe déjà.
+  const staff = await supabaseSelect(c.env, 'staff_backoffice', { select: colonnes + ',role', order: 'nom.asc' })
+    .catch(() => supabaseSelect(c.env, 'staff_backoffice', { select: colonnes, order: 'nom.asc' }));
   return c.json({ staff });
 });
 
-const staffPatchSchema = z.object({ nom: z.string().min(1).max(100).optional(), actif: z.boolean().optional() });
+const staffPatchSchema = z.object({
+  nom: z.string().min(1).max(100).optional(), actif: z.boolean().optional(),
+  role: z.enum(['admin', 'assistant']).optional(),
+});
 
-app.patch('/staff/:id', async (c) => {
+app.patch('/staff/:id', exigerAdmin, async (c) => {
   const body = staffPatchSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+  // Jamais se retirer soi-même le rôle admin : sinon plus personne ne pourrait le rendre.
+  if (body.data.role === 'assistant' && c.req.param('id') === c.get('staff_id')) {
+    return c.json({ erreur: 'Impossible de te retirer à toi-même le rôle administrateur.' }, 400);
+  }
   const maj = await supabaseUpdate(c.env, 'staff_backoffice', body.data, { id: `eq.${c.req.param('id')}` });
   if (!maj.length) return c.json({ erreur: 'Compte introuvable' }, 404);
   if (body.data.actif !== undefined) {
     await journaliser(c.env, c.get('staff_id'), 'compte_staff_modifie', `${maj[0].email} → ${body.data.actif ? 'actif' : 'désactivé'}`);
+  }
+  if (body.data.role) {
+    await journaliser(c.env, c.get('staff_id'), 'compte_staff_role', `${maj[0].email} → ${body.data.role}`);
   }
   return c.json({ ok: true });
 });
@@ -2273,7 +2284,7 @@ app.patch('/staff/:id', async (c) => {
 // POST /staff/:id/reinitialiser-mdp — génère un nouveau mot de passe provisoire, renvoyé UNE
 // FOIS dans la réponse (jamais loggé, jamais emailé automatiquement) : à communiquer soi-même
 // à la personne concernée par un canal de son choix.
-app.post('/staff/:id/reinitialiser-mdp', async (c) => {
+app.post('/staff/:id/reinitialiser-mdp', exigerAdmin, async (c) => {
   const id = c.req.param('id');
   const [staff] = await supabaseSelect(c.env, 'staff_backoffice', { select: 'id,email', id: `eq.${id}` });
   if (!staff) return c.json({ erreur: 'Compte introuvable' }, 404);

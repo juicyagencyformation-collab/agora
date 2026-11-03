@@ -8,7 +8,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseUpsert, journaliser } from '../db';
-import { backofficeMiddleware } from '../middleware/backoffice';
+import { backofficeMiddleware, exigerAdmin, roleStaff } from '../middleware/backoffice';
 import { versCsv } from '../lib/csv';
 import { genererContratDpaHtml, CHAMPS_DPA, type CleDpa, type InfosDpa } from './contrat-dpa';
 
@@ -40,7 +40,7 @@ const parametresEntrepriseSchema = z.object(
   Object.fromEntries(CLES_ENTREPRISE.map((cle) => [cle, z.string().max(300)])) as Record<typeof CLES_ENTREPRISE[number], z.ZodString>,
 );
 
-app.put('/parametres-entreprise', async (c) => {
+app.put('/parametres-entreprise', exigerAdmin, async (c) => {
   const body = parametresEntrepriseSchema.partial().safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   for (const [cle, valeur] of Object.entries(body.data)) {
@@ -132,6 +132,12 @@ app.put('/contrat-dpa/:communeId', async (c) => {
 
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `eq.${communeId}` });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+  const champsPrestataire = CLES_PRESTATAIRE_DPA.filter((cle) => d[cle] !== undefined);
+  // Plafond, assurance, coordonnées de l'entreprise : réglages de Léandre (SOP §8), pas d'un
+  // assistant — vérifié AVANT toute écriture, pour ne jamais enregistrer à moitié.
+  if (champsPrestataire.length && await roleStaff(c) === 'assistant') {
+    return c.json({ erreur: 'Les informations du prestataire sont réservées au compte administrateur.' }, 403);
+  }
 
   const champsCommune = CLES_COMMUNE_DPA.filter((cle) => d[cle] !== undefined);
   if (champsCommune.length) {
@@ -140,7 +146,6 @@ app.put('/contrat-dpa/:communeId', async (c) => {
       ...Object.fromEntries(champsCommune.map((cle) => [cle, d[cle] || null])),
     }], 'commune_id');
   }
-  const champsPrestataire = CLES_PRESTATAIRE_DPA.filter((cle) => d[cle] !== undefined);
   if (champsPrestataire.length) {
     await supabaseUpsert(c.env, 'parametres_facturation', champsPrestataire.map((cle) => ({ cle, valeur: d[cle] })), 'cle');
   }
@@ -193,6 +198,10 @@ app.get('/devis/:id', async (c) => {
 app.post('/devis', async (c) => {
   const body = devisSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  // Devis sans commune = facturation libre (prestations hors Agora de l'EI de Léandre, SOP §7).
+  if (!body.data.commune_id && await roleStaff(c) === 'assistant') {
+    return c.json({ erreur: 'La facturation libre est réservée au compte administrateur.' }, 403);
+  }
   const montant_ttc = Math.round(body.data.montant_ht * (1 + body.data.taux_tva / 100) * 100) / 100;
   const numero = await genererNumero(c.env, 'devis', 'D');
   const [devis] = await supabaseInsert(c.env, 'devis', { ...body.data, montant_ttc, numero });

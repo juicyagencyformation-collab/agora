@@ -2358,6 +2358,19 @@ function backoffice() {
         s.actif = nouveauActif;
       } catch (e) { alert(e.message || 'Échec'); }
     },
+    // Rôle staff (migration 094) : un assistant ne voit pas les réglages qu'il ne peut de toute façon
+    // pas modifier (le serveur les refuse aussi, voir exigerAdmin). Sans rôle connu : admin.
+    estAdmin() {
+      return this.staff?.role !== 'assistant';
+    },
+    async changerRoleStaff(s, role) {
+      const libelle = role === 'assistant' ? 'assistant (réglages sensibles bloqués)' : 'administrateur (tout pouvoir)';
+      if (!confirm(`Passer ${s.nom} (${s.email}) en ${libelle} ?`)) { this.staffListe = [...this.staffListe]; return; }
+      try {
+        await boFetch('/administration/staff/' + s.id, { method: 'PATCH', body: JSON.stringify({ role }) });
+        s.role = role;
+      } catch (e) { alert(e.message || 'Échec'); this.staffListe = [...this.staffListe]; }
+    },
     async reinitialiserMdpStaff(s) {
       if (!confirm(`Générer un nouveau mot de passe provisoire pour ${s.nom} ?`)) return;
       try {

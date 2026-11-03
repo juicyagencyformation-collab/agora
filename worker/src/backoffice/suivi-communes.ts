@@ -19,6 +19,8 @@ app.use('*', backofficeMiddleware);
 const POPULATION_MAX_FONDATRICE = 8000;
 const PLACES_FONDATRICES = 10;
 const JOURS_CONVENTION_EN_ATTENTE = 30;
+// Communes de test, jamais suivies (« Commune de démonstration » = decouverte-gratuite, confirmé par Léandre le 2026-11-04).
+const SLUGS_HORS_SUIVI = ['test', 'decouverte-gratuite'];
 
 export type Anomalie = { code: string; gravite: 'haute' | 'moyenne' | 'info'; commune_id: string | null; commune_nom: string | null; commune_slug: string | null; message: string };
 
@@ -26,7 +28,7 @@ export type Anomalie = { code: string; gravite: 'haute' | 'moyenne' | 'info'; co
 async function communesSuivies(env: any) {
   const communes = await supabaseSelect(env, 'communes', {
     select: 'id,nom,slug,forfait,formule,statut_client,prix_annuel_ttc,population',
-    forfait: 'not.in.(Gratuit)', niveau_national: 'not.is.true', acces_libre: 'not.is.true', slug: 'neq.test',
+    forfait: 'not.in.(Gratuit)', niveau_national: 'not.is.true', acces_libre: 'not.is.true', slug: `not.in.(${SLUGS_HORS_SUIVI.join(',')})`,
     order: 'nom.asc',
   });
   return communes.filter((cm: any) => cm.forfait && cm.statut_client !== 'resiliee');
@@ -235,7 +237,7 @@ app.get('/communes-suivies', async (c) => {
   const idsUtilisees = [...new Set(comptesReels.map((u: any) => u.commune_id))].filter((id) => !idsSuivies.has(id));
   const gratuitesUtilisees = idsUtilisees.length ? await supabaseSelect(c.env, 'communes', {
     select: 'id,nom,slug,forfait', id: `in.(${idsUtilisees.join(',')})`,
-    niveau_national: 'not.is.true', acces_libre: 'not.is.true', slug: 'neq.test', statut_client: 'neq.resiliee',
+    niveau_national: 'not.is.true', acces_libre: 'not.is.true', slug: `not.in.(${SLUGS_HORS_SUIVI.join(',')})`, statut_client: 'neq.resiliee',
   }) : [];
   const communes = [...suivies, ...gratuitesUtilisees];
 
