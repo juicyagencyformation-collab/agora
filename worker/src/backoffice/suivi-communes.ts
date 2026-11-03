@@ -88,6 +88,62 @@ export function detecterAnomalies(
   return anomalies.sort((a, b) => ordre[a.gravite] - ordre[b.gravite] || (a.commune_nom ?? '').localeCompare(b.commune_nom ?? ''));
 }
 
+// — Parcours d'une commune (étape 2 du remaniement, 2026-11-03) —
+// Une seule étape calculée à partir de ce qui existe (statut client, forfait, échéance, étapes de
+// démarrage), au lieu de six champs à croiser à la main, et la prochaine action à mener.
+type Etape = { cle: string; fait: boolean; detail?: string };
+export type Parcours = { etape: string; libelle: string; prochaine_action: string | null; onglet: string | null };
+
+const JOURS_AVANT_RENOUVELLEMENT = 60;
+// Ce qu'il faut faire pour chaque étape de démarrage manquante, et l'onglet de la fiche où le faire.
+const ACTIONS: Record<string, [string, string | null]> = {
+  formule: ['Enregistrer la formule de la commune', 'dossier'],
+  convention: ['Faire signer la convention', 'dossier'],
+  dpa: ['Compléter le contrat DPA', 'dossier'],
+  facture: ['Émettre la première facture', 'dossier'],
+  connexion: ['Obtenir une première connexion de la mairie (lien de connexion directe)', 'utilisateurs'],
+  actualite: ['Aider la mairie à publier sa première actualité', null],
+  evenement: ['Proposer d’ajouter un premier événement à l’agenda', null],
+  habitants: ['Faire connaître l’application aux habitants : affiche et stickers', null],
+  infos: ['Renseigner les horaires et le téléphone de la mairie', 'configuration'],
+  logo: ['Ajouter le logo de la commune', 'configuration'],
+  dechets: ['Configurer le calendrier des déchets', null],
+  signalement: ['Traiter un premier signalement d’habitant', null],
+};
+const ORDRE_ABONNEE = ['formule', 'convention', 'dpa', 'facture', 'connexion', 'actualite', 'evenement', 'habitants', 'infos', 'logo', 'dechets', 'signalement'];
+const ORDRE_GRATUITE = ['connexion', 'actualite', 'evenement', 'habitants', 'infos', 'logo', 'dechets', 'signalement'];
+
+export function calculerParcours(commune: any, etapes: Etape[], maintenant = Date.now()): Parcours {
+  const faite = (cle: string) => etapes.find((e) => e.cle === cle)?.fait ?? true;
+  const premiereManquante = (ordre: string[]) => {
+    const cle = ordre.find((k) => etapes.some((e) => e.cle === k) && !faite(k));
+    if (!cle) return null;
+    const detail = etapes.find((e) => e.cle === cle)?.detail;
+    return { action: ACTIONS[cle][0] + (cle === 'habitants' && detail ? ` (${detail})` : ''), onglet: ACTIONS[cle][1] };
+  };
+  const parcours = (etape: string, libelle: string, suite: { action: string; onglet: string | null } | null) =>
+    ({ etape, libelle, prochaine_action: suite?.action ?? null, onglet: suite?.onglet ?? null });
+
+  if (commune.statut_client === 'resiliee') return parcours('resiliee', 'Résiliée', null);
+  if (commune.statut_client === 'suspendue') return parcours('suspendue', 'Suspendue', null);
+
+  if (commune.forfait && commune.forfait !== 'Gratuit') {
+    const libelle = commune.forfait === 'Fondateur' ? 'Fondatrice' : 'Payante';
+    if (commune.prochaine_echeance) {
+      const jours = Math.ceil((new Date(commune.prochaine_echeance).getTime() - maintenant) / 86400000);
+      if (jours <= JOURS_AVANT_RENOUVELLEMENT) {
+        const date = new Date(commune.prochaine_echeance).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+        return parcours('a_renouveler', `À renouveler (${libelle.toLowerCase()})`, { action: `Préparer le renouvellement : échéance le ${date}`, onglet: 'dossier' });
+      }
+    }
+    return parcours('abonnee', libelle, premiereManquante(ORDRE_ABONNEE));
+  }
+
+  if (!faite('connexion')) return parcours('espace_ouvert', 'Espace ouvert, jamais utilisé', premiereManquante(ORDRE_GRATUITE));
+  if (!faite('actualite') || !faite('habitants')) return parcours('prise_en_main', 'Prise en main', premiereManquante(ORDRE_GRATUITE));
+  return parcours('active', 'Active', premiereManquante(ORDRE_GRATUITE) ?? { action: 'Proposer une offre payante', onglet: 'dossier' });
+}
+
 app.get('/anomalies', async (c) => {
   const communes = await communesSuivies(c.env);
   const ids = communes.map((cm: any) => cm.id);
@@ -105,7 +161,7 @@ app.get('/anomalies', async (c) => {
 app.get('/communes/:id/demarrage', async (c) => {
   const id = c.req.param('id');
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,forfait,formule,logo_url,horaires_ouverture,telephone_mairie', id: `eq.${id}`,
+    select: 'id,forfait,formule,statut_client,prochaine_echeance,logo_url,horaires_ouverture,telephone_mairie', id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
   const parCommune = { commune_id: `eq.${id}` };
@@ -149,7 +205,7 @@ app.get('/communes/:id/demarrage', async (c) => {
     etapes.push({ cle: 'facture', groupe: 'administratif', libelle: 'Première facture émise', fait: factures > 0 });
   }
 
-  return c.json({ etapes, faites: etapes.filter((e) => e.fait).length, total: etapes.length });
+  return c.json({ etapes, faites: etapes.filter((e) => e.fait).length, total: etapes.length, parcours: calculerParcours(commune, etapes) });
 });
 
 export default app;

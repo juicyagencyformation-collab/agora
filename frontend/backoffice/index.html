@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261005-4" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261103-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -2518,9 +2518,37 @@
             </div>
           </template>
 
+          <!-- Onglets de la fiche (commune cliente uniquement) — chaque bloc ci-dessous porte un
+               x-show sur ongletFiche ; une fiche de simple prospect reste d'un seul tenant. -->
+          <template x-if="fiche">
+            <nav class="bo-onglets-fiche" role="tablist">
+              <template x-for="o in ONGLETS_FICHE" :key="o[0]">
+                <button type="button" role="tab" :aria-selected="ongletFiche === o[0]" :class="{ actif: ongletFiche === o[0] }"
+                        @click="ongletFiche = o[0]" x-text="o[1]"></button>
+              </template>
+            </nav>
+          </template>
+
+          <!-- Parcours : étape calculée + prochaine action (backoffice/suivi-communes.ts, calculerParcours) -->
+          <template x-if="fiche && demarrage && demarrage.parcours">
+            <div class="bo-carte bo-parcours" x-show="ongletFiche === 'ensemble'">
+              <div>
+                <div class="bo-info">Étape</div>
+                <div class="bo-parcours__etape" x-text="demarrage.parcours.libelle"></div>
+              </div>
+              <div x-show="demarrage.parcours.prochaine_action" style="flex:1; min-width:240px">
+                <div class="bo-info">Prochaine action</div>
+                <div style="font-weight:600" x-text="demarrage.parcours.prochaine_action"></div>
+              </div>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="demarrage.parcours.onglet"
+                      @click="ongletFiche = demarrage.parcours.onglet"
+                      x-text="'Ouvrir l’onglet ' + ((ONGLETS_FICHE.find((o) => o[0] === demarrage.parcours.onglet) || [])[1] || '')"></button>
+            </div>
+          </template>
+
           <!-- ===================== SECTION PROSPECTION ===================== -->
           <template x-if="prospect">
-            <div>
+            <div x-show="!fiche || ongletFiche === 'echanges'">
               <div class="bo-section-titre" x-show="fiche" style="margin-top:0">📞 Prospection</div>
 
               <div class="bo-fiche-entete" style="justify-content:space-between; align-items:flex-start">
@@ -2757,8 +2785,9 @@
           <!-- ===================== SECTION COMMUNE CLIENTE ===================== -->
           <template x-if="fiche">
           <div>
-          <div class="bo-section-titre" x-show="prospect">🏛 Commune cliente</div>
+          <div class="bo-section-titre" x-show="prospect && ongletFiche === 'echanges'">🏛 Commune cliente</div>
 
+          <div x-show="ongletFiche === 'ensemble'">
           <!-- Démarrage (backoffice/suivi-communes.ts) : chaque étape se coche seule dès qu'elle est faite -->
           <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px" x-show="demarrage">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px">
@@ -2792,6 +2821,8 @@
             </div>
           </div>
 
+          </div>
+          <div x-show="ongletFiche === 'configuration'">
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px">
             <div>
               <div style="font-weight:600">Coordonnées GPS</div>
@@ -2804,6 +2835,8 @@
             </div>
           </div>
 
+          </div>
+          <div x-show="ongletFiche === 'utilisateurs'">
           <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
               <div>
@@ -2856,6 +2889,8 @@
             <button class="bo-btn bo-btn--compact" @click="ouvrirUtilisateurs()">👥 Gérer les utilisateurs</button>
           </div>
 
+          </div>
+          <div x-show="ongletFiche === 'ensemble'">
           <template x-if="frequentation">
             <div>
               <div class="bo-section-titre" title="Citoyens + admin + élu (comptes réels) — hors maire, quasi toujours auto-créé à l'activation">📊 Fréquentation de l'app</div>
@@ -3023,6 +3058,8 @@
             </template>
           </div>
 
+          </div>
+          <div x-show="ongletFiche === 'echanges'">
           <template x-if="onboardingDrip">
             <div>
               <div class="bo-section-titre">Séquence onboarding / upsell</div>
@@ -3116,30 +3153,8 @@
             </div>
           </template>
 
-          <template x-if="rgpd">
-            <div>
-              <div class="bo-section-titre">🔒 Vie privée (RGPD)</div>
-              <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
-                <div>
-                  <div style="font-weight:600">Restitution des données de la commune</div>
-                  <div class="bo-info">Fichier JSON avec tout ce que la commune a confié à la plateforme (habitants, contenus, réglages), sans aucun secret. À envoyer à la mairie sur demande (DPA article 15.1, convention article 5). Chaque export est noté au journal.</div>
-                </div>
-                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/api/backoffice/export-commune/' + fiche.commune.id" download>⬇ Exporter les données</a>
-              </div>
-              <div class="bo-grille-stats">
-                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_exports"></div><div class="bo-stat__lib">Exports de données demandés</div></div>
-                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_suppressions"></div><div class="bo-stat__lib" x-text="'Comptes supprimés' + pctRgpd(rgpd?.nb_suppressions)"></div></div>
-              </div>
-              <div class="bo-carte" style="padding:14px 18px">
-                <div style="font-weight:600; margin-bottom:8px">Derniers exports de données (portabilité)</div>
-                <template x-for="(e, i) in (rgpd?.exports || []).slice(0, 8)" :key="i">
-                  <div class="bo-info" x-text="e.nom + (e.email ? ' (' + e.email + ')' : '') + ' — ' + formatDate(e.created_at)"></div>
-                </template>
-                <template x-if="(rgpd?.exports || []).length === 0"><div class="bo-vide">Aucun export demandé pour l'instant.</div></template>
-              </div>
-            </div>
-          </template>
-
+          </div>
+          <div x-show="ongletFiche === 'configuration'">
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
             <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap">
               <div>
@@ -3252,10 +3267,12 @@
             </div>
           </div>
 
+          </div>
+          <div x-show="ongletFiche === 'dossier'">
           <div class="bo-section-titre">Abonnement</div>
           <div class="bo-info" style="margin:-8px 0 10px" x-show="fiche?.commune.forfait === 'Gratuit' || fiche?.commune.forfait === 'Fondateur'">
             Commune sur le palier <span x-text="fiche?.commune.forfait"></span> — un prix/échéance renseigné ici n'a normalement pas lieu d'être
-            (passer en Version complète ci-dessus d'abord si elle doit être facturée).
+            (passer en Version complète dans l'onglet Configuration d'abord si elle doit être facturée).
           </div>
           <div class="bo-carte" style="padding:16px 18px">
             <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px">
@@ -3482,6 +3499,34 @@
             </table>
           </div>
 
+          </div>
+          <div x-show="ongletFiche === 'dossier'">
+          <template x-if="rgpd">
+            <div>
+              <div class="bo-section-titre">🔒 Vie privée (RGPD)</div>
+              <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px">
+                <div>
+                  <div style="font-weight:600">Restitution des données de la commune</div>
+                  <div class="bo-info">Fichier JSON avec tout ce que la commune a confié à la plateforme (habitants, contenus, réglages), sans aucun secret. À envoyer à la mairie sur demande (DPA article 15.1, convention article 5). Chaque export est noté au journal.</div>
+                </div>
+                <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/api/backoffice/export-commune/' + fiche.commune.id" download>⬇ Exporter les données</a>
+              </div>
+              <div class="bo-grille-stats">
+                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_exports"></div><div class="bo-stat__lib">Exports de données demandés</div></div>
+                <div class="bo-stat"><div class="bo-stat__val" x-text="rgpd?.nb_suppressions"></div><div class="bo-stat__lib" x-text="'Comptes supprimés' + pctRgpd(rgpd?.nb_suppressions)"></div></div>
+              </div>
+              <div class="bo-carte" style="padding:14px 18px">
+                <div style="font-weight:600; margin-bottom:8px">Derniers exports de données (portabilité)</div>
+                <template x-for="(e, i) in (rgpd?.exports || []).slice(0, 8)" :key="i">
+                  <div class="bo-info" x-text="e.nom + (e.email ? ' (' + e.email + ')' : '') + ' — ' + formatDate(e.created_at)"></div>
+                </template>
+                <template x-if="(rgpd?.exports || []).length === 0"><div class="bo-vide">Aucun export demandé pour l'instant.</div></template>
+              </div>
+            </div>
+          </template>
+
+          </div>
+          <div x-show="ongletFiche === 'utilisateurs'">
           <div class="bo-section-titre">Répartition des rôles</div>
           <div class="bo-repartition">
             <template x-for="(nb, role) in (fiche?.citoyens.par_role || {})" :key="role">
@@ -3504,6 +3549,7 @@
             <template x-if="fiche?.avis.nb === 0">
               <div class="bo-avis-item bo-vide">Aucun avis déposé.</div>
             </template>
+          </div>
           </div>
           </div>
           </template>
@@ -4187,7 +4233,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261103-3"></script>
+  <script src="/backoffice/js/app.js?v=20261103-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

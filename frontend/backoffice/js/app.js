@@ -294,6 +294,13 @@ function backoffice() {
     ajEmailsRecus: [],
     ajAnomalies: [], // incohérences forfait/formule/convention/DPA — voir backoffice/suivi-communes.ts
     demarrage: null, // liste de démarrage de la commune ouverte (fiche) — même source
+    // Onglet de la fiche d'une commune cliente (étape 2 du remaniement) : ensemble, echanges,
+    // dossier, utilisateurs, configuration. Une fiche de simple prospect n'a pas d'onglets.
+    ongletFiche: 'ensemble',
+    ONGLETS_FICHE: [
+      ['ensemble', 'Vue d’ensemble'], ['echanges', 'Échanges'], ['dossier', 'Dossier'],
+      ['utilisateurs', 'Utilisateurs'], ['configuration', 'Configuration'],
+    ],
     relanceLotEnCours: false,
     relanceLotMsg: '',
     emailsRecus: [],
@@ -392,6 +399,7 @@ function backoffice() {
     async ouvrirFicheUnifiee({ prospectId = null, communeId = null } = {}) {
       this.chargement = true;
       this.vue = 'fiche_unifiee';
+      this.ongletFiche = 'ensemble';
       this.prospect = null;
       this.interactions = [];
       this.fiche = null;

@@ -3,7 +3,7 @@
 // main le 2026-11-03 (formule jamais renseignée, fondatrice sans convention, commune en double,
 // fondatrice de 44 000 habitants...) doivent remonter seules sur la page Aujourd'hui.
 import { describe, it, expect } from 'vitest';
-import { detecterAnomalies } from '../src/backoffice/suivi-communes';
+import { detecterAnomalies, calculerParcours } from '../src/backoffice/suivi-communes';
 
 const MAINTENANT = new Date('2026-11-03T12:00:00Z').getTime();
 const commune = (o: Record<string, any>) => ({ statut_client: 'active', formule: 'autonomie', population: 400, prix_annuel_ttc: 290, slug: o.id, ...o });
@@ -49,5 +49,46 @@ describe('detecterAnomalies', () => {
     const anomalies = detecterAnomalies(fondatrices, conventions, new Map(), MAINTENANT);
     expect(codes(anomalies)).toEqual(['places_fondatrices']);
     expect(anomalies[0].commune_id).toBeNull();
+  });
+});
+
+// Étape du parcours et prochaine action (calculerParcours, même fichier).
+
+const etapesMairie = (faites: string[]) => ['connexion', 'logo', 'infos', 'dechets', 'actualite', 'evenement', 'habitants', 'signalement']
+  .map((cle) => ({ cle, fait: faites.includes(cle), detail: cle === 'habitants' ? '7 inscrit(s)' : undefined }));
+const etapesAdmin = (faites: string[]) => ['formule', 'convention', 'dpa', 'facture'].map((cle) => ({ cle, fait: faites.includes(cle) }));
+
+describe('calculerParcours', () => {
+  it('commune gratuite jamais utilisée : obtenir une première connexion', () => {
+    const p = calculerParcours({ forfait: 'Gratuit', statut_client: 'active' }, etapesMairie([]), MAINTENANT);
+    expect(p.etape).toBe('espace_ouvert');
+    expect(p.onglet).toBe('utilisateurs');
+  });
+
+  it('commune gratuite en prise en main : la première action manquante, avec le nombre d’inscrits', () => {
+    const p = calculerParcours({ forfait: 'Gratuit', statut_client: 'active' }, etapesMairie(['connexion', 'actualite', 'evenement']), MAINTENANT);
+    expect(p.etape).toBe('prise_en_main');
+    expect(p.prochaine_action).toContain('(7 inscrit(s))');
+  });
+
+  it('commune gratuite bien lancée : proposer une offre payante', () => {
+    const toutes = etapesMairie(['connexion', 'logo', 'infos', 'dechets', 'actualite', 'evenement', 'habitants', 'signalement']);
+    expect(calculerParcours({ forfait: 'Gratuit', statut_client: 'active' }, toutes, MAINTENANT)).toMatchObject({ etape: 'active', prochaine_action: 'Proposer une offre payante' });
+  });
+
+  it('fondatrice : l’administratif passe en premier', () => {
+    const p = calculerParcours({ forfait: 'Fondateur', statut_client: 'active' }, [...etapesMairie(['connexion']), ...etapesAdmin(['formule'])], MAINTENANT);
+    expect(p).toMatchObject({ etape: 'abonnee', libelle: 'Fondatrice', prochaine_action: 'Faire signer la convention', onglet: 'dossier' });
+  });
+
+  it('abonnée à moins de 60 jours de son échéance : à renouveler', () => {
+    const p = calculerParcours({ forfait: 'Version complète', statut_client: 'active', prochaine_echeance: '2026-12-01' }, etapesMairie([]), MAINTENANT);
+    expect(p.etape).toBe('a_renouveler');
+    expect(p.prochaine_action).toContain('1 décembre 2026');
+  });
+
+  it('suspendue ou résiliée : pas d’action proposée', () => {
+    expect(calculerParcours({ forfait: 'Fondateur', statut_client: 'suspendue' }, [], MAINTENANT).prochaine_action).toBeNull();
+    expect(calculerParcours({ forfait: 'Gratuit', statut_client: 'resiliee' }, [], MAINTENANT).etape).toBe('resiliee');
   });
 });
