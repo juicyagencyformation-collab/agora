@@ -57,7 +57,7 @@ app.put('/parametres-entreprise', async (c) => {
 const CLES_COMMUNE_DPA = CHAMPS_DPA.filter((ch) => ch.groupe === 'commune').map((ch) => ch.cle);
 const CLES_PRESTATAIRE_DPA = CHAMPS_DPA.filter((ch) => ch.groupe === 'prestataire').map((ch) => ch.cle);
 
-async function infosContratDpa(env: any, communeId: string) {
+export async function infosContratDpa(env: any, communeId: string) {
   const [commune] = await supabaseSelect(env, 'communes', { select: 'id,nom,population,telephone_mairie', id: `eq.${communeId}` });
   if (!commune) return null;
   const [lignesParam, [saisie], [maireCompte], [prospect], [convention]] = await Promise.all([

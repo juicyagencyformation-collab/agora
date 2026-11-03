@@ -292,6 +292,8 @@ function backoffice() {
     ajProspectsPerdusRelance: [], // refus dus aujourd'hui — voir GET /prospects-perdus-a-relancer
     ajDateAujourdhui: '',
     ajEmailsRecus: [],
+    ajAnomalies: [], // incohérences forfait/formule/convention/DPA — voir backoffice/suivi-communes.ts
+    demarrage: null, // liste de démarrage de la commune ouverte (fiche) — même source
     relanceLotEnCours: false,
     relanceLotMsg: '',
     emailsRecus: [],
@@ -442,6 +444,10 @@ function backoffice() {
           this.premiumPremiereAnnee = true;
           this.devisFormule = this.fiche.commune.formule;
           this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
+          this.demarrage = null;
+          boFetch('/suivi/communes/' + communeId + '/demarrage')
+            .then((d) => { if (this.communeActiveId === communeId) this.demarrage = d; })
+            .catch(() => {});
           try { this.frequentation = await boFetch('/administration/communes/' + communeId + '/frequentation'); } catch {}
           try { this.doublons = (await boFetch('/administration/communes/' + communeId + '/doublons')).doublons; } catch {}
           try { this.activiteCommune = (await boFetch('/administration/activite?commune_id=' + communeId + '&depuis=90')).evenements; } catch {}
@@ -1161,6 +1167,8 @@ function backoffice() {
         this.ajDateAujourdhui = relance.aujourdhui;
         this.ajEmailsRecus = recus.emails;
       } catch {}
+      // À part : une anomalie qui échoue à se calculer ne doit pas vider le reste de la page.
+      try { this.ajAnomalies = (await boFetch('/suivi/anomalies')).anomalies; } catch {}
     },
     async allerAujourdhui() {
       this.vue = 'aujourdhui';
@@ -1168,7 +1176,7 @@ function backoffice() {
     },
     totalAujourdhui() {
       return this.ajProspectsRelance.length + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
-        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length;
+        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length + this.ajAnomalies.length;
     },
     // « Tout traiter » : même bascule intelligente que le bouton Relancer d'une fiche
     // (présentation ou relance J+3 selon l'état), appliquée à toute la liste d'un coup — voir
@@ -2924,6 +2932,8 @@ function backoffice() {
     async rafraichirCompteursCommune() {
       try {
         this.fiche = await boFetch('/administration/communes/' + this.communeActiveId);
+        // Une formule ou un forfait qui vient de changer coche/décoche des étapes de démarrage.
+        boFetch('/suivi/communes/' + this.communeActiveId + '/demarrage').then((d) => { this.demarrage = d; }).catch(() => {});
         const parRole = this.fiche.citoyens.par_role || {};
         const c = this.communes.find((x) => x.id === this.communeActiveId);
         if (c) {
