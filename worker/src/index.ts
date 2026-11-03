@@ -26,6 +26,7 @@ import annoncesPlateforme from './routes/annonces_plateforme';
 import profil from './routes/profil';
 import push from './routes/push';
 import enigmes from './routes/enigmes';
+import jeuxAilleurs from './routes/jeux_ailleurs';
 import conseilMembres from './routes/conseil_membres';
 import annuaire from './routes/annuaire';
 import bulletin from './routes/bulletin';
@@ -57,7 +58,7 @@ for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-co
   app.use(chemin, limiterDebit('LIMITEUR_STRICT'));
 }
 // Inscription et liens à jeton : larges (plusieurs habitants peuvent partager une connexion).
-for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo']) {
+for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo', '/:slug/jeux-ailleurs/communes']) {
   app.use(chemin, limiterDebit('LIMITEUR_LARGE'));
 }
 
@@ -127,6 +128,11 @@ app.route('/:slug/push', push);
 // Énigme photo (énigmes géolocalisées)
 app.use('/:slug/enigmes/*', jwtMiddleware, requireOngletActif('enigmes'));
 app.route('/:slug/enigmes', enigmes);
+
+// Chasses et énigmes d'une AUTRE commune, avec son propre compte — seule exception encadrée à la
+// règle « commune_id toujours extrait du JWT », voir l'en-tête de routes/jeux_ailleurs.ts.
+app.use('/:slug/jeux-ailleurs/*', jwtMiddleware);
+app.route('/:slug/jeux-ailleurs', jeuxAilleurs);
 
 // Trombinoscope du conseil municipal (maire, adjoints, conseillers)
 app.use('/:slug/conseil-membres/*', jwtMiddleware, requireOngletActif('conseil'));

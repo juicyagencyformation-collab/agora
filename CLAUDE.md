@@ -55,7 +55,13 @@ soumis par les citoyens — voir règle 4 ci-dessous.
 
 ## Règles d'architecture NON NÉGOCIABLES
 1. Le client ne connaît jamais Supabase — uniquement des fetch() vers l'API Worker
-2. commune_id est TOUJOURS extrait du JWT côté serveur, jamais envoyé par le client
+2. commune_id est TOUJOURS extrait du JWT côté serveur, jamais envoyé par le client.
+   **Seule exception, validée par Léandre le 2026-11-03 :** `worker/src/routes/jeux_ailleurs.ts`
+   (jouer aux chasses au trésor / énigmes photo d'une autre commune avec son propre compte).
+   La commune visitée y est résolue côté serveur (slug ou qr_token), lecture limitée aux jeux
+   actifs, écriture limitée à valider/signaler, XP sur le compte du joueur. Ne jamais élargir
+   cette exception à un autre module, ni la copier ailleurs, sans nouvelle validation explicite ;
+   les tests `worker/test/jeux-ailleurs.test.ts` doivent rester verts.
 3. Zéro framework JS, zéro bibliothèque npm côté client, sauf exceptions explicitement
    validées et vendorées en local (pas de `npm install` client, pas de CDN externe non
    vendoré) : Leaflet.js (cartes) et jsQR (`frontend/js/vendor/jsQR.min.js`, décodage QR —

@@ -20,10 +20,13 @@ app.use('*', jwtMiddleware);
 // la personne qui consulte (ni pour les autres joueurs). Les envoyer permettrait de lire la
 // position directe dans la réponse réseau (F12) et de contourner tout le jeu.
 app.get('/', async (c) => {
-  const commune_id = c.get('commune_id');
-  const user_id = c.get('user_id');
+  return c.json({ enigmes: await listerEnigmesJouables(c.env, c.get('commune_id'), c.get('user_id')) });
+});
 
-  const enigmes = await supabaseSelect(c.env, 'photos_enigmes', {
+// Partagé avec routes/jeux_ailleurs.ts (joueur venu d'une autre commune) : une seule projection,
+// donc un seul endroit où garantir que lat/lng ne sortent jamais avant résolution.
+export async function listerEnigmesJouables(env: any, commune_id: string, user_id: string) {
+  const enigmes = await supabaseSelect(env, 'photos_enigmes', {
     select: 'id,user_id,url,indice,lat,lng,created_at',
     commune_id: `eq.${commune_id}`,
     statut: 'eq.active',
@@ -32,12 +35,12 @@ app.get('/', async (c) => {
 
   const ids = enigmes.map((e: any) => e.id);
   const [reussites, mesSignalements] = await Promise.all([
-    ids.length ? supabaseSelect(c.env, 'enigme_reussites', {
+    ids.length ? supabaseSelect(env, 'enigme_reussites', {
       select: 'enigme_id,user_id,distance_metres',
       commune_id: `eq.${commune_id}`,
       enigme_id: `in.(${ids.join(',')})`,
     }) : [],
-    ids.length ? supabaseSelect(c.env, 'enigme_signalements', {
+    ids.length ? supabaseSelect(env, 'enigme_signalements', {
       select: 'enigme_id',
       commune_id: `eq.${commune_id}`,
       enigme_id: `in.(${ids.join(',')})`,
@@ -46,7 +49,7 @@ app.get('/', async (c) => {
   ]);
   const mesEnigmesSignalees = new Set(mesSignalements.map((s: any) => s.enigme_id));
 
-  const result = enigmes.map((e: any) => {
+  return enigmes.map((e: any) => {
     const estMoi = e.user_id === user_id;
     const maReussite = reussites.find((r: any) => r.enigme_id === e.id && r.user_id === user_id);
     const total_trouveurs = reussites.filter((r: any) => r.enigme_id === e.id).length;
@@ -67,9 +70,7 @@ app.get('/', async (c) => {
       ...(deja_trouve ? { distance_metres: Math.round(maReussite.distance_metres) } : {}),
     };
   });
-
-  return c.json({ enigmes: result });
-});
+}
 
 app.post('/upload', async (c) => {
   const commune_id = c.get('commune_id');
@@ -126,19 +127,22 @@ app.post('/', async (c) => {
   return c.json({ enigme_id: enigme.id }, 201);
 });
 
-const validationSchema = z.object({
+export const validationEnigmeSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
 });
 
 app.post('/:id/valider', async (c) => {
   const commune_id = c.get('commune_id');
-  const user_id = c.get('user_id');
-  const enigme_id = c.req.param('id');
-
-  const body = validationSchema.safeParse(await c.req.json());
+  const body = validationEnigmeSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  return validerEnigme(c, commune_id, commune_id, c.get('user_id'), c.req.param('id'), body.data);
+});
 
+// Partagé avec routes/jeux_ailleurs.ts. commune_id = celle de l'énigme (réussite enregistrée
+// chez elle, rayon de validation choisi par elle), commune_joueur = celle du compte (XP,
+// compteurs, badges) — identiques pour un habitant qui joue chez lui.
+export async function validerEnigme(c: any, commune_id: string, commune_joueur: string, user_id: string, enigme_id: string, position: z.infer<typeof validationEnigmeSchema>) {
   const [enigme] = await supabaseSelect(c.env, 'photos_enigmes', {
     select: 'id,user_id,lat,lng', commune_id: `eq.${commune_id}`, id: `eq.${enigme_id}`, statut: 'eq.active',
   });
@@ -157,7 +161,7 @@ app.post('/:id/valider', async (c) => {
   });
   const rayon = commune?.rayon_validation_enigme ?? 40;
 
-  const distance = distanceMetres(body.data.lat, body.data.lng, enigme.lat, enigme.lng);
+  const distance = distanceMetres(position.lat, position.lng, enigme.lat, enigme.lng);
 
   if (distance > rayon) {
     return c.json({ ok: true, reussi: false, distance_metres: Math.round(distance) });
@@ -166,23 +170,25 @@ app.post('/:id/valider', async (c) => {
   await supabaseInsert(c.env, 'enigme_reussites', {
     commune_id, enigme_id, user_id, distance_metres: distance,
   });
-  await incrementerCompteurUtilisateur(c.env, commune_id, user_id, 'enigmes_trouvees');
-  await gererStreakExploration(c.env, commune_id, user_id);
-  const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.trouver_enigme);
+  await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'enigmes_trouvees');
+  await gererStreakExploration(c.env, commune_joueur, user_id);
+  const resultatXp = await attribuerXp(c.env, commune_joueur, user_id, XP_ACTIONS.trouver_enigme);
 
   return c.json({
     ok: true, reussi: true, distance_metres: Math.round(distance),
     ...resultatXp,
   });
-});
+}
 
 // Un seul signalement suffit à masquer l'énigme, le temps qu'un gestionnaire tranche —
 // exactement le même principe de protection que sur Photo du jour.
 app.post('/:id/signaler', async (c) => {
-  const commune_id = c.get('commune_id');
-  const user_id = c.get('user_id');
-  const enigme_id = c.req.param('id');
+  return signalerEnigme(c, c.get('commune_id'), c.get('user_id'), c.req.param('id'));
+});
 
+// Partagé avec routes/jeux_ailleurs.ts : un joueur venu d'ailleurs doit pouvoir signaler une
+// photo choquante comme n'importe qui (règle n°4, signalement → masquage immédiat → revue mairie).
+export async function signalerEnigme(c: any, commune_id: string, user_id: string, enigme_id: string) {
   const [enigme] = await supabaseSelect(c.env, 'photos_enigmes', {
     select: 'id,user_id', commune_id: `eq.${commune_id}`, id: `eq.${enigme_id}`,
   });
@@ -205,7 +211,7 @@ app.post('/:id/signaler', async (c) => {
   });
 
   return c.json({ ok: true });
-});
+}
 
 // GET /moderation/en-attente — file de revue des énigmes masquées (gestionnaires uniquement)
 app.get('/moderation/en-attente', async (c) => {

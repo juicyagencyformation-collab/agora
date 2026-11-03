@@ -62,23 +62,30 @@ app.get('/', async (c) => {
     return c.json({ chasses: chassesArchivees });
   }
 
-  const chasses = await supabaseSelect(c.env, 'chasses_tresor', {
+  return c.json({ chasses: await listerChassesJouables(c.env, commune_id, user_id) });
+});
+
+// Chasses actives d'une commune, avec la progression du joueur. Partagé avec
+// routes/jeux_ailleurs.ts (joueur venu d'une autre commune) : une seule projection des colonnes,
+// donc un seul endroit où vérifier que rien de secret (qr_token, réponses) ne sort.
+export async function listerChassesJouables(env: any, commune_id: string, user_id: string) {
+  const chasses = await supabaseSelect(env, 'chasses_tresor', {
     select: 'id,titre,description,actif,mode,rayon_metres,created_at',
     commune_id: `eq.${commune_id}`,
     actif: 'eq.true',
     order: 'created_at.desc',
   });
   const ids = chasses.map((ch: any) => ch.id);
-  if (!ids.length) return c.json({ chasses: [] });
+  if (!ids.length) return [];
 
   const [etapes, progressions] = await Promise.all([
-    supabaseSelect(c.env, 'etapes_chasse', {
+    supabaseSelect(env, 'etapes_chasse', {
       select: 'id,chasse_id,ordre,titre,indice,lat,lng,type_contenu',
       commune_id: `eq.${commune_id}`,
       chasse_id: `in.(${ids.join(',')})`,
       order: 'ordre.asc',
     }),
-    supabaseSelect(c.env, 'progressions_chasse', {
+    supabaseSelect(env, 'progressions_chasse', {
       select: 'chasse_id,etape_id,user_id,validee_at',
       commune_id: `eq.${commune_id}`,
       chasse_id: `in.(${ids.join(',')})`,
@@ -86,7 +93,7 @@ app.get('/', async (c) => {
     }),
   ]);
 
-  const result = chasses.map((ch: any) => {
+  return chasses.map((ch: any) => {
     const etapesChasse = etapes.filter((e: any) => e.chasse_id === ch.id);
     const etapesValidees = progressions.filter((p: any) => p.chasse_id === ch.id).map((p: any) => p.etape_id);
     const base: any = {
@@ -106,9 +113,7 @@ app.get('/', async (c) => {
     }
     return base;
   });
-
-  return c.json({ chasses: result });
-});
+}
 
 app.post('/', async (c) => {
   const role = c.get('role');
@@ -245,7 +250,11 @@ app.post('/upload-photo', async (c) => {
 // Logique commune de validation d'une étape, quel que soit le déclencheur (scan QR ou
 // proximité GPS d'une balade) : contrôle de l'ordre, anti-doublon, énigme, progression,
 // XP et contenu révélé. Renvoie directement la réponse JSON.
-async function finaliserValidationEtape(c: any, commune_id: string, user_id: string, etape: any, reponse?: string) {
+// Deux communes distinctes depuis le 2026-11-03 (voir routes/jeux_ailleurs.ts) : commune_id =
+// celle de la chasse (progression enregistrée chez elle), commune_joueur = celle du compte (XP,
+// compteurs, badges). Identiques pour un habitant qui joue chez lui. extra : champs ajoutés à
+// la réponse (ex. nom de la commune visitée).
+export async function finaliserValidationEtape(c: any, commune_id: string, commune_joueur: string, user_id: string, etape: any, reponse?: string, extra: Record<string, unknown> = {}) {
   if (etape.ordre > 0) {
     const etapesPrecedentes = await supabaseSelect(c.env, 'etapes_chasse', {
       select: 'id',
@@ -271,7 +280,7 @@ async function finaliserValidationEtape(c: any, commune_id: string, user_id: str
   if (etape.type_contenu === 'enigme') {
     const reponseSaisie = (reponse ?? '').trim();
     if (!reponseSaisie) {
-      return c.json({ ok: true, etape_enigme: true, question: etape.contenu });
+      return c.json({ ok: true, etape_enigme: true, question: etape.contenu, ...extra });
     }
     if (normaliserReponse(reponseSaisie) !== normaliserReponse(etape.enigme_reponse ?? '')) {
       return c.json({ erreur: 'Mauvaise réponse, réessaie.' }, 400);
@@ -282,7 +291,7 @@ async function finaliserValidationEtape(c: any, commune_id: string, user_id: str
     commune_id, chasse_id: etape.chasse_id, etape_id: etape.id, user_id, validee_at: new Date().toISOString(),
   });
 
-  await incrementerCompteurUtilisateur(c.env, commune_id, user_id, 'etapes_chasse_validees');
+  await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'etapes_chasse_validees');
 
   // Détecte la complétion à 100% de CETTE chasse (badge "Finisseur", distinct du simple cumul).
   const toutesEtapesChasse = await supabaseSelect(c.env, 'etapes_chasse', {
@@ -292,18 +301,18 @@ async function finaliserValidationEtape(c: any, commune_id: string, user_id: str
     select: 'id', commune_id: `eq.${commune_id}`, chasse_id: `eq.${etape.chasse_id}`, user_id: `eq.${user_id}`,
   });
   if (mesProgressionsChasse.length >= toutesEtapesChasse.length) {
-    await incrementerCompteurUtilisateur(c.env, commune_id, user_id, 'chasses_terminees');
+    await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'chasses_terminees');
   }
 
-  await gererStreakExploration(c.env, commune_id, user_id);
-  const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.valider_etape_chasse);
+  await gererStreakExploration(c.env, commune_joueur, user_id);
+  const resultatXp = await attribuerXp(c.env, commune_joueur, user_id, XP_ACTIONS.valider_etape_chasse);
 
   // Contenu à révéler côté joueur une fois l'étape validée (texte ou photo).
   let contenu_revele: { type: string; texte?: string; photo_url?: string } | null = null;
   if (etape.type_contenu === 'texte') contenu_revele = { type: 'texte', texte: etape.contenu };
   else if (etape.type_contenu === 'photo') contenu_revele = { type: 'photo', photo_url: etape.photo_url };
 
-  return c.json({ ok: true, ...resultatXp, contenu_revele });
+  return c.json({ ok: true, ...resultatXp, contenu_revele, ...extra });
 }
 
 // Validation par scan de QR (mode chasse au trésor).
@@ -328,27 +337,30 @@ app.post('/valider', async (c) => {
   });
   if (!chasseActive) return c.json({ erreur: 'Cette chasse n\'est plus active' }, 404);
 
-  return finaliserValidationEtape(c, commune_id, user_id, etape, body.data.reponse);
+  return finaliserValidationEtape(c, commune_id, commune_id, user_id, etape, body.data.reponse);
 });
 
 // Validation par proximité GPS (mode balade guidée) : pas de QR, on vérifie que le joueur
 // est bien à moins de `rayon_metres` du point.
+export const validationPositionSchema = z.object({
+  etape_id: z.string().uuid(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  reponse: z.string().max(200).optional(),
+});
+
 app.post('/valider-position', async (c) => {
   const commune_id = c.get('commune_id');
-  const user_id = c.get('user_id');
-
-  const schema = z.object({
-    etape_id: z.string().uuid(),
-    lat: z.number().min(-90).max(90),
-    lng: z.number().min(-180).max(180),
-    reponse: z.string().max(200).optional(),
-  });
-  const body = schema.safeParse(await c.req.json());
+  const body = validationPositionSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  return validerEtapeParPosition(c, commune_id, commune_id, c.get('user_id'), body.data);
+});
 
+// Partagé avec routes/jeux_ailleurs.ts — voir finaliserValidationEtape pour les deux communes.
+export async function validerEtapeParPosition(c: any, commune_id: string, commune_joueur: string, user_id: string, data: z.infer<typeof validationPositionSchema>) {
   const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
     select: 'id,chasse_id,ordre,lat,lng,type_contenu,contenu,photo_url,enigme_reponse',
-    commune_id: `eq.${commune_id}`, id: `eq.${body.data.etape_id}`,
+    commune_id: `eq.${commune_id}`, id: `eq.${data.etape_id}`,
   });
   if (!etape) return c.json({ erreur: 'Étape introuvable' }, 404);
 
@@ -358,7 +370,7 @@ app.post('/valider-position', async (c) => {
   if (!chasse?.actif) return c.json({ erreur: 'Cette chasse n\'est plus active' }, 404);
 
   const rayon = chasse.rayon_metres ?? 50;
-  const distance = distanceMetres(body.data.lat, body.data.lng, etape.lat, etape.lng);
+  const distance = distanceMetres(data.lat, data.lng, etape.lat, etape.lng);
 
   // Toujours vérifié, y compris à la soumission de la réponse d'une énigme : le client
   // renvoie une vraie lecture GPS fraîche à cet appel aussi (voir validerEtapePosition côté
@@ -369,8 +381,8 @@ app.post('/valider-position', async (c) => {
     return c.json({ ok: true, reussi: false, distance_metres: Math.round(distance) });
   }
 
-  return finaliserValidationEtape(c, commune_id, user_id, etape, body.data.reponse);
-});
+  return finaliserValidationEtape(c, commune_id, commune_joueur, user_id, etape, data.reponse);
+}
 
 // GET /classement-exploration — score combiné (étapes de chasse validées + énigmes trouvées),
 // affiché depuis l'onglet fusionné Chasse au trésor / Énigme photo.
@@ -396,18 +408,24 @@ app.get('/classement-exploration', async (c) => {
 });
 
 app.get('/:id/classement', async (c) => {
-  const commune_id = c.get('commune_id');
-  const chasse_id = c.req.param('id');
+  return c.json({ classement: await classementChasse(c.env, c.get('commune_id'), c.req.param('id'), c.get('user_id')) });
+});
 
-  const progressions = await supabaseSelect(c.env, 'progressions_chasse', {
+// Partagé avec routes/jeux_ailleurs.ts. Les joueurs sont lus par identifiant et non par commune :
+// depuis le 2026-11-03, un habitant d'une autre commune peut avoir joué cette chasse et doit y
+// figurer — seul son nom public sort (nomPublic : prénom + initiale, ou « anonyme » selon SON
+// réglage de confidentialité), jamais rien d'autre de son compte.
+export async function classementChasse(env: any, commune_id: string, chasse_id: string, viewer_id: string) {
+  const progressions = await supabaseSelect(env, 'progressions_chasse', {
     select: 'user_id,validee_at',
     commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`,
     order: 'validee_at.asc',
   });
-  const users = await supabaseSelect(c.env, 'users', {
+  const idsJoueurs = [...new Set(progressions.map((p: any) => p.user_id))];
+  const users = idsJoueurs.length ? await supabaseSelect(env, 'users', {
     select: COLONNES_NOM_PUBLIC,
-    commune_id: `eq.${commune_id}`,
-  });
+    id: `in.(${idsJoueurs.join(',')})`,
+  }) : [];
 
   const parUtilisateur = new Map<string, { total: number; derniere: string }>();
   for (const p of progressions) {
@@ -417,16 +435,14 @@ app.get('/:id/classement', async (c) => {
     parUtilisateur.set(p.user_id, entree);
   }
 
-  const classement = [...parUtilisateur.entries()]
+  return [...parUtilisateur.entries()]
     .map(([user_id, stats]) => {
       const u = users.find((u: any) => u.id === user_id);
-      const n = nomPublic(u, c.get('user_id'));
+      const n = nomPublic(u, viewer_id);
       return { prenom: [n.prenom, n.nom].filter(Boolean).join(' '), total_etapes: stats.total, derniere_validation: stats.derniere };
     })
     .sort((a, b) => b.total_etapes - a.total_etapes || a.derniere_validation.localeCompare(b.derniere_validation));
-
-  return c.json({ classement });
-});
+}
 
 // PATCH /:id — corrige le titre, la description ou le rayon de validation d'une chasse déjà
 // créée, et sert aussi à l'archiver/la réactiver (actif). Le mode (chasse/balade) n'est pas

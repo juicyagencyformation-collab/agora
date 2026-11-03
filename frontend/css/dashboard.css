@@ -765,6 +765,15 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 }
 .btn-classement-exploration:hover { background: var(--eauXL); }
 
+/* En visite dans un autre village (voir villageVisite, chasse-tresor.js) : on n'y gère rien et on
+   n'y publie rien — seuls les jeux restent. !important : .form-admin-only est affiché par
+   body.est-admin, qui l'emporterait sinon pour un élu en visite. */
+#onglet-chasse-tresor.en-visite .form-admin-only,
+#onglet-chasse-tresor.en-visite #btn-jouer-ailleurs,
+#onglet-chasse-tresor.en-visite #btn-classement-exploration,
+#onglet-chasse-tresor.en-visite #zone-classement-exploration,
+#onglet-chasse-tresor.en-visite #btn-ouvrir-creation-enigme { display: none !important; }
+
 .chasse-jump-nav { display: flex; gap: 8px; margin-bottom: 18px; }
 .chasse-jump-chip {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;

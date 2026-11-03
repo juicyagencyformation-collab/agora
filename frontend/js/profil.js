@@ -415,13 +415,13 @@ function initReglagesRgpdProfil(data) {
   const optionNom = (valeur, libelle) => `<option value="${valeur}" ${choixNom === valeur ? 'selected' : ''}>${libelle}</option>`;
 
   zone.innerHTML = `
-    <label for="select-affichage-nom" style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Mon nom sur mes publications</label>
+    <label for="select-affichage-nom" style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Mon nom sur mes publications et dans les classements</label>
     <select id="select-affichage-nom">
       ${optionNom('initiale', `${escapeAttr(data.prenom || '')} ${initiale ? initiale + '.' : ''} (prénom et initiale)`)}
       ${optionNom('anonyme', 'Anonyme')}
     </select>
     <p style="font-size:11.5px;color:var(--roseau);margin:4px 0 14px;">
-      Ce que voient les autres habitants sur vos photos, messages, annonces et événements, y compris ceux déjà publiés.
+      Ce que voient les autres habitants sur vos photos, messages, annonces et événements, y compris ceux déjà publiés, et dans les classements des chasses au trésor, y compris dans les autres villages où vous jouez.
       La mairie peut toujours vous identifier en cas de signalement.
     </p>
 

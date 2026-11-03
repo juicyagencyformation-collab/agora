@@ -7,10 +7,25 @@ let modeArchivesChasses = false;
 let carteCreationChasse = null;
 let marqueursEtapesChasse = new Map();
 
+// ── Jouer dans un autre village (worker/src/routes/jeux_ailleurs.ts) ──
+// null = on joue chez soi. Sinon { nom, slug, mon_nom_public } de la commune visitée : les
+// appels de jeu partent vers /jeux-ailleurs/<slug>/..., et tout ce qui relève de la gestion
+// (création, archives, suppression) ou des habitants (classement exploration) est masqué.
+// Partagé avec enigmes.js (script classique : même portée globale).
+let villageVisite = null;
+
+function urlJeux(module, chemin = '') {
+  return villageVisite
+    ? `/${window.COMMUNE_SLUG}/jeux-ailleurs/${villageVisite.slug}/${module}${chemin}`
+    : `/${window.COMMUNE_SLUG}/${module}${chemin}`;
+}
+
 async function chargerChasses() {
-  const url = modeArchivesChasses
-    ? `/${window.COMMUNE_SLUG}/chasses-tresor?archivees=true`
-    : `/${window.COMMUNE_SLUG}/chasses-tresor`;
+  const url = villageVisite
+    ? `/${window.COMMUNE_SLUG}/jeux-ailleurs/${villageVisite.slug}`
+    : modeArchivesChasses
+      ? `/${window.COMMUNE_SLUG}/chasses-tresor?archivees=true`
+      : `/${window.COMMUNE_SLUG}/chasses-tresor`;
   const res = await appelApi(url);
   if (!res.ok) return;
   const { chasses } = await res.json();
@@ -114,7 +129,7 @@ function renderDetailChasse(chasse) {
   if (carteBalade) { carteBalade.remove(); carteBalade = null; }
 
   const termine = chasse.etapes_validees >= chasse.total_etapes;
-  const estGestionnaireChasse = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
+  const estGestionnaireChasse = !villageVisite && ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const estBalade = chasse.mode === 'balade';
 
   const controlesChasse = `
@@ -233,7 +248,7 @@ function validerEtapePosition(etape_id, reponse = null, bouton = null) {
   obtenirPositionPrecise((precision) => {
     if (bouton) bouton.textContent = `Précision : ±${Math.round(precision)} m…`;
   }).then(async (pos) => {
-    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider-position`, {
+    const res = await appelApi(urlJeux('chasses-tresor', '/valider-position'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -299,22 +314,35 @@ async function ouvrirScanner() {
   await demarrerScannerQr('zone-scanner', validerEtape);
 }
 
-async function validerEtape(qr_token, reponse = null) {
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider`, {
+function envoyerQrEtape(url, qr_token, reponse) {
+  return appelApi(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ qr_token, ...(reponse != null ? { reponse } : {}) }),
   });
+}
+
+// En visite, un QR se valide par la route « ailleurs » (la commune est retrouvée à partir du QR).
+// Chez soi, un QR inconnu y est retenté : c'est peut-être l'étape d'une chasse d'un autre
+// village, scannée sur place — ça marche alors sans rien choisir.
+async function validerEtape(qr_token, reponse = null) {
+  const urlAilleurs = `/${window.COMMUNE_SLUG}/jeux-ailleurs/valider-qr`;
+  let url = villageVisite ? urlAilleurs : `/${window.COMMUNE_SLUG}/chasses-tresor/valider`;
+  let res = await envoyerQrEtape(url, qr_token, reponse);
+  if (res.status === 404 && !villageVisite) {
+    const resAilleurs = await envoyerQrEtape(urlAilleurs, qr_token, reponse);
+    if (resAilleurs.status !== 404) { res = resAilleurs; url = urlAilleurs; }
+  }
   const data = await res.json();
 
   // Étape énigme : le serveur renvoie la question sans valider → on demande la réponse.
   if (res.ok && data.etape_enigme) {
-    afficherEnigmeEtape(qr_token, data.question);
+    afficherEnigmeEtape(qr_token, data.question, url);
     return;
   }
 
   if (res.ok) {
-    afficherToastMessage('Étape validée ! 🎉', 'succes');
+    afficherToastMessage(data.commune_nom ? `Étape validée à ${data.commune_nom} ! 🎉` : 'Étape validée ! 🎉', 'succes');
     if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
     traiterRecompense(data);
   } else {
@@ -325,7 +353,7 @@ async function validerEtape(qr_token, reponse = null) {
 
 // Modale d'énigme : la réponse est vérifiée côté serveur ; on garde la modale ouverte
 // tant que la réponse est fausse pour permettre de réessayer.
-function afficherEnigmeEtape(qr_token, question) {
+function afficherEnigmeEtape(qr_token, question, url) {
   const html = `
     <form id="form-enigme-etape">
       <p class="indice-etape">${escapeAttr(question)}</p>
@@ -338,11 +366,7 @@ function afficherEnigmeEtape(qr_token, question) {
     e.preventDefault();
     const reponse = overlay.querySelector('#reponse-enigme-etape').value.trim();
     if (!reponse) return;
-    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/valider`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qr_token, reponse }),
-    });
+    const res = await envoyerQrEtape(url, qr_token, reponse);
     const data = await res.json();
     if (res.ok) {
       fermerModaleFormulaire(overlay);
@@ -368,7 +392,7 @@ function afficherContenuRevele(contenu) {
 async function afficherClassement(chasseId) {
   const zone = document.getElementById('zone-classement');
   zone.innerHTML = `<p class="dechets-vide">Chargement…</p>`;
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/classement`);
+  const res = await appelApi(urlJeux('chasses-tresor', `/${chasseId}/classement`));
   if (!res.ok) { zone.innerHTML = `<p class="dechets-vide">Classement indisponible pour le moment.</p>`; return; }
   const { classement } = await res.json();
 
@@ -389,8 +413,80 @@ function initSousOngletsChasse() {
     zone.hidden = !zone.hidden;
     if (!zone.hidden) await chargerClassementExploration();
   });
+  document.getElementById('btn-jouer-ailleurs')?.addEventListener('click', () => ouvrirRechercheVillage());
   initJumpNavChasse();
   initScrollSpyChasse();
+}
+
+// ── Jouer dans un autre village : recherche, entrée, sortie ──
+
+function ouvrirRechercheVillage() {
+  const overlay = ouvrirModaleFormulaire('🧳 Jouer dans un autre village', `
+    <p style="font-size:12.5px;color:var(--roseau);margin-top:0;">Les chasses et énigmes se valident sur place : choisissez le village où vous êtes, ou celui que vous allez visiter.</p>
+    <input type="search" id="recherche-village" placeholder="Nom du village" autocomplete="off">
+    <div id="resultats-village" style="margin-top:10px;"></div>
+  `);
+  const champ = overlay.querySelector('#recherche-village');
+  const resultats = overlay.querySelector('#resultats-village');
+  let minuterie = null;
+  champ.focus();
+  champ.addEventListener('input', () => {
+    clearTimeout(minuterie);
+    minuterie = setTimeout(async () => {
+      const q = champ.value.trim();
+      if (q.length < 2) { resultats.innerHTML = ''; return; }
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/jeux-ailleurs/communes?q=${encodeURIComponent(q)}`);
+      if (!res.ok) { resultats.innerHTML = `<p class="dechets-vide">Recherche indisponible, réessayez dans un instant.</p>`; return; }
+      const { communes } = await res.json();
+      if (!communes.length) { resultats.innerHTML = `<p class="dechets-vide">Aucun village trouvé avec des jeux ouverts.</p>`; return; }
+      resultats.innerHTML = communes.map((cm) => `
+        <button type="button" class="ligne-toggle-onglet btn-choisir-village" data-slug="${escapeAttr(cm.slug)}" style="width:100%;text-align:left;background:none;cursor:pointer;">
+          <span>${escapeAttr(cm.nom)}</span>${cm.departement ? `<span style="color:var(--roseau);">${escapeAttr(cm.departement)}</span>` : ''}
+        </button>
+      `).join('');
+      resultats.querySelectorAll('.btn-choisir-village').forEach((b) => b.addEventListener('click', async () => {
+        if (await entrerDansVillage(b.dataset.slug)) fermerModaleFormulaire(overlay);
+      }));
+    }, 250);
+  });
+}
+
+async function entrerDansVillage(slug) {
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/jeux-ailleurs/${encodeURIComponent(slug)}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { afficherToastMessage(data.erreur || 'Ce village n’est pas accessible.', 'erreur'); return false; }
+  villageVisite = { ...data.commune, mon_nom_public: data.mon_nom_public };
+  idChasseDetailOuverte = null;
+  idEnigmeDetailOuverte = null;
+  modeArchivesChasses = false;
+  appliquerModeVillage();
+  chargerChasses();
+  chargerEnigmes();
+  return true;
+}
+
+function quitterVillage() {
+  villageVisite = null;
+  idChasseDetailOuverte = null;
+  idEnigmeDetailOuverte = null;
+  appliquerModeVillage();
+  chargerChasses();
+  chargerEnigmes();
+}
+
+function appliquerModeVillage() {
+  document.getElementById('onglet-chasse-tresor')?.classList.toggle('en-visite', !!villageVisite);
+  document.getElementById('zone-classement-exploration').hidden = true;
+  const bandeau = document.getElementById('bandeau-village-visite');
+  if (!bandeau) return;
+  bandeau.hidden = !villageVisite;
+  if (!villageVisite) { bandeau.innerHTML = ''; return; }
+  bandeau.innerHTML = `
+    <p style="margin:0 0 6px;">🧳 Vous jouez à <strong>${escapeAttr(villageVisite.nom)}</strong>.</p>
+    <p style="margin:0 0 10px;font-size:12px;color:var(--roseau);">Dans ses classements, vous apparaissez comme « ${escapeAttr(villageVisite.mon_nom_public)} » — modifiable dans Profil → Confidentialité. Vos points s'ajoutent à votre compte.</p>
+    <button type="button" class="btn-classement-exploration" id="btn-quitter-village" style="margin:0;">← Revenir à mon village</button>
+  `;
+  bandeau.querySelector('#btn-quitter-village').addEventListener('click', () => quitterVillage());
 }
 
 // Puces de raccourci "Chasses officielles" / "Énigme photo" : des <button> + scrollIntoView(),

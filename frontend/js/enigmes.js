@@ -3,7 +3,8 @@ let enigmesCache = [];
 let idEnigmeDetailOuverte = null;
 
 async function chargerEnigmes() {
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/enigmes`);
+  // En visite (villageVisite, voir chasse-tresor.js), la liste vient du même appel que les chasses.
+  const res = await appelApi(villageVisite ? `/${window.COMMUNE_SLUG}/jeux-ailleurs/${villageVisite.slug}` : `/${window.COMMUNE_SLUG}/enigmes`);
   if (!res.ok) return;
   const { enigmes } = await res.json();
   enigmesCache = enigmes;
@@ -72,7 +73,7 @@ function renderDetailEnigme(enigme) {
     ${!enigme.est_moi && !enigme.deja_trouve ? '<button class="btn-je-suis-ici">📍 Je suis ici !</button>' : ''}
     <div class="actions-admin" style="margin-top:10px;">
       ${!enigme.est_moi ? `<button class="btn-signaler-enigme" ${enigme.deja_signale ? 'disabled' : ''}>${enigme.deja_signale ? 'Signalée' : '🚩 Signaler'}</button>` : ''}
-      ${enigme.est_moi || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE) ? '<button class="btn-supprimer-enigme">Supprimer</button>' : ''}
+      ${!villageVisite && (enigme.est_moi || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) ? '<button class="btn-supprimer-enigme">Supprimer</button>' : ''}
     </div>
   `;
 
@@ -82,7 +83,7 @@ function renderDetailEnigme(enigme) {
   zone.querySelector('.btn-je-suis-ici')?.addEventListener('click', (e) => tenterEnigme(enigme.id, e.target));
   zone.querySelector('.btn-signaler-enigme')?.addEventListener('click', async () => {
     if (!confirm('Signaler cette énigme comme inappropriée ? Elle sera masquée en attente de revue par la mairie.')) return;
-    await appelApi(`/${window.COMMUNE_SLUG}/enigmes/${enigme.id}/signaler`, { method: 'POST' });
+    await appelApi(urlJeux('enigmes', `/${enigme.id}/signaler`), { method: 'POST' });
     idEnigmeDetailOuverte = null;
     chargerEnigmes();
   });
@@ -105,7 +106,7 @@ function tenterEnigme(enigmeId, bouton) {
   obtenirPositionPrecise((precision) => {
     bouton.textContent = `Précision : ±${Math.round(precision)} m…`;
   }).then(async (position) => {
-    const res = await appelApi(`/${window.COMMUNE_SLUG}/enigmes/${enigmeId}/valider`, {
+    const res = await appelApi(urlJeux('enigmes', `/${enigmeId}/valider`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ lat: position.coords.latitude, lng: position.coords.longitude }),

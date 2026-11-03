@@ -586,6 +586,17 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
       return [];
     }
   };
+  // Jeux joués dans d'autres communes (routes/jeux_ailleurs.ts) : ces lignes sont enregistrées
+  // chez la commune visitée, donc invisibles du filtre commune_id ci-dessus — mais ce sont bien
+  // les données de la personne, elles font partie de son export.
+  const requeteToutesCommunes = async (table: string, champs: string) => {
+    try {
+      return await supabaseSelect(c.env, table, { select: champs, user_id: `eq.${user_id}` });
+    } catch (err) {
+      console.warn(`Export RGPD : lecture de "${table}" échouée`, err);
+      return [];
+    }
+  };
 
   const [profil] = await supabaseSelect(c.env, 'users', {
     select: 'nom,prenom,email,role,xp,niveau,created_at',
@@ -604,9 +615,9 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
     requete('alertes', 'id,titre,description,statut,urgent,created_at'),
     requete('coups_de_main', 'id,type,titre,description,created_at'),
     requete('chasses_tresor', 'id,titre,description,created_at'),
-    requete('progressions_chasse', 'chasse_id,etape_id,validee_at'),
+    requeteToutesCommunes('progressions_chasse', 'commune_id,chasse_id,etape_id,validee_at'),
     requete('photos_enigmes', 'id,indice,created_at'),
-    requete('enigme_reussites', 'enigme_id,distance_metres'),
+    requeteToutesCommunes('enigme_reussites', 'commune_id,enigme_id,distance_metres'),
     requete('photos_du_jour', 'id,created_at,libre_de_droit'),
     requete('events', 'id,titre,date_debut,created_at'),
     requete('event_attendees', 'event_id,actif,created_at'),
