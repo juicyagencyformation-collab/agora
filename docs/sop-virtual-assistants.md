@@ -152,6 +152,8 @@ Boutons rapides "🆓 Passer en Gratuit" / "💶 Passer en Version complète", o
 
 Choisis une formule (Autonomie/Accompagné/Premium) → le prix suggéré se calcule en direct selon la population de la commune → **"Appliquer ce tarif"** ne fait que préremplir le champ, le prix réellement facturé (`Prix TTC/an`) reste **toujours modifiable à la main**. Pour Premium, coche "1re année" seulement si c'est une création (chasse au trésor incluse) — décoche pour un renouvellement.
 
+⚠️ **La formule enregistrée active des services, ce n'est pas qu'une étiquette de prix** : la **modération automatique des photos** ne tourne que pour Autonomie, Accompagné et Premium, et le **bilan mensuel** par email que pour Accompagné et Premium. Une commune payante sans formule choisie n'a ni l'un ni l'autre — toujours choisir et enregistrer la formule sur la fiche d'une commune qui paie (ou fondatrice).
+
 ### 6.4 Devis & facturation
 
 Cycle complet, intégré dans la fiche commune :
