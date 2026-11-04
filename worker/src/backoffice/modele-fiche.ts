@@ -32,9 +32,9 @@ export const MODELE_FICHE_DEFAUT = `
       <div class="mod"><h3><span class="puce"></span>Conseil municipal</h3><p>Délibérations, comptes-rendus et trombinoscope des élus, en toute transparence.</p></div>
       <div class="mod"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
       <div class="mod"><h3><span class="puce"></span>Annuaire local</h3><p>Commerces, artisans et associations, enfin réunis en un seul endroit pour vos habitants.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Patrimoine &amp; mémoire</h3><p>Chasse au trésor géolocalisée et « La mémoire du village » pour honorer les anciens.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Actualités &amp; bulletin</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Veille législative</h3><p>Suivi automatique des textes adoptés à l'Assemblée nationale et au Parlement européen.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Mémoire du village</h3><p>Récits, photos d'époque et témoignages des anciens, pour garder l'histoire du village vivante.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Actualités</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Chasse au trésor &amp; énigmes</h3><p>Parcours géolocalisés et énigmes photo pour (re)découvrir le patrimoine, ici ou dans les villages voisins.</p></div>
     </div>
 
     <div class="atouts">

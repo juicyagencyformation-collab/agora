@@ -1,8 +1,8 @@
 // worker/src/backoffice/tarification.ts
 // Nouveau barème au nombre d'habitants (2026-08-21, décidé avec Léandre) — voir la migration
-// 050_bareme_habitant.sql pour le détail de la formule et pourquoi elle coexiste avec l'ancienne
-// grille par tranches (grille_tarifaire, toujours utilisée pour les devis de communes déjà
-// clientes). Tout est stocké dans parametres_facturation (clé/valeur), jamais codé en dur : ce
+// 050_bareme_habitant.sql pour le détail de la formule. L'ancienne grille par tranches
+// (grille_tarifaire) n'est plus utilisée nulle part et a été retirée des Réglages le 2026-11-04.
+// Tout est stocké dans parametres_facturation (clé/valeur), jamais codé en dur : ce
 // fichier ne fait que lire ces valeurs et appliquer la formule, exposée publiquement (sans auth)
 // via GET /backoffice/tarifs-contenu pour que la landing page calcule le prix en direct côté
 // client — même formule recalculée en JS dans accueil.html (voir le commentaire là-bas) ET dans

@@ -13,7 +13,7 @@ import { supabaseSelect, supabaseUpdate, supabaseInsert } from '../db';
 export const DEFAUTS_CONTENU_TEXTE: Record<string, string> = {
   popup_verrouille_titre: 'Ce module fait partie de l\'offre complète',
   popup_verrouille_corps:
-    '<p>Le module <strong>{{module}}</strong> s\'active avec les formules Essentiel, Pro ou Premium.</p>'
+    '<p>Le module <strong>{{module}}</strong> s\'active avec les formules Autonomie et Accompagné.</p>'
     + '<p>Vous voulez voir ce que ça donnerait concrètement pour votre commune&nbsp;? Répondez à '
     + 'l\'email de bienvenue ou appelez Léandre au <a href="tel:0648061097">06 48 06 10 97</a> — '
     + 'pas de formulaire à remplir, juste une conversation.</p>',

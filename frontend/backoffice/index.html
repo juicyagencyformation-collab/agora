@@ -594,41 +594,6 @@
           </div>
 
           <div class="bo-tiroir" x-show="estAdmin()">
-            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('grille_tarifaire')">
-              <span>💶 Mois offerts (engagement 3 ans) + ancienne grille par tranches (legacy)</span>
-              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.grille_tarifaire}">▸</span>
-            </button>
-            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.grille_tarifaire">
-              <label style="margin-top:0">Mois offerts pour un engagement 3 ans</label>
-              <input type="number" min="0" max="36" x-model="grilleTarifaire.mois_offerts_3ans" style="width:100px" />
-              <div class="bo-info" style="margin:6px 0 14px">
-                Réutilisé par la fiche commune ET le devis (proratisation du tarif suggéré sur 3 ans) — le seul réglage
-                de ce tiroir encore actif.
-              </div>
-              <div class="bo-info" style="margin-bottom:12px">
-                Ancienne grille par tranches — remplacée le 2026-09-03 par la tarification au nombre d'habitants
-                (voir le tiroir « Tarification de la landing page » ci-dessous). Ne sert plus à rien côté fiche
-                commune ni devis ; gardée en base au cas où, sans suppression.
-              </div>
-              <table style="margin-bottom:14px">
-                <thead><tr><th>Tranche de population</th><th>Prix annuel TTC</th></tr></thead>
-                <tbody>
-                  <template x-for="t in grilleTarifaire.tranches" :key="t.id">
-                    <tr style="cursor:default">
-                      <td x-text="libelleTranche(t)"></td>
-                      <td><input type="number" min="0" step="10" x-model="t.prix_annuel_ttc" style="width:140px" /> €</td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-              <div style="display:flex; align-items:center; gap:12px; margin-top:14px">
-                <button class="bo-btn bo-btn--sec bo-btn--compact" @click="enregistrerGrille()" :disabled="grilleEnCours">Enregistrer</button>
-                <span class="bo-info" x-text="grilleMsg"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="bo-tiroir" x-show="estAdmin()">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('bareme_tarifaire')">
               <span>📐 Tarification de la landing page (Autonomie / Accompagné / Premium)</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.bareme_tarifaire}">▸</span>
@@ -885,35 +850,6 @@
                 </tbody>
               </table>
               <div style="padding:10px 18px" class="bo-info" x-text="staffMsg"></div>
-            </div>
-          </div>
-
-          <div class="bo-tiroir">
-            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('journal')">
-              <span>📜 Journal d'activité</span>
-              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.journal}">▸</span>
-            </button>
-            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.journal" x-init="chargerJournal()">
-              <div style="padding:14px 18px 4px" class="bo-info">
-                Uniquement les actions à fort impact (palier gratuit, grille tarifaire, statut d'une commune,
-                anonymisation RGPD, comptes staff, facture soldée) — pas un journal exhaustif de toute activité.
-              </div>
-              <table>
-                <thead><tr><th>Qui</th><th>Action</th><th>Détail</th><th>Quand</th></tr></thead>
-                <tbody>
-                  <template x-for="e in journalActivite" :key="e.id">
-                    <tr style="cursor:default">
-                      <td x-text="e.staff_nom"></td>
-                      <td x-text="e.action"></td>
-                      <td><span :class="{ 'bo-vide': !e.details }" x-text="e.details || '—'"></span></td>
-                      <td x-text="formatDateHeure(e.created_at)"></td>
-                    </tr>
-                  </template>
-                  <template x-if="journalActivite.length === 0">
-                    <tr><td colspan="4" class="bo-vide" style="text-align:center">Aucune activité enregistrée.</td></tr>
-                  </template>
-                </tbody>
-              </table>
             </div>
           </div>
 
@@ -2445,6 +2381,35 @@
           </div>
           <div class="bo-erreur" x-show="erreurChargement" x-text="erreurChargement" style="margin-bottom:16px"></div>
 
+          <div class="bo-tiroir" style="margin-bottom:20px">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('journal')">
+              <span>📜 Journal des actions du staff</span>
+              <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.journal}">▸</span>
+            </button>
+            <div class="bo-tiroir__corps bo-tiroir__corps--table" x-show="tiroirsOuverts.journal" x-init="chargerJournal()">
+              <div style="padding:14px 18px 4px" class="bo-info">
+                Uniquement les actions à fort impact (version gratuite, tarifs, statut d'une commune, signatures, documents,
+                anonymisation RGPD, comptes staff, facture soldée) — pas un journal exhaustif de toute activité.
+              </div>
+              <table>
+                <thead><tr><th>Qui</th><th>Action</th><th>Détail</th><th>Quand</th></tr></thead>
+                <tbody>
+                  <template x-for="e in journalActivite" :key="e.id">
+                    <tr style="cursor:default">
+                      <td x-text="e.staff_nom"></td>
+                      <td x-text="e.action"></td>
+                      <td><span :class="{ 'bo-vide': !e.details }" x-text="e.details || '—'"></span></td>
+                      <td x-text="formatDateHeure(e.created_at)"></td>
+                    </tr>
+                  </template>
+                  <template x-if="journalActivite.length === 0">
+                    <tr><td colspan="4" class="bo-vide" style="text-align:center">Aucune activité enregistrée.</td></tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div class="bo-grille-stats">
             <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_7j"></div><div class="bo-stat__lib">Nouveaux comptes (7j)</div></div>
             <div class="bo-stat"><div class="bo-stat__val" x-text="resumeActivite.comptes_30j"></div><div class="bo-stat__lib" x-text="'Nouveaux comptes (' + filtreActiviteDepuis + 'j)'"></div></div>
@@ -3468,7 +3433,9 @@
                 <label style="margin-top:0">Engagement</label>
                 <select x-model.number="fiche.commune.duree_engagement_mois" style="width:auto">
                   <option :value="12">1 an</option>
-                  <option :value="36" x-text="'3 ans (' + (grilleTarifaire.mois_offerts_3ans || 0) + ' mois offerts)'"></option>
+                  <!-- Engagement 3 ans abandonné le 2026-11-04 (le site annonce « sans engagement de durée ») :
+                       l'option ne reste visible que pour une commune déjà engagée ainsi (Eaucourt). -->
+                  <template x-if="Number(fiche.commune.duree_engagement_mois) === 36"><option :value="36">3 ans (engagement en cours)</option></template>
                 </select>
               </div>
               <div class="bo-champ-inline">
@@ -3632,13 +3599,6 @@
               <div class="bo-champ-inline">
                 <label style="margin-top:0">TVA %</label>
                 <input type="number" min="0" max="100" step="0.1" x-model.number="nouveauDevis.taux_tva" style="width:80px" />
-              </div>
-              <div class="bo-champ-inline">
-                <label style="margin-top:0">Engagement</label>
-                <select x-model.number="nouveauDevis.duree_engagement_mois" style="width:auto">
-                  <option :value="12">1 an</option>
-                  <option :value="36">3 ans</option>
-                </select>
               </div>
               <button class="bo-btn bo-btn--compact" @click="creerDevis()" :disabled="devisEnCours || !nouveauDevis.objet || !nouveauDevis.montant_ht">Créer le devis</button>
             </div>
@@ -4429,7 +4389,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261104-6"></script>
+  <script src="/backoffice/js/app.js?v=20261104-7"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

@@ -191,9 +191,9 @@ function backoffice() {
     emailsRejetes: [],
     correctionEnCours: false,
     correctionMsg: '',
+    // Ne sert plus qu'à recalculer le prix d'une commune déjà engagée sur 3 ans (mois offerts) — la
+    // grille par tranches et le réglage des mois offerts ont été retirés des Réglages le 2026-11-04.
     grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
-    grilleEnCours: false,
-    grilleMsg: '',
     baremeTarifaire: {
       taux_base: 0, seuil_degressif: 0, taux_degressif: 0,
       prix_plancher: 0, supplement_accompagne: 0, prix_patrimoine_premium: 0,
@@ -2243,24 +2243,6 @@ function backoffice() {
       }
     },
 
-    async enregistrerGrille() {
-      this.grilleEnCours = true;
-      this.grilleMsg = '';
-      try {
-        await boFetch('/administration/grille-tarifaire', {
-          method: 'PUT',
-          body: JSON.stringify({
-            tranches: this.grilleTarifaire.tranches.map((t) => ({ id: t.id, prix_annuel_ttc: Number(t.prix_annuel_ttc) || 0 })),
-            mois_offerts_3ans: Number(this.grilleTarifaire.mois_offerts_3ans) || 0,
-          }),
-        });
-        this.grilleMsg = 'Grille enregistrée.';
-      } catch (e) {
-        this.grilleMsg = e.message || 'Échec';
-      } finally {
-        this.grilleEnCours = false;
-      }
-    },
     async enregistrerBareme() {
       this.baremeEnCours = true;
       this.baremeMsg = '';
