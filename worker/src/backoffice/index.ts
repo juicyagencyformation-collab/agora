@@ -9,7 +9,7 @@ import { routesStaff as conventionsStaff, routesFormulaire as conventionFormulai
 import annoncesPlateforme from './annonces-plateforme';
 import { Hono } from 'hono';
 import auth from './auth';
-import administration from './administration';
+import administration, { TOUS_LES_ONGLETS } from './administration';
 import prospection from './prospection';
 import onboarding from './onboarding';
 import facturation from './facturation';
@@ -28,8 +28,22 @@ const app = new Hono();
 // Contenu de la fiche de présentation — PUBLIC (pas d'auth) : la fiche est consultable par les
 // communes via le lien de l'email. Contenu marketing uniquement, rien de sensible. L'édition,
 // elle, passe par /administration/modele-fiche (protégée).
+// ?slug= : renvoie aussi les onglets actifs de la commune, pour que la fiche n'affiche que les
+// modules réellement ouverts chez elle (l'application montre déjà publiquement lesquels sont
+// verrouillés : rien de sensible). Slug inconnu ou absent : onglets_actifs = null, tout s'affiche.
 app.get('/fiche-contenu', async (c) => {
-  return c.json(await chargerFiche(c.env));
+  const slug = (c.req.query('slug') || '').trim();
+  let onglets_actifs: string[] | null = null;
+  if (/^[a-z0-9-]{1,80}$/.test(slug)) {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id', slug: `eq.${slug}` });
+    if (commune) {
+      const desactives = (await supabaseSelect(c.env, 'onglets_config', {
+        select: 'cle', commune_id: `eq.${commune.id}`, actif: 'eq.false',
+      })).map((o: any) => o.cle);
+      onglets_actifs = TOUS_LES_ONGLETS.filter((cle) => !desactives.includes(cle));
+    }
+  }
+  return c.json({ ...(await chargerFiche(c.env)), onglets_actifs });
 });
 
 // Contenu de l'affiche citoyenne (voir modele-affiche.ts) — PUBLIC (pas d'auth) : imprimée par

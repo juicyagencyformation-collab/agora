@@ -18,6 +18,17 @@
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
   ));
 
+  // Onglets actifs de la commune (null = inconnus : toutes les cartes restent). Une carte de module
+  // (data-onglet="cle" ou "cle1,cle2") disparaît si aucun de ses onglets n'est actif.
+  let ongletsActifs = null;
+  function masquerModulesInactifs() {
+    if (!ongletsActifs) return;
+    document.querySelectorAll('#feuille [data-onglet]').forEach((carte) => {
+      const cles = carte.dataset.onglet.split(',').map((c) => c.trim());
+      if (!cles.some((c) => ongletsActifs.includes(c))) carte.remove();
+    });
+  }
+
   function rendre(contenu, logoUrl) {
     const logoHtml = logoUrl
       ? `<img src="${logoUrl}" alt="Plateforme-Agora" style="max-height:64px;max-width:220px;object-fit:contain" />`
@@ -34,6 +45,7 @@
       .replace(/\{\{commune\}\}/g, echapper(nom))
       .replace(/\{\{qr\}\}/g, qrSvg)
       .replace(/\{\{url\}\}/g, echapper(urlAffichee));
+    masquerModulesInactifs();
   }
 
   let apercuActif = false;
@@ -46,9 +58,10 @@
   (async function () {
     let contenu = '', logoUrl = null;
     try {
-      const d = await fetch('/api/backoffice/fiche-contenu').then((r) => r.json());
+      const d = await fetch('/api/backoffice/fiche-contenu?slug=' + encodeURIComponent(slug)).then((r) => r.json());
       contenu = d.contenu_html || '';
       logoUrl = d.logo_url || null;
+      ongletsActifs = Array.isArray(d.onglets_actifs) ? d.onglets_actifs : null;
     } catch { /* réseau KO : on affichera au moins le titre par défaut */ }
     // Un message d'aperçu a pu arriver pendant ce fetch : ne pas l'écraser avec le contenu enregistré.
     if (!apercuActif) rendre(contenu, logoUrl);

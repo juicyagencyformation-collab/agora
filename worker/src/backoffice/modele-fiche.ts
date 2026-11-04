@@ -4,6 +4,9 @@
 // frontend/backoffice/fiche.html ; seul ce contenu varie. Variables substituées côté client
 // (fiche.js) : {{logo}}, {{commune}}, {{qr}}, {{url}}. Le logo réutilise celui de l'email
 // (modeles_email cle='presentation', logo_image_url).
+// Depuis le 2026-11-04 : chaque carte de module porte data-onglet="cle[,cle]" — fiche.js retire
+// celles dont aucun onglet n'est actif pour la commune (une commune gratuite ne promet ainsi pas à
+// ses habitants des onglets verrouillés chez elle). Une carte sans data-onglet reste toujours affichée.
 import { supabaseSelect } from '../db';
 
 export const MODELE_FICHE_DEFAUT = `
@@ -27,14 +30,14 @@ export const MODELE_FICHE_DEFAUT = `
     </div>
 
     <div class="grille">
-      <div class="mod"><h3><span class="puce"></span>Agenda &amp; points citoyens</h3><p>Le calendrier de la vie locale — réunions, chantiers, ateliers — avec des points de participation vérifiés sur place.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Coups de main entre voisins</h3><p>Bricolage, jardinage, garde d'enfants, transport : l'entraide de proximité organisée simplement.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Conseil municipal</h3><p>Délibérations, comptes-rendus et trombinoscope des élus, en toute transparence.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Annuaire local</h3><p>Commerces, artisans et associations, enfin réunis en un seul endroit pour vos habitants.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Mémoire du village</h3><p>Récits, photos d'époque et témoignages des anciens, pour garder l'histoire du village vivante.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Actualités</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
-      <div class="mod"><h3><span class="puce"></span>Chasse au trésor &amp; énigmes</h3><p>Parcours géolocalisés et énigmes photo pour (re)découvrir le patrimoine, ici ou dans les villages voisins.</p></div>
+      <div class="mod" data-onglet="agenda"><h3><span class="puce"></span>Agenda &amp; points citoyens</h3><p>Le calendrier de la vie locale — réunions, chantiers, ateliers — avec des points de participation vérifiés sur place.</p></div>
+      <div class="mod" data-onglet="coups_de_main"><h3><span class="puce"></span>Coups de main entre voisins</h3><p>Bricolage, jardinage, garde d'enfants, transport : l'entraide de proximité organisée simplement.</p></div>
+      <div class="mod" data-onglet="conseil"><h3><span class="puce"></span>Conseil municipal</h3><p>Délibérations, comptes-rendus et trombinoscope des élus, en toute transparence.</p></div>
+      <div class="mod" data-onglet="alertes"><h3><span class="puce"></span>Alertes &amp; signalements</h3><p>Coupure d'eau, route barrée, dépôt sauvage : informez et recevez les signalements citoyens.</p></div>
+      <div class="mod" data-onglet="annuaire"><h3><span class="puce"></span>Annuaire local</h3><p>Commerces, artisans et associations, enfin réunis en un seul endroit pour vos habitants.</p></div>
+      <div class="mod" data-onglet="memoire"><h3><span class="puce"></span>Mémoire du village</h3><p>Récits, photos d'époque et témoignages des anciens, pour garder l'histoire du village vivante.</p></div>
+      <div class="mod" data-onglet="actualites"><h3><span class="puce"></span>Actualités</h3><p>Publiez les nouvelles de la commune, elles arrivent directement sur le téléphone des habitants.</p></div>
+      <div class="mod" data-onglet="chasse_tresor,enigmes"><h3><span class="puce"></span>Chasse au trésor &amp; énigmes</h3><p>Parcours géolocalisés et énigmes photo pour (re)découvrir le patrimoine, ici ou dans les villages voisins.</p></div>
     </div>
 
     <div class="atouts">
