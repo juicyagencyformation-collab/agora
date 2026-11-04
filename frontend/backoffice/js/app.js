@@ -2647,9 +2647,7 @@ function backoffice() {
       try { this.imageSignature = (await boFetch('/administration/signature-prestataire')).image; } catch {}
     },
     // FormData (image) : pas boFetch, qui force un Content-Type JSON.
-    async deposerImageSignature(evenement) {
-      const fichier = evenement.target.querySelector('input[type=file]').files[0];
-      if (!fichier) return;
+    async envoyerImageSignature(fichier) {
       const fd = new FormData();
       fd.set('fichier', fichier);
       this.signatureMsg = '';
@@ -2657,10 +2655,83 @@ function backoffice() {
         const res = await fetch('/api/backoffice/administration/signature-prestataire', { method: 'PUT', credentials: 'include', body: fd });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.erreur || 'Enregistrement impossible');
-        evenement.target.reset();
-        this.signatureMsg = 'Signature enregistrée : elle apparaîtra sur les prochaines conventions consultées.';
+        this.signatureMsg = 'Signature enregistrée : elle apparaîtra sur les conventions que vous signerez.';
         await this.chargerImageSignature();
-      } catch (e) { this.signatureMsg = e.message; }
+        return true;
+      } catch (e) { this.signatureMsg = e.message; return false; }
+    },
+    async deposerImageSignature(evenement) {
+      const fichier = evenement.target.querySelector('input[type=file]').files[0];
+      if (fichier && await this.envoyerImageSignature(fichier)) evenement.target.reset();
+    },
+
+    // — Zone de signature au doigt / stylet / souris (Pointer Events, canvas, aucune bibliothèque) —
+    // Le cadre est blanc à l'écran mais l'image exportée est transparente, recadrée au plus près du
+    // tracé (bornes suivies pendant le dessin) pour rester nette une fois réduite dans la convention.
+    padVide: true,
+    preparerPadSignature() {
+      const canvas = this.$refs.padSignature;
+      if (!canvas || canvas.dataset.pret || !canvas.clientWidth) return;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = canvas.clientWidth * ratio;
+      canvas.height = canvas.clientHeight * ratio;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(ratio, ratio);
+      Object.assign(ctx, { lineWidth: 2.6, lineCap: 'round', lineJoin: 'round', strokeStyle: '#14213d', fillStyle: '#14213d' });
+      canvas.bornes = null;
+      let dernier = null;
+      const point = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+      const etendre = (p) => {
+        const b = canvas.bornes;
+        canvas.bornes = b ? { x1: Math.min(b.x1, p.x), y1: Math.min(b.y1, p.y), x2: Math.max(b.x2, p.x), y2: Math.max(b.y2, p.y) } : { x1: p.x, y1: p.y, x2: p.x, y2: p.y };
+      };
+      canvas.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        dernier = point(e);
+        etendre(dernier);
+        ctx.beginPath(); ctx.arc(dernier.x, dernier.y, 1.3, 0, Math.PI * 2); ctx.fill();
+        this.padVide = false;
+      });
+      canvas.addEventListener('pointermove', (e) => {
+        if (!dernier) return;
+        const p = point(e);
+        ctx.beginPath(); ctx.moveTo(dernier.x, dernier.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+        dernier = p;
+        etendre(p);
+      });
+      for (const fin of ['pointerup', 'pointercancel']) canvas.addEventListener(fin, () => { dernier = null; });
+      canvas.dataset.pret = '1';
+    },
+    effacerPadSignature() {
+      const canvas = this.$refs.padSignature;
+      if (!canvas) return;
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+      canvas.bornes = null;
+      this.padVide = true;
+    },
+    // PNG transparent recadré sur le tracé (+ petite marge), en pixels réels de l'écran.
+    exporterPadSignature() {
+      const canvas = this.$refs.padSignature;
+      const b = canvas?.bornes;
+      if (!b) return Promise.resolve(null);
+      const ratio = canvas.width / canvas.clientWidth;
+      const marge = 6;
+      const x = Math.max(0, (b.x1 - marge) * ratio);
+      const y = Math.max(0, (b.y1 - marge) * ratio);
+      const l = Math.min(canvas.width - x, (b.x2 - b.x1 + 2 * marge) * ratio);
+      const h = Math.min(canvas.height - y, (b.y2 - b.y1 + 2 * marge) * ratio);
+      const recadre = document.createElement('canvas');
+      recadre.width = Math.max(1, Math.round(l));
+      recadre.height = Math.max(1, Math.round(h));
+      recadre.getContext('2d').drawImage(canvas, x, y, l, h, 0, 0, recadre.width, recadre.height);
+      return new Promise((ok) => recadre.toBlob(ok, 'image/png'));
+    },
+    async enregistrerPadSignature() {
+      const image = await this.exporterPadSignature();
+      if (!image) return;
+      if (image.size > 1024 * 1024) { this.signatureMsg = 'Signature trop détaillée : effacez et recommencez plus simplement.'; return; }
+      if (await this.envoyerImageSignature(new File([image], 'signature.png', { type: 'image/png' }))) this.effacerPadSignature();
     },
     async supprimerImageSignature() {
       if (!confirm('Supprimer l’image de votre signature ? Les conventions afficheront seulement la mention écrite.')) return;

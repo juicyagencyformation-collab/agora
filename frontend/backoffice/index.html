@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261104-2" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261104-3" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -743,27 +743,41 @@
           <!-- Signature manuscrite du Prestataire (facturation.ts, /signature-prestataire) : apposée sur les
                conventions signées électroniquement. Stockée dans l'espace privé, jamais sur le CDN public. -->
           <div class="bo-tiroir" x-show="estAdmin()">
-            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('signature'); if (tiroirsOuverts.signature) chargerImageSignature()">
+            <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('signature'); if (tiroirsOuverts.signature) { chargerImageSignature(); $nextTick(() => preparerPadSignature()) }">
               <span>✍️ Ma signature manuscrite</span>
               <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.signature}">▸</span>
             </button>
-            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.signature">
+            <div class="bo-tiroir__corps" x-show="tiroirsOuverts.signature" x-init="tiroirsOuverts.signature && chargerImageSignature()">
               <div class="bo-info" style="margin-bottom:12px">
-                Image apposée à côté de la mention « Signé électroniquement » de vos conventions. Signez sur une feuille blanche,
-                prenez-la en photo bien à plat (ou scannez-la), recadrez au plus près : PNG ou JPEG, 1 Mo maximum. Un PNG à fond transparent rend le mieux.
-                Elle n'a aucune adresse publique : elle n'est intégrée qu'aux documents générés par le backoffice.
+                Image apposée à côté de la mention « Signé électroniquement » de vos conventions. Signez dans le cadre blanc avec le doigt
+                (sur téléphone ou tablette), un stylet ou la souris. Elle n'a aucune adresse publique : elle n'est intégrée qu'aux documents
+                générés par le backoffice.
               </div>
-              <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap">
-                <div style="background:#fff; border-radius:8px; padding:10px; min-width:200px; min-height:70px; display:flex; align-items:center; justify-content:center">
-                  <template x-if="imageSignature"><img :src="imageSignature" alt="Ma signature" style="max-height:64px; max-width:200px"></template>
-                  <template x-if="!imageSignature"><span style="color:#666; font-size:12px">Aucune signature enregistrée</span></template>
+              <div style="display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap">
+                <div style="display:grid; gap:8px; flex:1; min-width:260px; max-width:520px">
+                  <canvas x-ref="padSignature" class="bo-pad-signature" @pointerover="preparerPadSignature()"
+                          aria-label="Zone de signature : signez avec le doigt, un stylet ou la souris"></canvas>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap">
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" @click="effacerPadSignature()">Effacer</button>
+                    <button class="bo-btn bo-btn--compact" @click="enregistrerPadSignature()" :disabled="padVide">Enregistrer cette signature</button>
+                  </div>
                 </div>
-                <form @submit.prevent="deposerImageSignature($event)" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
-                  <input type="file" accept="image/png,image/jpeg" required>
-                  <button class="bo-btn bo-btn--compact">Enregistrer</button>
-                </form>
-                <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="imageSignature" @click="supprimerImageSignature()">Supprimer</button>
+                <div style="display:grid; gap:8px">
+                  <div class="bo-info">Signature enregistrée :</div>
+                  <div style="background:#fff; border-radius:8px; padding:10px; min-width:200px; min-height:70px; display:flex; align-items:center; justify-content:center">
+                    <template x-if="imageSignature"><img :src="imageSignature" alt="Ma signature" style="max-height:64px; max-width:200px"></template>
+                    <template x-if="!imageSignature"><span style="color:#666; font-size:12px">Aucune signature enregistrée</span></template>
+                  </div>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="imageSignature" @click="supprimerImageSignature()">Supprimer</button>
+                </div>
               </div>
+              <details style="margin-top:10px">
+                <summary class="bo-info" style="cursor:pointer">Ou importer une image (photo ou scan, PNG ou JPEG, 1 Mo maximum)</summary>
+                <form @submit.prevent="deposerImageSignature($event)" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px">
+                  <input type="file" accept="image/png,image/jpeg" required>
+                  <button class="bo-btn bo-btn--compact">Importer</button>
+                </form>
+              </details>
               <div class="bo-info" style="margin-top:8px" x-text="signatureMsg"></div>
             </div>
           </div>
@@ -4415,7 +4429,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261104-5"></script>
+  <script src="/backoffice/js/app.js?v=20261104-6"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
