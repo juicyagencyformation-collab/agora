@@ -158,6 +158,8 @@ describe('document', () => {
     expect(offerte).toContain('sans aucune contrepartie financière');
     expect(offerte).toContain('aucune facture pendant la période fondatrice');
     expect(offerte).toContain('<td>Prix</td><td>Offert</td>');
+    expect(offerte).toContain('Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.');
+    expect(standard).toContain('Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.');
     expect(offerte).not.toMatch(/1 €|euro versé/);
     expect(offerte).not.toContain('<th>Abonnement fondateur</th>');
   });

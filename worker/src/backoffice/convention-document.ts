@@ -150,8 +150,8 @@ export function genererConventionHtml(
       <p>Ce tarif est garanti sans limite de durée tant que l'abonnement se poursuit sans interruption. Une interruption de plus de 3 mois met fin au tarif fondateur. La réduction de 35 % s'applique aussi aux packs de contenus.</p>
       ${preavis}
       <p><strong>Paiement</strong> — l'abonnement est facturé annuellement, en début de période.</p>
-      ${offerte ? `<p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (actualités, agenda, signalements, chasse au trésor, énigme photo) : rien n'est supprimé et les habitants gardent leur compte.</p>`
-        : `<p><strong>Fin de l'abonnement</strong> — si l'abonnement n'est pas reconduit, l'espace bascule sur la version gratuite (actualités, agenda, signalements, chasse au trésor, énigme photo) : rien n'est supprimé et les habitants gardent leur compte.</p>`}
+      ${offerte ? `<p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (actualités, agenda, signalements, chasse au trésor, énigme photo) : rien n'est supprimé et les habitants gardent leur compte. Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.</p>`
+        : `<p><strong>Fin de l'abonnement</strong> — si l'abonnement n'est pas reconduit, l'espace bascule sur la version gratuite (actualités, agenda, signalements, chasse au trésor, énigme photo) : rien n'est supprimé et les habitants gardent leur compte. Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.</p>`}
       ${offerte ? `
       <table>
         <thead><tr><th></th><th>Période fondatrice</th><th>Après 12 mois</th></tr></thead>
