@@ -7,13 +7,19 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
-import { backofficeMiddleware } from '../middleware/backoffice';
+import { backofficeMiddleware, exigerAdmin } from '../middleware/backoffice';
 import { departementDeLaCommune } from '../lib/regions';
-import { genererConventionHtml, LIBELLES_ONGLETS } from './convention-document';
+import { genererConventionHtml, LIBELLES_ONGLETS, assemblerConventionEtDpa, appliquerSignature, empreinteSha256 } from './convention-document';
+import { genererContratDpaHtml } from './contrat-dpa';
+import { infosContratDpa, chargerImageSignature } from './facturation';
 
 const COLONNES = 'id,commune_id,statut,numero_fondatrice,signataire_nom,signataire_qualite,deliberation_reference,'
   + 'deliberation_date,option_reconduction,siret_commune,code_service_chorus,facturation_nom,facturation_email,'
-  + 'date_debut_souhaitee,citation_autorisee,premiere_annee_offerte,prix_annuel_fondateur,conditions_particulieres,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at';
+  + 'date_debut_souhaitee,citation_autorisee,premiere_annee_offerte,prix_annuel_fondateur,conditions_particulieres,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at,'
+  + 'signature_prestataire_le,signature_prestataire_empreinte';
+// Une fois signée par le Prestataire, la convention est figée : seuls ces champs restent modifiables
+// (suivi de la signature côté mairie). Tout le reste changerait le texte signé.
+const CHAMPS_MODIFIABLES_APRES_SIGNATURE = ['statut', 'signee_le'];
 const CHAMPS_COMMUNE = ['signataire_nom', 'signataire_qualite', 'deliberation_reference', 'deliberation_date', 'option_reconduction',
   'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee', 'citation_autorisee'] as const;
 
@@ -105,8 +111,11 @@ routesStaff.post('/commune/:communeId', async (c) => {
 routesStaff.patch('/:id', async (c) => {
   const body = staffSchema.safeParse(corpsNormalise(await c.req.json().catch(() => null)));
   if (!body.success) return c.json({ erreur: premiereErreur(body.error) }, 400);
-  const [actuelle] = await supabaseSelect(c.env, 'conventions', { select: 'id,commune_id,statut,envoyee_le', id: `eq.${c.req.param('id')}` });
+  const [actuelle] = await supabaseSelect(c.env, 'conventions', { select: 'id,commune_id,statut,envoyee_le,signature_prestataire_le', id: `eq.${c.req.param('id')}` });
   if (!actuelle) return c.json({ erreur: 'Convention introuvable' }, 404);
+  if (actuelle.signature_prestataire_le && Object.keys(body.data).some((k) => !CHAMPS_MODIFIABLES_APRES_SIGNATURE.includes(k))) {
+    return c.json({ erreur: 'Convention figée par votre signature : annulez-la d\'abord pour modifier son contenu.' }, 409);
+  }
 
   const patch: Record<string, unknown> = { ...body.data, updated_at: new Date().toISOString() };
   if (body.data.statut === 'envoyee' && !actuelle.envoyee_le) patch.envoyee_le = new Date().toISOString();
@@ -124,19 +133,69 @@ routesStaff.patch('/:id', async (c) => {
   return c.json({ convention });
 });
 
-routesStaff.get('/:id/document', async (c) => {
-  const [conv] = await supabaseSelect(c.env, 'conventions', { select: COLONNES, id: `eq.${c.req.param('id')}` });
-  if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
-  const [[commune], entreprise, departement, onglets] = await Promise.all([
-    supabaseSelect(c.env, 'communes', { select: 'nom,slug', id: `eq.${conv.commune_id}` }),
-    chargerEntreprise(c.env),
-    departementDeLaCommune(c.env, conv.commune_id),
-    supabaseSelect(c.env, 'onglets_config', { select: 'cle,actif', commune_id: `eq.${conv.commune_id}` }),
+// Convention + DPA en annexe 1, NON signé (marqueurs de signature vides) : c'est ce document qui est
+// signé et dont l'empreinte est calculée. Régénéré depuis la fiche tant que la convention n'est pas figée.
+async function documentComplet(env: any, conv: any): Promise<{ html: string; commune_nom: string | undefined }> {
+  const [[commune], entreprise, departement, onglets, dpa] = await Promise.all([
+    supabaseSelect(env, 'communes', { select: 'nom,slug', id: `eq.${conv.commune_id}` }),
+    chargerEntreprise(env),
+    departementDeLaCommune(env, conv.commune_id),
+    supabaseSelect(env, 'onglets_config', { select: 'cle,actif', commune_id: `eq.${conv.commune_id}` }),
+    infosContratDpa(env, conv.commune_id),
   ]);
   // Même règle que l'application (middleware/onglet.ts) : un onglet sans ligne est actif.
   const desactives = onglets.filter((o: any) => o.actif === false).map((o: any) => o.cle);
   const ongletsActifs = Object.keys(LIBELLES_ONGLETS).filter((cle) => !desactives.includes(cle));
-  return c.json({ html: genererConventionHtml(conv, commune, departement, entreprise, ongletsActifs), commune_nom: commune?.nom });
+  const convention = genererConventionHtml(conv, commune, departement, entreprise, ongletsActifs);
+  const html = dpa ? assemblerConventionEtDpa(convention, genererContratDpaHtml(dpa.commune, dpa.infos)) : convention;
+  return { html, commune_nom: commune?.nom };
+}
+
+routesStaff.get('/:id/document', async (c) => {
+  const [conv] = await supabaseSelect(c.env, 'conventions', {
+    select: COLONNES + ',document_signe_html', id: `eq.${c.req.param('id')}`,
+  });
+  if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
+  // Signée : on sert l'instantané figé (exactement ce qui a été signé), jamais une version régénérée.
+  if (conv.document_signe_html) {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'nom', id: `eq.${conv.commune_id}` });
+    const signature = { le: conv.signature_prestataire_le, empreinte: conv.signature_prestataire_empreinte, image: await chargerImageSignature(c.env) };
+    return c.json({ html: appliquerSignature(conv.document_signe_html, signature), commune_nom: commune?.nom, signee_par_prestataire: true });
+  }
+  const { html, commune_nom } = await documentComplet(c.env, conv);
+  return c.json({ html: appliquerSignature(html, null), commune_nom, signee_par_prestataire: false });
+});
+
+// POST /:id/signer — signature électronique simple du Prestataire (eIDAS, art. 1367 du Code civil) :
+// fige le document tel qu'il est à cet instant (instantané + empreinte SHA-256 + date + auteur).
+// Réservé au compte administrateur.
+routesStaff.post('/:id/signer', exigerAdmin, async (c) => {
+  const [conv] = await supabaseSelect(c.env, 'conventions', { select: COLONNES, id: `eq.${c.req.param('id')}` });
+  if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
+  if (conv.signature_prestataire_le) return c.json({ erreur: 'Déjà signée par vous.' }, 400);
+  if (['signee', 'annulee'].includes(conv.statut)) return c.json({ erreur: 'Convention déjà signée ou annulée.' }, 400);
+  const { html, commune_nom } = await documentComplet(c.env, conv);
+  const maintenant = new Date().toISOString();
+  const empreinte = await empreinteSha256(html);
+  await supabaseUpdate(c.env, 'conventions', {
+    document_signe_html: html, signature_prestataire_le: maintenant, signature_prestataire_par: c.get('staff_id'),
+    signature_prestataire_empreinte: empreinte, updated_at: maintenant,
+  }, { id: `eq.${conv.id}` });
+  await journaliser(c.env, c.get('staff_id'), 'convention_signee_prestataire', `${commune_nom ?? conv.commune_id} — empreinte ${empreinte}`);
+  return c.json({ ok: true, signature_prestataire_le: maintenant, signature_prestataire_empreinte: empreinte });
+});
+
+// DELETE /:id/signature — annule la signature du Prestataire, tant que la mairie n'a pas signé.
+routesStaff.delete('/:id/signature', exigerAdmin, async (c) => {
+  const [conv] = await supabaseSelect(c.env, 'conventions', { select: 'id,commune_id,statut', id: `eq.${c.req.param('id')}` });
+  if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
+  if (conv.statut === 'signee') return c.json({ erreur: 'La mairie a déjà signé : la signature ne peut plus être annulée.' }, 400);
+  await supabaseUpdate(c.env, 'conventions', {
+    document_signe_html: null, signature_prestataire_le: null, signature_prestataire_par: null,
+    signature_prestataire_empreinte: null, updated_at: new Date().toISOString(),
+  }, { id: `eq.${conv.id}` });
+  await journaliser(c.env, c.get('staff_id'), 'convention_signature_annulee', conv.commune_id);
+  return c.json({ ok: true });
 });
 
 // ── Formulaire de la mairie (public, par jeton) ──
@@ -163,6 +222,9 @@ routesFormulaire.get('/:jeton', async (c) => {
 routesFormulaire.post('/:jeton', async (c) => {
   const conv = await conventionParJeton(c.env, c.req.param('jeton'));
   if (!conv) return c.json({ erreur: 'Ce lien n\'est plus valable. Contactez Plateforme-Agora.' }, 404);
+  if (conv.signature_prestataire_le) {
+    return c.json({ erreur: 'La convention a déjà été signée par Plateforme-Agora : contactez-nous pour toute modification.' }, 409);
+  }
   const body = champsCommuneSchema.strict().safeParse(corpsNormalise(await c.req.json().catch(() => null)));
   if (!body.success) return c.json({ erreur: premiereErreur(body.error) }, 400);
   const maintenant = new Date().toISOString();

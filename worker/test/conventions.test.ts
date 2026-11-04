@@ -185,3 +185,65 @@ describe('document', () => {
     expect(html).toContain('&lt;img src=x');
   });
 });
+
+describe('signature électronique du Prestataire', () => {
+  const json = async () => ({ 'Content-Type': 'application/json', ...(await sessionStaff()) });
+  beforeEach(() => {
+    db.conventions.push({ id: 'c1', commune_id: 'fay', statut: 'envoyee', numero_fondatrice: 2, jeton_formulaire: JETON, signataire_nom: 'Marie Dupont' });
+  });
+
+  it('assemble convention et DPA en un seul document, chacun avec ses styles', async () => {
+    const { html, signee_par_prestataire } = await (await routesStaff.request('/c1/document', { headers: await sessionStaff() }, ENV)).json();
+    expect(signee_par_prestataire).toBe(false);
+    expect(html).toContain('Annexe 1 à la convention');
+    expect(html).toContain('class="contrat-dpa"');
+    expect(html).not.toContain('SIGNATURE_PRESTATAIRE');
+    expect(html).not.toContain('Signé électroniquement');
+    // Seules les classes CSS du DPA sont renommées, jamais le mot « contrat » de son texte.
+    expect(html).not.toMatch(/[a-zé]\.contrat-dpa/);
+    expect(html).toContain(' contrat');
+  });
+
+  it('fige le document signé, avec empreinte, et le sert tel quel', async () => {
+    const res = await routesStaff.request('/c1/signer', { method: 'POST', headers: await sessionStaff() }, ENV);
+    expect(res.status).toBe(200);
+    const conv = db.conventions[0];
+    expect(conv.signature_prestataire_empreinte).toMatch(/^[a-f0-9]{64}$/);
+    expect(conv.document_signe_html).toContain('<!--SIGNATURE_PRESTATAIRE-->');
+    // Un changement ultérieur des réglages ne modifie pas le document signé.
+    db.parametres_facturation[0].valeur = 'AUTRE RAISON SOCIALE';
+    const { html, signee_par_prestataire } = await (await routesStaff.request('/c1/document', { headers: await sessionStaff() }, ENV)).json();
+    expect(signee_par_prestataire).toBe(true);
+    expect(html).toContain('SALLE LEANDRE');
+    expect(html).not.toContain('AUTRE RAISON SOCIALE');
+    expect(html.match(/Signé électroniquement par Léandre SALLE/g)).toHaveLength(2); // convention + DPA
+    expect(html).toContain(conv.signature_prestataire_empreinte.slice(0, 8));
+  });
+
+  it('verrouille le contenu après signature (staff et mairie), pas le suivi du statut', async () => {
+    await routesStaff.request('/c1/signer', { method: 'POST', headers: await sessionStaff() }, ENV);
+    const modif = await routesStaff.request('/c1', { method: 'PATCH', headers: await json(), body: JSON.stringify({ prix_annuel_fondateur: 100 }) }, ENV);
+    expect(modif.status).toBe(409);
+    const statut = await routesStaff.request('/c1', { method: 'PATCH', headers: await json(), body: JSON.stringify({ statut: 'signee' }) }, ENV);
+    expect(statut.status).toBe(200);
+    db.conventions[0].statut = 'envoyee';
+    const mairie = await routesFormulaire.request(`/${JETON}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signataire_nom: 'Autre' }) }, ENV);
+    expect(mairie.status).toBe(409);
+    expect(db.conventions[0].signataire_nom).toBe('Marie Dupont');
+  });
+
+  it('refuse la signature à un assistant', async () => {
+    db.staff_backoffice = [{ id: 's1', role: 'assistant' }];
+    expect((await routesStaff.request('/c1/signer', { method: 'POST', headers: await sessionStaff() }, ENV)).status).toBe(403);
+    expect(db.conventions[0].signature_prestataire_le).toBeUndefined();
+  });
+
+  it('n’accepte qu’une image produite par le Worker dans le bloc de signature', async () => {
+    const { appliquerSignature, MARQUEUR_SIGNATURE } = await import('../src/backoffice/convention-document');
+    const piege = appliquerSignature(`<p>${MARQUEUR_SIGNATURE}</p>`, { le: '2026-11-04T13:32:00Z', empreinte: 'a'.repeat(64), image: 'javascript:alert(1)' });
+    expect(piege).not.toContain('<img');
+    const ok = appliquerSignature(`<p>${MARQUEUR_SIGNATURE}</p>`, { le: '2026-11-04T13:32:00Z', empreinte: 'a'.repeat(64), image: 'data:image/png;base64,iVBORw0KGgo=' });
+    expect(ok).toContain('<img src="data:image/png;base64,iVBORw0KGgo="');
+    expect(ok).toContain('le 4 novembre 2026 à 14:32 (heure de Paris)');
+  });
+});

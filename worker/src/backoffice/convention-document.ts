@@ -206,9 +206,54 @@ export function genererConventionHtml(
       <h2>Signatures</h2>
       <p>Fait en deux exemplaires, à ……………………, le ….. / ….. / ………</p>
       <div class="signatures">
-        <div><b>Pour le Prestataire</b>Léandre SALLE<br>Signature :</div>
+        <div><b>Pour le Prestataire</b>Léandre SALLE<br>Signature :${MARQUEUR_SIGNATURE}</div>
         <div><b>Pour la commune de ${nomCommune}</b>${conv.signataire_nom ? echapper(conv.signataire_nom) + ', ' : ''}${echapper(qualite)}<br>Signature et cachet :</div>
       </div>
     </div>
   `;
+}
+
+// — Signature électronique du Prestataire (2026-11-04, voir routes /:id/signer de conventions.ts) —
+// Le document signé = convention + DPA en annexe 1, figé au moment de la signature (instantané
+// stocké en base) : son empreinte SHA-256 prouve qu'il n'a pas changé depuis. Le marqueur ci-dessous
+// réserve, dans chaque zone « Pour le Prestataire / Sous-traitant », la place du bloc de signature.
+export const MARQUEUR_SIGNATURE = '<!--SIGNATURE_PRESTATAIRE-->';
+
+// Les deux documents utilisent les mêmes classes (.contrat) avec des styles différents : le DPA est
+// renommé en .contrat-dpa pour que chacun garde sa mise en page sur la même page.
+export function assemblerConventionEtDpa(conventionHtml: string, dpaHtml: string): string {
+  const dpa = dpaHtml
+    .replace(/\.contrat\b/g, '.contrat-dpa')
+    .replace(/class="contrat"/g, 'class="contrat-dpa"')
+    .replace('<div class="fait">Fait à …………………, le ……………</div>Signature</div>',
+      '<div class="fait">Fait à …………………, le ……………</div>Signature' + MARQUEUR_SIGNATURE + '</div>');
+  return conventionHtml
+    + '<div style="break-before: page; page-break-before: always; margin-top: 40px"></div>'
+    + '<p style="text-align:center; font-size:12px; color:var(--gris); text-transform:uppercase; letter-spacing:.08em">Annexe 1 à la convention</p>'
+    + dpa;
+}
+
+export type SignaturePrestataire = { le: string; empreinte: string; image?: string | null };
+
+export function blocSignaturePrestataire(sig: SignaturePrestataire): string {
+  const date = new Date(sig.le);
+  const jour = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+  const heure = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+  const empreinte = (sig.empreinte.match(/.{1,8}/g) ?? []).join(' ');
+  // L'image n'est acceptée qu'en data URI PNG/JPEG produite par le Worker lui-même (jamais une URL saisie).
+  const image = sig.image && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(sig.image)
+    ? '<img src="' + sig.image + '" alt="Signature de Léandre SALLE" style="display:block; max-height:64px; max-width:200px; margin:8px auto 4px">' : '';
+  return image
+    + '<div style="font-size:11px; line-height:1.5; color:var(--encre)">Signé électroniquement par Léandre SALLE, entrepreneur individuel,<br>le ' + echapper(jour) + ' à ' + echapper(heure) + ' (heure de Paris)</div>'
+    + '<div style="font-size:9px; line-height:1.4; color:var(--gris); font-family:monospace; margin-top:4px; word-break:break-all">Empreinte SHA-256 du document : ' + echapper(empreinte) + '</div>';
+}
+
+// signature null = document non signé : les marqueurs disparaissent simplement.
+export function appliquerSignature(html: string, signature: SignaturePrestataire | null): string {
+  return html.split(MARQUEUR_SIGNATURE).join(signature ? blocSignaturePrestataire(signature) : '');
+}
+
+export async function empreinteSha256(html: string): Promise<string> {
+  const octets = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(html));
+  return [...new Uint8Array(octets)].map((o) => o.toString(16).padStart(2, '0')).join('');
 }

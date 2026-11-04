@@ -303,6 +303,8 @@ function backoffice() {
     vueCommunes: 'liste',
     documents: [],
     typesDocuments: {},
+    imageSignature: null, // signature manuscrite du Prestataire (data URI), voir chargerImageSignature
+    signatureMsg: '',
     docForm: { type: 'convention', libelle: '', signe_le: '' },
     docEnCours: false,
     docMsg: '',
@@ -2619,6 +2621,55 @@ function backoffice() {
       return this.vue === 'facturation_libre' ? null : this.fiche.commune.id;
     },
     // Les <select> du formulaire travaillent en texte : '' = pas encore renseigné.
+    // — Signature électronique du Prestataire (conventions.ts, /:id/signer) —
+    async signerConvention() {
+      if (!confirm('Signer électroniquement la convention et son DPA en annexe ?\n\nLe document est figé tel qu’il est maintenant : relisez-le avant (« Voir la convention + DPA »). Plus aucune information ne pourra être modifiée, sauf en annulant votre signature.')) return;
+      this.conventionEnCours = true;
+      try {
+        await boFetch('/conventions/' + this.convention.id + '/signer', { method: 'POST' });
+        const rc = await boFetch('/conventions/commune/' + this.fiche.commune.id);
+        this.convention = this.conventionPourFormulaire(rc.convention);
+        this.conventionMsg = 'Signée et figée. Ouvrez « Voir la convention + DPA » puis « Imprimer / PDF » pour l’enregistrer en PDF.';
+      } catch (e) { alert(e.message || 'Signature impossible'); }
+      finally { this.conventionEnCours = false; }
+    },
+    async annulerSignatureConvention() {
+      if (!confirm('Annuler votre signature ? La convention redevient modifiable ; il faudra la signer à nouveau avant de l’envoyer. Si vous l’aviez déjà envoyée à la mairie, prévenez-la que cette version n’est plus valable.')) return;
+      this.conventionEnCours = true;
+      try {
+        await boFetch('/conventions/' + this.convention.id + '/signature', { method: 'DELETE' });
+        const rc = await boFetch('/conventions/commune/' + this.fiche.commune.id);
+        this.convention = this.conventionPourFormulaire(rc.convention);
+      } catch (e) { alert(e.message || 'Annulation impossible'); }
+      finally { this.conventionEnCours = false; }
+    },
+    async chargerImageSignature() {
+      try { this.imageSignature = (await boFetch('/administration/signature-prestataire')).image; } catch {}
+    },
+    // FormData (image) : pas boFetch, qui force un Content-Type JSON.
+    async deposerImageSignature(evenement) {
+      const fichier = evenement.target.querySelector('input[type=file]').files[0];
+      if (!fichier) return;
+      const fd = new FormData();
+      fd.set('fichier', fichier);
+      this.signatureMsg = '';
+      try {
+        const res = await fetch('/api/backoffice/administration/signature-prestataire', { method: 'PUT', credentials: 'include', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.erreur || 'Enregistrement impossible');
+        evenement.target.reset();
+        this.signatureMsg = 'Signature enregistrée : elle apparaîtra sur les prochaines conventions consultées.';
+        await this.chargerImageSignature();
+      } catch (e) { this.signatureMsg = e.message; }
+    },
+    async supprimerImageSignature() {
+      if (!confirm('Supprimer l’image de votre signature ? Les conventions afficheront seulement la mention écrite.')) return;
+      try {
+        await boFetch('/administration/signature-prestataire', { method: 'DELETE' });
+        this.imageSignature = null;
+      } catch (e) { alert(e.message || 'Suppression impossible'); }
+    },
+
     // Prix fondateur exact de la commune ouverte : offre Autonomie du barème actuel − 35 %, au centime.
     prixFondateurExact() {
       return Math.round(this.calculerPrixAutonomie(this.fiche?.commune.population) * 0.65 * 100) / 100;

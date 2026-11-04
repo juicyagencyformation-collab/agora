@@ -40,6 +40,46 @@ const parametresEntrepriseSchema = z.object(
   Object.fromEntries(CLES_ENTREPRISE.map((cle) => [cle, z.string().max(300)])) as Record<typeof CLES_ENTREPRISE[number], z.ZodString>,
 );
 
+// — Signature manuscrite du Prestataire (2026-11-04) : image scannée une fois, apposée à côté de la
+// mention « Signé électroniquement » des conventions signées (voir conventions.ts, /:id/signer).
+// Stockée dans le bucket PRIVÉ des documents (jamais sur le CDN public) et intégrée aux documents
+// en data URI par le Worker : elle n'a donc aucune adresse publique.
+const CLE_SIGNATURE = 'prestataire/signature';
+const TYPES_SIGNATURE = ['image/png', 'image/jpeg'];
+
+export async function chargerImageSignature(env: any): Promise<string | null> {
+  if (!env.BUCKET_DOCUMENTS) return null;
+  const objet = await env.BUCKET_DOCUMENTS.get(CLE_SIGNATURE);
+  if (!objet) return null;
+  const type = objet.httpMetadata?.contentType;
+  if (!TYPES_SIGNATURE.includes(type)) return null;
+  const octets = new Uint8Array(await objet.arrayBuffer());
+  let binaire = '';
+  for (let i = 0; i < octets.length; i += 0x8000) binaire += String.fromCharCode(...octets.subarray(i, i + 0x8000));
+  return `data:${type};base64,${btoa(binaire)}`;
+}
+
+app.get('/signature-prestataire', async (c) => c.json({ image: await chargerImageSignature(c.env) }));
+
+app.put('/signature-prestataire', exigerAdmin, async (c) => {
+  if (!c.env.BUCKET_DOCUMENTS) return c.json({ erreur: 'Stockage privé non configuré' }, 503);
+  const formulaire = await c.req.formData().catch(() => null);
+  const fichier = formulaire?.get('fichier');
+  if (!(fichier instanceof File)) return c.json({ erreur: 'Aucune image' }, 400);
+  if (!TYPES_SIGNATURE.includes(fichier.type)) return c.json({ erreur: 'Format accepté : PNG ou JPEG' }, 400);
+  if (fichier.size > 1024 * 1024) return c.json({ erreur: 'Image trop lourde (1 Mo maximum)' }, 400);
+  await c.env.BUCKET_DOCUMENTS.put(CLE_SIGNATURE, await fichier.arrayBuffer(), { httpMetadata: { contentType: fichier.type } });
+  await journaliser(c.env, c.get('staff_id'), 'signature_prestataire', 'image de signature remplacée');
+  return c.json({ ok: true });
+});
+
+app.delete('/signature-prestataire', exigerAdmin, async (c) => {
+  if (c.env.BUCKET_DOCUMENTS) await c.env.BUCKET_DOCUMENTS.delete(CLE_SIGNATURE);
+  await journaliser(c.env, c.get('staff_id'), 'signature_prestataire', 'image de signature supprimée');
+  return c.json({ ok: true });
+});
+
+
 app.put('/parametres-entreprise', exigerAdmin, async (c) => {
   const body = parametresEntrepriseSchema.partial().safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
