@@ -3456,7 +3456,8 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
                   <div>
                     <span class="bo-statut" :class="'bo-statut--' + ({ brouillon: 'a_contacter', envoyee: 'relance', signee: 'gagne', annulee: 'perdu' })[convention.statut]" x-text="({ brouillon: 'Brouillon', envoyee: 'Envoyée', signee: 'Signée', annulee: 'Annulée' })[convention.statut]"></span>
-                    <span class="bo-statut bo-statut--gagne" x-show="convention.un_euro_premiere_annee">1 € la 1re année</span>
+                    <span class="bo-statut bo-statut--gagne" x-show="convention.premiere_annee_offerte">1re année offerte</span>
+                    <span class="bo-statut" x-show="convention.prix_annuel_fondateur" x-text="Number(convention.prix_annuel_fondateur).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' € / an'"></span>
                     <span class="bo-info" style="margin-left:8px" x-text="'Commune fondatrice n° ' + (convention.numero_fondatrice || '?') + ' / 10' + (convention.signee_le ? ' · signée le ' + formatDate(convention.signee_le) : '') + (convention.envoyee_le && !convention.signee_le ? ' · envoyée le ' + formatDate(convention.envoyee_le) : '')"></span>
                   </div>
                   <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=convention&id=' + convention.id" target="_blank">📄 Voir la convention</a>
@@ -3489,7 +3490,17 @@
                     <div class="bo-champ-inline"><label>Statut</label>
                       <select x-model="convention.statut"><option value="brouillon">Brouillon</option><option value="envoyee">Envoyée</option><option value="signee">Signée</option><option value="annulee">Annulée</option></select></div>
                     <div class="bo-champ-inline" x-show="convention.statut === 'signee'"><label>Signée le</label><input type="date" x-model="convention.signee_le" /></div>
-                    <label style="grid-column:1/-1; display:flex; align-items:center; gap:8px; font-size:13px; margin:4px 0"><input type="checkbox" x-model="convention.un_euro_premiere_annee" style="width:auto; margin:0" /> 1 € la première année (accord exceptionnel)</label>
+                    <label style="grid-column:1/-1; display:flex; align-items:center; gap:8px; font-size:13px; margin:4px 0"><input type="checkbox" x-model="convention.premiere_annee_offerte" style="width:auto; margin:0" /> Première année offerte (accord exceptionnel)</label>
+                    <div class="bo-champ-inline" style="grid-column:1/-1"><label>Prix fondateur inscrit dans cette convention (€ par an, offre Autonomie)</label>
+                      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+                        <input type="number" min="0" step="0.01" x-model="convention.prix_annuel_fondateur" placeholder="vide = « grille du site − 35 % »" style="width:220px" />
+                        <button type="button" class="bo-btn bo-btn--sec bo-btn--compact" @click="convention.prix_annuel_fondateur = prixFondateurExact()"
+                                x-text="'Calculer : Autonomie − 35 % = ' + prixFondateurExact().toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €'"></button>
+                      </div>
+                    </div>
+                    <div class="bo-champ-inline" style="grid-column:1/-1"><label>Conditions particulières (ajoutées telles quelles en article 6 ; une ligne vide = nouveau paragraphe)</label>
+                      <textarea x-model="convention.conditions_particulieres" rows="4" maxlength="4000" placeholder="ex. Le Prestataire assure une séance de prise en main en mairie."></textarea>
+                    </div>
                     <div class="bo-champ-inline"><label>N° de commune fondatrice</label>
                       <select x-model.number="convention.numero_fondatrice">
                         <template x-for="n in [1,2,3,4,5,6,7,8,9,10]" :key="n"><option :value="n" :disabled="conventionNumerosPris.includes(n)" :selected="convention.numero_fondatrice === n" x-text="n + (conventionNumerosPris.includes(n) ? ' (pris)' : '')"></option></template>
@@ -4356,7 +4367,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261104-3"></script>
+  <script src="/backoffice/js/app.js?v=20261104-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

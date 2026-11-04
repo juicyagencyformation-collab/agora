@@ -144,20 +144,35 @@ describe('document', () => {
     expect(partiel).toContain('<td>Actualités, Agenda, Mémoire du village. Les autres onglets restent activables à tout moment');
     expect(genererConventionHtml(base, { nom: 'Fay', slug: 'fay' }, '60', entreprise, [])).toContain('aucun onglet coché');
   });
-  it('ne parle de 1 € que si l\'accord exceptionnel est coché', () => {
+  it('ne parle de première année offerte que si l\'accord exceptionnel est coché', () => {
     const standard = genererConventionHtml({ ...base, option_reconduction: 'tacite' }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
-    expect(standard).not.toMatch(/1 €|euro versé|Période fondatrice/);
+    expect(standard).not.toMatch(/offert|Période fondatrice|1 €/);
     expect(standard).toContain('<strong>Tarif fondateur</strong> — dès la mise en service');
     expect(standard).toContain('<th>Abonnement fondateur</th>');
     expect(standard).toContain('une facture annuelle');
     expect(standard).toContain("l'année en cours reste due");
     expect(standard).toContain('modules ajoutés par la suite');
-    const unEuro = genererConventionHtml({ ...base, option_reconduction: 'tacite', un_euro_premiere_annee: true }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
-    expect(unEuro).toContain('1 € symbolique pendant 12 mois');
-    expect(unEuro).toContain('<strong>Période fondatrice (12 mois)</strong>');
-    expect(unEuro).toContain('une facture de 1 €');
-    expect(unEuro).toContain("l'euro versé reste acquis");
-    expect(unEuro).not.toContain('<th>Abonnement fondateur</th>');
+    const offerte = genererConventionHtml({ ...base, option_reconduction: 'tacite', premiere_annee_offerte: true }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
+    expect(offerte).toContain('offert pendant 12 mois');
+    expect(offerte).toContain('<strong>Période fondatrice (12 mois)</strong>');
+    expect(offerte).toContain('sans aucune contrepartie financière');
+    expect(offerte).toContain('aucune facture pendant la période fondatrice');
+    expect(offerte).toContain('<td>Prix</td><td>Offert</td>');
+    expect(offerte).not.toMatch(/1 €|euro versé/);
+    expect(offerte).not.toContain('<th>Abonnement fondateur</th>');
+  });
+  it('inscrit le prix fondateur exact de la convention quand il est renseigné', () => {
+    const avecPrix = genererConventionHtml({ ...base, premiere_annee_offerte: true, prix_annuel_fondateur: '188.50' }, { nom: 'Tourly', slug: 'tourly' }, '60', entreprise);
+    expect(avecPrix).toContain('au tarif fondateur de <strong>188,50 € par an</strong> (soit 15,71 € par mois) pour l\'offre Autonomie');
+    expect(avecPrix).toContain('188,50 € par an (offre Autonomie), tant que l\'abonnement est continu');
+    const sansPrix = genererConventionHtml({ ...base, premiere_annee_offerte: true }, { nom: 'Tourly', slug: 'tourly' }, '60', entreprise);
+    expect(sansPrix).toContain('Grille du site − 35 %');
+  });
+  it('ajoute les conditions particulières en article 6, échappées', () => {
+    const html = genererConventionHtml({ ...base, conditions_particulieres: 'Formation offerte.\n\nDeuxième <b>point</b>\nsur deux lignes' }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
+    expect(html).toContain('<h2>Article 6 — Conditions particulières</h2>');
+    expect(html).toContain('<p>Formation offerte.</p><p>Deuxième &lt;b&gt;point&lt;/b&gt;<br>sur deux lignes</p>');
+    expect(genererConventionHtml(base, { nom: 'Fay', slug: 'fay' }, '60', entreprise)).not.toContain('Article 6');
   });
   it('a un libellé pour chaque onglet de la plateforme', () => {
     expect(Object.keys(LIBELLES_ONGLETS)).toEqual([...TOUS_LES_ONGLETS]);

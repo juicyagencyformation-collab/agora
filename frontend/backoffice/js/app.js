@@ -2619,6 +2619,10 @@ function backoffice() {
       return this.vue === 'facturation_libre' ? null : this.fiche.commune.id;
     },
     // Les <select> du formulaire travaillent en texte : '' = pas encore renseigné.
+    // Prix fondateur exact de la commune ouverte : offre Autonomie du barème actuel − 35 %, au centime.
+    prixFondateurExact() {
+      return Math.round(this.calculerPrixAutonomie(this.fiche?.commune.population) * 0.65 * 100) / 100;
+    },
     conventionPourFormulaire(c) {
       if (!c) return null;
       return { ...c, option_reconduction: c.option_reconduction || '',
@@ -2643,7 +2647,11 @@ function backoffice() {
         'option_reconduction', 'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee'];
       const corps = Object.fromEntries(champs.map((k) => [k, c[k] ?? null]));
       corps.citation_autorisee = c.citation_autorisee === '' ? null : c.citation_autorisee === 'true';
-      corps.un_euro_premiere_annee = !!c.un_euro_premiere_annee;
+      corps.premiere_annee_offerte = !!c.premiere_annee_offerte;
+      // Vide = pas de prix inscrit (la convention dit alors « grille du site − 35 % »).
+      corps.prix_annuel_fondateur = c.prix_annuel_fondateur === '' || c.prix_annuel_fondateur === null || c.prix_annuel_fondateur === undefined
+        ? null : Math.round(Number(c.prix_annuel_fondateur) * 100) / 100;
+      corps.conditions_particulieres = (c.conditions_particulieres || '').trim() || null;
       if (['signee', 'annulee'].includes(c.statut) && !confirm(c.statut === 'signee'
         ? 'Marquer la convention comme signée ? Le lien de la secrétaire cessera de fonctionner.'
         : 'Annuler la convention ? Son numéro de commune fondatrice sera libéré et le lien de la secrétaire désactivé.')) {

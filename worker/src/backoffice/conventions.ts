@@ -13,7 +13,7 @@ import { genererConventionHtml, LIBELLES_ONGLETS } from './convention-document';
 
 const COLONNES = 'id,commune_id,statut,numero_fondatrice,signataire_nom,signataire_qualite,deliberation_reference,'
   + 'deliberation_date,option_reconduction,siret_commune,code_service_chorus,facturation_nom,facturation_email,'
-  + 'date_debut_souhaitee,citation_autorisee,un_euro_premiere_annee,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at';
+  + 'date_debut_souhaitee,citation_autorisee,premiere_annee_offerte,prix_annuel_fondateur,conditions_particulieres,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at';
 const CHAMPS_COMMUNE = ['signataire_nom', 'signataire_qualite', 'deliberation_reference', 'deliberation_date', 'option_reconduction',
   'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee', 'citation_autorisee'] as const;
 
@@ -35,8 +35,11 @@ const champsCommuneSchema = z.object({
 const staffSchema = champsCommuneSchema.extend({
   numero_fondatrice: z.number().int().min(1).max(10).nullable().optional(),
   statut: z.enum(['brouillon', 'envoyee', 'signee', 'annulee']).optional(),
-  // Accord exceptionnel (migration 090), réservé au staff : la mairie ne le voit qu'à travers le texte.
-  un_euro_premiere_annee: z.boolean().optional(),
+  // Accord exceptionnel (migrations 090 puis 096), réservé au staff : la mairie ne le voit qu'à
+  // travers le texte. Prix fondateur exact propre à CETTE convention, et conditions particulières libres.
+  premiere_annee_offerte: z.boolean().optional(),
+  prix_annuel_fondateur: z.number().min(0).max(100000).multipleOf(0.01).nullable().optional(),
+  conditions_particulieres: z.string().trim().max(4000).nullable().optional(),
   signee_le: date.nullable().optional(),
 });
 
@@ -152,7 +155,7 @@ routesFormulaire.get('/:jeton', async (c) => {
   return c.json({
     commune_nom: commune?.nom ?? '',
     numero_fondatrice: conv.numero_fondatrice,
-    un_euro: !!conv.un_euro_premiere_annee,
+    premiere_annee_offerte: !!conv.premiere_annee_offerte,
     champs: Object.fromEntries(CHAMPS_COMMUNE.map((k) => [k, conv[k] ?? null])),
   });
 });

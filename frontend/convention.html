@@ -137,12 +137,12 @@
         }
         document.getElementById('titre').textContent = 'Convention « Commune fondatrice » — ' + d.commune_nom;
         document.title = 'Convention — ' + d.commune_nom;
-        // « 1 € la première année » : accord exceptionnel coché par Plateforme-Agora sur la fiche.
-        if (d.un_euro) {
-          document.getElementById('aide-deliberation').textContent = "Même pour 1 €, le maire doit être habilité à signer : par une délibération du conseil municipal, ou par sa délégation générale (article L2122-22 du CGCT). Si la délibération n'est pas encore votée, laissez vide et revenez plus tard.";
+        // « Première année offerte » : accord exceptionnel coché par Plateforme-Agora sur la fiche.
+        if (d.premiere_annee_offerte) {
+          document.getElementById('aide-deliberation').textContent = "Même pour une première année offerte, le maire doit être habilité à signer : par une délibération du conseil municipal, ou par sa délégation générale (article L2122-22 du CGCT). Si la délibération n'est pas encore votée, laissez vide et revenez plus tard.";
           document.getElementById('titre-renouvellement').textContent = 'Après la période fondatrice';
-          document.getElementById('aide-renouvellement').textContent = "Après les 12 mois à 1 €, rien ne devient payant sans une décision de votre part. Si vous choisissez de continuer, comment préférez-vous gérer l'abonnement ?";
-          document.getElementById('aide-facturation').textContent = 'La facture de 1 € sera déposée sur Chorus Pro, comme pour tout achat de la commune.';
+          document.getElementById('aide-renouvellement').textContent = "Après les 12 mois offerts, rien ne devient payant sans une décision de votre part. Si vous choisissez de continuer, comment préférez-vous gérer l'abonnement ?";
+          document.getElementById('aide-facturation').textContent = "Aucune facture pendant les 12 mois offerts. Ensuite, la facture annuelle sera déposée sur Chorus Pro, comme pour tout achat de la commune.";
         }
         for (const k of CHAMPS_TEXTE) document.getElementById(k).value = d.champs[k] || '';
         const option = form.querySelector(`input[name=option_reconduction][value="${d.champs.option_reconduction}"]`);
