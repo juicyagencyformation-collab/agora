@@ -778,20 +778,65 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
   return ligne;
 }
 
+// Étapes incomplètes : signalées une par une (cadre rouge + liste au-dessus du bouton) au lieu
+// d'être écartées en silence — avant le 2026-11-05, une chasse saisie avec 8 étapes pouvait être
+// créée avec les 3 seules complètes, sans aucun message. En création, une ligne restée entièrement
+// vide (ajoutée puis jamais remplie) est simplement ignorée (marquée data-vide).
+function verifierEtapesChasse(corps, creation) {
+  const problemes = [];
+  let premiere = null;
+  for (const ligne of corps.querySelectorAll('.ligne-etape-chasse')) {
+    const val = (sel) => (ligne.querySelector(sel)?.value || '').trim();
+    const type = val('.etape-type');
+    const vide = !val('.etape-titre') && !val('.etape-indice') && !val('.etape-lat') && !val('.etape-lng') && type === 'aucun';
+    ligne.dataset.vide = creation && vide ? '1' : '';
+    const manque = [];
+    if (!ligne.dataset.vide) {
+      if (!val('.etape-titre')) manque.push('le titre');
+      if (!val('.etape-indice')) manque.push('l’indice');
+      if (isNaN(parseFloat(val('.etape-lat'))) || isNaN(parseFloat(val('.etape-lng')))) manque.push('la position sur la carte');
+      if (type === 'texte' && !val('.etape-contenu')) manque.push('le texte descriptif');
+      if (type === 'enigme' && !val('.etape-contenu')) manque.push('la question');
+      if (type === 'enigme' && !val('.etape-reponse')) manque.push('la réponse');
+      if (type === 'photo' && !ligne.querySelector('.etape-photo')?.files[0] && !ligne.dataset.photoActuelle) manque.push('la photo');
+    }
+    ligne.style.borderColor = manque.length ? 'var(--rouge)' : 'var(--eauL)';
+    if (manque.length) {
+      problemes.push(`Étape ${ligne.dataset.numero} : il manque ${manque.join(', ')}.`);
+      premiere ??= ligne;
+    }
+  }
+
+  let zone = corps.querySelector('.erreurs-etapes-chasse');
+  if (!zone) {
+    zone = document.createElement('div');
+    zone.className = 'erreurs-etapes-chasse';
+    zone.style.cssText = 'color:var(--rouge);font-size:13px;margin-top:10px;';
+    corps.querySelector('button[type="submit"]').before(zone);
+  }
+  zone.innerHTML = problemes.map((p) => `<p style="margin:2px 0;">${escapeAttr(p)}</p>`).join('');
+  if (premiere) {
+    premiere.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    afficherToastMessage(`${problemes.length} étape(s) incomplète(s) : rien n'a été enregistré.`, 'erreur');
+  }
+  return !premiere;
+}
+
 async function soumettreChasse(corps, overlay) {
   const titre = corps.querySelector('#titre-chasse-modale').value.trim();
   const description = corps.querySelector('#description-chasse-modale').value.trim();
   const mode = corps.querySelector('#mode-chasse-modale').value;
   const rayon_metres = parseInt(corps.querySelector('#rayon-chasse-modale').value, 10) || 50;
   if (!titre) return;
+  if (!verifierEtapesChasse(corps, true)) return;
 
   const etapes = [];
   for (const ligne of corps.querySelectorAll('.ligne-etape-chasse')) {
+    if (ligne.dataset.vide) continue;
     const titre = ligne.querySelector('.etape-titre').value.trim();
     const indice = ligne.querySelector('.etape-indice').value.trim();
     const lat = parseFloat(ligne.querySelector('.etape-lat').value);
     const lng = parseFloat(ligne.querySelector('.etape-lng').value);
-    if (!titre || !indice || isNaN(lat) || isNaN(lng)) continue;
 
     const type_contenu = ligne.querySelector('.etape-type').value;
     const etape = { titre, indice, lat, lng, type_contenu };
@@ -810,6 +855,10 @@ async function soumettreChasse(corps, overlay) {
           });
           if (resUp.ok) { const { key } = await resUp.json(); etape.photo_r2_key = key; }
         } catch { console.warn('Upload photo étape échoué.'); }
+      }
+      if (!etape.photo_r2_key) {
+        afficherToastMessage(`La photo de l'étape ${ligne.dataset.numero} n'a pas pu être envoyée : rien n'a été enregistré, réessayez.`, 'erreur');
+        return;
       }
     }
     etapes.push(etape);
@@ -885,6 +934,7 @@ async function soumettreEditionChasse(corps, overlay, chasseId, estBalade) {
   const titre = corps.querySelector('#titre-chasse-modale').value.trim();
   const description = corps.querySelector('#description-chasse-modale').value.trim();
   if (!titre) return;
+  if (!verifierEtapesChasse(corps, false)) return;
 
   const patchChasse = { titre, description };
   if (estBalade) patchChasse.rayon_metres = parseInt(corps.querySelector('#rayon-chasse-modale').value, 10) || 50;
@@ -904,7 +954,6 @@ async function soumettreEditionChasse(corps, overlay, chasseId, estBalade) {
     const indice = ligne.querySelector('.etape-indice').value.trim();
     const lat = parseFloat(ligne.querySelector('.etape-lat').value);
     const lng = parseFloat(ligne.querySelector('.etape-lng').value);
-    if (!titreEtape || !indice || isNaN(lat) || isNaN(lng)) { echecs++; continue; }
 
     const type_contenu = ligne.querySelector('.etape-type').value;
     const etape = { titre: titreEtape, indice, lat, lng, type_contenu };

@@ -5,6 +5,34 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-05 — Chasse au trésor : 8 étapes saisies, 3 enregistrées
+
+**Gravité :** moyenne (travail de saisie perdu sans avertissement, aucune donnée exposée)
+**Fichier :** `frontend/js/chasse-tresor.js` (`verifierEtapesChasse`)
+
+### Symptôme
+Léandre crée « visite d'eaucourt sur somme » (balade) avec 8 étapes ; au moment de jouer, il n'y
+en a que 3. En base, seules 3 étapes existent : la perte a eu lieu à la création.
+
+### Cause
+`soumettreChasse` sautait EN SILENCE (`continue`) toute étape sans titre, sans indice ou sans
+position sur la carte, puis créait la chasse avec les seules étapes complètes et affichait
+« Chasse créée ! ». La modale d'édition faisait de même (comptée en « échec » après coup).
+
+### Correction et vérification
+Avant tout envoi, chaque étape est vérifiée : titre, indice, position, et selon le type le texte,
+la question et la réponse, ou la photo. Une étape incomplète bloque l'enregistrement : cadre rouge
+et message « Étape N : il manque … » au-dessus du bouton. En création, seule une ligne restée
+entièrement vide est ignorée. Un échec d'envoi de photo bloque aussi la création, au lieu de faire
+échouer la chasse entière côté serveur. Vérifié dans Chrome (sans interface) : une étape sans
+indice est refusée sans aucune requête, puis acceptée une fois l'indice saisi, la ligne vide ignorée.
+
+### À retenir
+Un formulaire ne doit jamais écarter en silence une partie de la saisie : soit il l'enregistre,
+soit il dit précisément ce qui manque.
+
+---
+
 ## 2026-11-05 — Chasse au trésor : la cachette de l'étape suivante lisible dans les réponses réseau
 
 **Gravité :** faible (triche possible au jeu, aucune donnée personnelle exposée)
