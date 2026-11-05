@@ -80,7 +80,7 @@ export async function listerChassesJouables(env: any, commune_id: string, user_i
 
   const [etapes, progressions] = await Promise.all([
     supabaseSelect(env, 'etapes_chasse', {
-      select: 'id,chasse_id,ordre,titre,indice,lat,lng,type_contenu',
+      select: 'id,chasse_id,ordre,titre,indice,lat,lng,type_contenu,contenu,photo_url',
       commune_id: `eq.${commune_id}`,
       chasse_id: `in.(${ids.join(',')})`,
       order: 'ordre.asc',
@@ -104,8 +104,17 @@ export async function listerChassesJouables(env: any, commune_id: string, user_i
       // Mode chasse : seul l'indice sort. Le titre (« Le lavoir ») et les coordonnées révéleraient
       // la cachette à quiconque lit la réponse réseau (corrigé le 2026-11-05, ils sortaient avant).
       etape_suivante: suivante && (ch.mode === 'balade'
-        ? suivante
+        ? { id: suivante.id, ordre: suivante.ordre, titre: suivante.titre, indice: suivante.indice, lat: suivante.lat, lng: suivante.lng, type_contenu: suivante.type_contenu }
         : { id: suivante.id, ordre: suivante.ordre, indice: suivante.indice, type_contenu: suivante.type_contenu }),
+      // Carnet de découvertes (2026-11-05) : le texte ou la photo révélés par les étapes que CE
+      // joueur a déjà validées, pour les relire à tout moment. Jamais ceux d'une étape non validée,
+      // ni la question/réponse d'une étape énigme.
+      decouvertes: etapesChasse
+        .filter((e: any) => etapesValidees.includes(e.id) && ['texte', 'photo'].includes(e.type_contenu))
+        .map((e: any) => ({
+          ordre: e.ordre, titre: e.titre, type: e.type_contenu,
+          ...(e.type_contenu === 'texte' ? { texte: e.contenu } : { photo_url: e.photo_url }),
+        })),
     };
     // En mode balade, on expose toute la liste des points (coordonnées) pour tracer la
     // carte et l'itinéraire ; en mode chasse, on garde le secret (seul l'indice suivant).

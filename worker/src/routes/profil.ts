@@ -33,7 +33,7 @@ app.get('/', async (c) => {
   const [user] = await supabaseSelect(c.env, 'users', {
     select: 'nom,prenom,email,role,xp,niveau,streak_actuel,streak_record,created_at,'
       + 'score_citoyen,streak_participation_actuel,streak_participation_record,streak_mensuel_citoyen_actuel,suspendu_jusqu_au,'
-      + 'photo_profil_url,banniere_url,affichage_nom',
+      + 'photo_profil_url,banniere_url,affichage_nom,etapes_chasse_validees,enigmes_trouvees',
     commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
   if (!user) return c.json({ erreur: 'Utilisateur introuvable' }, 404);

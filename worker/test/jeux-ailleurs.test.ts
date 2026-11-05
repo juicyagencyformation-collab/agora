@@ -47,7 +47,7 @@ function reinitialiser() {
       { id: 'ch-tourly', commune_id: 'c-tourly', titre: 'Chez moi', actif: true, mode: 'chasse', rayon_metres: 50, created_at: '2026-11-01' },
     ],
     etapes_chasse: [
-      { id: 'et-fay', commune_id: 'c-fay', chasse_id: 'ch-fay', ordre: 0, titre: 'Lavoir', indice: 'Près de l’eau', lat: 49.5, lng: 1.9, qr_token: QR_FAY, type_contenu: 'aucun', enigme_reponse: null },
+      { id: 'et-fay', commune_id: 'c-fay', chasse_id: 'ch-fay', ordre: 0, titre: 'Lavoir', indice: 'Près de l’eau', lat: 49.5, lng: 1.9, qr_token: QR_FAY, type_contenu: 'texte', contenu: 'Construit en 1850', enigme_reponse: null },
       { id: ETAPE_BALADE, commune_id: 'c-fay', chasse_id: 'ch-balade', ordre: 0, titre: 'Église', indice: 'Le clocher', lat: 49.6, lng: 1.8, qr_token: crypto.randomUUID(), type_contenu: 'enigme', contenu: 'Combien de cloches ?', enigme_reponse: 'trois' },
       { id: 'et-tourly', commune_id: 'c-tourly', chasse_id: 'ch-tourly', ordre: 0, titre: 'Mairie', indice: 'x', lat: 49.1, lng: 1.1, qr_token: QR_TOURLY, type_contenu: 'aucun' },
     ],
@@ -164,6 +164,18 @@ describe('jeux dans une autre commune', () => {
     expect(joueur.commune_id).toBe('c-tourly');
   });
 
+  it('ne livre le carnet de découvertes qu’après validation de l’étape, par ce joueur', async () => {
+    const avant = await (await requete('/fay')).json();
+    expect(JSON.stringify(avant)).not.toContain('Construit en 1850');
+    expect(avant.chasses.find((c: any) => c.id === 'ch-fay').decouvertes).toEqual([]);
+    await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY });
+    const apres = (await (await requete('/fay')).json()).chasses.find((c: any) => c.id === 'ch-fay');
+    expect(apres.decouvertes).toEqual([{ ordre: 0, titre: 'Lavoir', type: 'texte', texte: 'Construit en 1850' }]);
+    // Balade : l'étape suivante ne transporte jamais le contenu à découvrir ni une réponse.
+    const balade = apres && (await (await requete('/fay')).json()).chasses.find((c: any) => c.id === 'ch-balade');
+    expect(Object.keys(balade.etape_suivante).sort()).toEqual(['id', 'indice', 'lat', 'lng', 'ordre', 'titre', 'type_contenu']);
+  });
+
   it('refuse un QR scanné loin de l’étape, ou sans position', async () => {
     const loin = await post('/valider-qr', { qr_token: QR_FAY, lat: 48.85, lng: 2.35 }); // depuis Paris
     expect(loin.status).toBe(400);
@@ -176,7 +188,7 @@ describe('jeux dans une autre commune', () => {
   it('ne livre en mode chasse que l’indice de l’étape suivante, ni titre ni coordonnées', async () => {
     const data = await (await requete('/fay')).json();
     const chasse = data.chasses.find((c: any) => c.id === 'ch-fay');
-    expect(chasse.etape_suivante).toEqual({ id: 'et-fay', ordre: 0, indice: 'Près de l’eau', type_contenu: 'aucun' });
+    expect(chasse.etape_suivante).toEqual({ id: 'et-fay', ordre: 0, indice: 'Près de l’eau', type_contenu: 'texte' });
     // En balade, la carte a besoin des points : ils restent fournis.
     const balade = data.chasses.find((c: any) => c.id === 'ch-balade');
     expect(balade.etape_suivante).toMatchObject({ lat: 49.6, lng: 1.8 });

@@ -36,7 +36,7 @@ function renderListeEnigmes(enigmes) {
       ? `<p class="dechets-vide">Aucune énigme photo dans ce village pour l'instant.</p>`
       : window.EST_EXPLORATEUR
         ? `<p class="dechets-vide">Choisissez d'abord un village.</p>`
-        : `<p class="dechets-vide">Aucune énigme pour l'instant — sois le premier à en poser une !</p>`;
+        : `<p class="dechets-vide">Aucune énigme pour l'instant : prenez en photo un coin du village et lancez la première !</p>`;
   }
   enigmes.forEach((e) => conteneur.appendChild(renderCarteEnigmeCompacte(e)));
 }
@@ -44,13 +44,12 @@ function renderListeEnigmes(enigmes) {
 function renderCarteEnigmeCompacte(enigme) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'carte-enigme-compacte';
+  el.className = 'carte-enigme-vignette';
+  el.setAttribute('aria-label', enigme.deja_trouve ? 'Énigme trouvée' : 'Énigme à trouver');
   el.innerHTML = `
-    <img src="${enigme.url}" loading="lazy">
-    <div class="texte-carte-enigme-compacte">
-      ${enigme.est_moi ? '<span class="badge-ma-photo">Votre énigme</span>' : ''}
-      ${enigme.deja_trouve ? '<span class="trouve-enigme">🎉 Trouvée</span>' : `<span class="meta-enigme">${enigme.total_trouveurs} trouveur(s)</span>`}
-    </div>
+    <img src="${enigme.url}" loading="lazy" alt="">
+    ${enigme.deja_trouve ? '<span class="coche-vignette">✓</span>' : ''}
+    <span class="etiquette-vignette">${enigme.est_moi ? 'Votre énigme' : `${enigme.total_trouveurs} 🔍`}</span>
   `;
   el.addEventListener('click', () => ouvrirDetailEnigme(enigme.id));
   return el;
@@ -81,7 +80,9 @@ function renderDetailEnigme(enigme) {
     <p class="meta-enigme">${enigme.total_trouveurs} personne(s) ont trouvé</p>
     ${enigme.est_moi ? '<span class="badge-ma-photo">Votre énigme</span>' : ''}
     ${enigme.deja_trouve ? `<p class="trouve-enigme">🎉 Trouvée ! (à ${enigme.distance_metres} m près)</p>` : ''}
+    <p class="thermo-enigme" id="thermo-enigme" hidden></p>
     ${!enigme.est_moi && !enigme.deja_trouve ? '<button class="btn-je-suis-ici">📍 Je suis ici !</button>' : ''}
+    ${enigme.lat != null ? '<div id="carte-enigme-trouvee" class="mini-carte-position carte-enigme-trouvee"></div>' : ''}
     <div class="actions-admin" style="margin-top:10px;">
       ${!enigme.est_moi ? `<button class="btn-signaler-enigme" ${enigme.deja_signale ? 'disabled' : ''}>${enigme.deja_signale ? 'Signalée' : '🚩 Signaler'}</button>` : ''}
       ${!villageVisite && (enigme.est_moi || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) ? '<button class="btn-supprimer-enigme">Supprimer</button>' : ''}
@@ -92,6 +93,17 @@ function renderDetailEnigme(enigme) {
   zone.querySelector('.image-detail-enigme').addEventListener('click', () => ouvrirLightbox(enigme.url));
 
   zone.querySelector('.btn-je-suis-ici')?.addEventListener('click', (e) => tenterEnigme(enigme.id, e.target));
+  // Lieu révélé (énigme trouvée ou sa propre énigme) : petite carte. Les coordonnées ne sont
+  // envoyées par le serveur que dans ces deux cas (voir listerEnigmesJouables).
+  if (enigme.lat != null) {
+    const carte = L.map('carte-enigme-trouvee', { zoomControl: false, attributionControl: false }).setView([enigme.lat, enigme.lng], 17);
+    L.tileLayer(
+      'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+      { maxNativeZoom: 19, maxZoom: 19 },
+    ).addTo(carte);
+    L.marker([enigme.lat, enigme.lng], { icon: L.divIcon({ className: '', html: '<span class="pastille-balade etat-validee">📸</span>', iconSize: [30, 30], iconAnchor: [15, 15] }) }).addTo(carte);
+    setTimeout(() => carte.invalidateSize(), 120);
+  }
   zone.querySelector('.btn-signaler-enigme')?.addEventListener('click', async () => {
     if (!confirm('Signaler cette énigme comme inappropriée ? Elle sera masquée en attente de revue par la mairie.')) return;
     await appelApi(urlJeux('enigmes', `/${enigme.id}/signaler`), { method: 'POST' });
@@ -132,10 +144,19 @@ function tenterEnigme(enigmeId, bouton) {
 
     if (data.reussi) {
       traiterRecompense(data);
+      if (typeof chargerProgressionExploration === 'function') chargerProgressionExploration();
       afficherToastMessage(`Bravo, trouvé ! Tu étais à ${data.distance_metres} m du bon endroit.`, 'succes');
       chargerEnigmes(); // l'écran de détail reste ouvert, juste rafraîchi avec le nouvel état
     } else {
-      afficherToastMessage(`Pas encore ! Tu es à environ ${data.distance_metres} m. Réessaie.`, 'erreur');
+      // Thermomètre ludique plutôt qu'un simple message d'erreur (rayon par défaut : 40 m).
+      const thermo = document.getElementById('thermo-enigme');
+      const temp = temperatureDistance(data.distance_metres, 40);
+      if (thermo) {
+        thermo.hidden = false;
+        thermo.dataset.etat = temp.cle;
+        thermo.innerHTML = `<strong>${temp.texte}</strong> · environ ${formaterDistance(data.distance_metres)} du lieu de la photo. Déplacez-vous et réessayez !`;
+      }
+      afficherToastMessage(`Pas encore : ${temp.texte.toLowerCase()}, environ ${formaterDistance(data.distance_metres)}.`, 'erreur');
       bouton.disabled = false;
       bouton.textContent = '📍 Je suis ici !';
     }

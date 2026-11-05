@@ -20,6 +20,21 @@ function urlJeux(module, chemin = '') {
     : `/${window.COMMUNE_SLUG}/${module}${chemin}`;
 }
 
+// Carte « Vos découvertes » en haut de l'onglet (2026-11-05), rafraîchie après chaque réussite.
+async function chargerProgressionExploration() {
+  const carte = document.getElementById('carte-progression-exploration');
+  if (!carte) return;
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/profil`).catch(() => null);
+  if (!res?.ok) return;
+  const user = await res.json();
+  const etapes = user.etapes_chasse_validees ?? 0;
+  const enigmes = user.enigmes_trouvees ?? 0;
+  carte.hidden = false;
+  carte.innerHTML = etapes + enigmes
+    ? `🧭 <span>Vos découvertes</span> <strong>${etapes}</strong> étape${etapes > 1 ? 's' : ''} · <strong>${enigmes}</strong> énigme${enigmes > 1 ? 's' : ''}${user.niveau ? ` · niveau <strong>${user.niveau}</strong>` : ''}`
+    : '🧭 <span>Vos découvertes</span> Votre première découverte vous attend : choisissez un parcours ou une énigme !';
+}
+
 async function chargerChasses() {
   // Explorateur sans village choisi : il n'a pas de chasses « chez lui », on l'invite à choisir.
   if (window.EST_EXPLORATEUR && !villageVisite) {
@@ -55,14 +70,29 @@ function renderListeChasses(chasses) {
   document.getElementById('vue-detail-chasse').hidden = true;
   const conteneur = document.getElementById('liste-chasses');
   conteneur.innerHTML = '';
-  if (!chasses.length) {
-    conteneur.innerHTML = modeArchivesChasses
-      ? `<p class="dechets-vide">Aucune chasse archivée.</p>`
-      : `<p class="dechets-vide">Aucune chasse pour l'instant.</p>`;
-  }
+  if (!chasses.length) conteneur.innerHTML = modeArchivesChasses ? '<p class="dechets-vide">Aucune chasse archivée.</p>' : messageAucunParcours();
+  conteneur.querySelector('.btn-vide-creer')?.addEventListener('click', () => ouvrirModaleCreationChasse());
+  conteneur.querySelector('.btn-vide-ailleurs')?.addEventListener('click', () => ouvrirRechercheVillage());
   chasses.forEach((ch) => conteneur.appendChild(
     modeArchivesChasses ? renderCarteChasseArchivee(ch) : renderCarteChasseCompacte(ch),
   ));
+}
+
+// Écran vide utile (2026-11-05) : la mairie est invitée à créer son premier parcours, un habitant à
+// jouer chez un voisin en attendant, plutôt qu'un simple « Aucune chasse pour l'instant ».
+function messageAucunParcours() {
+  if (villageVisite) return '<p class="dechets-vide">Ce village n’a pas encore de parcours.</p>';
+  if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
+    return `<div class="vide-exploration">
+      <p><strong>Aucun parcours pour l'instant.</strong> Créez le premier en quelques minutes : une balade guidée suffit, sans QR code à poser.</p>
+      <button type="button" class="btn-vide-creer bouton-ouvrir-modale">+ Créer un parcours</button>
+      <a href="/guide-communes#b5" target="_blank" rel="noopener">Comment faire ? (mode d’emploi)</a>
+    </div>`;
+  }
+  return `<div class="vide-exploration">
+    <p>La mairie n'a pas encore créé de parcours. En attendant, des villages voisins en proposent peut-être.</p>
+    <button type="button" class="btn-vide-ailleurs filtre-categorie-btn">🧳 Voir les villages voisins</button>
+  </div>`;
 }
 
 function renderCarteChasseCompacte(chasse) {
@@ -70,9 +100,12 @@ function renderCarteChasseCompacte(chasse) {
   el.type = 'button';
   el.className = 'carte-chasse-compacte';
   const termine = chasse.etapes_validees >= chasse.total_etapes;
+  const pct = chasse.total_etapes ? Math.round((chasse.etapes_validees / chasse.total_etapes) * 100) : 0;
   el.innerHTML = `
+    <span class="type-parcours type-${chasse.mode === 'balade' ? 'balade' : 'chasse'}">${chasse.mode === 'balade' ? '🚶 Balade' : '🔎 Chasse'}</span>
     <h3>${escapeAttr(chasse.titre)}</h3>
-    <p>${chasse.etapes_validees} / ${chasse.total_etapes} étapes validées${termine ? ' · Terminée 🎉' : ''}</p>
+    <div class="barre-progression-parcours"><span style="width:${pct}%"></span></div>
+    <p>${chasse.etapes_validees} / ${chasse.total_etapes} étapes${termine ? ' · Terminé 🏁' : ''}</p>
   `;
   el.addEventListener('click', () => ouvrirDetailChasse(chasse.id));
   return el;
@@ -109,7 +142,7 @@ function initToggleArchivesChasses() {
   if (!btn) return;
   btn.addEventListener('click', () => {
     modeArchivesChasses = !modeArchivesChasses;
-    btn.textContent = modeArchivesChasses ? '← Retour aux chasses actives' : '🗄️ Voir les chasses archivées';
+    btn.textContent = modeArchivesChasses ? '← Parcours actifs' : '🗄️ Archives';
     idChasseDetailOuverte = null;
     chargerChasses();
   });
@@ -126,8 +159,62 @@ function ouvrirDetailChasse(id) {
 }
 
 function fermerDetailChasse() {
+  arreterSuiviBalade();
+  document.body.classList.remove('carte-balade-plein-ecran');
   idChasseDetailOuverte = null;
   renderListeChasses(chassesCache);
+}
+
+// Guidage en direct pendant une balade (2026-11-05) : point « vous êtes ici », distance, direction
+// et « température » jusqu'à la prochaine étape, bouton de validation qui s'allume dans la zone.
+// Le GPS ne tourne que tant que la carte de la balade est affichée (voir arreterSuiviBalade).
+let suiviPositionBalade = null;
+let dernierePositionBalade = null;
+
+function arreterSuiviBalade() {
+  if (suiviPositionBalade != null) navigator.geolocation.clearWatch(suiviPositionBalade);
+  suiviPositionBalade = null;
+}
+
+const DIRECTIONS_CAP = ['le nord', 'le nord-est', 'l’est', 'le sud-est', 'le sud', 'le sud-ouest', 'l’ouest', 'le nord-ouest'];
+
+// Distance (m) et cap (degrés depuis le nord) entre deux points — même formule que lib/geo.ts.
+function distanceEtCap(lat1, lng1, lat2, lng2) {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  const distance = 2 * 6371000 * Math.asin(Math.sqrt(a));
+  const y = Math.sin(dLng) * Math.cos(lat2 * rad);
+  const x = Math.cos(lat1 * rad) * Math.sin(lat2 * rad) - Math.sin(lat1 * rad) * Math.cos(lat2 * rad) * Math.cos(dLng);
+  return { distance, cap: (Math.atan2(y, x) / rad + 360) % 360 };
+}
+
+const formaterDistance = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km`);
+
+// « Chaud / froid » ludique, partagé avec les énigmes photo (enigmes.js).
+function temperatureDistance(distance, rayon) {
+  if (distance <= rayon) return { cle: 'ici', texte: '🎯 Vous y êtes' };
+  if (distance <= Math.max(rayon * 2, 60)) return { cle: 'brulant', texte: '🔥 Brûlant' };
+  if (distance <= 200) return { cle: 'chaud', texte: '♨️ Chaud' };
+  if (distance <= 600) return { cle: 'tiede', texte: '🌤️ Tiède' };
+  return { cle: 'froid', texte: '❄️ Froid' };
+}
+
+// Points de progression d'un parcours (●●○○), communs à la chasse et à la balade.
+function pointsProgression(chasse) {
+  const points = Array.from({ length: chasse.total_etapes }, (_, i) => `<span class="${i < chasse.etapes_validees ? 'fait' : ''}"></span>`).join('');
+  return `<div class="points-progression" aria-label="${chasse.etapes_validees} étapes validées sur ${chasse.total_etapes}">${points}<em>${chasse.etapes_validees} / ${chasse.total_etapes}</em></div>`;
+}
+
+function carnetDecouvertes(chasse) {
+  const liste = chasse.decouvertes || [];
+  if (!liste.length) return '';
+  return `
+    <details class="carnet-decouvertes">
+      <summary>📖 Carnet de découvertes (${liste.length})</summary>
+      ${liste.map((d, i) => `<button type="button" class="ligne-carnet" data-i="${i}">${d.type === 'photo' ? '📸' : '📜'} Étape ${d.ordre + 1} · ${escapeAttr(d.titre)}</button>`).join('')}
+    </details>`;
 }
 
 function renderDetailChasse(chasse) {
@@ -135,31 +222,45 @@ function renderDetailChasse(chasse) {
   const zone = document.getElementById('vue-detail-chasse');
   zone.hidden = false;
   // On repart d'une carte neuve à chaque rendu (le conteneur est recréé par innerHTML).
+  arreterSuiviBalade();
   if (carteBalade) { carteBalade.remove(); carteBalade = null; }
+  document.body.classList.remove('carte-balade-plein-ecran');
 
   const termine = chasse.etapes_validees >= chasse.total_etapes;
   const estGestionnaireChasse = !villageVisite && ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const estBalade = chasse.mode === 'balade';
 
-  const controlesChasse = `
-    ${!termine ? '<button class="btn-scanner">Scanner un QR code</button>' : ''}
+  const controlesChasse = termine ? '' : `
+    <button class="btn-scanner">📷 Scanner le QR code de l'étape</button>
     <div id="zone-scanner"></div>
-    ${!termine ? `<form id="form-code-manuel"><input placeholder="Code manuel (si scan impossible)"><button>Valider</button></form>` : ''}
+    <details class="code-manuel">
+      <summary>Problème de scan ?</summary>
+      <form id="form-code-manuel"><input placeholder="Code écrit sous le QR code"><button>Valider</button></form>
+    </details>
   `;
   const controlesBalade = `
-    <div id="carte-balade" style="height:320px;border-radius:14px;overflow:hidden;margin:8px 0;"></div>
+    ${termine ? '' : '<div class="guidage-balade" id="guidage-balade" data-etat="attente">📍 Autorisez la localisation pour être guidé jusqu’à la prochaine étape.</div>'}
+    <div class="cadre-carte-balade" id="cadre-carte-balade">
+      <div id="carte-balade"></div>
+      <div class="boutons-carte-balade">
+        ${termine ? '' : '<button type="button" class="btn-carte-balade" id="btn-recentrer-balade" title="Me localiser" aria-label="Me localiser">📍</button>'}
+        <button type="button" class="btn-carte-balade" id="btn-plein-ecran-balade" title="Plein écran" aria-label="Plein écran">⛶</button>
+      </div>
+    </div>
     ${!termine && chasse.etape_suivante ? '<button class="btn-arrive">📍 Je suis arrivé à cette étape</button>' : ''}
   `;
 
   zone.innerHTML = `
-    <button type="button" class="btn-retour-detail">← Retour aux chasses</button>
+    <button type="button" class="btn-retour-detail">← Retour aux parcours</button>
+    <span class="type-parcours type-${estBalade ? 'balade' : 'chasse'}">${estBalade ? '🚶 Balade guidée' : '🔎 Chasse au trésor'}</span>
     <h3>${escapeAttr(chasse.titre)}</h3>
     ${chasse.description ? `<p>${texteAvecLiensCliquables(chasse.description)}</p>` : ''}
-    <p>${chasse.etapes_validees} / ${chasse.total_etapes} étapes validées</p>
+    ${pointsProgression(chasse)}
     ${!termine && chasse.etape_suivante ? `<p class="indice-etape">${estBalade ? 'Prochaine étape' : 'Indice'} : ${escapeAttr(chasse.etape_suivante.indice)}</p>` : ''}
-    ${termine ? '<p class="trouve-enigme">Chasse terminée 🎉</p>' : ''}
+    ${termine ? `<div class="fin-parcours">🏁 <strong>Parcours terminé !</strong> Vous avez découvert ${chasse.total_etapes > 1 ? `les ${chasse.total_etapes} étapes` : 'l’étape'} de « ${escapeAttr(chasse.titre)} ».</div>` : ''}
     ${estBalade ? controlesBalade : controlesChasse}
-    <button type="button" class="btn-classement-chasse" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);margin-top:10px;">🏆 Classement de cette chasse</button>
+    ${carnetDecouvertes(chasse)}
+    <button type="button" class="btn-classement-chasse" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);margin-top:10px;">🏆 Classement de ce parcours</button>
     <div id="zone-classement" hidden></div>
     ${estGestionnaireChasse ? `
       <div class="actions-admin" style="margin-top:12px;">
@@ -175,6 +276,7 @@ function renderDetailChasse(chasse) {
   zone.querySelector('.btn-retour-detail').addEventListener('click', () => fermerDetailChasse());
   zone.querySelector('.btn-scanner')?.addEventListener('click', () => ouvrirScanner());
   zone.querySelector('.btn-arrive')?.addEventListener('click', (e) => validerEtapePosition(chasse.etape_suivante.id, null, e.currentTarget));
+  zone.querySelectorAll('.ligne-carnet').forEach((b) => b.addEventListener('click', () => afficherContenuRevele(chasse.decouvertes[b.dataset.i])));
   zone.querySelector('.btn-classement-chasse').addEventListener('click', async () => {
     const zoneClassement = document.getElementById('zone-classement');
     zoneClassement.hidden = !zoneClassement.hidden;
@@ -212,12 +314,12 @@ function renderDetailChasse(chasse) {
     e.target.reset();
   });
 
-  if (estBalade) initCarteBalade(chasse);
+  if (estBalade) initCarteBalade(chasse, termine);
 }
 
-// Carte de la balade : tous les points + itinéraire tracé ; couleur selon l'état
-// (validée / prochaine / à venir).
-function initCarteBalade(chasse) {
+// Carte de la balade : étapes numérotées (validée / prochaine / à venir), chemin parcouru en trait
+// plein et reste en pointillés, zone de validation de la prochaine étape, et position du joueur.
+function initCarteBalade(chasse, termine) {
   const etapes = [...(chasse.etapes || [])].sort((a, b) => a.ordre - b.ordre);
   if (!etapes.length) return;
 
@@ -227,21 +329,92 @@ function initCarteBalade(chasse) {
     { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 20 },
   ).addTo(carteBalade);
 
-  const prochaineId = chasse.etape_suivante?.id;
-  const points = [];
+  const prochaine = etapes.find((e) => e.id === chasse.etape_suivante?.id) || null;
+  const points = etapes.map((e) => [e.lat, e.lng]);
+  const nbFaites = etapes.filter((e) => e.validee).length;
+  // Chemin déjà parcouru (jusqu'à la prochaine étape incluse) en plein, la suite en pointillés.
+  if (nbFaites) L.polyline(points.slice(0, nbFaites + 1), { color: '#4CAF50', weight: 4, opacity: 0.8 }).addTo(carteBalade);
+  if (nbFaites < points.length) L.polyline(points.slice(Math.max(nbFaites, 0)), { color: '#2C7BE5', weight: 3, opacity: 0.55, dashArray: '6 6' }).addTo(carteBalade);
+  if (prochaine) L.circle([prochaine.lat, prochaine.lng], { radius: chasse.rayon_metres || 50, color: '#2C7BE5', weight: 1, fillOpacity: 0.08 }).addTo(carteBalade);
+
   etapes.forEach((e) => {
-    points.push([e.lat, e.lng]);
-    let couleur = '#8A94A6';                              // à venir
-    if (e.validee) couleur = '#4CAF50';                   // validée
-    else if (e.id === prochaineId) couleur = '#2C7BE5';  // prochaine
-    const etat = e.validee ? '✅ validée' : (e.id === prochaineId ? '➡️ prochaine étape' : '🔒 à venir');
-    L.circleMarker([e.lat, e.lng], { radius: 9, color: couleur, fillColor: couleur, fillOpacity: 0.85, weight: 2 })
-      .addTo(carteBalade)
-      .bindPopup(`<strong>Étape ${e.ordre + 1} — ${escapeAttr(e.titre)}</strong><br>${etat}`);
+    const etat = e.validee ? 'validee' : (prochaine && e.id === prochaine.id ? 'prochaine' : 'avenir');
+    const libelle = { validee: '✅ validée', prochaine: '➡️ prochaine étape', avenir: '🔒 à venir' }[etat];
+    L.marker([e.lat, e.lng], {
+      icon: L.divIcon({ className: '', html: `<span class="pastille-balade etat-${etat}">${e.validee ? '✓' : e.ordre + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }),
+      zIndexOffset: etat === 'prochaine' ? 1000 : 0,
+    }).addTo(carteBalade).bindPopup(`<strong>Étape ${e.ordre + 1} — ${escapeAttr(e.titre)}</strong><br>${libelle}`);
   });
-  L.polyline(points, { color: '#2C7BE5', weight: 3, opacity: 0.55, dashArray: '6 6' }).addTo(carteBalade);
   carteBalade.fitBounds(points, { padding: [30, 30], maxZoom: 17 });
   setTimeout(() => carteBalade && carteBalade.invalidateSize(), 150);
+
+  let marqueurVous = null;
+  let halo = null;
+  const guidage = document.getElementById('guidage-balade');
+  const bouton = document.querySelector('#vue-detail-chasse .btn-arrive');
+  const rayon = chasse.rayon_metres || 50;
+
+  const majPosition = (pos) => {
+    // Plus de carte à l'écran (autre parcours, autre onglet) : on coupe le GPS.
+    if (!document.getElementById('carte-balade') || document.getElementById('onglet-chasse-tresor')?.hidden) { arreterSuiviBalade(); return; }
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    dernierePositionBalade = { lat, lng };
+    if (!marqueurVous) {
+      halo = L.circle([lat, lng], { radius: accuracy, color: '#1a73e8', weight: 0, fillOpacity: 0.12, interactive: false }).addTo(carteBalade);
+      marqueurVous = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<span class="point-vous"></span>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 2000, interactive: false }).addTo(carteBalade);
+    } else {
+      marqueurVous.setLatLng([lat, lng]);
+      halo.setLatLng([lat, lng]).setRadius(accuracy);
+    }
+    if (!prochaine || !guidage) return;
+    const { distance, cap } = distanceEtCap(lat, lng, prochaine.lat, prochaine.lng);
+    const temp = temperatureDistance(distance, rayon);
+    guidage.dataset.etat = temp.cle;
+    guidage.innerHTML = `
+      <strong>➡️ Étape ${prochaine.ordre + 1} · ${escapeAttr(prochaine.titre)}</strong>
+      <span>${temp.cle === 'ici' ? 'Vous êtes dans la zone de l’étape' : `${formaterDistance(distance)} · vers ${DIRECTIONS_CAP[Math.round(cap / 45) % 8]}`}</span>
+      <span class="temperature">${temp.texte}</span>`;
+    if (bouton && !bouton.disabled) {
+      bouton.classList.toggle('pret', temp.cle === 'ici');
+      bouton.textContent = temp.cle === 'ici' ? '🎉 Vous y êtes ! Valider l’étape' : `📍 Je suis arrivé (encore ~${formaterDistance(distance)})`;
+    }
+  };
+  const demarrerSuivi = () => {
+    if (termine || !navigator.geolocation || suiviPositionBalade != null) return;
+    suiviPositionBalade = navigator.geolocation.watchPosition(majPosition, (err) => {
+      if (guidage && err.code === err.PERMISSION_DENIED) {
+        guidage.dataset.etat = 'attente';
+        guidage.textContent = '📍 Localisation refusée : autorisez-la dans les réglages du navigateur pour être guidé.';
+      }
+    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+  };
+  demarrerSuivi();
+
+  document.getElementById('btn-recentrer-balade')?.addEventListener('click', () => {
+    demarrerSuivi();
+    if (!dernierePositionBalade) { afficherToastMessage('Recherche de votre position…', 'info'); return; }
+    const cible = [[dernierePositionBalade.lat, dernierePositionBalade.lng]];
+    if (prochaine) cible.push([prochaine.lat, prochaine.lng]);
+    carteBalade.fitBounds(cible, { padding: [50, 50], maxZoom: 18 });
+  });
+  document.getElementById('btn-plein-ecran-balade').addEventListener('click', (e) => {
+    const plein = document.getElementById('cadre-carte-balade').classList.toggle('plein-ecran');
+    document.body.classList.toggle('carte-balade-plein-ecran', plein);
+    e.currentTarget.textContent = plein ? '✕' : '⛶';
+    e.currentTarget.title = plein ? 'Réduire la carte' : 'Plein écran';
+    setTimeout(() => carteBalade && carteBalade.invalidateSize(), 120);
+  });
+}
+
+// Après une validation réussie : recharge le parcours et salue sa complétion.
+async function rechargerApresValidation() {
+  const avant = chassesCache.find((c) => c.id === idChasseDetailOuverte);
+  await chargerChasses();
+  chargerProgressionExploration();
+  const apres = chassesCache.find((c) => c.id === idChasseDetailOuverte);
+  if (avant && apres && avant.etapes_validees < avant.total_etapes && apres.etapes_validees >= apres.total_etapes) {
+    afficherToastMessage(`🏁 Parcours « ${apres.titre} » terminé, bravo !`, 'succes');
+  }
 }
 
 // Validation d'une étape de balade par proximité GPS. bouton (optionnel) : retour visuel de
@@ -268,7 +441,7 @@ function validerEtapePosition(etape_id, reponse = null, bouton = null) {
     const data = await res.json();
 
     if (res.ok && data.reussi === false) {
-      afficherToastMessage(`Trop loin (~${data.distance_metres} m). Rapproche-toi du point.`, 'erreur');
+      afficherToastMessage(`Pas encore : environ ${formaterDistance(data.distance_metres)} (${temperatureDistance(data.distance_metres, 0).texte}). Rapprochez-vous du point.`, 'erreur');
       return;
     }
     if (res.ok && data.etape_enigme) { afficherEnigmeEtapePosition(etape_id, data.question); return; }
@@ -279,7 +452,7 @@ function validerEtapePosition(etape_id, reponse = null, bouton = null) {
     } else {
       afficherToastMessage(data.erreur || 'Erreur', 'erreur');
     }
-    chargerChasses();
+    rechargerApresValidation();
   }).catch(() => {
     afficherToastMessage('Localisation refusée ou indisponible.', 'erreur');
   }).finally(() => {
@@ -372,7 +545,7 @@ async function validerEtape(qr_token, reponse = null) {
   } else {
     afficherToastMessage(data.erreur || 'Erreur', 'erreur');
   }
-  chargerChasses(); // l'écran de détail reste ouvert (idChasseDetailOuverte inchangé), juste rafraîchi
+  rechargerApresValidation(); // l'écran de détail reste ouvert (idChasseDetailOuverte inchangé), juste rafraîchi
 }
 
 // Modale d'énigme : la réponse est vérifiée côté serveur ; on garde la modale ouverte
@@ -400,7 +573,7 @@ function afficherEnigmeEtape(qr_token, question, url) {
       afficherToastMessage('Bonne réponse ! Étape validée 🎉', 'succes');
       if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
       traiterRecompense(data);
-      chargerChasses();
+      rechargerApresValidation();
     } else {
       afficherToastMessage(data.erreur || 'Mauvaise réponse', 'erreur');
     }

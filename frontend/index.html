@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261017-1">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261105-2">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261105-9">
 </head>
 <body>
 
@@ -32,7 +32,7 @@
     <button data-onglet="mur"><span class="ic">💬</span><span>Mur des voisins</span></button>
     <button data-onglet="agenda"><span class="ic">📅</span><span>Agenda</span></button>
     <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Coup de main</span></button>
-    <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse au trésor</span></button>
+    <button data-onglet="chasse-tresor"><span class="ic">🧭</span><span>Explorer</span></button>
     <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
     <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
     <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
@@ -191,53 +191,45 @@
 
     <section id="onglet-chasse-tresor" class="onglet-contenu" hidden>
       <div class="bandeau-onglet">
-        <h3>Chasse au trésor</h3>
-        <p>Explorez votre commune à travers des chasses officielles et des énigmes photo entre voisins.</p>
+        <h3>Explorer</h3>
+        <p>Chasses au trésor, balades guidées et énigmes photo : découvrez le village et son patrimoine en vous amusant.</p>
       </div>
       <div id="bandeau-village-visite" class="bandeau-onglet" hidden></div>
-      <button type="button" id="btn-jouer-ailleurs" class="btn-classement-exploration">🧳 Jouer dans un autre village</button>
-      <button type="button" id="btn-classement-exploration" class="btn-classement-exploration">🏆 Classement Exploration</button>
+      <div id="carte-progression-exploration" class="carte-progression-exploration" hidden></div>
+      <!-- Actions secondaires en pastilles (avant le 2026-11-05 : deux grands boutons + raccourcis
+           qui repoussaient les jeux sous la ligne de flottaison). -->
+      <div class="pastilles-exploration">
+        <button type="button" id="btn-jouer-ailleurs" class="filtre-categorie-btn">🧳 Autres villages</button>
+        <button type="button" id="btn-classement-exploration" class="filtre-categorie-btn">🏆 Classement</button>
+        <button type="button" id="btn-toggle-archives-chasses" class="filtre-categorie-btn admin-en-ligne">🗄️ Archives</button>
+      </div>
       <div id="zone-classement-exploration" hidden></div>
-
-      <nav class="chasse-jump-nav" aria-label="Aller à">
-        <button type="button" class="chasse-jump-chip" data-cible="section-chasses-officielles">
-          <span class="chasse-jump-icone">🗺️</span>
-          <span>Chasses officielles</span>
-          <span class="chasse-jump-compte" id="compte-chasses">–</span>
-        </button>
-        <button type="button" class="chasse-jump-chip" data-cible="section-trouve-la-photo">
-          <span class="chasse-jump-icone">🧭</span>
-          <span>Énigme photo</span>
-          <span class="chasse-jump-compte" id="compte-enigmes">–</span>
-        </button>
-      </nav>
 
       <h4 class="sous-titre-chasse" id="section-chasses-officielles">
         <span class="sous-titre-chasse-icone">🗺️</span>
-        <span>Chasses officielles</span>
+        <span>Parcours</span>
+        <span class="chasse-jump-compte" id="compte-chasses">–</span>
         <span class="sous-titre-chasse-trait"></span>
+        <button type="button" id="btn-ouvrir-creation-chasse" class="btn-creer-mini admin-en-ligne">+ Créer</button>
       </h4>
       <div id="sous-contenu-chasses">
         <div id="vue-liste-chasses">
-          <div class="form-admin-only">
-            <button type="button" id="btn-ouvrir-creation-chasse" class="bouton-ouvrir-modale">+ Créer une chasse au trésor</button>
-            <button type="button" id="btn-toggle-archives-chasses" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);font-size:12.5px;padding:6px 12px;border-radius:100px;margin-top:8px;">🗄️ Voir les chasses archivées</button>
-          </div>
-          <div id="liste-chasses"></div>
+          <div id="liste-chasses" class="liste-parcours"></div>
         </div>
         <div id="vue-detail-chasse" hidden></div>
       </div>
 
       <h4 class="sous-titre-chasse" id="section-trouve-la-photo">
         <span class="sous-titre-chasse-icone">🧭</span>
-        <span>Énigme photo</span>
+        <span>Énigmes photo</span>
+        <span class="chasse-jump-compte" id="compte-enigmes">–</span>
         <span class="sous-titre-chasse-trait"></span>
       </h4>
       <div id="sous-contenu-enigmes">
         <div id="vue-liste-enigmes">
           <p id="aide-creation-enigme" style="font-size:12.5px;color:var(--roseau);">Prends une photo à un endroit précis du village. Les autres doivent deviner où, en s'y rendant physiquement !</p>
           <button type="button" id="btn-ouvrir-creation-enigme" class="bouton-ouvrir-modale">+ Publier une énigme</button>
-          <div id="liste-enigmes"></div>
+          <div id="liste-enigmes" class="grille-enigmes"></div>
         </div>
         <div id="vue-detail-enigme" hidden></div>
       </div>
@@ -743,7 +735,7 @@
       <div class="grille-feuille-plus">
         <button data-onglet="thermometre"><span class="ic">🌡️</span><span>Thermomètre</span></button>
         <button data-onglet="mur"><span class="ic">💬</span><span>Mur des voisins</span></button>
-        <button data-onglet="chasse-tresor"><span class="ic">🗺️</span><span>Chasse au trésor</span></button>
+        <button data-onglet="chasse-tresor"><span class="ic">🧭</span><span>Explorer</span></button>
         <button data-onglet="conseil"><span class="ic">🏛️</span><span>Conseil</span></button>
         <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
         <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
@@ -773,18 +765,18 @@
   <script src="/js/agenda.js?v=20261005-6"></script>
   <script src="/js/coups-de-main.js?v=20261013-1"></script>
   <script src="/js/coups-de-main-form.js?v=20261018-1"></script>
-  <script src="/js/chasse-tresor.js?v=20261105-3"></script>
+  <script src="/js/chasse-tresor.js?v=20261105-9"></script>
   <script src="/js/conseil.js?v=20261005-6"></script>
   <script src="/js/annuaire.js?v=20261005-6"></script>
   <script src="/js/bulletin.js?v=20261005-6"></script>
   <script src="/js/photo-du-jour.js?v=20261024-1"></script>
   <script src="/js/memoire.js?v=20261007-2"></script>
-  <script src="/js/enigmes.js?v=20261105-1"></script>
+  <script src="/js/enigmes.js?v=20261105-9"></script>
   <script src="/js/profil.js?v=20261103-1"></script>
   <script src="/js/notifications.js?v=20261006-3"></script>
   <script src="/js/lois.js?v=20261005-6"></script>
   <script src="/js/moderation.js?v=20261105-3"></script>
   <script src="/js/participation-citoyenne.js?v=20261005-6"></script>
-  <script src="/js/navigation.js?v=20261105-1"></script>
+  <script src="/js/navigation.js?v=20261105-9"></script>
 </body>
 </html>

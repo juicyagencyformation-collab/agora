@@ -772,6 +772,7 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 #onglet-chasse-tresor.en-visite #btn-jouer-ailleurs,
 #onglet-chasse-tresor.en-visite #btn-classement-exploration,
 #onglet-chasse-tresor.en-visite #zone-classement-exploration,
+#onglet-chasse-tresor.en-visite .admin-en-ligne,
 #onglet-chasse-tresor.en-visite #btn-ouvrir-creation-enigme,
 #onglet-chasse-tresor.en-visite #aide-creation-enigme { display: none !important; }
 
@@ -785,7 +786,8 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 .mode-explorateur #zone-classement-exploration,
 .mode-explorateur #btn-ouvrir-creation-enigme,
 .mode-explorateur #aide-creation-enigme,
-.mode-explorateur #onglet-chasse-tresor .form-admin-only { display: none !important; }
+.mode-explorateur #onglet-chasse-tresor .form-admin-only,
+.mode-explorateur #onglet-chasse-tresor .admin-en-ligne { display: none !important; }
 
 .chasse-jump-nav { display: flex; gap: 8px; margin-bottom: 18px; }
 .chasse-jump-chip {
@@ -1437,3 +1439,117 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
   flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%; border: none; cursor: pointer;
   background: rgba(255,255,255,.7); color: var(--roseau); font-size: 13px;
 }
+
+/* ─── Onglet Explorer (2026-11-05) : accueil, parcours, énigmes, balade guidée ─── */
+.pastilles-exploration { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 6px; }
+.admin-en-ligne { display: none; }
+body.est-admin .admin-en-ligne { display: inline-flex; align-items: center; }
+.btn-creer-mini {
+  flex-shrink: 0; border: none; border-radius: 100px; padding: 6px 12px; cursor: pointer;
+  background: var(--eau); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 700;
+}
+.carte-progression-exploration {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0 0 10px; padding: 10px 14px;
+  border-radius: var(--r); background: var(--eauXL); color: var(--boue); font-size: 13px;
+}
+.carte-progression-exploration[hidden] { display: none; }
+.carte-progression-exploration span { font-weight: 700; color: var(--eau); margin-right: 4px; }
+.carte-progression-exploration strong { color: var(--eau); }
+
+/* Parcours : cartes défilantes horizontalement. */
+.liste-parcours { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }
+.liste-parcours > .carte-chasse-compacte { flex: 0 0 72%; max-width: 260px; margin: 0; scroll-snap-align: start; display: flex; flex-direction: column; gap: 6px; }
+.liste-parcours > p, .liste-parcours > .vide-exploration { flex: 1 1 100%; }
+.type-parcours {
+  align-self: flex-start; display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 100px; background: var(--eauXL); color: var(--eau);
+}
+.type-parcours.type-balade { background: #E7F1E3; color: var(--prairie); }
+.barre-progression-parcours { height: 6px; border-radius: 100px; background: var(--eauL); overflow: hidden; }
+.barre-progression-parcours span { display: block; height: 100%; background: var(--prairie); border-radius: 100px; }
+.vide-exploration { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1.5px dashed var(--eauL); border-radius: var(--r); font-size: 13.5px; color: var(--roseau); }
+.vide-exploration p { margin: 0; }
+.vide-exploration .bouton-ouvrir-modale { margin: 0; }
+.vide-exploration a { color: var(--eau); font-size: 13px; }
+
+/* Énigmes photo : vignettes en grille. */
+.grille-enigmes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.grille-enigmes > p { grid-column: 1 / -1; }
+.carte-enigme-vignette { position: relative; aspect-ratio: 1; padding: 0; border: none; border-radius: 12px; overflow: hidden; cursor: pointer; background: var(--eauXL); }
+.carte-enigme-vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.coche-vignette {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--prairie); color: #fff; font-weight: 800; font-size: 14px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+.etiquette-vignette {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 6px 5px; font-size: 11px; font-weight: 700; color: #fff;
+  background: linear-gradient(transparent, rgba(0,0,0,.6)); text-align: left;
+}
+.thermo-enigme { margin: 8px 0; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; background: var(--eauXL); color: var(--boue); }
+.thermo-enigme[hidden] { display: none; }
+.thermo-enigme[data-etat="brulant"], .guidage-balade[data-etat="brulant"] { background: #FDE7DF; }
+.thermo-enigme[data-etat="chaud"], .guidage-balade[data-etat="chaud"] { background: #FDF0DC; }
+.thermo-enigme[data-etat="tiede"], .guidage-balade[data-etat="tiede"] { background: #FBF6E2; }
+.thermo-enigme[data-etat="froid"], .guidage-balade[data-etat="froid"] { background: #E5F0F8; }
+.carte-enigme-trouvee { height: 180px; cursor: default; margin: 10px 0; }
+
+/* Détail d'un parcours. */
+.points-progression { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 10px; }
+.points-progression span { width: 12px; height: 12px; border-radius: 50%; background: var(--eauL); }
+.points-progression span.fait { background: var(--prairie); }
+.points-progression em { font-style: normal; font-size: 12.5px; color: var(--roseau); margin-left: 4px; }
+.fin-parcours { margin: 8px 0 12px; padding: 12px 14px; border-radius: var(--r); background: #E7F1E3; color: var(--prairie); font-size: 14px; }
+.carnet-decouvertes { margin: 12px 0 4px; border: 1px solid var(--eauL); border-radius: var(--r); padding: 4px 12px; background: #fff; }
+.carnet-decouvertes summary { cursor: pointer; padding: 8px 0; font-weight: 700; color: var(--eau); }
+.ligne-carnet { display: block; width: 100%; text-align: left; background: none; border: none; border-top: 1px solid var(--eauXL); padding: 9px 0; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: var(--boue); }
+.code-manuel { margin: 8px 0; font-size: 13px; }
+.code-manuel summary { cursor: pointer; color: var(--roseau); }
+
+/* Balade guidée : guidage, carte et position du joueur. */
+.guidage-balade {
+  display: flex; flex-direction: column; gap: 2px; margin: 8px 0; padding: 10px 14px; border-radius: var(--r);
+  background: var(--eauXL); color: var(--boue); font-size: 13.5px; transition: background .4s;
+}
+.guidage-balade strong { color: var(--eau); }
+.guidage-balade .temperature { font-weight: 700; }
+.guidage-balade[data-etat="ici"] { background: #E7F1E3; }
+.cadre-carte-balade { position: relative; height: 320px; border-radius: 14px; overflow: hidden; margin: 8px 0; }
+.cadre-carte-balade #carte-balade { height: 100%; }
+.boutons-carte-balade { position: absolute; top: 10px; right: 10px; z-index: 500; display: flex; flex-direction: column; gap: 8px; }
+.btn-carte-balade {
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; cursor: pointer; font-size: 17px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25); display: flex; align-items: center; justify-content: center; color: var(--eau);
+}
+.cadre-carte-balade.plein-ecran { position: fixed; inset: 0; height: 100vh; height: 100dvh; border-radius: 0; margin: 0; z-index: 2000; }
+body.carte-balade-plein-ecran { overflow: hidden; }
+.btn-arrive.pret, .btn-arrive.pret:disabled { background: var(--prairie); color: #fff; }
+.pastille-balade {
+  width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: #fff; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.pastille-balade.etat-validee { background: var(--prairie); }
+.pastille-balade.etat-prochaine { background: #2C7BE5; }
+.pastille-balade.etat-avenir { background: #8A94A6; }
+.point-vous { display: block; width: 20px; height: 20px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(26,115,232,.4), 0 1px 4px rgba(0,0,0,.35); }
+@media (prefers-reduced-motion: no-preference) {
+  .pastille-balade.etat-prochaine { animation: pulsation-etape 1.6s ease-out infinite; }
+  .btn-arrive.pret { animation: pulsation-etape 1.6s ease-out infinite; }
+}
+@keyframes pulsation-etape {
+  0% { box-shadow: 0 0 0 0 rgba(44,123,229,.55); }
+  70% { box-shadow: 0 0 0 12px rgba(44,123,229,0); }
+  100% { box-shadow: 0 0 0 0 rgba(44,123,229,0); }
+}
+/* Boutons d'action d'un parcours : le geste principal (scanner / valider) bien visible. */
+.btn-arrive, .btn-scanner {
+  display: block; width: 100%; padding: 13px; margin: 6px 0; border-radius: 100px; border: none; cursor: pointer;
+  background: var(--eau); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 14.5px; font-weight: 700;
+}
+.btn-arrive:disabled { opacity: .7; cursor: wait; }
+.btn-classement-chasse {
+  display: block; width: 100%; padding: 9px 8px; border-radius: 100px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600;
+}
+.liste-parcours { scrollbar-width: none; }
+.liste-parcours::-webkit-scrollbar { display: none; }
