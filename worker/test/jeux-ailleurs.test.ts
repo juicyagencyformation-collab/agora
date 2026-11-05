@@ -68,6 +68,7 @@ function correspond(valeur: any, filtre: string): boolean {
   if (filtre.startsWith('neq.')) return String(valeur) !== filtre.slice(4);
   if (filtre.startsWith('lt.')) return Number(valeur) < Number(filtre.slice(3));
   if (filtre.startsWith('in.(')) return filtre.slice(4, -1).split(',').includes(String(valeur));
+  if (filtre.startsWith('not.in.(')) return !filtre.slice(8, -1).split(',').includes(String(valeur));
   if (filtre.startsWith('imatch.')) return new RegExp(filtre.slice(7), 'i').test(String(valeur ?? ''));
   if (filtre.startsWith('ilike.')) {
     const motif = filtre.slice(6).replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
@@ -225,5 +226,15 @@ describe('jeux dans une autre commune', () => {
     expect(communes[0]).not.toHaveProperty('id');
     expect((await (await requete('/communes?q=fe')).json()).communes).toEqual([]);
     expect((await (await requete('/communes?q=to')).json()).communes).toEqual([]);
+  });
+
+  it('ne propose pas les communes de test de Léandre, qui restent jouables par lien direct', async () => {
+    db.communes.push(
+      { id: 'c-eaucourt', nom: 'Eaucourt-sur-Somme', slug: 'eaucourt', statut_client: 'active', departement: '80' },
+      { id: 'c-essai', nom: 'Eaucourt-sur-Somme', slug: 'eaucourt-sur-somme', statut_client: 'active' },
+    );
+    const { communes } = await (await requete('/communes?q=eauc')).json();
+    expect(communes.map((c: any) => c.slug)).toEqual(['eaucourt']);
+    expect((await requete('/eaucourt-sur-somme')).status).toBe(200);
   });
 });

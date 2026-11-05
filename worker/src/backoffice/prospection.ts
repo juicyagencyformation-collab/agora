@@ -1233,11 +1233,30 @@ app.patch('/prospects/:id', async (c) => {
 // GET /favoris — prospects marqués d'une étoile (voir PATCH ci-dessus, champ etoiles), classés du
 // plus étoilé au moins étoilé, pour le panneau "⭐ Favoris" du menu de gauche du backoffice
 // (accès direct aux prospects prioritaires sans repasser par la liste/recherche complète).
+// Depuis le 2026-11-05, aussi les communes SANS fiche prospect mises en favori (migration 099,
+// ex. la vraie « eaucourt », créée avant la prospection). Chaque favori porte le slug de sa
+// commune : deux communes du même nom (eaucourt / eaucourt-sur-somme, la commune de test de
+// Léandre) restent ainsi distinguables dans le panneau.
 app.get('/favoris', async (c) => {
-  const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,etoiles', etoiles: 'gt.0', order: 'etoiles.desc,nom.asc', limit: '50',
-  });
-  return c.json({ prospects });
+  const [prospects, communesFavorites] = await Promise.all([
+    supabaseSelect(c.env, 'prospects', {
+      select: 'id,nom,etoiles,commune_id', etoiles: 'gt.0', order: 'etoiles.desc,nom.asc', limit: '50',
+    }),
+    // Colonne absente tant que la migration 099 n'est pas passée : on garde les favoris prospects.
+    supabaseSelect(c.env, 'communes', {
+      select: 'id,nom,slug,etoiles', etoiles: 'gt.0', limit: '50',
+    }).catch(() => [] as any[]),
+  ]);
+  const idsCommunesProspects = prospects.map((p: any) => p.commune_id).filter(Boolean);
+  const slugs = new Map<string, string>((idsCommunesProspects.length ? await supabaseSelect(c.env, 'communes', {
+    select: 'id,slug', id: `in.(${idsCommunesProspects.join(',')})`,
+  }) : []).map((cm: any) => [cm.id, cm.slug]));
+
+  const favoris = [
+    ...prospects.map((p: any) => ({ type: 'prospect', id: p.id, nom: p.nom, etoiles: p.etoiles, slug: slugs.get(p.commune_id) ?? null })),
+    ...communesFavorites.map((cm: any) => ({ type: 'commune', id: cm.id, nom: cm.nom, etoiles: cm.etoiles, slug: cm.slug })),
+  ].sort((a, b) => b.etoiles - a.etoiles || a.nom.localeCompare(b.nom, 'fr'));
+  return c.json({ favoris });
 });
 
 // — Ajout d'une interaction (relance manuelle : note, appel, email...) —

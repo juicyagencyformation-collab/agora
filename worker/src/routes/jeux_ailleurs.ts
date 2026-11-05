@@ -23,6 +23,7 @@ import {
 } from './chasses_tresor';
 import { listerEnigmesJouables, validerEnigme, validationEnigmeSchema, signalerEnigme } from './enigmes';
 import { motifNomCommune } from './decouverte';
+import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -61,6 +62,7 @@ app.get('/communes', async (c) => {
     statut_client: 'eq.active',
     niveau_national: 'not.is.true',
     acces_libre: 'not.is.true',
+    slug: `not.in.(${SLUGS_COMMUNES_TEST.join(',')})`, // communes de test : jouables par lien direct seulement
     id: `neq.${c.get('commune_id')}`,
     order: 'nom.asc',
     limit: '15',

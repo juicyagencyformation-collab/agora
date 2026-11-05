@@ -37,9 +37,9 @@
       <div class="bo-nav__favoris" x-show="favoris.length > 0">
         <div class="bo-nav__favoris-titre">⭐ Favoris</div>
         <template x-for="f in favoris" :key="f.id">
-          <div class="bo-nav__favori" @click="ouvrirProspect(f.id)" :title="f.nom">
+          <div class="bo-nav__favori" @click="ouvrirFavori(f)" :title="f.nom + (f.slug ? ' (/' + f.slug + ')' : '')">
             <span class="bo-nav__favori-etoiles" x-text="'★'.repeat(f.etoiles) + '☆'.repeat(5 - f.etoiles)"></span>
-            <span class="bo-nav__favori-nom" x-text="f.nom"></span>
+            <span class="bo-nav__favori-nom" x-text="f.nom + (favoriHomonyme(f) && f.slug ? ' · /' + f.slug : '')"></span>
           </div>
         </template>
       </div>
@@ -2598,6 +2598,14 @@
                   <span x-text="'/' + fiche?.commune.slug"></span>
                   <template x-if="fiche?.commune.email_mairie"><span> · <span x-text="fiche?.commune.email_mairie"></span></span></template>
                 </div>
+                <!-- Favori d'une commune sans fiche prospect (migration 099) ; sinon les étoiles sont
+                     dans la partie Prospection, sur la fiche prospect. -->
+                <div x-show="!prospect" title="Favori" style="margin-top:4px">
+                  <template x-for="n in [1,2,3,4,5]" :key="n">
+                    <span style="cursor:pointer; font-size:18px; color:#f0b400" @click="definirEtoilesCommune(n)"
+                          x-text="n <= (fiche?.commune.etoiles || 0) ? '★' : '☆'"></span>
+                  </template>
+                </div>
               </div>
             </div>
           </template>
@@ -4393,7 +4401,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261104-7"></script>
+  <script src="/backoffice/js/app.js?v=20261105-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

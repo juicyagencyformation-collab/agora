@@ -283,7 +283,7 @@ function backoffice() {
     filtreMaireConnecte: false, // "🔑 le maire s'est connecté" — signal le plus fiable, voir /stats-variantes
     totalMairesConnectes: 0,
     sousVueProspection: 'liste', // 'liste' | 'carte' | 'recues'
-    favoris: [], // prospects étoilés, panneau de gauche — voir GET /prospection/favoris
+    favoris: [], // prospects et communes étoilés, panneau de gauche — voir GET /prospection/favoris
     // Tableau de bord "Aujourd'hui" — n'a besoin que de ces deux-là en propre : échéances,
     // onboarding bloqué et emails rejetés réutilisent tels quels echeances/facturesEnAttente/
     // onboardingSansContact/emailsRejetes, déjà chargés à chaque boot par chargerCommunes()
@@ -367,7 +367,7 @@ function backoffice() {
         } catch {}
         try { this.statsVariantes = (await boFetch('/prospection/stats-variantes')).variantes; } catch {}
         try { this.prospectsPerdus = (await boFetch('/prospection/prospects-perdus')).prospects; } catch {}
-        try { this.favoris = (await boFetch('/prospection/favoris')).prospects; } catch {}
+        await this.rechargerFavoris();
         try { this.parametresEntreprise = (await boFetch('/administration/parametres-entreprise')).parametres; } catch {}
         this.chargerAujourdhui(); // pas de await : le badge se met à jour dès que ça arrive, ne bloque pas le reste de init()
       } catch {
@@ -1981,7 +1981,29 @@ function backoffice() {
       const valeur = this.prospect.etoiles === n ? 0 : n;
       this.prospect.etoiles = valeur;
       await this.majProspect({ etoiles: valeur });
-      try { this.favoris = (await boFetch('/prospection/favoris')).prospects; } catch {}
+      await this.rechargerFavoris();
+    },
+    // Même contrôle pour une commune SANS fiche prospect (migration 099, ex. la vraie « eaucourt »,
+    // créée avant la prospection) : étoiles enregistrées sur la commune elle-même.
+    async definirEtoilesCommune(n) {
+      const commune = this.fiche.commune;
+      const valeur = commune.etoiles === n ? 0 : n;
+      try {
+        await boFetch('/administration/communes/' + commune.id + '/etoiles', { method: 'PATCH', body: JSON.stringify({ etoiles: valeur }) });
+        commune.etoiles = valeur;
+      } catch (e) { alert('Favori non enregistré : ' + e.message); }
+      await this.rechargerFavoris();
+    },
+    async rechargerFavoris() {
+      try { this.favoris = (await boFetch('/prospection/favoris')).favoris; } catch {}
+    },
+    ouvrirFavori(f) {
+      return f.type === 'commune' ? this.ouvrirFiche(f.id) : this.ouvrirProspect(f.id);
+    },
+    // Deux favoris du même nom (eaucourt et eaucourt-sur-somme, la commune de test) : on affiche
+    // l'adresse pour les distinguer.
+    favoriHomonyme(f) {
+      return this.favoris.filter((x) => x.nom === f.nom).length > 1;
     },
 
     async ajouterInteraction() {

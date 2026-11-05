@@ -169,7 +169,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,horaires_ouverture,permanences,couleur_theme,couleur_accent,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,horaires_ouverture,permanences,couleur_theme,couleur_accent,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,etoiles,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -484,6 +484,17 @@ app.get('/onboarding-drip/a-traiter', async (c) => {
 });
 
 // PATCH /communes/:id/statut — statut du cycle de vie client (active | suspendue | resiliee).
+// PATCH /communes/:id/etoiles — favori d'une commune SANS fiche prospect (migration 099 ; une
+// commune qui a une fiche prospect garde ses étoiles côté prospect). Champ interne au backoffice,
+// jamais lu par l'application des habitants : ouvert à tout le staff, comme les étoiles prospect.
+app.patch('/communes/:id/etoiles', async (c) => {
+  const body = z.object({ etoiles: z.number().int().min(0).max(5) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Nombre d’étoiles invalide (0 à 5).' }, 400);
+  const maj = await supabaseUpdate(c.env, 'communes', { etoiles: body.data.etoiles }, { id: `eq.${c.req.param('id')}` });
+  if (!maj.length) return c.json({ erreur: 'Commune introuvable' }, 404);
+  return c.json({ ok: true });
+});
+
 app.patch('/communes/:id/statut', async (c) => {
   const id = c.req.param('id');
   const body = z.object({ statut_client: z.enum(STATUTS_CLIENT) }).safeParse(await c.req.json());
