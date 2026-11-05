@@ -66,11 +66,67 @@ export const MODELE_AFFICHE_CITOYENS_DEFAUT = `
       <span>plateforme-agora.fr</span>
     </footer>`;
 
+// Variante « jeux » (2026-11-05, ?type=jeux) : à poser à la mairie, à l'église, sur l'aire de
+// camping-car, au départ d'un parcours. S'adresse aux habitants ET aux gens de passage ; le QR
+// mène à /<slug>/jouer (frontend/jouer.html), qui aiguille vers les jeux du village ou vers un
+// compte Explorateur. Non éditable depuis le backoffice pour l'instant (YAGNI).
+export const MODELE_AFFICHE_JEUX_DEFAUT = `
+    <header>
+      <div>
+        <div class="logo-halo">{{logo}}</div>
+        <div class="logo-texte">
+          <div class="baseline">Chasses au trésor &amp; énigmes photo</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="hero">
+      <h1>Partez à la découverte de <em>{{commune}}</em></h1>
+      <p>Explorez le village, son patrimoine et ses coins cachés en jouant, à votre rythme.
+         Gratuit, pour les habitants comme pour les visiteurs de passage.</p>
+    </div>
+
+    <div class="grille">
+      <div class="mod"><h3><span class="puce"></span>Chasse au trésor</h3><p>Suivez les indices d'étape en étape et trouvez les QR codes cachés dans le village.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Balade guidée</h3><p>Une carte et des points d'intérêt : approchez-vous, l'étape se valide sur place.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Énigme photo</h3><p>Retrouvez l'endroit exact où la photo a été prise : il faut s'y rendre pour gagner.</p></div>
+      <div class="mod"><h3><span class="puce"></span>Classements</h3><p>Vos points s'additionnent d'un village à l'autre, avec le même compte.</p></div>
+    </div>
+
+    <div class="atouts">
+      <div class="atout"><b>Gratuit</b><span>Sans publicité</span></div>
+      <div class="atout"><b>1 minute</b><span>Pour commencer à jouer</span></div>
+      <div class="atout"><b>Sans installation</b><span>Directement dans le navigateur</span></div>
+      <div class="atout"><b>Tous les villages</b><span>Un seul compte</span></div>
+    </div>
+
+    <div class="acces">
+      <div class="acces__qr">{{qr}}</div>
+      <div class="acces__txt">
+        <h2>Scannez pour jouer</h2>
+        <p>Visez ce QR code avec l'appareil photo de votre téléphone, puis touchez le lien qui s'affiche.</p>
+        <span class="acces__url">{{url}}</span>
+        <div class="installation">
+          <div class="installation__titre">Comment ça marche</div>
+          <ol class="installation__etapes">
+            <li>Scannez le QR code.</li>
+            <li>Choisissez « J'habite ici » ou « Je suis de passage » : votre compte gratuit est prêt en une minute.</li>
+            <li>Autorisez la localisation de votre téléphone : les étapes se valident sur place.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>{{commune}} sur Plateforme-Agora</span>
+      <span>plateforme-agora.fr</span>
+    </footer>`;
+
 // Renvoie le contenu (stocké ou défaut), le nom et le logo de LA COMMUNE demandée (pas la marque
 // Agora — voir le commentaire d'en-tête). Résilient : commune introuvable -> nom/logo vides,
 // le client affiche quand même la page avec le nom passé en paramètre d'URL en repli.
 export async function chargerAfficheCitoyens(
-  env: any, slug: string,
+  env: any, slug: string, type: 'citoyens' | 'jeux' = 'citoyens',
 ): Promise<{ contenu_html: string; commune_nom: string | null; logo_url: string | null; departement: string | null }> {
   // departement : code saisi par la mairie (ex. "80"), utilisé par le dossier pour le conseil
   // municipal (frontend/backoffice/dossier-conseil.html) pour l'en-tête de la délibération.
@@ -78,13 +134,16 @@ export async function chargerAfficheCitoyens(
     select: 'nom,logo_url,departement', slug: `eq.${slug}`,
   }).catch(() => [] as any[]);
 
-  let contenu_html = MODELE_AFFICHE_CITOYENS_DEFAUT;
-  try {
-    const [modele] = await supabaseSelect(env, 'modeles_email', {
-      select: 'corps_html', cle: 'eq.affiche_citoyens', actif: 'eq.true',
-    });
-    if (modele?.corps_html) contenu_html = modele.corps_html;
-  } catch { /* table absente ou lecture KO : on garde le défaut */ }
+  let contenu_html = type === 'jeux' ? MODELE_AFFICHE_JEUX_DEFAUT : MODELE_AFFICHE_CITOYENS_DEFAUT;
+  // Seule l'affiche habitants a une version éditable en base (cle 'affiche_citoyens').
+  if (type === 'citoyens') {
+    try {
+      const [modele] = await supabaseSelect(env, 'modeles_email', {
+        select: 'corps_html', cle: 'eq.affiche_citoyens', actif: 'eq.true',
+      });
+      if (modele?.corps_html) contenu_html = modele.corps_html;
+    } catch { /* table absente ou lecture KO : on garde le défaut */ }
+  }
 
   return {
     contenu_html,

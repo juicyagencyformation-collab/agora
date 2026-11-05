@@ -91,6 +91,8 @@ function initVoletsGeneriquesModeration() {
   const lienAffiche = document.getElementById('lien-kit-affiche');
   const lienDossier = document.getElementById('lien-kit-dossier');
   if (lienAffiche) lienAffiche.href = `/backoffice/affiche-citoyens?slug=${slugKit}`;
+  const lienAfficheJeux = document.getElementById('lien-kit-affiche-jeux');
+  if (lienAfficheJeux) lienAfficheJeux.href = `/backoffice/affiche-citoyens?type=jeux&slug=${slugKit}`;
   if (lienDossier) lienDossier.href = `/backoffice/dossier-conseil?slug=${slugKit}`;
 
   // Les réglages de la commune ont leur propre onglet « Ma commune » depuis le 2026-10-24 : même

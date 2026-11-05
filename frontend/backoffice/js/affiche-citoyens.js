@@ -10,8 +10,12 @@
   let memorisee = '';
   try { memorisee = localStorage.getItem('agora_derniere_commune') || ''; } catch { /* stockage bloqué */ }
   const slug = (params.get('slug') || memorisee || '').trim();
-  const urlApp = `${location.origin}/${slug}/`;
-  const urlAffichee = `plateforme-agora.fr/${slug}/`;
+  // ?type=jeux : affiche « Chasses au trésor & énigmes photo » (habitants et gens de passage), dont
+  // le QR mène à la page d'aiguillage /<slug>/jouer (frontend/jouer.html) plutôt qu'à l'app.
+  const estJeux = params.get('type') === 'jeux';
+  const suffixe = estJeux ? 'jouer' : '';
+  const urlApp = `${location.origin}/${slug}/${suffixe}`;
+  const urlAffichee = `plateforme-agora.fr/${slug}/${suffixe}`;
 
   const echapper = (s) => (s || '').replace(/[&<>"']/g, (m) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
@@ -19,7 +23,7 @@
 
   function rendre(contenu, communeNom, logoUrl) {
     const nom = communeNom || params.get('nom') || 'votre commune';
-    document.title = `Agora — Affiche citoyenne · ${nom}`;
+    document.title = `Plateforme-Agora — ${estJeux ? 'Affiche jeux' : 'Affiche citoyenne'} · ${nom}`;
 
     const logoHtml = logoUrl
       ? `<img src="${logoUrl}" alt="${echapper(nom)}" style="max-height:100px;max-width:100px;object-fit:contain" />`
@@ -40,7 +44,7 @@
   (async function () {
     let contenu = '', communeNom = null, logoUrl = null;
     try {
-      const d = await fetch('/api/backoffice/affiche-citoyens-contenu?slug=' + encodeURIComponent(slug)).then((r) => r.json());
+      const d = await fetch('/api/backoffice/affiche-citoyens-contenu?slug=' + encodeURIComponent(slug) + (estJeux ? '&type=jeux' : '')).then((r) => r.json());
       contenu = d.contenu_html || '';
       communeNom = d.commune_nom || null;
       logoUrl = d.logo_url || null;

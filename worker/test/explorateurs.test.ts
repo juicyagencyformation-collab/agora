@@ -67,7 +67,8 @@ describe('purge des comptes Explorateurs inactifs', () => {
     expect(recherche.url.searchParams.get('compte_supprime_le')).toBe('is.null');
     const seuil = recherche.url.searchParams.get('or')!.match(/derniere_connexion_streak\.lt\.(\d{4}-\d{2}-\d{2})/)![1];
     const joursEcoules = (Date.now() - new Date(seuil).getTime()) / (24 * 3600 * 1000);
-    expect(Math.round(joursEcoules)).toBe(365);
+    // Seuil = date seule (minuit UTC) d'il y a 365 jours : l'écart réel va de 365 à 366 jours selon l'heure.
+    expect(Math.floor(joursEcoules)).toBe(365);
   });
 
   it('anonymise le compte trouvé comme « Supprimer mon compte »', async () => {

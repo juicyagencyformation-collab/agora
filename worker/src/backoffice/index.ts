@@ -51,7 +51,7 @@ app.get('/fiche-contenu', async (c) => {
 // sensible (nom + logo de la commune, tous deux déjà publics sur son app).
 app.get('/affiche-citoyens-contenu', async (c) => {
   const slug = c.req.query('slug') || '';
-  return c.json(await chargerAfficheCitoyens(c.env, slug));
+  return c.json(await chargerAfficheCitoyens(c.env, slug, c.req.query('type') === 'jeux' ? 'jeux' : 'citoyens'));
 });
 
 // Barème tarifaire au nombre d'habitants + textes des 3 offres (voir tarification.ts) — PUBLIC
