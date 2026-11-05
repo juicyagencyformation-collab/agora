@@ -188,10 +188,16 @@ export default {
       await executerIsolement(env, [
         purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire,
         relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection,
-        verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, purgerTentativesConnexion,
+        synchroniserEmailsRecusProspection, purgerTentativesConnexion,
       ]);
       // rafraichirContenuDemoBonvivre(env) désactivé le 2026-10-07 sur demande explicite — voir
       // la mémoire "Cron dates démo bonvivre" pour le pourquoi et comment le réactiver proprement.
+      // verifierRelancesInactiviteProspection et verifierSequenceOnboardingCommunes (relance
+      // d'inactivité, séquence J+3/J+7/encouragement/proposition payante) désactivés le 2026-11-05 sur
+      // demande explicite de Léandre : aucune relance automatique, pour protéger la réputation du
+      // domaine (sorti de la liste noire Spamhaus le même jour) — il appelle lui-même les mairies qui
+      // se connectent. Avant de les réactiver : réserver la séquence aux comptes de la mairie
+      // (inclureCitoyen=false dans onboarding-drip.ts), sinon elle peut écrire à un simple habitant.
     } else if (event.cron === '0 */6 * * *') {
       await synchroniserToutesLesLois(env);
     } else if (event.cron === '0 6 * * *') {

@@ -5,6 +5,31 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-05 — Relances automatiques arrêtées, email de Bienvenue corrigé
+
+**Gravité :** faible (décision de prudence et qualité des textes)
+**Fichier :** `worker/src/index.ts` (cron) ; texte du modèle « Bienvenue » en base (`modeles_email`)
+
+### Décision
+Plus aucune relance email automatique, pour protéger la réputation du domaine (sorti de la liste
+noire Spamhaus le jour même) : relance d'inactivité et séquence J+3 / J+7 / encouragement /
+proposition payante retirées du cron quotidien. Léandre appelle lui-même les mairies qui se
+connectent. Restent : Bienvenue (1er habitant inscrit), bilan mensuel (communes payantes), emails
+de service.
+
+### Constat au passage
+- La séquence n'avait envoyé que 2 emails depuis sa création (août) : aucun risque de volume.
+- Elle pouvait écrire à un **simple habitant** (premier compte d'une commune créée via « Rejoindre »,
+  sans compte mairie), avec un texte destiné au maire. À corriger avant toute réactivation
+  (`inclureCitoyen=false`, commentaire laissé dans `index.ts`).
+
+### Email de Bienvenue (texte en base, sauvegarde de l'ancien faite)
+- Objet : « Merci d'avoir **choisit Pateforme**-Agora » → « Merci d'avoir **choisi Plateforme**-Agora ».
+- « Quatre idées » → « Cinq idées » (cinq étaient listées).
+- Calendrier des déchets : « dans l'onglet Modération » → « dans l'onglet Ma commune ».
+
+---
+
 ## 2026-11-05 — Lien de désinscription dans les emails de suivi
 
 **Gravité :** moyenne (obligation CNIL pour la prospection, exigence Gmail/Yahoo, engagement pris

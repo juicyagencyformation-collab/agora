@@ -119,7 +119,9 @@ Depuis la fiche prospect (si pas déjà cliente) → **"Convertir en commune cli
 
 ## 5. Séquence d'onboarding automatique — à connaître, jamais à casser
 
-Un cron quotidien envoie automatiquement jusqu'à 5 emails à toute commune gratuite active éligible :
+> ⚠️ **Relances automatiques désactivées depuis le 5 novembre 2026** (décision de Léandre, pour protéger la réputation du domaine) : la relance d'inactivité et la séquence J+3 / J+7 / encouragement / proposition payante ne partent plus. Seul l'email de **Bienvenue** (1er habitant inscrit) part encore. Quand une mairie se connecte, **Léandre l'appelle** : aucune relance par email, ni automatique ni en lot. Le bouton « Lancer la séquence maintenant » reste à ne jamais utiliser.
+
+Pour mémoire, la séquence (à l'arrêt) prévoyait jusqu'à 5 emails par commune gratuite active éligible :
 
 1. **Bienvenue** — 1ère inscription citoyenne.
 2. **Relance douce** — inscrit puis inactif 5 à 9 jours.
