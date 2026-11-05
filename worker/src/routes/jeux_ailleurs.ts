@@ -22,8 +22,8 @@ import {
   validationQrSchema, COLONNES_ETAPE_QR, erreurDistanceQr,
 } from './chasses_tresor';
 import { listerEnigmesJouables, validerEnigme, validationEnigmeSchema, signalerEnigme } from './enigmes';
-import { motifNomCommune } from './decouverte';
-import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
+import { SLUGS_COMMUNES_TEST, SLUGS_TEST_VISIBLES_DANS_LES_JEUX } from '../lib/communes-test';
+import { distanceMetres } from '../lib/geo';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -51,39 +51,59 @@ async function communeVisitable(env: any, filtre: Record<string, string>, commun
 const parSlug = (slug: string) => ({ slug: `eq.${slug}` });
 const INTROUVABLE = { erreur: 'Aucune chasse ni énigme ouverte aux visiteurs dans cette commune.' };
 
-// GET /communes?q= — communes où aller jouer (nom commençant par la saisie).
+// GET /communes?lat=&lng= — villages où aller jouer : seulement ceux qui ont AU MOINS une chasse
+// ou une énigme active (avant le 2026-11-05 : recherche par nom parmi ~14 000 communes, la plupart
+// sans aucun jeu). Renvoie le nombre de jeux et le centre de la commune (déjà public), jamais la
+// position d'une étape ou d'une énigme. Avec lat/lng (position du joueur ou centre de sa commune),
+// chaque village porte sa distance et la liste est triée du plus proche au plus loin ; la recherche
+// par nom et le filtre de distance se font côté téléphone sur cette liste, courte par nature.
 app.get('/communes', async (c) => {
-  const q = (c.req.query('q') || '').trim().replace(/[*,()]/g, '');
-  if (q.length < 2) return c.json({ communes: [] });
+  const communeJoueur = c.get('commune_id');
+  const [chasses, enigmes] = await Promise.all([
+    supabaseSelect(c.env, 'chasses_tresor', { select: 'commune_id', actif: 'eq.true', limit: '1000' }),
+    supabaseSelect(c.env, 'photos_enigmes', { select: 'commune_id', statut: 'eq.active', limit: '1000' }),
+  ]);
+  const compter = (lignes: any[]) => lignes.reduce((m: Map<string, number>, l: any) => m.set(l.commune_id, (m.get(l.commune_id) ?? 0) + 1), new Map<string, number>());
+  const nbChasses = compter(chasses);
+  const nbEnigmes = compter(enigmes);
+  const ids = [...new Set([...nbChasses.keys(), ...nbEnigmes.keys()])].filter((id) => id !== communeJoueur);
+  if (!ids.length) return c.json({ communes: [] });
 
-  const communes = await supabaseSelect(c.env, 'communes', {
-    select: 'id,nom,slug,departement',
-    nom: `imatch.^${motifNomCommune(q)}`,
-    statut_client: 'eq.active',
-    niveau_national: 'not.is.true',
-    acces_libre: 'not.is.true',
-    slug: `not.in.(${SLUGS_COMMUNES_TEST.join(',')})`, // communes de test : jouables par lien direct seulement
-    id: `neq.${c.get('commune_id')}`,
-    order: 'nom.asc',
-    limit: '15',
-  });
-  if (!communes.length) return c.json({ communes: [] });
+  const exclues = SLUGS_COMMUNES_TEST.filter((slug) => !SLUGS_TEST_VISIBLES_DANS_LES_JEUX.includes(slug));
+  const [communes, desactives] = await Promise.all([
+    supabaseSelect(c.env, 'communes', {
+      select: 'id,nom,slug,departement,lat,lng',
+      id: `in.(${ids.join(',')})`,
+      statut_client: 'eq.active',
+      niveau_national: 'not.is.true',
+      acces_libre: 'not.is.true',
+      slug: `not.in.(${exclues.join(',')})`,
+    }),
+    // Même règle que communeVisitable : seule une désactivation explicite coupe un module.
+    supabaseSelect(c.env, 'onglets_config', {
+      select: 'commune_id,cle', commune_id: `in.(${ids.join(',')})`, cle: 'in.(chasse_tresor,enigmes)', actif: 'eq.false',
+    }),
+  ]);
+  const coupe = (id: string, cle: string) => desactives.some((d: any) => d.commune_id === id && d.cle === cle);
 
-  // Écarte les communes où les DEUX jeux sont désactivés.
-  const desactives = await supabaseSelect(c.env, 'onglets_config', {
-    select: 'commune_id,cle',
-    commune_id: `in.(${communes.map((cm: any) => cm.id).join(',')})`,
-    cle: 'in.(chasse_tresor,enigmes)',
-    actif: 'eq.false',
-  });
-  const nbDesactives = new Map<string, number>();
-  for (const d of desactives) nbDesactives.set(d.commune_id, (nbDesactives.get(d.commune_id) ?? 0) + 1);
-
-  return c.json({
-    communes: communes
-      .filter((cm: any) => (nbDesactives.get(cm.id) ?? 0) < 2)
-      .map((cm: any) => ({ nom: cm.nom, slug: cm.slug, departement: cm.departement ?? null })),
-  });
+  const lat = Number(c.req.query('lat'));
+  const lng = Number(c.req.query('lng'));
+  const avecPosition = Number.isFinite(lat) && Number.isFinite(lng) && c.req.query('lat') !== undefined;
+  const villages = communes
+    .map((cm: any) => {
+      const nb_chasses = coupe(cm.id, 'chasse_tresor') ? 0 : (nbChasses.get(cm.id) ?? 0);
+      const nb_enigmes = coupe(cm.id, 'enigmes') ? 0 : (nbEnigmes.get(cm.id) ?? 0);
+      const situe = cm.lat != null && cm.lng != null;
+      return {
+        // Commune d'essai visible temporairement : signalée comme telle (même nom que la vraie Eaucourt).
+        nom: SLUGS_TEST_VISIBLES_DANS_LES_JEUX.includes(cm.slug) ? `${cm.nom} (essai)` : cm.nom, slug: cm.slug, departement: cm.departement ?? null, nb_chasses, nb_enigmes,
+        lat: situe ? Number(cm.lat) : null, lng: situe ? Number(cm.lng) : null,
+        distance_km: avecPosition && situe ? Math.round(distanceMetres(lat, lng, Number(cm.lat), Number(cm.lng)) / 100) / 10 : null,
+      };
+    })
+    .filter((v: any) => v.nb_chasses + v.nb_enigmes > 0)
+    .sort((a: any, b: any) => (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity) || a.nom.localeCompare(b.nom, 'fr'));
+  return c.json({ communes: villages });
 });
 
 // POST /valider-qr — un QR d'étape scanné n'importe où : la commune est retrouvée à partir du

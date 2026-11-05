@@ -851,6 +851,7 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 .filtres-categorie-articles {
   display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px;
 }
+.filtres-categorie-articles[hidden] { display: none; }
 .filtre-categorie-btn {
   flex: 0 0 auto; padding: 7px 14px; border-radius: 100px; border: 1.5px solid var(--eauL);
   background: #fff; color: var(--roseau); font-family: 'DM Sans', sans-serif;

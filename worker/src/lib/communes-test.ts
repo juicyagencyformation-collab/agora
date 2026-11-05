@@ -6,6 +6,12 @@
 //   eaucourt, l'application réelle de son village, utilisée par de vrais habitants.
 // Utilisée par :
 // - backoffice/suivi-communes.ts : ni suivi, ni anomalies, ni comptage des places fondatrices ;
-// - routes/jeux_ailleurs.ts : absentes de la recherche de village. Elles restent jouables par lien
-//   direct ou par QR, pour que Léandre puisse tester tout le parcours.
+// - routes/jeux_ailleurs.ts : absentes de la liste « Villages avec des jeux » (sauf exception
+//   ci-dessous). Elles restent jouables par lien direct ou par QR, pour que Léandre puisse tester
+//   tout le parcours.
 export const SLUGS_COMMUNES_TEST = ['test', 'decouverte-gratuite', 'eaucourt-sur-somme'];
+
+// TEMPORAIRE (demandé par Léandre le 2026-11-05, « on la retirera plus tard ») : sa commune d'essai
+// reste visible dans la liste des villages avec des jeux, pour qu'il puisse essayer la liste et
+// la carte. À VIDER ([]) quand les vraies communes auront leurs propres jeux.
+export const SLUGS_TEST_VISIBLES_DANS_LES_JEUX = ['eaucourt-sur-somme'];

@@ -218,23 +218,31 @@ describe('jeux dans une autre commune', () => {
     expect((await vu.json()).classement[0].prenom).toBe('Jean D. (vous)');
   });
 
-  it('cherche des communes où jouer, sans la sienne, la démo ni celles aux jeux coupés', async () => {
-    db.communes.push({ id: 'c-fay2', nom: 'Fayet', slug: 'fayet', statut_client: 'active' });
-    const res = await requete('/communes?q=fa');
-    const { communes } = await res.json();
-    expect(communes.map((c: any) => c.slug).sort()).toEqual(['fay', 'fayet']);
-    expect(communes[0]).not.toHaveProperty('id');
-    expect((await (await requete('/communes?q=fe')).json()).communes).toEqual([]);
-    expect((await (await requete('/communes?q=to')).json()).communes).toEqual([]);
+  it('liste seulement les villages qui ont des jeux actifs, triés par distance', async () => {
+    Object.assign(db.communes.find((c) => c.id === 'c-fay')!, { lat: 49.5, lng: 1.9 });
+    db.communes.push({ id: 'c-vide', nom: 'Sansjeux', slug: 'sansjeux', statut_client: 'active', lat: 49.4, lng: 1.9 });
+    const { communes } = await (await requete('/communes?lat=49.4&lng=1.9')).json();
+    // Ni sa propre commune (Tourly), ni un village sans jeu, ni Fermeville (jeux coupés par la mairie).
+    expect(communes.map((c: any) => c.slug)).toEqual(['fay']);
+    expect(communes[0]).toEqual({
+      nom: 'Fay-les-Étangs', slug: 'fay', departement: '60', nb_chasses: 2, nb_enigmes: 1, lat: 49.5, lng: 1.9, distance_km: 11.1,
+    });
+    // Sans position : pas de distance, toujours aucun secret de jeu.
+    const sansPosition = (await (await requete('/communes')).json()).communes;
+    expect(sansPosition[0].distance_km).toBeNull();
+    expect(JSON.stringify(sansPosition)).not.toContain(QR_FAY);
   });
 
-  it('ne propose pas les communes de test de Léandre, qui restent jouables par lien direct', async () => {
+  it('écarte les communes de test, sauf celle de Léandre laissée visible temporairement', async () => {
     db.communes.push(
-      { id: 'c-eaucourt', nom: 'Eaucourt-sur-Somme', slug: 'eaucourt', statut_client: 'active', departement: '80' },
+      { id: 'c-test', nom: 'Commune de test', slug: 'test', statut_client: 'active' },
       { id: 'c-essai', nom: 'Eaucourt-sur-Somme', slug: 'eaucourt-sur-somme', statut_client: 'active' },
     );
-    const { communes } = await (await requete('/communes?q=eauc')).json();
-    expect(communes.map((c: any) => c.slug)).toEqual(['eaucourt']);
-    expect((await requete('/eaucourt-sur-somme')).status).toBe(200);
+    db.chasses_tresor.push(
+      { id: 'ch-test', commune_id: 'c-test', titre: 'x', actif: true, mode: 'chasse' },
+      { id: 'ch-essai', commune_id: 'c-essai', titre: 'y', actif: true, mode: 'balade' },
+    );
+    const { communes } = await (await requete('/communes')).json();
+    expect(communes.map((c: any) => c.slug).sort()).toEqual(['eaucourt-sur-somme', 'fay']);
   });
 });

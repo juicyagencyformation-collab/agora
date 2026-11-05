@@ -453,35 +453,135 @@ function initSousOngletsChasse() {
 
 // ── Jouer dans un autre village : recherche, entrée, sortie ──
 
+// Villages avec des jeux (GET /jeux-ailleurs/communes) : seulement ceux qui ont au moins une
+// chasse ou une énigme active, triés par distance depuis la position du joueur (sinon le centre de
+// sa commune). Filtre de distance, recherche par nom et carte se font ici, sur cette liste courte.
+const DISTANCES_VILLAGES = [10, 30, 100, null]; // null = tout
+
+// Nom comparable sans accents, tirets ni majuscules (« fontaine sur somme » = « Fontaine-sur-Somme »).
+const nomComparable = (texte) => (texte || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase();
+
+async function positionDeReference() {
+  try {
+    // Précision grossière suffisante (quelques km) : réponse quasi immédiate, sans attendre le GPS.
+    const pos = await obtenirPositionPrecise(null, 4000, 3000);
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    if (!window.EST_EXPLORATEUR && !window.COMMUNE_COORDS_MANQUANTES && window.COMMUNE_LAT != null) {
+      return { lat: window.COMMUNE_LAT, lng: window.COMMUNE_LNG };
+    }
+    return null;
+  }
+}
+
 function ouvrirRechercheVillage() {
   const overlay = ouvrirModaleFormulaire(window.EST_EXPLORATEUR ? '🧭 Choisir un village' : '🧳 Jouer dans un autre village', `
-    <p style="font-size:12.5px;color:var(--roseau);margin-top:0;">Les chasses et énigmes se valident sur place : choisissez le village où vous êtes, ou celui que vous allez visiter.</p>
-    <input type="search" id="recherche-village" placeholder="Nom du village" autocomplete="off">
-    <div id="resultats-village" style="margin-top:10px;"></div>
+    <p style="font-size:12.5px;color:var(--roseau);margin-top:0;">Villages qui proposent des chasses au trésor ou des énigmes photo. Elles se valident sur place.</p>
+    <div id="filtres-distance-villages" class="filtres-categorie-articles" hidden></div>
+    <button type="button" id="btn-carte-villages" class="btn-classement-exploration" style="margin-top:0;">🗺 Voir sur la carte</button>
+    <div id="carte-villages" class="mini-carte-position" style="height:260px;" hidden></div>
+    <div id="resultats-village" style="margin-top:10px;"><p class="dechets-vide">Recherche des villages…</p></div>
+    <form id="form-recherche-village" style="margin-top:12px;">
+      <input type="text" id="recherche-village" placeholder="Un village précis ? Tapez son nom" autocomplete="off" enterkeyhint="search">
+    </form>
   `);
-  const champ = overlay.querySelector('#recherche-village');
   const resultats = overlay.querySelector('#resultats-village');
-  let minuterie = null;
-  champ.focus();
-  champ.addEventListener('input', () => {
-    clearTimeout(minuterie);
-    minuterie = setTimeout(async () => {
-      const q = champ.value.trim();
-      if (q.length < 2) { resultats.innerHTML = ''; return; }
-      const res = await appelApi(`/${window.COMMUNE_SLUG}/jeux-ailleurs/communes?q=${encodeURIComponent(q)}`);
-      if (!res.ok) { resultats.innerHTML = `<p class="dechets-vide">Recherche indisponible, réessayez dans un instant.</p>`; return; }
-      const { communes } = await res.json();
-      if (!communes.length) { resultats.innerHTML = `<p class="dechets-vide">Aucun village trouvé avec des jeux ouverts.</p>`; return; }
-      resultats.innerHTML = communes.map((cm) => `
-        <button type="button" class="ligne-toggle-onglet btn-choisir-village" data-slug="${escapeAttr(cm.slug)}" style="width:100%;text-align:left;background:none;cursor:pointer;">
-          <span>${escapeAttr(cm.nom)}</span>${cm.departement ? `<span style="color:var(--roseau);">${escapeAttr(cm.departement)}</span>` : ''}
-        </button>
-      `).join('');
-      resultats.querySelectorAll('.btn-choisir-village').forEach((b) => b.addEventListener('click', async () => {
-        if (await entrerDansVillage(b.dataset.slug)) fermerModaleFormulaire(overlay);
-      }));
-    }, 250);
+  const champ = overlay.querySelector('#recherche-village');
+  const zoneFiltres = overlay.querySelector('#filtres-distance-villages');
+  const zoneCarte = overlay.querySelector('#carte-villages');
+  let villages = [];
+  let distanceMax = 30;
+  let carte = null;
+  let marqueurs = null;
+
+  overlay.querySelector('#form-recherche-village').addEventListener('submit', (e) => e.preventDefault());
+
+  const visibles = () => {
+    const recherche = nomComparable(champ.value);
+    return villages.filter((v) => (!recherche || nomComparable(v.nom).includes(recherche))
+      // Un village sans coordonnées connues reste listé : on ne sait pas l'écarter par distance.
+      && (recherche || distanceMax == null || v.distance_km == null || v.distance_km <= distanceMax));
+  };
+  const jeux = (v) => [
+    v.nb_chasses && `${v.nb_chasses} chasse${v.nb_chasses > 1 ? 's' : ''}`,
+    v.nb_enigmes && `${v.nb_enigmes} énigme${v.nb_enigmes > 1 ? 's' : ''}`,
+  ].filter(Boolean).join(' · ');
+  const choisir = async (slug) => { if (await entrerDansVillage(slug)) fermerModaleFormulaire(overlay); };
+
+  const dessinerCarte = (liste) => {
+    marqueurs.clearLayers();
+    const points = liste.filter((v) => v.lat != null);
+    points.forEach((v) => {
+      const popup = document.createElement('div');
+      popup.innerHTML = `<strong>${escapeAttr(v.nom)}</strong><br><span style="font-size:12px;">${escapeAttr(jeux(v))}</span><br>`;
+      const bouton = document.createElement('button');
+      bouton.type = 'button';
+      bouton.textContent = 'Jouer ici';
+      bouton.style.cssText = 'margin-top:6px;padding:6px 12px;';
+      bouton.addEventListener('click', () => choisir(v.slug));
+      popup.appendChild(bouton);
+      L.marker([v.lat, v.lng]).bindPopup(popup).addTo(marqueurs);
+    });
+    if (points.length) carte.fitBounds(points.map((v) => [v.lat, v.lng]), { padding: [30, 30], maxZoom: 12 });
+  };
+
+  const afficher = () => {
+    const liste = visibles();
+    if (!villages.length) {
+      resultats.innerHTML = '<p class="dechets-vide">Aucun village ne propose encore de chasse ou d’énigme. Revenez bientôt !</p>';
+    } else if (!liste.length) {
+      resultats.innerHTML = `<p class="dechets-vide">${champ.value.trim() ? 'Aucun village avec des jeux ne porte ce nom.' : 'Pas de jeux dans ce rayon : élargissez la distance.'}</p>`;
+    } else {
+      resultats.innerHTML = liste.map((v) => `
+        <button type="button" class="ligne-toggle-onglet btn-choisir-village" data-slug="${escapeAttr(v.slug)}" style="width:100%;text-align:left;background:none;cursor:pointer;display:flex;justify-content:space-between;gap:8px;">
+          <span><strong>${escapeAttr(v.nom)}</strong><br><span style="font-size:12px;color:var(--roseau);">${escapeAttr(jeux(v))}</span></span>
+          <span style="color:var(--roseau);white-space:nowrap;">${v.distance_km != null ? `${v.distance_km.toLocaleString('fr-FR')} km` : escapeAttr(v.departement || '')}</span>
+        </button>`).join('');
+      resultats.querySelectorAll('.btn-choisir-village').forEach((b) => b.addEventListener('click', () => choisir(b.dataset.slug)));
+    }
+    if (carte) dessinerCarte(liste);
+  };
+
+  overlay.querySelector('#btn-carte-villages').addEventListener('click', (e) => {
+    zoneCarte.hidden = !zoneCarte.hidden;
+    e.currentTarget.textContent = zoneCarte.hidden ? '🗺 Voir sur la carte' : '☰ Masquer la carte';
+    if (zoneCarte.hidden) return;
+    if (!carte) {
+      carte = L.map(zoneCarte, { maxZoom: 18 }).setView([46.6, 2.4], 5);
+      L.tileLayer(
+        'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+        { attribution: '© IGN-F/Geoportail', maxNativeZoom: 19, maxZoom: 18 },
+      ).addTo(carte);
+      marqueurs = L.layerGroup().addTo(carte);
+    }
+    // Leaflet a besoin de connaître la taille réelle du conteneur une fois visible (même piège qu'agenda.js).
+    setTimeout(() => { carte.invalidateSize(); dessinerCarte(visibles()); }, 80);
   });
+
+  let minuterie = null;
+  champ.addEventListener('input', () => { clearTimeout(minuterie); minuterie = setTimeout(afficher, 150); });
+
+  (async () => {
+    const position = await positionDeReference();
+    const params = position ? `?lat=${position.lat}&lng=${position.lng}` : '';
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/jeux-ailleurs/communes${params}`).catch(() => null);
+    if (!res?.ok) { resultats.innerHTML = '<p class="dechets-vide">Liste indisponible, réessayez dans un instant.</p>'; return; }
+    villages = (await res.json()).communes;
+    if (position) {
+      // Rayon par défaut : le plus petit qui contient au moins un village (sinon « Tout »).
+      distanceMax = DISTANCES_VILLAGES.find((d) => d == null || villages.some((v) => v.distance_km != null && v.distance_km <= d));
+      zoneFiltres.hidden = false;
+      zoneFiltres.innerHTML = DISTANCES_VILLAGES.map((d) => `<button type="button" class="filtre-categorie-btn${d === distanceMax ? ' active' : ''}" data-km="${d ?? ''}">${d == null ? 'Tout' : `${d} km`}</button>`).join('');
+      zoneFiltres.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+        distanceMax = b.dataset.km ? Number(b.dataset.km) : null;
+        zoneFiltres.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+        afficher();
+      }));
+    } else {
+      distanceMax = null;
+    }
+    afficher();
+  })();
 }
 
 async function entrerDansVillage(slug) {
