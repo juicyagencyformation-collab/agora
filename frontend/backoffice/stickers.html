@@ -1,7 +1,10 @@
 <!doctype html>
 <!-- frontend/backoffice/stickers.html — planche de stickers imprimable (1/2/6/9 par page A4), une
      commune choisie par sticker parmi les communes clientes (QR, lien et nom propres à chacun).
-     ?slug= pré-remplit toutes les cases (boutons Stickers des fiches). Page staff : liste via boFetch. -->
+     ?slug= pré-remplit toutes les cases (boutons Stickers des fiches). Page staff : liste via boFetch.
+     ?type=jeux (2026-11-05, bouton « Affiche jeux » des fiches, avec n=1 = affiche A4) : même design,
+     textes « Chasses au trésor & énigmes photo » et QR vers /<slug>/jouer (frontend/jouer.html, qui
+     aiguille habitants et visiteurs de passage). -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -117,6 +120,9 @@
 
 <div class="toolbar">
   <b>Stickers Plateforme-Agora</b>
+  <div class="seg" id="seg-type">
+    <button data-type="app">Application</button><button data-type="jeux">Jeux (chasses &amp; énigmes)</button>
+  </div>
   <div class="seg" id="seg">
     <button data-n="1">1 / page</button><button data-n="2">2 / page</button>
     <button data-n="6">6 / page</button><button data-n="9">9 / page</button>
@@ -160,18 +166,24 @@
 <script>
   const P = new URLSearchParams(location.search);
   const slugInitial = (P.get('slug')||'').toLowerCase();
-  const state = { n: +(P.get('n')||6), cases: Array(9).fill(slugInitial), communes: new Map(), charge: false };
+  const state = { n: +(P.get('n')||6), type: P.get('type') === 'jeux' ? 'jeux' : 'app', cases: Array(9).fill(slugInitial), communes: new Map(), charge: false };
+  // Textes et lien selon la version : l'application de la commune, ou ses jeux (page /jouer).
+  const VERSIONS = {
+    app: { l1: 'Tout le village', l2: 'dans votre poche.', chips: ['Actus', 'Alertes', 'Agenda', 'Entraide', 'Sondages'], suffixe: '' },
+    jeux: { l1: 'Chasses au trésor', l2: '& énigmes photo.', chips: ['Chasse au trésor', 'Balade guidée', 'Énigme photo', 'Classements'], suffixe: 'jouer' },
+  };
   const $ = s => document.querySelector(s);
   const pin = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="#B9F7E4"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg>';
 
   const cacheQr = new Map();
   function qrSvg(slug){
     if(!slug) return '';
-    if(!cacheQr.has(slug)){
-      try { const q=qrcode(0,'M'); q.addData(location.origin+'/'+slug+'/'); q.make(); cacheQr.set(slug, q.createSvgTag({cellSize:4,margin:0,scalable:true})); }
-      catch { cacheQr.set(slug, ''); }
+    const cle = state.type + ':' + slug;
+    if(!cacheQr.has(cle)){
+      try { const q=qrcode(0,'M'); q.addData(location.origin+'/'+slug+'/'+VERSIONS[state.type].suffixe); q.make(); cacheQr.set(cle, q.createSvgTag({cellSize:4,margin:0,scalable:true})); }
+      catch { cacheQr.set(cle, ''); }
     }
-    return cacheQr.get(slug);
+    return cacheQr.get(cle);
   }
 
   // Options construites via new Option() (texte, jamais HTML) : les noms viennent de la base.
@@ -183,6 +195,9 @@
 
   function render(){
     document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on', +b.dataset.n===state.n));
+    document.querySelectorAll('#seg-type button').forEach(b=>b.classList.toggle('on', b.dataset.type===state.type));
+    const version = VERSIONS[state.type];
+    document.title = state.type === 'jeux' ? 'Affiche jeux Plateforme-Agora' : 'Stickers Plateforme-Agora';
     const sheet = document.createElement('div'); sheet.className='sheet'; sheet.dataset.n=state.n;
     for(let i=0;i<state.n;i++){
       const slug = state.cases[i], nom = state.communes.get(slug) || '';
@@ -192,8 +207,11 @@
       remplirSelect(sel, slug, '— Sticker vierge —');
       sel.onchange = () => { state.cases[i]=sel.value; render(); };
       c.appendChild(sel);
+      c.querySelector('.l1').textContent = version.l1;
+      c.querySelector('.l2').textContent = version.l2;
+      c.querySelector('.chips').replaceChildren(...version.chips.map((texte) => Object.assign(document.createElement('span'), { textContent: texte })));
       const s=c.querySelector('.slug');
-      if(slug) s.textContent=slug; else s.innerHTML='<span class="blank"></span>';
+      if(slug) s.textContent = slug + (version.suffixe ? '/' + version.suffixe : ''); else s.innerHTML='<span class="blank"></span>';
       const t=c.querySelector('.town'); if(nom){ t.innerHTML=pin; t.append(nom); }
       const svg=qrSvg(slug);
       if(svg){ const q=c.querySelector('.qr'); q.querySelector('.ph').remove(); q.insertAdjacentHTML('beforeend', svg); }
@@ -203,6 +221,7 @@
   }
 
   $('#seg').onclick = e => { if(e.target.dataset.n){ state.n=+e.target.dataset.n; render(); } };
+  $('#seg-type').onclick = e => { if(e.target.dataset.type){ state.type=e.target.dataset.type; render(); } };
   $('#tous').onchange = e => { if(!e.target.value) return; state.cases.fill(e.target.value); e.target.value=''; render(); };
   render();
 
