@@ -271,9 +271,13 @@ app.post('/upload-photo', async (c) => {
 // compteurs, badges). Identiques pour un habitant qui joue chez lui. extra : champs ajoutés à
 // la réponse (ex. nom de la commune visitée).
 export async function finaliserValidationEtape(c: any, commune_id: string, commune_joueur: string, user_id: string, etape: any, reponse?: string, extra: Record<string, unknown> = {}) {
+  // Ordre : toute découverte ou énigme précédente doit être validée. Les POINTS DE PASSAGE manqués
+  // (téléphone en poche, pas de réseau…) ne bloquent pas : ils sont cochés avec cette étape, sans
+  // aucun point (ils n'en rapportent jamais — aucun intérêt à les sauter pour tricher). 2026-11-05.
+  let passagesARattraper: any[] = [];
   if (etape.ordre > 0) {
     const etapesPrecedentes = await supabaseSelect(c.env, 'etapes_chasse', {
-      select: 'id',
+      select: 'id,type_contenu',
       commune_id: `eq.${commune_id}`, chasse_id: `eq.${etape.chasse_id}`, ordre: `lt.${etape.ordre}`,
     });
     const progressions = await supabaseSelect(c.env, 'progressions_chasse', {
@@ -281,8 +285,9 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
       commune_id: `eq.${commune_id}`, chasse_id: `eq.${etape.chasse_id}`, user_id: `eq.${user_id}`,
     });
     const idsValides = progressions.map((p: any) => p.etape_id);
-    const toutesValidees = etapesPrecedentes.every((e: any) => idsValides.includes(e.id));
-    if (!toutesValidees) return c.json({ erreur: 'Étapes précédentes non validées' }, 400);
+    const manquantes = etapesPrecedentes.filter((e: any) => !idsValides.includes(e.id));
+    if (manquantes.some((e: any) => e.type_contenu !== 'aucun')) return c.json({ erreur: 'Étapes précédentes non validées' }, 400);
+    passagesARattraper = manquantes;
   }
 
   const [dejaValidee] = await supabaseSelect(c.env, 'progressions_chasse', {
@@ -303,9 +308,11 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
     }
   }
 
-  await supabaseInsert(c.env, 'progressions_chasse', {
-    commune_id, chasse_id: etape.chasse_id, etape_id: etape.id, user_id, validee_at: new Date().toISOString(),
-  });
+  // Une seule écriture : les points de passage rattrapés puis l'étape elle-même.
+  const maintenant = new Date().toISOString();
+  await supabaseInsert(c.env, 'progressions_chasse', [...passagesARattraper, etape].map((e: any) => ({
+    commune_id, chasse_id: etape.chasse_id, etape_id: e.id, user_id, validee_at: maintenant,
+  })));
 
   // Point de passage (type 'aucun' : balisage, changement de direction) : ne rapporte RIEN — ni
   // points, ni compteur d'étapes, ni série (décision de Léandre, 2026-11-05). C'est terminer le
@@ -337,7 +344,7 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
   // à l'arrivée, jamais rangée dans le carnet de découvertes.
   else if (estPassage && etape.contenu) contenu_revele = { type: 'consigne', texte: etape.contenu };
 
-  return c.json({ ok: true, ...resultatXp, contenu_revele, point_de_passage: estPassage, parcours_termine: parcoursTermine, ...extra });
+  return c.json({ ok: true, ...resultatXp, contenu_revele, point_de_passage: estPassage, passages_rattrapes: passagesARattraper.length, parcours_termine: parcoursTermine, ...extra });
 }
 
 // Validation par scan de QR (mode chasse au trésor). Depuis le 2026-11-05, la position du joueur

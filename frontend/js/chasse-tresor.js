@@ -53,7 +53,9 @@ async function chargerChasses() {
   const res = await appelApi(url);
   if (!res.ok) return;
   const { chasses } = await res.json();
+  appliquerValidationsEnAttente(chasses);
   chassesCache = chasses;
+  envoyerValidationsEnAttente();
   const compte = document.getElementById('compte-chasses');
   if (compte && !modeArchivesChasses) compte.textContent = chasses.length;
 
@@ -278,7 +280,7 @@ function renderDetailChasse(chasse) {
 
   zone.querySelector('.btn-retour-detail').addEventListener('click', () => fermerDetailChasse());
   zone.querySelector('.btn-scanner')?.addEventListener('click', () => ouvrirScanner());
-  zone.querySelector('.btn-arrive')?.addEventListener('click', (e) => validerEtapePosition(chasse.etape_suivante.id, null, e.currentTarget));
+  zone.querySelector('.btn-arrive')?.addEventListener('click', (e) => validerEtapePosition(e.currentTarget.dataset.etape || chasse.etape_suivante.id, null, e.currentTarget));
   zone.querySelectorAll('.ligne-carnet').forEach((b) => b.addEventListener('click', () => afficherContenuRevele(chasse.decouvertes[b.dataset.i])));
   zone.querySelector('.btn-classement-chasse').addEventListener('click', async () => {
     const zoneClassement = document.getElementById('zone-classement');
@@ -359,7 +361,6 @@ function initCarteBalade(chasse, termine) {
   const guidage = document.getElementById('guidage-balade');
   const bouton = document.querySelector('#vue-detail-chasse .btn-arrive');
   const rayon = chasse.rayon_metres || 50;
-  const prochainEstPassage = prochaine?.type_contenu === 'aucun';
   const consigne = consigneEnCours?.chasseId === chasse.id ? consigneEnCours.texte : '';
   if (guidage && consigne) guidage.innerHTML = `<span class="consigne-balade">🚩 ${escapeAttr(consigne)}</span>`;
 
@@ -376,25 +377,41 @@ function initCarteBalade(chasse, termine) {
       halo.setLatLng([lat, lng]).setRadius(accuracy);
     }
     if (!prochaine || !guidage) return;
-    const { distance, cap } = distanceEtCap(lat, lng, prochaine.lat, prochaine.lng);
-    const temp = temperatureDistance(distance, rayon);
+    // Étapes restantes jusqu'à la prochaine découverte/énigme incluse : les points de passage d'avant
+    // peuvent être dépassés sans avoir été validés (téléphone en poche, pas de réseau) — le serveur
+    // les coche avec l'étape suivante. On vise donc la plus avancée dont on est dans la zone.
+    const restantes = [];
+    for (const e of etapes) {
+      if (e.validee || e.ordre < prochaine.ordre) continue;
+      restantes.push(e);
+      if (e.type_contenu !== 'aucun') break;
+    }
+    const mesures = restantes.map((e) => ({ e, ...distanceEtCap(lat, lng, e.lat, e.lng) }));
+    const vise = [...mesures].reverse().find((m) => m.distance <= rayon) || mesures[0];
+    const decouverte = mesures[mesures.length - 1];
+    const visePassage = vise.e.type_contenu === 'aucun';
+    const temp = temperatureDistance(vise.distance, rayon);
+    const nbAttente = lireValidationsEnAttente().filter((v) => v.chasseId === chasse.id).length;
     guidage.dataset.etat = temp.cle;
     guidage.innerHTML = `
       ${consigne ? `<span class="consigne-balade">🚩 ${escapeAttr(consigne)}</span>` : ''}
-      <strong>${prochainEstPassage ? '🚩 Point de passage' : `➡️ Étape ${prochaine.ordre + 1}`} · ${escapeAttr(prochaine.titre)}</strong>
-      <span>${temp.cle === 'ici' ? 'Vous êtes dans la zone de l’étape' : `${formaterDistance(distance)} · vers ${DIRECTIONS_CAP[Math.round(cap / 45) % 8]}`}</span>
-      <span class="temperature">${temp.texte}</span>`;
+      <strong>${visePassage ? '🚩 Point de passage' : `➡️ Étape ${vise.e.ordre + 1}`} · ${escapeAttr(vise.e.titre)}</strong>
+      <span>${temp.cle === 'ici' ? 'Vous êtes dans la zone de l’étape' : `${formaterDistance(vise.distance)} · vers ${DIRECTIONS_CAP[Math.round(vise.cap / 45) % 8]}`}</span>
+      <span class="temperature">${temp.texte}</span>
+      ${visePassage && decouverte.e !== vise.e ? `<span class="suite-balade">Prochaine découverte : ${escapeAttr(decouverte.e.titre)} · ${formaterDistance(decouverte.distance)}</span>` : ''}
+      ${nbAttente ? `<span class="attente-reseau">⏳ ${nbAttente > 1 ? `${nbAttente} validations` : 'Validation'} en attente de réseau</span>` : ''}`;
     // Point de passage atteint : validé tout seul, le marcheur n'a pas à s'arrêter. Le serveur
-    // revérifie la position ; s'il refuse (GPS imprécis, réseau…), nouvel essai 20 s plus tard au plus tôt.
-    const essaiRecent = dernierEssaiAuto?.etapeId === prochaine.id && Date.now() - dernierEssaiAuto.t < 20000;
-    if (prochainEstPassage && temp.cle === 'ici' && bouton && !bouton.disabled && !essaiRecent) {
-      dernierEssaiAuto = { etapeId: prochaine.id, t: Date.now() };
-      validerEtapePosition(prochaine.id, null, bouton);
+    // revérifie la position ; s'il refuse (GPS imprécis…), nouvel essai 20 s plus tard au plus tôt.
+    const essaiRecent = dernierEssaiAuto?.etapeId === vise.e.id && Date.now() - dernierEssaiAuto.t < 20000;
+    if (visePassage && temp.cle === 'ici' && bouton && !bouton.disabled && !essaiRecent) {
+      dernierEssaiAuto = { etapeId: vise.e.id, t: Date.now() };
+      validerEtapePosition(vise.e.id, null, bouton);
       return;
     }
     if (bouton && !bouton.disabled) {
+      bouton.dataset.etape = vise.e.id; // le bouton valide l'étape visée
       bouton.classList.toggle('pret', temp.cle === 'ici');
-      bouton.textContent = temp.cle === 'ici' ? '🎉 Vous y êtes ! Valider l’étape' : `📍 Je suis arrivé (encore ~${formaterDistance(distance)})`;
+      bouton.textContent = temp.cle === 'ici' ? '🎉 Vous y êtes ! Valider l’étape' : `📍 Je suis arrivé (encore ~${formaterDistance(vise.distance)})`;
     }
   };
   const demarrerSuivi = () => {
@@ -423,6 +440,80 @@ function initCarteBalade(chasse, termine) {
     setTimeout(() => carteBalade && carteBalade.invalidateSize(), 120);
   });
 }
+
+// ── Validations en attente de réseau (2026-11-05) ──
+// Sans réseau, la validation d'une étape de balade est gardée sur le téléphone avec la position
+// mesurée SUR PLACE, l'étape est cochée à l'écran pour continuer, et l'envoi est retenté dès que le
+// réseau revient (évènement « online », ouverture des parcours, et toutes les 30 s s'il reste des envois).
+const CLE_VALIDATIONS_EN_ATTENTE = 'agora_validations_en_attente';
+
+function lireValidationsEnAttente() {
+  try { return JSON.parse(localStorage.getItem(CLE_VALIDATIONS_EN_ATTENTE) || '[]'); } catch { return []; }
+}
+function ecrireValidationsEnAttente(liste) {
+  try { localStorage.setItem(CLE_VALIDATIONS_EN_ATTENTE, JSON.stringify(liste)); } catch { /* stockage indisponible */ }
+}
+
+// Coche une étape à l'écran (et les points de passage manqués avant elle, comme le fera le serveur).
+function cocherLocalement(chasse, etapeId) {
+  const cible = (chasse.etapes || []).find((e) => e.id === etapeId);
+  if (!cible) return;
+  for (const e of chasse.etapes) {
+    if (!e.validee && (e.id === etapeId || (e.ordre < cible.ordre && e.type_contenu === 'aucun'))) {
+      e.validee = true;
+      chasse.etapes_validees += 1;
+    }
+  }
+  chasse.etape_suivante = [...chasse.etapes].sort((a, b) => a.ordre - b.ordre).find((e) => !e.validee) || null;
+}
+
+function appliquerValidationsEnAttente(chasses) {
+  for (const v of lireValidationsEnAttente()) {
+    const chasse = chasses.find((c) => c.id === v.chasseId);
+    if (chasse) cocherLocalement(chasse, v.etapeId);
+  }
+}
+
+function mettreValidationEnAttente(url, corps, etapeId) {
+  const chasseOuverte = chassesCache.find((c) => c.id === idChasseDetailOuverte);
+  // Étape énigme sans réponse : sa question vient du serveur, impossible de la poser hors réseau.
+  if (corps.reponse == null && chasseOuverte?.etapes?.find((e) => e.id === etapeId)?.type_contenu === 'enigme') {
+    afficherToastMessage('📵 Pas de réseau : la question de cette étape s’affichera dès le retour du réseau. Revenez ici à ce moment-là.', 'erreur');
+    return;
+  }
+  const liste = lireValidationsEnAttente();
+  if (!liste.some((v) => v.etapeId === etapeId)) liste.push({ url, corps, etapeId, chasseId: idChasseDetailOuverte });
+  ecrireValidationsEnAttente(liste);
+  afficherToastMessage('⏳ Pas de réseau : étape gardée, elle sera validée dès le retour du réseau.', 'info');
+  const chasse = chassesCache.find((c) => c.id === idChasseDetailOuverte);
+  if (chasse) { cocherLocalement(chasse, etapeId); renderDetailChasse(chasse); }
+}
+
+let envoiEnAttenteEnCours = false;
+async function envoyerValidationsEnAttente() {
+  const liste = lireValidationsEnAttente();
+  if (!liste.length || envoiEnAttenteEnCours || navigator.onLine === false) return;
+  envoiEnAttenteEnCours = true;
+  let envoyees = 0;
+  try {
+    for (const v of liste) {
+      let res;
+      try {
+        res = await appelApi(v.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(v.corps) });
+      } catch { break; } // toujours pas de réseau : on garde la suite pour plus tard
+      ecrireValidationsEnAttente(lireValidationsEnAttente().filter((x) => x.etapeId !== v.etapeId));
+      envoyees += 1;
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.reussi !== false && !data.etape_enigme) annoncerValidation(data);
+      else if (data.erreur !== 'Étape déjà validée') afficherToastMessage(`Une étape gardée hors réseau n'a pas pu être validée : ${data.erreur || 'position trop éloignée'}.`, 'erreur');
+    }
+  } finally {
+    envoiEnAttenteEnCours = false;
+  }
+  if (envoyees) rechargerApresValidation();
+}
+window.addEventListener('online', () => envoyerValidationsEnAttente());
+setInterval(() => { if (lireValidationsEnAttente().length) envoyerValidationsEnAttente(); }, 30000);
 
 // Consigne du dernier point de passage franchi, gardée dans le bandeau de guidage jusqu'au point
 // suivant (« Prenez le sentier à gauche… ») : { chasseId, texte }.
@@ -471,14 +562,17 @@ function validerEtapePosition(etape_id, reponse = null, bouton = null) {
   (suivie || obtenirPositionPrecise((precision) => {
     if (bouton) bouton.textContent = `Précision : ±${Math.round(precision)} m…`;
   })).then(async (pos) => {
-    const res = await appelApi(urlJeux('chasses-tresor', '/valider-position'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        etape_id, lat: pos.coords.latitude, lng: pos.coords.longitude,
-        ...(reponse != null ? { reponse } : {}),
-      }),
-    });
+    const url = urlJeux('chasses-tresor', '/valider-position');
+    const corps = { etape_id, lat: pos.coords.latitude, lng: pos.coords.longitude, ...(reponse != null ? { reponse } : {}) };
+    // Pas de réseau : la validation est gardée (avec la position mesurée ici) et renvoyée plus tard.
+    if (navigator.onLine === false) { mettreValidationEnAttente(url, corps, etape_id); return; }
+    let res;
+    try {
+      res = await appelApi(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+    } catch {
+      mettreValidationEnAttente(url, corps, etape_id);
+      return;
+    }
     const data = await res.json();
 
     if (res.ok && data.reussi === false) {

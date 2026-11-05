@@ -1556,3 +1556,6 @@ body.carte-balade-plein-ecran { overflow: hidden; }
 /* Point de passage (balisage, changement de direction) : petit rond discret sur la carte. */
 .pastille-balade.passage { width: 16px; height: 16px; border-width: 2px; font-size: 0; }
 .guidage-balade .consigne-balade { font-weight: 600; color: var(--prairie); }
+/* Balade : rappel de la prochaine découverte et validations en attente de réseau. */
+.guidage-balade .suite-balade { font-size: 12.5px; color: var(--roseau); }
+.guidage-balade .attente-reseau { font-size: 12.5px; font-weight: 700; color: #9a6a00; }

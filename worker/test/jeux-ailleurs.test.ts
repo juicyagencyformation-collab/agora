@@ -203,6 +203,25 @@ describe('jeux dans une autre commune', () => {
     expect(joueur().chasses_terminees).toBe(1);
   });
 
+  it('point de passage manqué (poche, réseau) : rattrapé avec l’étape suivante ; une découverte manquée bloque toujours', async () => {
+    const P1 = '55555555-5555-4555-8555-555555555551';
+    const D2 = '55555555-5555-4555-8555-555555555552';
+    const D3 = '55555555-5555-4555-8555-555555555553';
+    db.chasses_tresor.push({ id: 'ch-rando', commune_id: 'c-fay', titre: 'Rando', actif: true, mode: 'balade', rayon_metres: 50, created_at: '2026-11-04' });
+    db.etapes_chasse.push(
+      { id: P1, commune_id: 'c-fay', chasse_id: 'ch-rando', ordre: 0, titre: 'Carrefour', indice: 'x', lat: 49.8, lng: 1.6, type_contenu: 'aucun', qr_token: crypto.randomUUID() },
+      { id: D2, commune_id: 'c-fay', chasse_id: 'ch-rando', ordre: 1, titre: 'Moulin', indice: 'y', lat: 49.81, lng: 1.6, type_contenu: 'texte', contenu: 'Moulin', qr_token: crypto.randomUUID() },
+      { id: D3, commune_id: 'c-fay', chasse_id: 'ch-rando', ordre: 2, titre: 'Église', indice: 'z', lat: 49.82, lng: 1.6, type_contenu: 'texte', contenu: 'Église', qr_token: crypto.randomUUID() },
+    );
+    // L'église avant le moulin : refusée (une découverte manque).
+    expect((await post('/fay/chasses-tresor/valider-position', { etape_id: D3, lat: 49.82, lng: 1.6 })).status).toBe(400);
+    // Le moulin sans être passé par le carrefour : accepté, le carrefour est coché avec.
+    const moulin = await (await post('/fay/chasses-tresor/valider-position', { etape_id: D2, lat: 49.81, lng: 1.6 })).json();
+    expect(moulin).toMatchObject({ ok: true, passages_rattrapes: 1, xp_gagne: 20 });
+    const validees = db.progressions_chasse.filter((pr) => pr.chasse_id === 'ch-rando').map((pr) => pr.etape_id).sort();
+    expect(validees).toEqual([P1, D2].sort());
+  });
+
   it('refuse un QR scanné loin de l’étape, ou sans position', async () => {
     const loin = await post('/valider-qr', { qr_token: QR_FAY, lat: 48.85, lng: 2.35 }); // depuis Paris
     expect(loin.status).toBe(400);
