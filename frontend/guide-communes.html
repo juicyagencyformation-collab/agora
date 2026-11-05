@@ -1,0 +1,633 @@
+<!doctype html>
+<!-- frontend/guide-communes.html — mode d'emploi de Plateforme-Agora pour les communes, identique pour
+     toutes : plateforme-agora.fr/guide-communes (PAGES_RACINE de functions/[[path]].js). Lien depuis
+     l'onglet « Ma commune » de l'app et l'email de bienvenue des mairies. SOURCE DE RÉFÉRENCE du guide
+     depuis le 2026-11-05 (remplace docs/guide-communes.md et la page claude.ai) : à mettre à jour à
+     chaque nouveauté visible des habitants ou des mairies. Page statique, sans config.js. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6">
+<title>Plateforme-Agora pour les communes</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --navy: #1B2A4A;
+    --green: #2EAB7B;
+    --orange: #F4A529;
+    --coral: #B5431F;
+    --coral-bg: #FDEEE9;
+
+    --bg: #FAF8F3;
+    --surface: #FFFFFF;
+    --surface-2: #F2EFE6;
+    --border: #E5E0D3;
+    --text: #1E2536;
+    --text-muted: #63697A;
+    --accent: var(--green);
+    --accent-ink: #1C7A56;
+    --rule-bg: #FFF7E8;
+    --rule-border: #EBCE8C;
+    --rule-ink: #8A5A00;
+    --link: var(--navy);
+    --chip-bg: #EEF1F6;
+    --chip-ink: var(--navy);
+    --ok-bg: #DEF3E9;
+    --ok-ink: #1C7A56;
+
+    --role-citoyen-bg: var(--chip-bg);
+    --role-citoyen-ink: var(--chip-ink);
+    --role-admin-bg: #DCE7FB;
+    --role-admin-ink: #1D4ED8;
+    --role-elu-bg: var(--ok-bg);
+    --role-elu-ink: var(--ok-ink);
+    --role-maire-bg: var(--rule-bg);
+    --role-maire-ink: var(--rule-ink);
+    --role-super-bg: var(--navy);
+    --role-super-ink: #FFFFFF;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0F1524;
+      --surface: #161E30;
+      --surface-2: #1C2538;
+      --border: #2A3450;
+      --text: #E8EAF2;
+      --text-muted: #99A2BC;
+      --accent: #3FC493;
+      --accent-ink: #8FE8C6;
+      --rule-bg: #2A2413;
+      --rule-border: #5A4A1C;
+      --rule-ink: #F0C868;
+      --coral: #FF9A78;
+      --coral-bg: #33201B;
+      --link: #9FB4E0;
+      --chip-bg: #1F2A44;
+      --chip-ink: #C7D3EE;
+      --ok-bg: #163529;
+      --ok-ink: #8FE8C6;
+      --role-citoyen-bg: var(--chip-bg);
+      --role-citoyen-ink: var(--chip-ink);
+      --role-admin-bg: #1E2F55;
+      --role-admin-ink: #9DBBFF;
+      --role-elu-bg: var(--ok-bg);
+      --role-elu-ink: var(--ok-ink);
+      --role-maire-bg: var(--rule-bg);
+      --role-maire-ink: var(--rule-ink);
+      --role-super-bg: #E8EAF2;
+      --role-super-ink: #10162A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1524;
+    --surface: #161E30;
+    --surface-2: #1C2538;
+    --border: #2A3450;
+    --text: #E8EAF2;
+    --text-muted: #99A2BC;
+    --accent: #3FC493;
+    --accent-ink: #8FE8C6;
+    --rule-bg: #2A2413;
+    --rule-border: #5A4A1C;
+    --rule-ink: #F0C868;
+    --coral: #FF9A78;
+    --coral-bg: #33201B;
+    --link: #9FB4E0;
+    --chip-bg: #1F2A44;
+    --chip-ink: #C7D3EE;
+    --ok-bg: #163529;
+    --ok-ink: #8FE8C6;
+    --role-citoyen-bg: var(--chip-bg);
+    --role-citoyen-ink: var(--chip-ink);
+    --role-admin-bg: #1E2F55;
+    --role-admin-ink: #9DBBFF;
+    --role-elu-bg: var(--ok-bg);
+    --role-elu-ink: var(--ok-ink);
+    --role-maire-bg: var(--rule-bg);
+    --role-maire-ink: var(--rule-ink);
+    --role-super-bg: #E8EAF2;
+    --role-super-ink: #10162A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 15.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; color: var(--text); text-wrap: balance; line-height: 1.2; }
+  a { color: var(--link); }
+  .topbar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 18px 28px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap;
+  }
+  .topbar__brand { font-family: 'Fraunces', serif; font-weight: 900; font-size: 19px; letter-spacing: 0.01em; color: var(--link); }
+  .topbar__brand span { font-family: 'Inter', sans-serif; font-weight: 600; color: var(--text-muted); font-size: 13px; margin-left: 8px; }
+  .topbar__meta { font-size: 12.5px; color: var(--text-muted); }
+
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 720px); justify-content: center; gap: 56px; max-width: 1120px; margin: 0 auto; padding: 40px 28px 120px; }
+  .sidebar { position: sticky; top: 24px; align-self: start; max-height: calc(100vh - 48px); overflow-y: auto; font-size: 13.5px; }
+  .sidebar__label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; list-style: none; }
+  .sidebar__label::-webkit-details-marker { display: none; }
+  .sidebar nav { display: flex; flex-direction: column; gap: 1px; }
+  .sidebar__groupe { margin-top: 14px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+  .sidebar__groupe:first-child { margin-top: 0; }
+  .sidebar a { text-decoration: none; color: var(--text-muted); padding: 4px 0; border-left: 2px solid transparent; padding-left: 10px; margin-left: -11px; transition: color .15s, border-color .15s; }
+  .sidebar a:hover { color: var(--text); }
+  .sidebar a.actif { color: var(--accent-ink); border-left-color: var(--accent); font-weight: 600; }
+
+  main.content { min-width: 0; }
+  .intro-kicker { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 10px; }
+  h1.titre-doc { font-size: 34px; font-weight: 800; margin: 0 0 10px; }
+  .chapeau { font-size: 16px; color: var(--text-muted); max-width: 62ch; margin: 0 0 8px; }
+  .meta-doc { font-size: 12.5px; color: var(--text-muted); margin-bottom: 40px; }
+
+  section { margin-bottom: 40px; scroll-margin-top: 20px; }
+  h2 { font-size: 22px; font-weight: 700; margin: 0 0 6px; padding-top: 4px; }
+  h2 .emoji { margin-right: 8px; }
+  h3 { font-size: 15.5px; font-weight: 700; margin: 0 0 8px; }
+  p { margin: 0 0 14px; max-width: 68ch; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; max-width: 66ch; }
+  li { margin-bottom: 6px; }
+  strong { font-weight: 700; }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 0.92em; }
+
+  .partie-titre {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    background: var(--ok-bg);
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 100px;
+    margin: 8px 0 28px;
+  }
+  .partie-titre.gestion { color: var(--role-maire-ink); background: var(--role-maire-bg); }
+
+  .module-carte {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .module-carte h3 { margin-bottom: 6px; }
+  .module-carte p:last-child { margin-bottom: 0; }
+  .module-qui { font-size: 12.5px; color: var(--text-muted); margin: 0 0 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+  .role-chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; letter-spacing: 0.01em; white-space: nowrap; }
+  .role-chip.citoyen { background: var(--role-citoyen-bg); color: var(--role-citoyen-ink); }
+  .role-chip.admin { background: var(--role-admin-bg); color: var(--role-admin-ink); }
+  .role-chip.elu { background: var(--role-elu-bg); color: var(--role-elu-ink); }
+  .role-chip.maire { background: var(--role-maire-bg); color: var(--role-maire-ink); }
+  .role-chip.super { background: var(--role-super-bg); color: var(--role-super-ink); }
+  .role-chip.tous { background: var(--surface-2); color: var(--text-muted); }
+
+  .echelle-roles { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 24px; font-size: 12.5px; color: var(--text-muted); }
+  .echelle-roles .fleche { color: var(--text-muted); }
+
+  .callout { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 16px 18px; margin: 0 0 20px; }
+  .callout p:last-child, .callout ul:last-child { margin-bottom: 0; }
+  .callout__label { font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; color: var(--accent-ink); }
+  .callout--gestion { background: var(--role-maire-bg); border-color: var(--rule-border); }
+  .callout--gestion .callout__label { color: var(--role-maire-ink); }
+
+  table { border-collapse: collapse; width: 100%; margin: 4px 0 22px; font-size: 13.5px; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+
+  hr.separateur { border: none; border-top: 1px solid var(--border); margin: 44px 0; }
+  footer.pied { max-width: 720px; margin: 60px auto 0; padding: 0 28px 60px; color: var(--text-muted); font-size: 12.5px; }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; padding: 24px 20px 100px; gap: 28px; }
+    .sidebar { position: static; max-height: none; order: -1; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+    .toc-details:not([open]) nav { display: none; }
+    .toc-details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
+  }
+  @media print {
+    .sidebar, .topbar { display: none; }
+    .layout { grid-template-columns: 1fr; padding: 0; max-width: none; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="topbar__brand" href="/" style="text-decoration:none">Plateforme-Agora <span>Guide d'utilisation</span></a>
+  <div class="topbar__meta">Mis à jour le 5 novembre 2026</div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <details class="toc-details" open>
+      <summary class="sidebar__label">Sommaire</summary>
+      <nav id="toc">
+        <a href="#roles">Les rôles</a>
+        <div class="sidebar__groupe">Partie A — Habitants</div>
+        <a href="#a1">Accueil</a>
+        <a href="#a2">Actualités</a>
+        <a href="#a3">Thermomètre</a>
+        <a href="#a4">Le mur</a>
+        <a href="#a5">Coup de main</a>
+        <a href="#a6">Agenda</a>
+        <a href="#a7">Alertes</a>
+        <a href="#a8">Chasse au trésor</a>
+        <a href="#a9">Conseil municipal</a>
+        <a href="#a10">Annuaire</a>
+        <a href="#a11">Photo du jour</a>
+        <a href="#a12">Lois</a>
+        <a href="#a13">Mémoire du village</a>
+        <a href="#a14">Mon profil</a>
+        <a href="#a15">Notifications</a>
+        <a href="#a16">Météo &amp; déchets</a>
+        <a href="#a17">Communes voisines</a>
+        <a href="#a18">Visiteurs de passage</a>
+        <div class="sidebar__groupe">Partie B — Gestion</div>
+        <a href="#b1">Tableau de bord</a>
+        <a href="#b2">Publier</a>
+        <a href="#b2bis">Message de la mairie</a>
+        <a href="#b3">Actions citoyennes</a>
+        <a href="#b4">Modérer une alerte</a>
+        <a href="#b5">Chasse au trésor</a>
+        <a href="#b6">Conseil municipal</a>
+        <a href="#b7">Bulletin municipal</a>
+        <a href="#b8">Modération centralisée</a>
+        <a href="#b9">Gestion des rôles</a>
+        <a href="#b10">Réglages</a>
+        <a href="#b11">Réservé maire/superadmin</a>
+        <a href="#annexe">Annexe — permissions</a>
+      </nav>
+    </details>
+  </aside>
+
+  <main class="content">
+    <div class="intro-kicker">Guide d'utilisation</div>
+    <h1 class="titre-doc">Plateforme-Agora, mode d'emploi pour votre commune</h1>
+    <p class="chapeau">Document vivant, mis à jour à chaque nouveauté. Destiné aux mairies clientes et à leurs habitants.</p>
+    <p class="meta-doc">Dernière mise à jour : 5 novembre 2026</p>
+
+    <section id="quest-ce-que">
+      <p>Plateforme-Agora est l'application de votre commune : actualités, entraide entre voisins, agenda, alertes, jeux de découverte du patrimoine, conseil municipal, annuaire local... Elle s'utilise depuis un navigateur, mais peut aussi s'installer comme une vraie application sur votre téléphone (bouton « Installer l'application » dans Mon profil) — recommandé pour recevoir les notifications.</p>
+      <p>Les modules disponibles dépendent de l'offre choisie par votre commune : tous ceux décrits ici ne sont donc pas forcément ouverts chez vous.</p>
+    </section>
+
+    <section id="roles">
+      <h2>Les rôles</h2>
+      <div class="echelle-roles">
+        <span class="role-chip citoyen">Citoyen</span><span class="fleche">&lt;</span>
+        <span class="role-chip admin">Admin</span><span class="fleche">&lt;</span>
+        <span class="role-chip elu">Élu</span><span class="fleche">&lt;</span>
+        <span class="role-chip maire">Maire</span><span class="fleche">&lt;</span>
+        <span class="role-chip super">Superadmin</span>
+        <span>— chaque rôle hérite des pouvoirs de celui d'avant</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rôle</th><th>Peut faire</th></tr></thead>
+          <tbody>
+            <tr><td><span class="role-chip citoyen">Citoyen</span></td><td>Utiliser tous les modules ouverts (mur, entraide, agenda, signalement, jeux de découverte...)</td></tr>
+            <tr><td><span class="role-chip admin">Admin</span></td><td>Tout ce qu'un citoyen peut faire, <strong>plus</strong> publier du contenu officiel (actualités, sondages, comptes-rendus...)</td></tr>
+            <tr><td><span class="role-chip elu">Élu</span></td><td>Tout ce qu'un admin peut faire, <strong>plus</strong> nommer/révoquer un admin, gérer le trombinoscope du conseil</td></tr>
+            <tr><td><span class="role-chip maire">Maire</span></td><td>Tout ce qu'un élu peut faire, <strong>plus</strong> nommer/révoquer un élu, changer le logo et les informations officielles</td></tr>
+            <tr><td><span class="role-chip super">Superadmin</span></td><td>Tout pouvoir (réservé à Juicy Solutions), y compris nommer un maire et activer/désactiver un module</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Un rôle ne peut jamais se modifier lui-même, ni attribuer un rôle égal ou supérieur au sien. Le superadmin ne s'attribue jamais depuis l'interface.</p>
+    </section>
+
+    <hr class="separateur" />
+
+    <div class="partie-titre">Partie A — Pour tous les habitants</div>
+
+    <section id="a1">
+      <div class="module-carte">
+        <h3>🏠 A.1 L'accueil</h3>
+        <p>En arrivant, vous trouvez (dans l'ordre) : une éventuelle alerte météo officielle tout en haut, puis un message de bienvenue avec à sa droite une <strong>pastille météo</strong> (icône et température). Un appui sur la pastille ouvre le détail : les 6 prochaines heures, le vent (force, direction, rafales), l'humidité, le risque de pluie, l'indice UV, le lever et le coucher du soleil, la phase de la lune avec son conseil jardin. Viennent ensuite le rappel « sortez vos poubelles » la veille d'une collecte, puis <strong>En un coup d'œil</strong> : une grille de tuiles qui résument la vie de la commune (prochain événement, alertes en cours, prochaine collecte de déchets, sondage à voter, entraide, messages du jour sur le Mur, prochain conseil municipal) — un appui sur une tuile ouvre le module correspondant. Enfin la dernière actualité, le dernier compte-rendu de conseil, la photo de la semaine et les informations pratiques de la mairie tout en bas.</p>
+        <p>Plateforme-Agora peut aussi afficher en haut de l'accueil un bandeau à son nom : nouveauté, maintenance prévue, information ou « Le saviez-vous ? » (par exemple pour inviter un voisin ou noter l'application). Il se ferme d'une croix et ne revient plus une fois lu.</p>
+      </div>
+    </section>
+
+    <section id="a2">
+      <div class="module-carte">
+        <h3>📰 A.2 Actualités</h3>
+        <p class="module-qui"><span class="role-chip admin">Gestionnaires</span> publient · <span class="role-chip tous">Tous</span> lisent</p>
+        <p>Le fil d'informations officiel de la commune. Filtrable par catégorie (Vie du village, Projets &amp; travaux, Environnement, Agenda, Info pratique). Lire un article rapporte 1 point d'expérience (une seule fois par article).</p>
+      </div>
+    </section>
+
+    <section id="a3">
+      <div class="module-carte">
+        <h3>🌡️ A.3 Thermomètre</h3>
+        <p class="module-qui"><span class="role-chip admin">Gestionnaires</span> créent · <span class="role-chip tous">Tous</span> votent</p>
+        <p>Des sondages ponctuels de la mairie. Vous pouvez voter une fois par sondage (et changer d'avis tant qu'il est ouvert).</p>
+      </div>
+    </section>
+
+    <section id="a4">
+      <div class="module-carte">
+        <h3>💬 A.4 Le mur des voisins</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> publie</p>
+        <p>Messagerie libre entre habitants, façon fil d'actualité. Les messages disparaissent automatiquement après 24 à 48h (réglé par la mairie). Réagissez (👍❤️💡) et commentez. Un message inapproprié peut être <strong>signalé</strong> — il est masqué immédiatement en attendant l'arbitrage de la mairie.</p>
+      </div>
+    </section>
+
+    <section id="a5">
+      <div class="module-carte">
+        <h3>🤲 A.5 Coup de main</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> publie</p>
+        <p>Petites annonces d'entraide entre voisins : offre ou demande, 8 catégories (bricolage, jardinage, garde d'enfants, transport, courses, informatique, cuisine, autre). Une annonce expire automatiquement après 30 jours par défaut.</p>
+        <ul>
+          <li><strong>Idées d'annonces</strong> : à la création, des raccourcis (Covoiturage, Garde d'enfants, Prêt d'outils, Jardin, Courses, Aide ponctuelle) préremplissent le titre et la catégorie — il ne reste qu'à décrire.</li>
+          <li><strong>Photo</strong> facultative sur chaque annonce.</li>
+          <li><strong>« 🙋 Je suis intéressé(e) »</strong> : plutôt que d'afficher ses coordonnées à tous, on laisse un petit message privé à l'auteur, qui est notifié et voit la liste des personnes intéressées.</li>
+          <li><strong>« ✅ Pourvu »</strong> : l'auteur marque son annonce comme pourvue une fois le coup de main trouvé — elle reste visible, grisée, en bas de la liste (et peut être remise active en cas d'erreur).</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="a6">
+      <div class="module-carte">
+        <h3>📅 A.6 Agenda</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> propose · action citoyenne = <span class="role-chip admin">gestionnaires</span></p>
+        <p>Deux sous-onglets : <strong>Agenda local</strong> et <strong>Autour de moi</strong> (voir A.17). Un événement créé par la mairie est marqué « 🏛️ Officiel ». Un clic « Je participe » suffit pour la plupart des événements. Sans photo, l'événement affiche une vignette avec le jour et le mois plutôt qu'une icône générique.</p>
+        <p>Certains événements sont des <strong>actions citoyennes</strong> (nettoyage, plantation, chantier participatif...) : vous scannez un QR sur place à votre arrivée, puis l'organisateur valide votre présence, ce qui rapporte des <strong>points de participation citoyenne</strong> (voir A.14).</p>
+        <div class="callout">
+          <div class="callout__label">À savoir</div>
+          <p>Un désistement tardif ou une absence non signalée entraîne une pénalité ; 3 absences non signalées en 60 jours suspendent temporairement vos inscriptions.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="a7">
+      <div class="module-carte">
+        <h3>🚨 A.7 Alertes</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> signale · <span class="role-chip admin">gestionnaires</span> traitent</p>
+        <p>Pour signaler un problème concret (voirie, propreté, sécurité...) — à ne pas confondre avec la vigilance météo (A.16). Vous suivez son traitement : ouverte → en cours → résolue, avec une éventuelle réponse publique de la mairie. Vous pouvez « soutenir » le signalement d'un autre habitant en un clic.</p>
+      </div>
+    </section>
+
+    <section id="a8">
+      <div class="module-carte">
+        <h3>🗺️ A.8 Chasse au trésor &amp; énigme photo</h3>
+        <p class="module-qui">Chasse = <span class="role-chip admin">gestionnaires</span> · Énigme photo = <span class="role-chip tous">tout citoyen</span></p>
+        <p><strong>Chasse au trésor</strong> (mairie) : un parcours en plusieurs étapes, dans l'ordre ; un indice mène à chaque lieu, où l'on scanne le QR code posé sur place. Il faut aussi y être vraiment : la position du téléphone est vérifiée au scan (à 200 m de l'étape au plus), une photo du QR partagée en ligne ne suffit pas. <strong>Balade guidée</strong> (mairie) : les étapes sont sur une carte avec l'itinéraire, on touche « Je suis arrivé » en s'en approchant. Une étape peut faire découvrir un texte, une photo ou poser une question. <strong>Énigme photo</strong> (n'importe quel habitant) : vous photographiez un lieu précis avec un indice, les autres le retrouvent en s'y rendant physiquement — la localisation reste secrète tant que l'énigme n'est pas résolue. Un classement combiné cumule étapes et énigmes.</p>
+        <p><strong>🧳 Jouer dans un autre village</strong> (bouton en haut de l'onglet) : la liste des villages qui proposent des chasses ou des énigmes s'affiche aussitôt, du plus proche au plus loin (filtres 10, 30 ou 100 km), avec une carte et une recherche par nom. Vous y jouez avec votre propre compte, sans en créer un autre. Un bandeau rappelle où vous jouez et sous quel nom vous apparaissez dans ses classements ; « Revenir à mon village » vous ramène chez vous. Scanner sur place le QR d'une étape d'un autre village fonctionne aussi directement. Vos points s'ajoutent à votre compte ; en visite, vous ne voyez que les jeux.</p>
+        <p>Il faut autoriser la localisation du téléphone et avoir un peu de réseau mobile : les étapes et les énigmes se valident sur place. Chasse au trésor et énigme photo font partie de la version gratuite.</p>
+      </div>
+    </section>
+
+    <section id="a9">
+      <div class="module-carte">
+        <h3>🏛️ A.9 Le conseil municipal</h3>
+        <p class="module-qui"><span class="role-chip tous">Lecture ouverte à tous</span></p>
+        <p><strong>Trombinoscope</strong> : maire, adjoints, conseillers. <strong>Comptes-rendus</strong> de séance : la mairie y joint directement le document officiel (PDF, JPEG ou PNG) — pas de retranscription, le fichier fait foi.</p>
+      </div>
+    </section>
+
+    <section id="a10">
+      <div class="module-carte">
+        <h3>📇 A.10 Annuaire</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> crée sa fiche</p>
+        <p>Bottin des commerces, artisans, associations et services publics. Vous pouvez créer <strong>votre propre fiche</strong> (une seule) si vous êtes commerçant, artisan ou responsable d'association.</p>
+      </div>
+    </section>
+
+    <section id="a11">
+      <div class="module-carte">
+        <h3>📸 A.11 Photo du jour</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> publie</p>
+        <p>Galerie participative — une photo par jour maximum (réglé par la mairie), avec une petite légende facultative (140 caractères). Une photo reste floutée tant qu'elle n'a pas reçu assez de validations d'autres habitants (vous ne pouvez pas valider votre propre photo). Vous choisissez si la mairie peut réutiliser votre photo (« libre de droit »). Toute la carte s'ouvre en plein écran d'un clic (sauf les boutons). L'auteur peut <strong>supprimer sa propre photo</strong> (bouton 🗑️ sur sa carte) — sans pour autant pouvoir en republier une autre le même jour.</p>
+      </div>
+    </section>
+
+    <section id="a12">
+      <div class="module-carte">
+        <h3>⚖️ A.12 Lois</h3>
+        <p class="module-qui"><span class="role-chip admin">Gestionnaires</span> ajoutent (+ synchro auto) · <span class="role-chip tous">tous</span> votent/commentent</p>
+        <p>Suivi des textes de loi en cours (Assemblée nationale, Sénat, Parlement européen, Journal officiel), avec un <strong>vote symbolique</strong> pour/contre/mitigé — ce n'est pas un vote officiel, juste l'opinion de votre commune.</p>
+      </div>
+    </section>
+
+    <section id="a13">
+      <div class="module-carte">
+        <h3>📖 A.13 Mémoire du village</h3>
+        <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> publie</p>
+        <p>Recueil patrimonial participatif : récits, photos d'époque, témoignages audio enregistrés directement dans l'application (5 minutes max). Le thème « Familles &amp; ancêtres » alimente une frise chronologique des personnes du village.</p>
+      </div>
+    </section>
+
+    <section id="a14">
+      <div class="module-carte">
+        <h3>👤 A.14 Mon profil et la progression</h3>
+        <p>Deux systèmes séparés :</p>
+        <ul>
+          <li><strong>XP et niveaux</strong> — gagnés en lisant, votant, publiant, explorant — débloquent des badges et font progresser votre niveau.</li>
+          <li><strong>Points de participation citoyenne</strong> — gagnés uniquement par un engagement réel et vérifié (présence confirmée à une action, signalement résolu), avec paliers et badges propres à votre commune.</li>
+        </ul>
+        <p>Vous y trouvez aussi : streak de connexion, historique de contributions, un QR pour inviter vos voisins, la possibilité de noter l'application, et vos droits (changer votre mot de passe, télécharger vos données, supprimer votre compte).</p>
+        <p><strong>Votre nom sur vos publications et dans les classements</strong> (Mon profil → 🔒 Confidentialité) : par défaut, les autres habitants voient votre prénom et l'initiale de votre nom (« Léa M. »). Vous pouvez aussi choisir d'apparaître comme « Anonyme ». Le choix s'applique aussi à ce que vous avez déjà publié, et aux classements des chasses au trésor, y compris dans les autres villages où vous jouez. Sur vos propres publications, vous voyez exactement ce que voient les autres, suivi de « (vous) ». La mairie peut toujours identifier l'auteur d'un contenu signalé.</p>
+      </div>
+    </section>
+
+    <section id="a15">
+      <div class="module-carte">
+        <h3>🔔 A.15 Notifications</h3>
+        <p>Choisissez individuellement ce qui vous intéresse : articles, chasses au trésor, énigmes, mur, sondages, agenda, entraide, vigilance météo, résumé météo quotidien (désactivé par défaut). Un clic sur une notification vous emmène directement au bon endroit.</p>
+      </div>
+    </section>
+
+    <section id="a16">
+      <div class="module-carte">
+        <h3>🌦️ A.16 Météo et déchets</h3>
+        <p><strong>Vigilance météo</strong> (bandeau en haut de l'accueil) : alertes officielles orange/rouge synchronisées automatiquement — personne ne peut les masquer. <strong>Déchets</strong> : la prochaine collecte apparaît dans « En un coup d'œil », avec un grand rappel la veille du ramassage. Un appui sur la tuile <strong>Déchets</strong> déplie le calendrier complet : toutes les collectes à venir, ainsi que les <strong>dates exceptionnelles</strong> (jour férié qui décale la collecte, ramassage ponctuel...) ajoutées par la mairie.</p>
+      </div>
+    </section>
+
+    <section id="a17">
+      <div class="module-carte">
+        <h3>🧭 A.17 Découvrir les communes voisines</h3>
+        <p>Le sous-onglet « Autour de moi » de l'Agenda (et une page publique dédiée, consultable sans compte) montre les événements officiels des communes partenaires à proximité, ainsi que les événements nationaux — jamais de contenu citoyen, uniquement ce que les mairies choisissent de partager.</p>
+      </div>
+    </section>
+
+    <section id="a18">
+      <div class="module-carte">
+        <h3>🎒 A.18 Visiteurs de passage (comptes Explorateurs)</h3>
+        <p class="module-qui">Touristes, randonneurs, camping-caristes</p>
+        <p>Une personne qui n'habite pas une commune utilisant Plateforme-Agora peut tout de même jouer à vos chasses et énigmes. En scannant l'affiche « Explorez le village » (voir B.10), elle choisit <strong>« Je suis de passage »</strong> et crée en une minute un compte <strong>Explorateur</strong>, valable dans tous les villages. Un habitant choisit « J'habite ici » et retrouve son compte habituel.</p>
+        <ul>
+          <li>Un Explorateur ne voit <strong>que les jeux</strong> : ni les actualités, ni le mur, ni l'entraide, ni l'annuaire, ni les habitants de votre commune.</li>
+          <li>Il apparaît dans vos classements sous son prénom et l'initiale de son nom (ou « Anonyme », selon son choix).</li>
+          <li>Ces comptes relèvent de Juicy Solutions, pas de votre mairie, et sont effacés après 12 mois sans connexion.</li>
+        </ul>
+      </div>
+    </section>
+
+    <hr class="separateur" />
+
+    <div class="partie-titre gestion">Partie B — Pour les élus, le maire et les administrateurs</div>
+
+    <section id="b1">
+      <h3>📊 B.1 Le tableau de bord Modération</h3>
+      <p class="module-qui"><span class="role-chip admin">Tout gestionnaire</span></p>
+      <p>Statistiques en temps réel : comptes citoyens, contenu en attente de modération, alertes en cours/résolues, fréquentation de l'application (actifs aujourd'hui/7j/30j).</p>
+    </section>
+
+    <section id="b2">
+      <h3>✍️ B.2 Publier une actualité ou un sondage</h3>
+      <p>Depuis l'onglet Actualités : « + Publier un article » — titre, catégorie, texte, jusqu'à 10 photos, et un sondage optionnel intégré directement dans l'article.</p>
+    </section>
+
+    <section id="b2bis">
+      <h3>📢 B.2 bis Message de la mairie en haut de l'accueil</h3>
+      <p>Depuis l'onglet Ma commune, volet « 📢 Message de la mairie » : un message court (280 caractères) affiché tout en haut de l'accueil de tous les habitants jusqu'à la date choisie (60 jours maximum), par exemple pour une coupure d'eau, une fermeture de la mairie ou une nouveauté. Une case permet d'envoyer aussi une notification. Chaque habitant peut fermer le bandeau une fois lu ; il disparaît pour tous à la date de fin, et vous pouvez le retirer avant depuis le même volet.</p>
+    </section>
+
+    <section id="b3">
+      <h3>🙋 B.3 Créer un événement officiel ou une action citoyenne</h3>
+      <ol>
+        <li>Choisissez le type d'action à la création (réservé aux gestionnaires).</li>
+        <li>Le jour J, les participants scannent un QR sur place.</li>
+        <li>Vous (ou un élu/le maire) validez les présences scannées.</li>
+        <li>Pour partager au-delà de votre commune, cochez « Autour de moi ».</li>
+      </ol>
+    </section>
+
+    <section id="b4">
+      <h3>🚨 B.4 Modérer un signalement citoyen</h3>
+      <p>Vous suivez chaque signalement (ouverte → en cours → résolue) et pouvez publier une réponse officielle visible par tous, ce qui notifie l'auteur.</p>
+    </section>
+
+    <section id="b5">
+      <h3>🗺️ B.5 Gérer la chasse au trésor</h3>
+      <p>Vous créez le parcours directement sur une <strong>carte interactive</strong> : cliquez pour placer chaque étape (pas besoin d'être sur place), un repère numéroté par étape que vous pouvez glisser pour ajuster la position. Choisissez le type à la création : <strong>chasse au trésor</strong> (un QR code à imprimer et à poser à chaque étape, bouton « Voir les QR codes ») ou <strong>balade guidée</strong> (pas de QR, validation par la position, rayon réglable). Chaque étape demande un titre, un indice et sa position sur la carte ; si l'une est incomplète, rien n'est enregistré et un message indique précisément ce qui manque (« Étape 5 : il manque l'indice »).</p>
+      <p>Vous pouvez corriger une étape à tout moment (titre, indice, position, contenu) sans changer son QR code, mais ajouter ou retirer des étapes demande de recréer la chasse. <strong>Une chasse déjà jouée ne peut plus être supprimée définitivement</strong> (seulement archivée) — pour éviter de regagner des points en la recréant à l'identique. Vos chasses et énigmes sont aussi jouables par les habitants des autres villages et par les visiteurs de passage (voir A.18).</p>
+    </section>
+
+    <section id="b6">
+      <h3>🏛️ B.6 Le conseil municipal</h3>
+      <ul>
+        <li><strong>Trombinoscope</strong> : réservé <span class="role-chip elu">élu</span>/<span class="role-chip maire">maire</span> (un admin ne peut pas le modifier).</li>
+        <li><strong>Comptes-rendus</strong> : tout gestionnaire ajoute directement le document officiel de la séance (PDF, JPEG ou PNG, 15 Mo max) — pas de retranscription à faire.</li>
+      </ul>
+    </section>
+
+    <section id="b7">
+      <div class="callout callout--gestion">
+        <div class="callout__label">🏛️ B.7 Bulletin municipal — espace de rédaction interne, non visible des citoyens</div>
+        <p>Ce module n'est pas une publication citoyenne : l'onglet est <strong>masqué pour tout citoyen</strong> (comme Modération), c'est un espace de travail réservé au conseil et à l'administration pour préparer le bulletin avant sa diffusion par un autre canal (papier, site web...). Validation à deux étages :</p>
+        <ul>
+          <li>Un <span class="role-chip admin">admin</span> peut rédiger un brouillon de bulletin complet, ou proposer une <strong>rubrique</strong> courte (texte signé, ex. « Club de pétanque »).</li>
+          <li>Seuls <span class="role-chip elu">élu</span>, <span class="role-chip maire">maire</span> ou <span class="role-chip super">superadmin</span> peuvent <strong>valider</strong> un brouillon ou une rubrique.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="b8">
+      <h3>🧹 B.8 Modération centralisée</h3>
+      <p>Quatre modules ont une file de contenu masqué à traiter : <strong>Mur des voisins, Photo du jour, Énigme photo, Mémoire du village</strong>. Un signalement masque immédiatement le contenu ; vous choisissez ensuite de le <strong>restaurer</strong> ou de le <strong>supprimer définitivement</strong> (ce qui récompense les personnes qui avaient signalé ; pas quand l'auteur retire lui-même sa photo).</p>
+    </section>
+
+    <section id="b9">
+      <h3>🗝️ B.9 Gestion des rôles — qui peut nommer qui</h3>
+      <p class="module-qui">Réservée à <span class="role-chip elu">élu</span>, <span class="role-chip maire">maire</span>, <span class="role-chip super">superadmin</span></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Vous êtes</th><th>Vous pouvez attribuer</th></tr></thead>
+          <tbody>
+            <tr><td><span class="role-chip elu">Élu</span></td><td>Citoyen, Admin</td></tr>
+            <tr><td><span class="role-chip maire">Maire</span></td><td>Citoyen, Admin, Élu</td></tr>
+            <tr><td><span class="role-chip super">Superadmin</span></td><td>Tous les rôles, y compris Maire</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Personne ne peut modifier son propre rôle. Seul le superadmin peut désigner un maire.</p>
+    </section>
+
+    <section id="b10">
+      <h3>⚙️ B.10 Réglages de la commune</h3>
+      <p>Depuis l'onglet <strong>🏛️ Ma commune</strong> (visible des gestionnaires uniquement, juste avant Modération) : calendrier des déchets, couleurs, horaires et coordonnées de la mairie, logo (élu/maire/superadmin), vigilance météo et département, contact RGPD, onglets actifs, et le kit <strong>« 📣 Faire connaître l'appli »</strong>, prêt à imprimer avec le QR code de votre commune (1, 2, 6 ou 9 par page A4) : l'<strong>affiche pour les habitants</strong> (pour créer leur compte), l'<strong>affiche « Explorez le village »</strong> (pour faire découvrir votre patrimoine aux habitants et aux touristes grâce aux balades guidées, chasses au trésor et énigmes photo : à afficher à la mairie, à l'église, sur l'aire de camping-car…) et le <strong>dossier pour le conseil municipal</strong>. Ce mode d'emploi y est aussi accessible. L'onglet <strong>Modération</strong> ne contient plus que la modération : contenu signalé, fréquentation, gestion des rôles.</p>
+    </section>
+
+    <section id="b11">
+      <h3>🔒 B.11 Ce qui reste réservé au maire seul ou au superadmin</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Rôle</th><th>Réservé à lui</th></tr></thead>
+          <tbody>
+            <tr><td><span class="role-chip maire">Maire</span> (avec élu)</td><td>Changer le logo et les informations officielles, nommer/révoquer un élu</td></tr>
+            <tr><td><span class="role-chip super">Superadmin</span></td><td>Activer/désactiver un module, attribuer le rôle maire, gérer les badges de points citoyens, synchro manuelle des lois, réglages techniques des modules (seuils de la Photo du jour, rayon et durée des énigmes, durée d'affichage du Mur, participation à « Autour de moi ») — à demander à Juicy Solutions si besoin</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Un module non ouvert est simplement masqué pour les habitants et les administrateurs. Les élus et le maire le voient grisé, avec une fenêtre expliquant qu'il fait partie d'une offre supérieure.</p>
+    </section>
+
+    <hr class="separateur" />
+
+    <section id="annexe">
+      <h2>Annexe — qui peut créer du contenu, module par module</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Module</th><th>Création</th><th>Modération citoyenne</th><th>Modifier/supprimer</th></tr></thead>
+          <tbody>
+            <tr><td>Actualités</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires</td></tr>
+            <tr><td>Thermomètre</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires</td></tr>
+            <tr><td>Mur des voisins</td><td><span class="role-chip tous">Tout citoyen</span></td><td>Oui</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Coup de main</td><td><span class="role-chip tous">Tout citoyen</span></td><td>—</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Agenda</td><td><span class="role-chip tous">Tout citoyen</span> (action = gestionnaires)</td><td>—</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Alertes</td><td><span class="role-chip tous">Tout citoyen</span></td><td>—</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Chasse au trésor</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires (pas de suppression si déjà jouée)</td></tr>
+            <tr><td>Énigme photo</td><td><span class="role-chip tous">Tout citoyen</span></td><td>Oui</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Conseil — trombinoscope</td><td><span class="role-chip elu">Élu</span>/<span class="role-chip maire">maire</span>/<span class="role-chip super">superadmin</span></td><td>—</td><td>Élu/maire/superadmin</td></tr>
+            <tr><td>Conseil — comptes-rendus</td><td><span class="role-chip admin">Gestionnaires</span> (fichier joint)</td><td>—</td><td>Gestionnaires</td></tr>
+            <tr><td>Annuaire</td><td><span class="role-chip tous">Tout citoyen</span> (sa fiche) + gestionnaires</td><td>—</td><td>Propriétaire ou gestionnaire</td></tr>
+            <tr><td>Bulletin municipal <em>(non visible des citoyens)</em></td><td><span class="role-chip admin">Gestionnaires</span> (brouillon/rubrique)</td><td>— (validation : élu/maire/superadmin)</td><td>Gestionnaires</td></tr>
+            <tr><td>Photo du jour</td><td><span class="role-chip tous">Tout citoyen</span></td><td>Oui</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Lois</td><td><span class="role-chip admin">Gestionnaires</span> (+ synchro auto)</td><td>Oui (commentaires)</td><td>Gestionnaires</td></tr>
+            <tr><td>Mémoire du village</td><td><span class="role-chip tous">Tout citoyen</span></td><td>Oui</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Déchets</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires</td></tr>
+            <tr><td>Vigilance météo</td><td><span class="role-chip admin">Gestionnaires</span> (+ synchro auto non modifiable)</td><td>—</td><td>Gestionnaires (origine manuelle)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="pied">Plateforme-Agora — Juicy Solutions. Guide destiné aux mairies clientes et à leurs habitants.</footer>
+
+<script>
+  (function () {
+    var liens = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
+    var sections = liens.map(function (a) { return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+    function actualiser() {
+      var pos = window.scrollY + 100;
+      var courant = sections[0];
+      sections.forEach(function (s) { if (s.offsetTop <= pos) courant = s; });
+      liens.forEach(function (a) {
+        a.classList.toggle('actif', courant && a.getAttribute('href') === '#' + courant.id);
+      });
+    }
+    window.addEventListener('scroll', actualiser, { passive: true });
+    actualiser();
+  })();
+</script>
+</body>
+</html>

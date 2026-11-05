@@ -144,6 +144,10 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
         modèle de délibération, plan de lancement)&nbsp;:
         <a href="${dossierUrl}" style="color:#2c5f2d">ouvrir le dossier pour le conseil</a>.
       </p>
+      <p style="font-size:14px;color:#3a4a3b;line-height:1.6;margin-top:8px">
+        Et pour tout découvrir, module par module&nbsp;:
+        <a href="${d.frontendUrl}/guide-communes" style="color:#2c5f2d">le mode d'emploi de Plateforme-Agora pour les communes</a>.
+      </p>
     </div>
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
