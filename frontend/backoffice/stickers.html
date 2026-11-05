@@ -4,7 +4,10 @@
      ?slug= pré-remplit toutes les cases (boutons Stickers des fiches). Page staff : liste via boFetch.
      ?type=jeux (2026-11-05, bouton « Affiche « Explorez le village » » des fiches, avec n=1 = affiche A4) : même design,
      textes « Chasses au trésor & énigmes photo » et QR vers /<slug>/jouer (frontend/jouer.html, qui
-     aiguille habitants et visiteurs de passage). -->
+     aiguille habitants et visiteurs de passage).
+     ?mairie=1 (lien « Faire connaître l'appli » de l'app, pour la mairie qui n'a pas de session
+     backoffice) : aucun appel staff (pas de liste des communes), seul le nom PUBLIC de la commune
+     ?slug= est lu (/api/<slug>/commune, comme l'app) ; menus de choix de commune masqués. -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -46,6 +49,8 @@
   .cell .choix{position:absolute;top:.6mm;left:50%;transform:translateX(-50%);z-index:5;max-width:92%;
     font:600 12px Inter,system-ui,sans-serif;padding:3px 6px;border:1px solid #c5ccda;border-radius:6px;background:#fff;color:var(--ink)}
   .toolbar select{padding:6px 8px;border:1px solid #c5ccda;border-radius:6px;font:inherit;max-width:240px}
+  /* Mode mairie : une seule commune, la sienne — pas de choix de commune. */
+  .mairie #ligne-tous,.mairie .choix{display:none}
   @media print{
     html,body{background:#fff}
     .toolbar,.choix{display:none}
@@ -127,7 +132,7 @@
     <button data-n="1">1 / page</button><button data-n="2">2 / page</button>
     <button data-n="6">6 / page</button><button data-n="9">9 / page</button>
   </div>
-  <label>Remplir toutes les cases avec <select id="tous"><option value="">Chargement…</option></select></label>
+  <label id="ligne-tous">Remplir toutes les cases avec <select id="tous"><option value="">Chargement…</option></select></label>
   <button class="print" onclick="window.print()">Imprimer / PDF</button>
   <small>Impression : A4, marges « Aucune », échelle 100 %, graphiques d'arrière-plan activés.</small>
 </div>
@@ -225,7 +230,17 @@
   $('#tous').onchange = e => { if(!e.target.value) return; state.cases.fill(e.target.value); e.target.value=''; render(); };
   render();
 
-  (async () => {
+  const modeMairie = P.get('mairie') === '1';
+  if (modeMairie) {
+    document.body.classList.add('mairie');
+    (async () => {
+      const res = slugInitial ? await fetch('/api/' + encodeURIComponent(slugInitial) + '/commune') : null;
+      const nom = res && res.ok ? (await res.json()).commune?.nom : '';
+      if (nom) state.communes.set(slugInitial, nom);
+      state.charge = true;
+      render();
+    })().catch(() => {});
+  } else (async () => {
     // Même règle que le tableau « Communes clientes » (app.js, communesAvecUtilisateurs).
     const { communes } = await boFetch('/administration/communes');
     const clientes = communes.filter(c => c.nb_citoyens > 0 || (c.forfait && c.forfait !== 'Gratuit'))
