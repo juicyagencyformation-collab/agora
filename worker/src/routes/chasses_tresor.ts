@@ -307,29 +307,37 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
     commune_id, chasse_id: etape.chasse_id, etape_id: etape.id, user_id, validee_at: new Date().toISOString(),
   });
 
-  await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'etapes_chasse_validees');
+  // Point de passage (type 'aucun' : balisage, changement de direction) : ne rapporte RIEN — ni
+  // points, ni compteur d'étapes, ni série (décision de Léandre, 2026-11-05). C'est terminer le
+  // parcours qui récompense (bonus terminer_parcours + badge Finisseur au premier).
+  const estPassage = etape.type_contenu === 'aucun';
+  if (!estPassage) await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'etapes_chasse_validees');
 
   // Détecte la complétion à 100% de CETTE chasse (badge "Finisseur", distinct du simple cumul).
+  // Une seule fois par joueur : la dernière étape ne peut être validée qu'une fois.
   const toutesEtapesChasse = await supabaseSelect(c.env, 'etapes_chasse', {
     select: 'id', commune_id: `eq.${commune_id}`, chasse_id: `eq.${etape.chasse_id}`,
   });
   const mesProgressionsChasse = await supabaseSelect(c.env, 'progressions_chasse', {
     select: 'id', commune_id: `eq.${commune_id}`, chasse_id: `eq.${etape.chasse_id}`, user_id: `eq.${user_id}`,
   });
-  if (mesProgressionsChasse.length >= toutesEtapesChasse.length) {
-    await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'chasses_terminees');
-  }
+  const parcoursTermine = mesProgressionsChasse.length >= toutesEtapesChasse.length;
+  if (parcoursTermine) await incrementerCompteurUtilisateur(c.env, commune_joueur, user_id, 'chasses_terminees');
 
-  await gererStreakExploration(c.env, commune_joueur, user_id);
-  const resultatXp = await attribuerXp(c.env, commune_joueur, user_id, XP_ACTIONS.valider_etape_chasse);
+  if (!estPassage || parcoursTermine) await gererStreakExploration(c.env, commune_joueur, user_id);
+  const xp = (estPassage ? 0 : XP_ACTIONS.valider_etape_chasse) + (parcoursTermine ? XP_ACTIONS.terminer_parcours : 0);
+  const resultatXp = xp ? await attribuerXp(c.env, commune_joueur, user_id, xp) : {};
 
-  // Contenu à révéler côté joueur une fois l'étape validée (texte ou photo).
+  // Contenu à révéler côté joueur une fois l'étape validée.
   let contenu_revele: { type: string; texte?: string; photo_url?: string } | null = null;
   // Découverte : texte, avec sa photo s'il y en a une (fusion texte + photo du 2026-11-05).
   if (etape.type_contenu === 'texte') contenu_revele = { type: 'texte', texte: etape.contenu, ...(etape.photo_url ? { photo_url: etape.photo_url } : {}) };
   else if (etape.type_contenu === 'photo') contenu_revele = { type: 'photo', photo_url: etape.photo_url };
+  // Consigne d'orientation d'un point de passage (« Prenez à gauche après le calvaire ») : affichée
+  // à l'arrivée, jamais rangée dans le carnet de découvertes.
+  else if (estPassage && etape.contenu) contenu_revele = { type: 'consigne', texte: etape.contenu };
 
-  return c.json({ ok: true, ...resultatXp, contenu_revele, ...extra });
+  return c.json({ ok: true, ...resultatXp, contenu_revele, point_de_passage: estPassage, parcours_termine: parcoursTermine, ...extra });
 }
 
 // Validation par scan de QR (mode chasse au trésor). Depuis le 2026-11-05, la position du joueur

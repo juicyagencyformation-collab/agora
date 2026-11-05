@@ -1553,3 +1553,6 @@ body.carte-balade-plein-ecran { overflow: hidden; }
 }
 .liste-parcours { scrollbar-width: none; }
 .liste-parcours::-webkit-scrollbar { display: none; }
+/* Point de passage (balisage, changement de direction) : petit rond discret sur la carte. */
+.pastille-balade.passage { width: 16px; height: 16px; border-width: 2px; font-size: 0; }
+.guidage-balade .consigne-balade { font-weight: 600; color: var(--prairie); }

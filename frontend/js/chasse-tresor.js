@@ -170,10 +170,13 @@ function fermerDetailChasse() {
 // Le GPS ne tourne que tant que la carte de la balade est affichée (voir arreterSuiviBalade).
 let suiviPositionBalade = null;
 let dernierePositionBalade = null;
+// Dernier essai de validation automatique d'un point de passage : { etapeId, t }.
+let dernierEssaiAuto = null;
 
 function arreterSuiviBalade() {
   if (suiviPositionBalade != null) navigator.geolocation.clearWatch(suiviPositionBalade);
   suiviPositionBalade = null;
+  dernierePositionBalade = null;
 }
 
 const DIRECTIONS_CAP = ['le nord', 'le nord-est', 'l’est', 'le sud-est', 'le sud', 'le sud-ouest', 'l’ouest', 'le nord-ouest'];
@@ -340,10 +343,13 @@ function initCarteBalade(chasse, termine) {
   etapes.forEach((e) => {
     const etat = e.validee ? 'validee' : (prochaine && e.id === prochaine.id ? 'prochaine' : 'avenir');
     const libelle = { validee: '✅ validée', prochaine: '➡️ prochaine étape', avenir: '🔒 à venir' }[etat];
+    // Point de passage : petit rond discret ; étape à découvrir : grande pastille numérotée.
+    const passage = e.type_contenu === 'aucun';
+    const taille = passage ? 16 : 30;
     L.marker([e.lat, e.lng], {
-      icon: L.divIcon({ className: '', html: `<span class="pastille-balade etat-${etat}">${e.validee ? '✓' : e.ordre + 1}</span>`, iconSize: [30, 30], iconAnchor: [15, 15] }),
+      icon: L.divIcon({ className: '', html: `<span class="pastille-balade etat-${etat}${passage ? ' passage' : ''}">${passage ? '' : (e.validee ? '✓' : e.ordre + 1)}</span>`, iconSize: [taille, taille], iconAnchor: [taille / 2, taille / 2] }),
       zIndexOffset: etat === 'prochaine' ? 1000 : 0,
-    }).addTo(carteBalade).bindPopup(`<strong>Étape ${e.ordre + 1} — ${escapeAttr(e.titre)}</strong><br>${libelle}`);
+    }).addTo(carteBalade).bindPopup(`<strong>${passage ? '🚩 Point de passage' : `Étape ${e.ordre + 1}`} — ${escapeAttr(e.titre)}</strong><br>${libelle}`);
   });
   carteBalade.fitBounds(points, { padding: [30, 30], maxZoom: 17 });
   setTimeout(() => carteBalade && carteBalade.invalidateSize(), 150);
@@ -353,12 +359,15 @@ function initCarteBalade(chasse, termine) {
   const guidage = document.getElementById('guidage-balade');
   const bouton = document.querySelector('#vue-detail-chasse .btn-arrive');
   const rayon = chasse.rayon_metres || 50;
+  const prochainEstPassage = prochaine?.type_contenu === 'aucun';
+  const consigne = consigneEnCours?.chasseId === chasse.id ? consigneEnCours.texte : '';
+  if (guidage && consigne) guidage.innerHTML = `<span class="consigne-balade">🚩 ${escapeAttr(consigne)}</span>`;
 
   const majPosition = (pos) => {
     // Plus de carte à l'écran (autre parcours, autre onglet) : on coupe le GPS.
     if (!document.getElementById('carte-balade') || document.getElementById('onglet-chasse-tresor')?.hidden) { arreterSuiviBalade(); return; }
     const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-    dernierePositionBalade = { lat, lng };
+    dernierePositionBalade = { lat, lng, precision: accuracy, t: Date.now() };
     if (!marqueurVous) {
       halo = L.circle([lat, lng], { radius: accuracy, color: '#1a73e8', weight: 0, fillOpacity: 0.12, interactive: false }).addTo(carteBalade);
       marqueurVous = L.marker([lat, lng], { icon: L.divIcon({ className: '', html: '<span class="point-vous"></span>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 2000, interactive: false }).addTo(carteBalade);
@@ -371,9 +380,18 @@ function initCarteBalade(chasse, termine) {
     const temp = temperatureDistance(distance, rayon);
     guidage.dataset.etat = temp.cle;
     guidage.innerHTML = `
-      <strong>➡️ Étape ${prochaine.ordre + 1} · ${escapeAttr(prochaine.titre)}</strong>
+      ${consigne ? `<span class="consigne-balade">🚩 ${escapeAttr(consigne)}</span>` : ''}
+      <strong>${prochainEstPassage ? '🚩 Point de passage' : `➡️ Étape ${prochaine.ordre + 1}`} · ${escapeAttr(prochaine.titre)}</strong>
       <span>${temp.cle === 'ici' ? 'Vous êtes dans la zone de l’étape' : `${formaterDistance(distance)} · vers ${DIRECTIONS_CAP[Math.round(cap / 45) % 8]}`}</span>
       <span class="temperature">${temp.texte}</span>`;
+    // Point de passage atteint : validé tout seul, le marcheur n'a pas à s'arrêter. Le serveur
+    // revérifie la position ; s'il refuse (GPS imprécis, réseau…), nouvel essai 20 s plus tard au plus tôt.
+    const essaiRecent = dernierEssaiAuto?.etapeId === prochaine.id && Date.now() - dernierEssaiAuto.t < 20000;
+    if (prochainEstPassage && temp.cle === 'ici' && bouton && !bouton.disabled && !essaiRecent) {
+      dernierEssaiAuto = { etapeId: prochaine.id, t: Date.now() };
+      validerEtapePosition(prochaine.id, null, bouton);
+      return;
+    }
     if (bouton && !bouton.disabled) {
       bouton.classList.toggle('pret', temp.cle === 'ici');
       bouton.textContent = temp.cle === 'ici' ? '🎉 Vous y êtes ! Valider l’étape' : `📍 Je suis arrivé (encore ~${formaterDistance(distance)})`;
@@ -406,6 +424,24 @@ function initCarteBalade(chasse, termine) {
   });
 }
 
+// Consigne du dernier point de passage franchi, gardée dans le bandeau de guidage jusqu'au point
+// suivant (« Prenez le sentier à gauche… ») : { chasseId, texte }.
+let consigneEnCours = null;
+
+// Message après une validation réussie : point de passage (sans points, consigne éventuelle) ou étape.
+function annoncerValidation(data, lieu = '') {
+  if (data.point_de_passage) {
+    const consigne = data.contenu_revele?.type === 'consigne' ? data.contenu_revele.texte : '';
+    consigneEnCours = consigne ? { chasseId: idChasseDetailOuverte, texte: consigne } : null;
+    afficherToastMessage(consigne ? `🚩 ${consigne}` : '🚩 Point de passage franchi, continuez !', 'succes');
+  } else {
+    consigneEnCours = null;
+    afficherToastMessage(lieu ? `Étape validée à ${lieu} ! 🎉` : 'Étape validée ! 🎉', 'succes');
+    if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
+  }
+  traiterRecompense(data);
+}
+
 // Après une validation réussie : recharge le parcours et salue sa complétion.
 async function rechargerApresValidation() {
   const avant = chassesCache.find((c) => c.id === idChasseDetailOuverte);
@@ -427,9 +463,14 @@ function validerEtapePosition(etape_id, reponse = null, bouton = null) {
   const texteBoutonInitial = bouton?.textContent;
   if (bouton) bouton.disabled = true;
 
-  obtenirPositionPrecise((precision) => {
+  // Balade suivie en direct : on reprend la position toute fraîche du suivi (moins de 15 s, précise
+  // à 50 m) plutôt que de relancer une seconde lecture GPS — plus rapide pour le marcheur.
+  const suivie = dernierePositionBalade && Date.now() - dernierePositionBalade.t < 15000 && dernierePositionBalade.precision <= 50
+    ? Promise.resolve({ coords: { latitude: dernierePositionBalade.lat, longitude: dernierePositionBalade.lng } })
+    : null;
+  (suivie || obtenirPositionPrecise((precision) => {
     if (bouton) bouton.textContent = `Précision : ±${Math.round(precision)} m…`;
-  }).then(async (pos) => {
+  })).then(async (pos) => {
     const res = await appelApi(urlJeux('chasses-tresor', '/valider-position'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -445,13 +486,8 @@ function validerEtapePosition(etape_id, reponse = null, bouton = null) {
       return;
     }
     if (res.ok && data.etape_enigme) { afficherEnigmeEtapePosition(etape_id, data.question); return; }
-    if (res.ok) {
-      afficherToastMessage('Étape validée ! 🎉', 'succes');
-      if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
-      traiterRecompense(data);
-    } else {
-      afficherToastMessage(data.erreur || 'Erreur', 'erreur');
-    }
+    if (!res.ok) { afficherToastMessage(data.erreur || 'Erreur', 'erreur'); return; }
+    annoncerValidation(data);
     rechargerApresValidation();
   }).catch(() => {
     afficherToastMessage('Localisation refusée ou indisponible.', 'erreur');
@@ -539,9 +575,7 @@ async function validerEtape(qr_token, reponse = null) {
   }
 
   if (res.ok) {
-    afficherToastMessage(data.commune_nom ? `Étape validée à ${data.commune_nom} ! 🎉` : 'Étape validée ! 🎉', 'succes');
-    if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
-    traiterRecompense(data);
+    annoncerValidation(data, data.commune_nom || '');
   } else {
     afficherToastMessage(data.erreur || 'Erreur', 'erreur');
   }
@@ -983,7 +1017,7 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
     </div>
     <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Au scan sur place, déclencher :</label>
     <select class="etape-type">
-      <option value="aucun">Rien (valider simplement)</option>
+      <option value="aucun">🚩 Point de passage (balisage, direction)</option>
       <option value="texte">Une découverte (texte + photo)</option>
       ${etapeExistante?.type_contenu === 'photo' ? '<option value="photo">Une photo seule</option>' : ''}
       <option value="enigme">Une énigme (réponse à saisir)</option>
@@ -1036,15 +1070,15 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
         <textarea class="etape-contenu" placeholder="Question de l'énigme" maxlength="2000">${etapeExistante?.contenu ? escapeAttr(etapeExistante.contenu) : ''}</textarea>
         <input type="text" class="etape-reponse" placeholder="Réponse attendue" maxlength="200" value="${etapeExistante?.enigme_reponse ? escapeAttr(etapeExistante.enigme_reponse) : ''}">`;
     } else {
-      zoneContenu.innerHTML = '';
+      // Point de passage : consigne d'orientation facultative, affichée au joueur en arrivant.
+      zoneContenu.innerHTML = `<input type="text" class="etape-contenu" maxlength="200" placeholder="Consigne facultative : « Prenez le sentier à gauche après le calvaire »" value="${etapeExistante?.type_contenu === 'aucun' && etapeExistante?.contenu ? escapeAttr(etapeExistante.contenu) : ''}">`;
     }
   };
   selectType.addEventListener('change', () => remplirChamps(selectType.value));
 
-  if (etapeExistante) {
-    selectType.value = etapeExistante.type_contenu;
-    remplirChamps(etapeExistante.type_contenu);
-  }
+  // Nouvelle étape : une découverte par défaut ; le point de passage reste un choix voulu.
+  selectType.value = etapeExistante ? etapeExistante.type_contenu : 'texte';
+  remplirChamps(selectType.value);
 
   ligne.querySelector('.btn-supprimer-etape')?.addEventListener('click', () => {
     marqueursEtapesChasse.get(ligne.dataset.etapeId)?.remove();
@@ -1065,7 +1099,8 @@ function verifierEtapesChasse(corps, creation) {
   for (const ligne of corps.querySelectorAll('.ligne-etape-chasse')) {
     const val = (sel) => (ligne.querySelector(sel)?.value || '').trim();
     const type = val('.etape-type');
-    const vide = !val('.etape-titre') && !val('.etape-indice') && !val('.etape-lat') && !val('.etape-lng') && type === 'aucun';
+    const vide = !val('.etape-titre') && !val('.etape-indice') && !val('.etape-lat') && !val('.etape-lng')
+      && !val('.etape-contenu') && !ligne.querySelector('.etape-photo')?.files[0];
     ligne.dataset.vide = creation && vide ? '1' : '';
     const manque = [];
     if (!ligne.dataset.vide) {
@@ -1148,6 +1183,12 @@ async function soumettreChasse(corps, overlay) {
     } else if (type_contenu === 'enigme') {
       etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
       etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
+    } else if (type_contenu === 'aucun') {
+      const consigne = ligne.querySelector('.etape-contenu')?.value.trim();
+      if (consigne) etape.contenu = consigne;
+    } else if (type_contenu === 'aucun') {
+      const consigne = ligne.querySelector('.etape-contenu')?.value.trim();
+      if (consigne) etape.contenu = consigne;
     }
     etapes.push(etape);
   }

@@ -11,6 +11,7 @@ export const XP_ACTIONS = {
   signaler_alerte: 10,
   participer_evenement: 5,
   valider_etape_chasse: 20,
+  terminer_parcours: 50, // bonus de fin de parcours (chasse ou balade), une fois par parcours et par joueur
   publier_annonce: 5,
   valider_photo: 1,
   signalement_confirme: 15,

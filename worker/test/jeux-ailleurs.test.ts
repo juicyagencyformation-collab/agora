@@ -179,6 +179,30 @@ describe('jeux dans une autre commune', () => {
     expect(Object.keys(balade.etape_suivante).sort()).toEqual(['id', 'indice', 'lat', 'lng', 'ordre', 'titre', 'type_contenu']);
   });
 
+  it('point de passage : ne rapporte rien ; la fin du parcours rapporte le bonus', async () => {
+    const GR1 = '44444444-4444-4444-8444-444444444441';
+    const GR2 = '44444444-4444-4444-8444-444444444442';
+    db.chasses_tresor.push({ id: 'ch-gr', commune_id: 'c-fay', titre: 'Sentier GR', actif: true, mode: 'balade', rayon_metres: 50, created_at: '2026-11-03' });
+    db.etapes_chasse.push(
+      { id: GR1, commune_id: 'c-fay', chasse_id: 'ch-gr', ordre: 0, titre: 'Carrefour', indice: 'Le croisement', lat: 49.7, lng: 1.7, qr_token: crypto.randomUUID(), type_contenu: 'aucun', contenu: 'Prenez le sentier à gauche' },
+      { id: GR2, commune_id: 'c-fay', chasse_id: 'ch-gr', ordre: 1, titre: 'Moulin', indice: 'Au bord de l’eau', lat: 49.71, lng: 1.7, qr_token: crypto.randomUUID(), type_contenu: 'texte', contenu: 'Moulin de 1780' },
+    );
+    const joueur = () => db.users.find((u) => u.id === 'joueur')!;
+    const passage = await (await post('/fay/chasses-tresor/valider-position', { etape_id: GR1, lat: 49.7, lng: 1.7 })).json();
+    expect(passage).toMatchObject({ ok: true, point_de_passage: true, parcours_termine: false, contenu_revele: { type: 'consigne', texte: 'Prenez le sentier à gauche' } });
+    expect(passage.xp_gagne).toBeUndefined();
+    expect(joueur().xp).toBe(0);
+    expect(joueur().etapes_chasse_validees).toBe(0);
+    // La consigne n'entre jamais dans le carnet de découvertes.
+    const gr = (await (await requete('/fay')).json()).chasses.find((c: any) => c.id === 'ch-gr');
+    expect(gr.decouvertes).toEqual([]);
+
+    const fin = await (await post('/fay/chasses-tresor/valider-position', { etape_id: GR2, lat: 49.71, lng: 1.7 })).json();
+    expect(fin).toMatchObject({ ok: true, point_de_passage: false, parcours_termine: true, xp_gagne: 70 }); // 20 (étape) + 50 (fin)
+    expect(joueur().etapes_chasse_validees).toBe(1);
+    expect(joueur().chasses_terminees).toBe(1);
+  });
+
   it('refuse un QR scanné loin de l’étape, ou sans position', async () => {
     const loin = await post('/valider-qr', { qr_token: QR_FAY, lat: 48.85, lng: 2.35 }); // depuis Paris
     expect(loin.status).toBe(400);
