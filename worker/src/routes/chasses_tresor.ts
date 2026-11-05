@@ -113,7 +113,9 @@ export async function listerChassesJouables(env: any, commune_id: string, user_i
         .filter((e: any) => etapesValidees.includes(e.id) && ['texte', 'photo'].includes(e.type_contenu))
         .map((e: any) => ({
           ordre: e.ordre, titre: e.titre, type: e.type_contenu,
-          ...(e.type_contenu === 'texte' ? { texte: e.contenu } : { photo_url: e.photo_url }),
+          // Découverte = texte + photo facultative (2026-11-05) ; 'photo' seule reste lue (anciennes étapes).
+          ...(e.type_contenu === 'texte' ? { texte: e.contenu } : {}),
+          ...(e.photo_url ? { photo_url: e.photo_url } : {}),
         })),
     };
     // En mode balade, on expose toute la liste des points (coordonnées) pour tracer la
@@ -323,7 +325,8 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
 
   // Contenu à révéler côté joueur une fois l'étape validée (texte ou photo).
   let contenu_revele: { type: string; texte?: string; photo_url?: string } | null = null;
-  if (etape.type_contenu === 'texte') contenu_revele = { type: 'texte', texte: etape.contenu };
+  // Découverte : texte, avec sa photo s'il y en a une (fusion texte + photo du 2026-11-05).
+  if (etape.type_contenu === 'texte') contenu_revele = { type: 'texte', texte: etape.contenu, ...(etape.photo_url ? { photo_url: etape.photo_url } : {}) };
   else if (etape.type_contenu === 'photo') contenu_revele = { type: 'photo', photo_url: etape.photo_url };
 
   return c.json({ ok: true, ...resultatXp, contenu_revele, ...extra });

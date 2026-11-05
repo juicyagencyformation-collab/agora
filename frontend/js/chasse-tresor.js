@@ -213,7 +213,7 @@ function carnetDecouvertes(chasse) {
   return `
     <details class="carnet-decouvertes">
       <summary>📖 Carnet de découvertes (${liste.length})</summary>
-      ${liste.map((d, i) => `<button type="button" class="ligne-carnet" data-i="${i}">${d.type === 'photo' ? '📸' : '📜'} Étape ${d.ordre + 1} · ${escapeAttr(d.titre)}</button>`).join('')}
+      ${liste.map((d, i) => `<button type="button" class="ligne-carnet" data-i="${i}">${d.photo_url ? '📸' : '📜'} Étape ${d.ordre + 1} · ${escapeAttr(d.titre)}</button>`).join('')}
     </details>`;
 }
 
@@ -582,11 +582,10 @@ function afficherEnigmeEtape(qr_token, question, url) {
 
 // Révèle le contenu d'une étape validée (texte descriptif ou photo).
 function afficherContenuRevele(contenu) {
-  if (contenu.type === 'texte' && contenu.texte) {
-    ouvrirModaleFormulaire('📖 Découverte', `<p>${texteAvecLiensCliquables(contenu.texte)}</p>`);
-  } else if (contenu.type === 'photo' && contenu.photo_url) {
-    ouvrirModaleFormulaire('📸 Découverte', `<img src="${contenu.photo_url}" style="width:100%;border-radius:12px;">`);
-  }
+  const photo = contenu.photo_url ? `<img src="${contenu.photo_url}" alt="" style="width:100%;border-radius:12px;margin-bottom:10px;display:block;">` : '';
+  const texte = contenu.texte ? `<p>${texteAvecLiensCliquables(contenu.texte)}</p>` : '';
+  if (!photo && !texte) return;
+  ouvrirModaleFormulaire(contenu.titre ? `📖 ${escapeAttr(contenu.titre)}` : '📖 Découverte', photo + texte);
 }
 
 async function afficherClassement(chasseId) {
@@ -985,8 +984,8 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
     <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Au scan sur place, déclencher :</label>
     <select class="etape-type">
       <option value="aucun">Rien (valider simplement)</option>
-      <option value="texte">Un texte descriptif</option>
-      <option value="photo">Une photo</option>
+      <option value="texte">Une découverte (texte + photo)</option>
+      ${etapeExistante?.type_contenu === 'photo' ? '<option value="photo">Une photo seule</option>' : ''}
       <option value="enigme">Une énigme (réponse à saisir)</option>
     </select>
     <div class="etape-champs-contenu"></div>
@@ -1022,7 +1021,12 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
   const selectType = ligne.querySelector('.etape-type');
   const remplirChamps = (t) => {
     if (t === 'texte') {
-      zoneContenu.innerHTML = `<textarea class="etape-contenu" placeholder="Texte affiché au joueur à son arrivée" maxlength="2000">${etapeExistante?.contenu ? escapeAttr(etapeExistante.contenu) : ''}</textarea>`;
+      zoneContenu.innerHTML = `
+        <textarea class="etape-contenu" placeholder="Texte de découverte affiché au joueur à son arrivée (histoire du lieu, anecdote…)" maxlength="2000">${etapeExistante?.contenu ? escapeAttr(etapeExistante.contenu) : ''}</textarea>
+        <label style="display:block;margin:4px 0;font-size:13px;color:var(--roseau);">📸 Photo (facultative)</label>
+        ${etapeExistante?.photo_r2_key ? `<p style="font-size:12px;color:var(--roseau);margin:0 0 4px;">Photo actuelle en place : choisissez un fichier pour la remplacer.</p>
+        <label style="display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--roseau);margin-bottom:6px;"><input type="checkbox" class="etape-retirer-photo" style="width:auto;margin:0;"> Retirer la photo actuelle</label>` : ''}
+        <input type="file" class="etape-photo" accept="image/*">`;
     } else if (t === 'photo') {
       zoneContenu.innerHTML = `
         ${etapeExistante?.photo_r2_key ? `<p style="font-size:12px;color:var(--roseau);">Photo actuelle en place — choisis un fichier pour la remplacer, laisse vide pour la garder.</p>` : ''}
@@ -1095,6 +1099,26 @@ function verifierEtapesChasse(corps, creation) {
   return !premiere;
 }
 
+// Photo d'une étape de découverte : un fichier choisi est envoyé ; sinon la photo actuelle est
+// conservée (modification), sauf si « Retirer la photo actuelle » est cochée. Renvoie la clé de la
+// photo, null s'il n'y en a pas, false si l'envoi a échoué (l'appelant s'arrête et le dit : une photo
+// ne doit jamais disparaître en silence).
+async function photoDeLEtape(ligne) {
+  const fichier = ligne.querySelector('.etape-photo')?.files[0];
+  if (fichier) {
+    try {
+      const compresse = await compresserImage(fichier);
+      const resUp = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/upload-photo`, {
+        method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
+      });
+      if (resUp.ok) return (await resUp.json()).key;
+    } catch { /* envoi impossible : signalé par l'appelant */ }
+    return false;
+  }
+  if (ligne.querySelector('.etape-retirer-photo')?.checked) return null;
+  return ligne.dataset.photoActuelle || null;
+}
+
 async function soumettreChasse(corps, overlay) {
   const titre = corps.querySelector('#titre-chasse-modale').value.trim();
   const description = corps.querySelector('#description-chasse-modale').value.trim();
@@ -1113,26 +1137,17 @@ async function soumettreChasse(corps, overlay) {
 
     const type_contenu = ligne.querySelector('.etape-type').value;
     const etape = { titre, indice, lat, lng, type_contenu };
-    if (type_contenu === 'texte') {
-      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
-    } else if (type_contenu === 'enigme') {
-      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
-      etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
-    } else if (type_contenu === 'photo') {
-      const fichier = ligne.querySelector('.etape-photo').files[0];
-      if (fichier) {
-        try {
-          const compresse = await compresserImage(fichier);
-          const resUp = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/upload-photo`, {
-            method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
-          });
-          if (resUp.ok) { const { key } = await resUp.json(); etape.photo_r2_key = key; }
-        } catch { console.warn('Upload photo étape échoué.'); }
-      }
-      if (!etape.photo_r2_key) {
+    if (type_contenu === 'texte' || type_contenu === 'photo') {
+      if (type_contenu === 'texte') etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+      const photo = await photoDeLEtape(ligne);
+      if (photo === false) {
         afficherToastMessage(`La photo de l'étape ${ligne.dataset.numero} n'a pas pu être envoyée : rien n'a été enregistré, réessayez.`, 'erreur');
         return;
       }
+      if (photo) etape.photo_r2_key = photo;
+    } else if (type_contenu === 'enigme') {
+      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+      etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
     }
     etapes.push(etape);
   }
@@ -1230,24 +1245,15 @@ async function soumettreEditionChasse(corps, overlay, chasseId, estBalade) {
 
     const type_contenu = ligne.querySelector('.etape-type').value;
     const etape = { titre: titreEtape, indice, lat, lng, type_contenu };
-    if (type_contenu === 'texte') {
-      etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+    if (type_contenu === 'texte' || type_contenu === 'photo') {
+      if (type_contenu === 'texte') etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
+      // Toujours renvoyer la photo à garder : le serveur efface celle qui n'est plus envoyée.
+      const photo = await photoDeLEtape(ligne);
+      if (photo === false) { echecs++; continue; }
+      if (photo) etape.photo_r2_key = photo;
     } else if (type_contenu === 'enigme') {
       etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
       etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
-    } else if (type_contenu === 'photo') {
-      const fichier = ligne.querySelector('.etape-photo')?.files[0];
-      if (fichier) {
-        try {
-          const compresse = await compresserImage(fichier);
-          const resUp = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/upload-photo`, {
-            method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: compresse,
-          });
-          if (resUp.ok) { const { key } = await resUp.json(); etape.photo_r2_key = key; }
-        } catch { console.warn('Upload photo étape échoué.'); }
-      } else if (ligne.dataset.photoActuelle) {
-        etape.photo_r2_key = ligne.dataset.photoActuelle;
-      }
     }
 
     const resEtape = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/etapes/${etapeId}`, {

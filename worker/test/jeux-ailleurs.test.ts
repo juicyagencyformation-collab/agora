@@ -47,7 +47,7 @@ function reinitialiser() {
       { id: 'ch-tourly', commune_id: 'c-tourly', titre: 'Chez moi', actif: true, mode: 'chasse', rayon_metres: 50, created_at: '2026-11-01' },
     ],
     etapes_chasse: [
-      { id: 'et-fay', commune_id: 'c-fay', chasse_id: 'ch-fay', ordre: 0, titre: 'Lavoir', indice: 'Près de l’eau', lat: 49.5, lng: 1.9, qr_token: QR_FAY, type_contenu: 'texte', contenu: 'Construit en 1850', enigme_reponse: null },
+      { id: 'et-fay', commune_id: 'c-fay', chasse_id: 'ch-fay', ordre: 0, titre: 'Lavoir', indice: 'Près de l’eau', lat: 49.5, lng: 1.9, qr_token: QR_FAY, type_contenu: 'texte', contenu: 'Construit en 1850', photo_url: 'https://cdn/lavoir.jpg', enigme_reponse: null },
       { id: ETAPE_BALADE, commune_id: 'c-fay', chasse_id: 'ch-balade', ordre: 0, titre: 'Église', indice: 'Le clocher', lat: 49.6, lng: 1.8, qr_token: crypto.randomUUID(), type_contenu: 'enigme', contenu: 'Combien de cloches ?', enigme_reponse: 'trois' },
       { id: 'et-tourly', commune_id: 'c-tourly', chasse_id: 'ch-tourly', ordre: 0, titre: 'Mairie', indice: 'x', lat: 49.1, lng: 1.1, qr_token: QR_TOURLY, type_contenu: 'aucun' },
     ],
@@ -167,10 +167,13 @@ describe('jeux dans une autre commune', () => {
   it('ne livre le carnet de découvertes qu’après validation de l’étape, par ce joueur', async () => {
     const avant = await (await requete('/fay')).json();
     expect(JSON.stringify(avant)).not.toContain('Construit en 1850');
+    expect(JSON.stringify(avant)).not.toContain('lavoir.jpg');
     expect(avant.chasses.find((c: any) => c.id === 'ch-fay').decouvertes).toEqual([]);
-    await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY });
+    const validation = await (await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY })).json();
+    // Découverte = texte + photo, révélés ensemble sur place.
+    expect(validation.contenu_revele).toEqual({ type: 'texte', texte: 'Construit en 1850', photo_url: 'https://cdn/lavoir.jpg' });
     const apres = (await (await requete('/fay')).json()).chasses.find((c: any) => c.id === 'ch-fay');
-    expect(apres.decouvertes).toEqual([{ ordre: 0, titre: 'Lavoir', type: 'texte', texte: 'Construit en 1850' }]);
+    expect(apres.decouvertes).toEqual([{ ordre: 0, titre: 'Lavoir', type: 'texte', texte: 'Construit en 1850', photo_url: 'https://cdn/lavoir.jpg' }]);
     // Balade : l'étape suivante ne transporte jamais le contenu à découvrir ni une réponse.
     const balade = apres && (await (await requete('/fay')).json()).chasses.find((c: any) => c.id === 'ch-balade');
     expect(Object.keys(balade.etape_suivante).sort()).toEqual(['id', 'indice', 'lat', 'lng', 'ordre', 'titre', 'type_contenu']);
