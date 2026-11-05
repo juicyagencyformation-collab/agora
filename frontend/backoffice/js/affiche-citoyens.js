@@ -23,7 +23,7 @@
 
   function rendre(contenu, communeNom, logoUrl) {
     const nom = communeNom || params.get('nom') || 'votre commune';
-    document.title = `Plateforme-Agora — ${estJeux ? 'Affiche jeux' : 'Affiche citoyenne'} · ${nom}`;
+    document.title = `Plateforme-Agora — ${estJeux ? 'Affiche Explorez le village' : 'Affiche citoyenne'} · ${nom}`;
 
     const logoHtml = logoUrl
       ? `<img src="${logoUrl}" alt="${echapper(nom)}" style="max-height:100px;max-width:100px;object-fit:contain" />`

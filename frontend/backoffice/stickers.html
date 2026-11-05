@@ -2,7 +2,7 @@
 <!-- frontend/backoffice/stickers.html — planche de stickers imprimable (1/2/6/9 par page A4), une
      commune choisie par sticker parmi les communes clientes (QR, lien et nom propres à chacun).
      ?slug= pré-remplit toutes les cases (boutons Stickers des fiches). Page staff : liste via boFetch.
-     ?type=jeux (2026-11-05, bouton « Affiche jeux » des fiches, avec n=1 = affiche A4) : même design,
+     ?type=jeux (2026-11-05, bouton « Affiche « Explorez le village » » des fiches, avec n=1 = affiche A4) : même design,
      textes « Chasses au trésor & énigmes photo » et QR vers /<slug>/jouer (frontend/jouer.html, qui
      aiguille habitants et visiteurs de passage). -->
 <html lang="fr">
@@ -121,7 +121,7 @@
 <div class="toolbar">
   <b>Stickers Plateforme-Agora</b>
   <div class="seg" id="seg-type">
-    <button data-type="app">Application</button><button data-type="jeux">Jeux (chasses &amp; énigmes)</button>
+    <button data-type="app">Application</button><button data-type="jeux">Explorez le village</button>
   </div>
   <div class="seg" id="seg">
     <button data-n="1">1 / page</button><button data-n="2">2 / page</button>
@@ -197,7 +197,7 @@
     document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on', +b.dataset.n===state.n));
     document.querySelectorAll('#seg-type button').forEach(b=>b.classList.toggle('on', b.dataset.type===state.type));
     const version = VERSIONS[state.type];
-    document.title = state.type === 'jeux' ? 'Affiche jeux Plateforme-Agora' : 'Stickers Plateforme-Agora';
+    document.title = state.type === 'jeux' ? 'Affiche Explorez le village — Plateforme-Agora' : 'Stickers Plateforme-Agora';
     const sheet = document.createElement('div'); sheet.className='sheet'; sheet.dataset.n=state.n;
     for(let i=0;i<state.n;i++){
       const slug = state.cases[i], nom = state.communes.get(slug) || '';
