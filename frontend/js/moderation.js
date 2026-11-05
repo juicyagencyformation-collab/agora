@@ -90,7 +90,8 @@ function initVoletsGeneriquesModeration() {
   const slugKit = encodeURIComponent(window.COMMUNE_SLUG || '');
   const lienAffiche = document.getElementById('lien-kit-affiche');
   const lienDossier = document.getElementById('lien-kit-dossier');
-  if (lienAffiche) lienAffiche.href = `/backoffice/affiche-citoyens?slug=${slugKit}`;
+  // Affiche habitants = version « Application » des stickers, en mode mairie (voir lien jeux ci-dessous).
+  if (lienAffiche) lienAffiche.href = `/backoffice/stickers?n=1&mairie=1&slug=${slugKit}`;
   const lienAfficheJeux = document.getElementById('lien-kit-affiche-jeux');
   // Même affiche que le bouton du backoffice (page Stickers, version jeux, 1 par page), en mode
   // mairie : sans session backoffice, seul le nom public de la commune y est lu.

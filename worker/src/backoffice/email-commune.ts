@@ -105,7 +105,8 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const url = `${d.frontendUrl}/${d.slug}/`;
   const urlBouton = d.lienConnexion || url;
   const ficheUrl = `${d.frontendUrl}/backoffice/fiche?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
-  const afficheUrl = `${d.frontendUrl}/backoffice/affiche-citoyens?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
+  // Affiche habitants : version « Application » des stickers en mode mairie (sans session backoffice).
+  const afficheUrl = `${d.frontendUrl}/backoffice/stickers?n=1&mairie=1&slug=${encodeURIComponent(d.slug)}`;
   const dossierUrl = `${d.frontendUrl}/backoffice/dossier-conseil?slug=${encodeURIComponent(d.slug)}&nom=${encodeURIComponent(d.nomCommune)}`;
   const nom = echapper(d.nomCommune);
   return `
