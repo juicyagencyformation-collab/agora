@@ -5,6 +5,42 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-05 — Domaine plateforme-agora.fr sur la liste noire Spamhaus (DBL)
+
+**Gravité :** haute (emails vers les mairies refusés : liens de connexion, conventions, réponses)
+**Hors code** : réputation du domaine, aucun fichier modifié.
+
+### Symptôme
+Les emails envoyés aux mairies depuis Roundcube (OVH) étaient rejetés, alors que ceux vers Gmail
+passaient. Rejet de la mairie de Tourly : `554 5.7.1 … blocked using dbl.spamhaus.org`.
+
+### Cause
+La campagne de prospection d'août-septembre 2026 : environ 13 900 emails à froid, 23 % de rejets,
+et aucun lien de désinscription. Spamhaus a inscrit le **domaine**, ce qui bloque tout ce qui
+l'utilise : boîte OVH, emails de l'application (Resend), et même les liens vers le site placés
+dans un email envoyé d'ailleurs.
+
+### Correction
+- Whois rendu public, au nom du titulaire.
+- 1er ticket (ST7327062) fermé sans examen : il avait été ouvert depuis une adresse Gmail, que
+  Spamhaus refuse pour vérifier l'autorité sur un domaine.
+- 2e ticket ouvert depuis `contact@plateforme-agora.fr`, sans VPN, en citant le premier :
+  **domaine retiré le jour même** (score de réputation remis à zéro, sans liste blanche).
+
+### Vérification
+`nslookup plateforme-agora.fr.dbl.spamhaus.org` → « domaine inexistant » (= non listé), alors que
+le domaine de test `dbltest.com` reste trouvé (le contrôle est donc fiable).
+
+### À retenir
+- **Plus jamais de prospection en masse depuis plateforme-agora.fr** (engagement pris auprès de
+  Spamhaus) : domaine séparé, faible volume, lien de désinscription dans chaque message.
+- Le domaine sera **réinscrit** si sa réputation rechute.
+- Si une mairie « ne reçoit pas » un email : vérifier d'abord la commande ci-dessus
+  (une réponse en `127.0.1.x` = inscrit).
+- Demande de retrait : toujours depuis une adresse **du domaine concerné**, jamais Gmail/Outlook.
+
+---
+
 ## 2026-11-05 — Chasse au trésor : 8 étapes saisies, 3 enregistrées
 
 **Gravité :** moyenne (travail de saisie perdu sans avertissement, aucune donnée exposée)
