@@ -2913,6 +2913,11 @@
             </template>
           </div>
 
+          <div class="bo-carte" x-show="fiche?.emails_suivi_refuses?.length" style="padding:12px 18px; margin-bottom:16px; border-color:#f59e0b">
+            <strong>✉ N'accepte plus les emails de suivi</strong>
+            <div class="bo-info" x-text="(fiche?.emails_suivi_refuses || []).join(', ') + ' — désinscription via le lien en bas d’un email. Ne pas relancer : seuls les emails de service (connexion, convention) lui parviennent encore.'"></div>
+          </div>
+
           <div class="bo-carte" style="padding:14px 18px; display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-bottom:16px">
             <div x-html="qrCommune" style="width:118px; height:118px; background:#fff; border-radius:8px; padding:6px; flex-shrink:0"></div>
             <div>

@@ -5,6 +5,42 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-05 — Lien de désinscription dans les emails de suivi
+
+**Gravité :** moyenne (obligation CNIL pour la prospection, exigence Gmail/Yahoo, engagement pris
+auprès de Spamhaus)
+**Fichiers :** `worker/src/lib/desinscription.ts` et `worker/src/routes/desinscription.ts`
+(nouveaux), `email-commune.ts`, `bilan-mensuel.ts`, `prospection.ts`, `onboarding-drip.ts`,
+`administration.ts`, `db/migrations/100_desinscriptions_email.sql`
+
+### Constat
+Aucun email automatique de l'application ne proposait de se désinscrire, y compris la prospection.
+
+### Correction
+- **Emails de suivi** (bienvenue à la 1re inscription, relance d'inactivité, séquence d'onboarding,
+  bilan mensuel, présentation et email libre de prospection) : lien « Ne plus recevoir ces emails »
+  en bas, et en-têtes `List-Unsubscribe` + `List-Unsubscribe-Post` (bouton « Se désabonner » de
+  Gmail/Outlook/Yahoo).
+- **Emails de service** (connexion, mot de passe, accès, convention, échéance) : inchangés.
+- Le lien ouvre une page de confirmation avec un bouton (les antivirus « cliquent » les liens) ;
+  le bouton des messageries enregistre directement (RFC 8058).
+- Lien signé (HMAC de l'adresse) : impossible de désinscrire quelqu'un d'autre.
+- Une adresse désinscrite ne reçoit plus aucun email de suivi ; la prospection et la séquence le
+  signalent clairement au lieu d'un faux « échec d'envoi ». Fiche commune du backoffice :
+  « ✉ N'accepte plus les emails de suivi ».
+
+### Vérification
+- 358 tests passent, dont 7 nouveaux (signature, lien et en-têtes ajoutés, adresse désinscrite
+  ignorée, GET sans effet, POST qui enregistre, lien bricolé refusé).
+
+### À retenir
+- Tout nouvel email **non indispensable au service** doit passer par `envoyerEmailSuivi`, jamais
+  `envoyerEmail` directement.
+- Une réinscription ne se fait que sur demande expresse de la personne (suppression de sa ligne
+  dans `desinscriptions_email`).
+
+---
+
 ## 2026-11-05 — Domaine plateforme-agora.fr sur la liste noire Spamhaus (DBL)
 
 **Gravité :** haute (emails vers les mairies refusés : liens de connexion, conventions, réponses)

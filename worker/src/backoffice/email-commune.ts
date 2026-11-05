@@ -3,6 +3,7 @@
 // application déjà prête + identifiants provisoires. Utilisé par onboarding (à la création) et
 // par administration (bouton « Renvoyer les accès », qui régénère un mot de passe temporaire).
 import { envoyerEmail } from '../lib/email';
+import { envoyerEmailSuivi } from '../lib/desinscription';
 import { supabaseSelect, supabaseInsert } from '../db';
 import { hasherSha256Hex } from '../lib/hash';
 
@@ -661,7 +662,7 @@ export async function envoyerBienvenueInscription(
     ? await chargerVarianteGeneriqueParId(env, 'bienvenue_inscription', varianteId, MODELE_BIENVENUE_INSCRIPTION_DEFAUT)
     : await chargerModeleParCle(env, 'bienvenue_inscription', MODELE_BIENVENUE_INSCRIPTION_DEFAUT);
   const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
-  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
+  const resendEmailId = await envoyerEmailSuivi(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
   return { variante: modele.nom || null, resendEmailId };
 }
 
@@ -672,7 +673,7 @@ export async function envoyerRelanceInactivite(
     ? await chargerVarianteGeneriqueParId(env, 'relance_inactivite', varianteId, MODELE_RELANCE_INACTIVITE_DEFAUT)
     : await chargerModeleParCle(env, 'relance_inactivite', MODELE_RELANCE_INACTIVITE_DEFAUT);
   const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
-  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
+  const resendEmailId = await envoyerEmailSuivi(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
   return { variante: modele.nom || null, resendEmailId };
 }
 
@@ -688,7 +689,7 @@ export async function envoyerModeleGenerique(
     ? await chargerVarianteGeneriqueParId(env, cle, varianteId, defaut)
     : await chargerModeleParCle(env, cle, defaut);
   const corps = injecterPreviewText(rendrePresentation(modele.corps_html, ctx), modele.preview_text);
-  const resendEmailId = await envoyerEmail(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
+  const resendEmailId = await envoyerEmailSuivi(env, contactEmail, rendrePresentation(modele.objet, ctx), corps);
   return { variante: modele.nom || null, resendEmailId };
 }
 
@@ -747,7 +748,7 @@ export async function envoyerPresentation(
   // sous-domaine dédié à la réception (voir CLAUDE.md/Resend) plutôt que vers la boîte mail
   // habituelle de contact@plateforme-agora.fr — c'est ce qui permet au webhook Resend de la
   // capter et de l'afficher dans Réponses reçues (worker/src/backoffice/emails-recus.ts).
-  const resendEmailId = await envoyerEmail(
+  const resendEmailId = await envoyerEmailSuivi(
     env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps,
     undefined, env.EMAIL_REPLY_TO_PROSPECTION,
   );

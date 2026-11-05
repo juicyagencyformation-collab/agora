@@ -206,8 +206,20 @@ app.get('/communes/:id', async (c) => {
     citoyens: { total: (parRole.citoyen ?? 0) + (parRole.admin ?? 0) + (parRole.elu ?? 0), par_role: parRole },
     avis: { note_moyenne, nb: avis.length, liste: avis },
     stockage,
+    // Adresses de la mairie désinscrites des emails de suivi (lib/desinscription.ts) : affiché sur
+    // la fiche pour que personne ne les relance à la main.
+    emails_suivi_refuses: await adressesDesinscritesCommune(c.env, commune),
   });
 });
+
+async function adressesDesinscritesCommune(env: any, commune: any): Promise<string[]> {
+  const adresses = [...new Set([commune.contact_email, commune.email_mairie].filter(Boolean).map((e: string) => e.trim().toLowerCase()))];
+  if (!adresses.length) return [];
+  const lignes = await supabaseSelect(env, 'desinscriptions_email', {
+    select: 'email', email: `in.(${adresses.map((e) => `"${e}"`).join(',')})`,
+  }).catch(() => []);
+  return lignes.map((l: any) => l.email);
+}
 
 // PATCH /communes/:id/forfait — définit le forfait (nom libre) et le quota de stockage (Go).
 // Chaîne/valeur vide → efface le champ (null).

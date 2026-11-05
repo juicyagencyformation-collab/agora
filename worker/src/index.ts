@@ -34,6 +34,7 @@ import bulletin from './routes/bulletin';
 import photoDuJour from './routes/photo_du_jour';
 import memoire from './routes/memoire';
 import decouverte from './routes/decouverte';
+import desinscription from './routes/desinscription';
 import lois from './routes/lois';
 import backoffice from './backoffice';
 import liensCourts from './routes/liens_courts';
@@ -59,13 +60,17 @@ for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-co
   app.use(chemin, limiterDebit('LIMITEUR_STRICT'));
 }
 // Inscription et liens à jeton : larges (plusieurs habitants peuvent partager une connexion).
-for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo', '/:slug/jeux-ailleurs/communes']) {
+for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo', '/:slug/jeux-ailleurs/communes', '/desinscription']) {
   app.use(chemin, limiterDebit('LIMITEUR_LARGE'));
 }
 
 // Découverte régionale — route publique, AVANT la résolution de tenant, sinon
 // "decouverte" serait interprété à tort comme un slug de commune.
 app.route('/decouverte', decouverte);
+
+// Désinscription des emails de suivi (lien en bas des emails + bouton des messageries) — publique,
+// hors commune, voir routes/desinscription.ts et lib/desinscription.ts.
+app.route('/desinscription', desinscription);
 
 // Backoffice interne Juicy Solutions — transverse, hors résolution de tenant (mêmes raisons
 // que /decouverte). Sa propre garde d'accès (scope 'backoffice') est appliquée dans ses routes.

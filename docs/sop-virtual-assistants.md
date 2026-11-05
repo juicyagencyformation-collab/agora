@@ -288,6 +288,7 @@ Depuis le 4 novembre 2026, ton compte peut avoir le rôle **assistant** (Réglag
 - ☐ Jamais "Lancer la séquence maintenant" hors test, sauf instruction explicite.
 - ☐ "Renvoyer les accès" écrase le mot de passe — vérifier que c'est vraiment nécessaire avant de cliquer.
 - ☐ « Comptes liés » = personnes qui administrent plusieurs communes, jamais pour déplacer un habitant.
+- ☐ Une fiche marquée « ✉ N'accepte plus les emails de suivi » : ne jamais relancer cette adresse (ni email libre, ni séquence) — elle s'est désinscrite. Les emails de service (connexion, convention) lui parviennent toujours.
 - ☐ Jamais toucher au Palier gratuit / à la Tarification / aux Comptes staff sans validation de Léandre.
 - ☐ Un bounce générique (souvent un filtrage anti-spam ponctuel, ex. Orange/Wanadoo) n'est pas forcément une adresse morte — ne pas la considérer comme définitivement invalide sans vérifier.
 - ☐ La suppression d'un utilisateur est une anonymisation **irréversible** — en cas d'abus, **bloquer** d'abord (réversible).

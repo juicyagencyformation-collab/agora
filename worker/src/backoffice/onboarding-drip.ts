@@ -23,6 +23,7 @@ import {
   MODELE_ONBOARDING_RELANCE_J3_DEFAUT, MODELE_ONBOARDING_CHECKIN_J7_DEFAUT,
   MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT, MODELE_ONBOARDING_UPSELL_DEFAUT,
 } from './email-commune';
+import { adresseDesinscrite } from '../lib/desinscription';
 
 const TYPES_EVENEMENTS_POUR_UPSELL = ['article_publie', 'calendrier_dechets_rempli', 'module_verrouille_clique'];
 
@@ -116,6 +117,7 @@ async function envoyerEtJournaliser(
   try {
     const destinataire = await destinataireCommune(env, commune.id, inclureCitoyen);
     if (!destinataire) return { ...base, resultat: `ignoré — aucun compte ${inclureCitoyen ? '' : 'gestionnaire (maire/elu/admin) '}trouvé pour cette commune` };
+    if (await adresseDesinscrite(env, destinataire)) return { ...base, resultat: `ignoré — ${destinataire} s'est désinscrite des emails de suivi` };
     const ctx = contextePresentation(env.FRONTEND_URL, commune.nom, commune.slug);
     const { resendEmailId } = await envoyerModeleGenerique(env, cle, defaut, destinataire, ctx);
     if (!resendEmailId) return { ...base, resultat: `échec d'envoi Resend vers ${destinataire} (RESEND_API_KEY manquant ou API en erreur — voir logs Worker)` };

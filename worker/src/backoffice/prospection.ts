@@ -15,6 +15,7 @@ import { synchroniserEmailsRecus } from './emails-recus';
 import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
 import { envoyerEmail } from '../lib/email';
+import { envoyerEmailSuivi, adresseDesinscrite } from '../lib/desinscription';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -875,6 +876,8 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
     if (maj) { email = maj.contact_email; emailInvalide = maj.email_invalide; }
   }
   if (!email || emailInvalide) return { resultat: 'sans_email' };
+  // Adresse désinscrite (lien en bas des emails, voir lib/desinscription.ts) : jamais de présentation.
+  if (await adresseDesinscrite(env, email)) return { resultat: 'sans_email' };
 
   const nouvelleActivation = !prospect.commune_id;
   const activation = await activerCommuneGratuite(env, { ...prospect, contact_email: email });
@@ -927,7 +930,7 @@ app.post('/prospects/:id/prospecter', async (c) => {
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
   const r = await prospecterUn(c.env, c.get('staff_id'), prospect);
-  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email valide pour cette commune (adresse manquante, ou signalée en échec et non corrigée par l\'annuaire).' }, 422);
+  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email utilisable pour cette commune (adresse manquante, signalée en échec et non corrigée par l\'annuaire, ou désinscrite).' }, 422);
   if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400);
   return c.json({ ok: true, email: r.email });
 });
@@ -991,7 +994,7 @@ app.post('/prospects/:id/relancer', async (c) => {
   }
 
   const r = await prospecterUn(c.env, c.get('staff_id'), prospect);
-  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email valide pour cette commune (adresse manquante, ou signalée en échec et non corrigée par l\'annuaire).' }, 422);
+  if (r.resultat === 'sans_email') return c.json({ erreur: 'Aucun email utilisable pour cette commune (adresse manquante, signalée en échec et non corrigée par l\'annuaire, ou désinscrite).' }, 422);
   if (r.resultat === 'saute') return c.json({ erreur: 'Ce prospect est déjà gagné, perdu, ou a demandé à ne plus être contacté.' }, 400);
   return c.json({ ok: true, email: r.email, type: 'presentation' });
 });
@@ -1421,7 +1424,10 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
     }
   }
 
-  const resendEmailId = await envoyerEmail(
+  if (await adresseDesinscrite(c.env, prospect.contact_email)) {
+    return c.json({ erreur: 'Cette adresse a demandé à ne plus recevoir nos emails (désinscription). Ne pas la relancer.' }, 409);
+  }
+  const resendEmailId = await envoyerEmailSuivi(
     c.env, prospect.contact_email, body.data.objet, construireEmailLibre(body.data.message, carteVisiteHtml),
     undefined, c.env.EMAIL_REPLY_TO_PROSPECTION,
   );

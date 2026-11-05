@@ -6,7 +6,7 @@
 // Pur reporting de données déjà existantes — zéro génération de contenu, donc zéro risque de
 // texte hors-sujet ou inventé.
 import { supabaseCount, supabaseSelect } from '../db';
-import { envoyerEmail } from '../lib/email';
+import { envoyerEmailSuivi } from './desinscription';
 
 const FORMULES_AVEC_BILAN = ['accompagne', 'premium'];
 
@@ -110,7 +110,7 @@ export async function envoyerBilansMensuels(env: any): Promise<void> {
     try {
       const bilan = await calculerBilanMensuel(env, commune.id, debut, fin);
       const html = bilanMensuelHtml(commune.nom, debut, bilan, env.FRONTEND_URL, commune.slug);
-      await envoyerEmail(env, destinataire, `📊 Le bilan de ${commune.nom} — ${nomMois(debut)}`, html);
+      await envoyerEmailSuivi(env, destinataire, `📊 Le bilan de ${commune.nom} — ${nomMois(debut)}`, html);
     } catch (err) {
       // Une commune en échec (email invalide, panne ponctuelle...) ne doit jamais empêcher
       // l'envoi aux autres communes de la boucle.
