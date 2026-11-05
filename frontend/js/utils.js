@@ -518,11 +518,11 @@ function ouvrirModaleFormulaire(titre, contenuHtml) {
   history.pushState({ agoraModale: true }, '');
   pileModalesHistorique.push(overlay);
 
-  // Clic sur le fond ou sur ✕ : si des champs ont été saisis, on confirme avant de fermer,
-  // pour ne pas perdre le travail sur un clic à côté par erreur (fermeture libre si rien n'est
-  // rempli). La fermeture après un envoi réussi passe par fermerModaleFormulaire() directement,
-  // donc sans confirmation.
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) demanderFermetureModale(overlay); });
+  // Seule la croix ✕ ferme la fenêtre (demande de Léandre, 2026-11-05) : un clic sur le fond ne
+  // fait rien. Avant, il demandait « Abandonner les informations saisies ? », y compris quand on
+  // sélectionnait du texte et relâchait la souris hors de la fenêtre (compté comme un clic sur le
+  // fond). Si des champs ont été saisis, la croix confirme avant de fermer ; la fermeture après un
+  // envoi réussi passe par fermerModaleFormulaire() directement, donc sans confirmation.
   overlay.querySelector('.btn-fermer-modale').addEventListener('click', () => demanderFermetureModale(overlay));
 
   return overlay;
@@ -549,7 +549,7 @@ function fermerModaleFormulaire(overlay) {
   const i = pileModalesHistorique.indexOf(overlay);
   if (i !== -1) {
     pileModalesHistorique.splice(i, 1);
-    // Fermeture "depuis l'app" (✕, clic à côté, succès du formulaire) : on consomme
+    // Fermeture "depuis l'app" (✕ ou succès du formulaire) : on consomme
     // nous-mêmes l'entrée d'historique posée à l'ouverture (sauf si popstate l'a déjà fait).
     if (history.state?.agoraModale) {
       fermetureModaleProgrammatique = true;
@@ -565,7 +565,15 @@ function fermerModaleFormulaire(overlay) {
 window.addEventListener('popstate', () => {
   if (fermetureModaleProgrammatique) { fermetureModaleProgrammatique = false; return; }
   if (pileModalesHistorique.length) {
-    const overlay = pileModalesHistorique.pop();
+    const overlay = pileModalesHistorique[pileModalesHistorique.length - 1];
+    // Fenêtre déjà remplie : le retour du téléphone ne doit pas effacer le travail en silence.
+    // Si la personne annule, on repose l'entrée d'historique consommée et la fenêtre reste ouverte.
+    if (overlay.classList.contains('overlay-modale-formulaire') && modaleContientSaisie(overlay)
+        && !confirm('Abandonner les informations saisies ?')) {
+      history.pushState({ agoraModale: true }, '');
+      return;
+    }
+    pileModalesHistorique.pop();
     overlay.classList.remove('visible');
     setTimeout(() => overlay.remove(), 250);
     return;
