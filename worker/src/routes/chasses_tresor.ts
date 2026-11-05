@@ -96,11 +96,16 @@ export async function listerChassesJouables(env: any, commune_id: string, user_i
   return chasses.map((ch: any) => {
     const etapesChasse = etapes.filter((e: any) => e.chasse_id === ch.id);
     const etapesValidees = progressions.filter((p: any) => p.chasse_id === ch.id).map((p: any) => p.etape_id);
+    const suivante = etapesChasse.find((e: any) => !etapesValidees.includes(e.id)) ?? null;
     const base: any = {
       ...ch,
       total_etapes: etapesChasse.length,
       etapes_validees: etapesValidees.length,
-      etape_suivante: etapesChasse.find((e: any) => !etapesValidees.includes(e.id)) ?? null,
+      // Mode chasse : seul l'indice sort. Le titre (« Le lavoir ») et les coordonnées révéleraient
+      // la cachette à quiconque lit la réponse réseau (corrigé le 2026-11-05, ils sortaient avant).
+      etape_suivante: suivante && (ch.mode === 'balade'
+        ? suivante
+        : { id: suivante.id, ordre: suivante.ordre, indice: suivante.indice, type_contenu: suivante.type_contenu }),
     };
     // En mode balade, on expose toute la liste des points (coordonnées) pour tracer la
     // carte et l'itinéraire ; en mode chasse, on garde le secret (seul l'indice suivant).
@@ -315,17 +320,40 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
   return c.json({ ok: true, ...resultatXp, contenu_revele, ...extra });
 }
 
-// Validation par scan de QR (mode chasse au trésor).
+// Validation par scan de QR (mode chasse au trésor). Depuis le 2026-11-05, la position du joueur
+// est exigée aussi : une photo du QR partagée en ligne ne suffit plus à valider depuis chez soi.
+export const validationQrSchema = z.object({
+  qr_token: z.string().uuid(),
+  reponse: z.string().max(200).optional(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+export const COLONNES_ETAPE_QR = 'id,commune_id,chasse_id,ordre,lat,lng,type_contenu,contenu,photo_url,enigme_reponse';
+
+// Tolérance large et fixe (le QR est physiquement sur place) : couvre l'imprécision du GPS à
+// l'intérieur d'une église ou contre un mur épais, tout en écartant la validation à distance.
+// Le rayon de la chasse s'applique s'il est plus grand.
+export const RAYON_SCAN_QR_METRES = 200;
+
+// Partagé avec routes/jeux_ailleurs.ts (POST /valider-qr). null = joueur assez proche.
+export function erreurDistanceQr(etape: { lat: number; lng: number }, rayonChasse: number | null, position: { lat: number; lng: number }) {
+  const distance = distanceMetres(position.lat, position.lng, etape.lat, etape.lng);
+  if (distance <= Math.max(rayonChasse ?? 0, RAYON_SCAN_QR_METRES)) return null;
+  return {
+    erreur: `Vous semblez être à ${Math.round(distance)} m de cette étape : le QR code se valide sur place.`,
+    distance_metres: Math.round(distance),
+  };
+}
+
 app.post('/valider', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
 
-  const schema = z.object({ qr_token: z.string().uuid(), reponse: z.string().max(200).optional() });
-  const body = schema.safeParse(await c.req.json());
+  const body = validationQrSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
   const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
-    select: 'id,chasse_id,ordre,type_contenu,contenu,photo_url,enigme_reponse',
+    select: COLONNES_ETAPE_QR,
     commune_id: `eq.${commune_id}`, qr_token: `eq.${body.data.qr_token}`,
   });
   if (!etape) return c.json({ erreur: 'QR code invalide' }, 404);
@@ -333,9 +361,12 @@ app.post('/valider', async (c) => {
   // Une chasse archivée (actif=false) n'est plus jouable — même logique que le masquage
   // immédiat des énigmes signalées : rien ne doit rester validable une fois retiré de la liste.
   const [chasseActive] = await supabaseSelect(c.env, 'chasses_tresor', {
-    select: 'id', commune_id: `eq.${commune_id}`, id: `eq.${etape.chasse_id}`, actif: 'eq.true',
+    select: 'id,rayon_metres', commune_id: `eq.${commune_id}`, id: `eq.${etape.chasse_id}`, actif: 'eq.true',
   });
   if (!chasseActive) return c.json({ erreur: 'Cette chasse n\'est plus active' }, 404);
+
+  const tropLoin = erreurDistanceQr(etape, chasseActive.rayon_metres, body.data);
+  if (tropLoin) return c.json(tropLoin, 400);
 
   return finaliserValidationEtape(c, commune_id, commune_id, user_id, etape, body.data.reponse);
 });

@@ -176,6 +176,8 @@ const dejaCharges = new Set();
 const ONGLETS_BARRE_PRINCIPALE = ['accueil', 'actualites', 'agenda', 'alertes', 'coups-de-main'];
 
 function activerOnglet(cle) {
+  // Explorateur : seuls les jeux et le profil existent, y compris via le bouton retour.
+  if (window.EST_EXPLORATEUR && cle !== 'profil') cle = 'chasse-tresor';
   document.querySelectorAll('.onglet-contenu').forEach((s) => s.hidden = true);
   document.getElementById(`onglet-${cle}`).hidden = false;
 
@@ -246,6 +248,7 @@ document.getElementById('fond-feuille-plus')?.addEventListener('click', () => {
 });
 
 (async function initApp() {
+  document.body.classList.toggle('mode-explorateur', window.EST_EXPLORATEUR);
   await initUtilisateur();
   await initCommune();
   await initVisibiliteOnglets();
@@ -292,10 +295,19 @@ document.getElementById('fond-feuille-plus')?.addEventListener('click', () => {
   initTogglesCategoriesProfil();
   initBadgeEntete();
   await initServiceWorker();
-  initOnboardingPwa();
+  // Pas pour un Explorateur : de passage, il joue dans le navigateur et ne reçoit aucune notification.
+  if (!window.EST_EXPLORATEUR) initOnboardingPwa();
   initLiensDirectsNotification();
   initFormulaireLoi();
-  activerOnglet('accueil');
+  // ?village=<slug> : arrivée depuis l'affiche QR d'un village (jouer.html) — on ouvre ses jeux,
+  // en visite si ce n'est pas sa propre commune. Paramètre retiré ensuite (pas de ré-entrée au
+  // rechargement de la page).
+  const villageDemande = new URLSearchParams(window.location.search).get('village');
+  activerOnglet(villageDemande ? 'chasse-tresor' : 'accueil');
+  if (villageDemande) {
+    history.replaceState(history.state, '', window.location.pathname);
+    if (villageDemande !== window.COMMUNE_SLUG) entrerDansVillage(villageDemande);
+  }
   celebrerRecompensesConnexion();
 })();
 

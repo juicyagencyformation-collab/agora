@@ -63,7 +63,7 @@
   <a href="mentions-legales.html" class="lien-confidentialite">Mentions légales</a>
   <a href="conditions-utilisation.html" class="lien-confidentialite">Conditions générales d'utilisation</a>
 
-  <script src="/js/config.js?v=20261012-2"></script>
+  <script src="/js/config.js?v=20261105-1"></script>
   <script>
     const formConnexion = document.getElementById('form-connexion');
     const formInscription = document.getElementById('form-inscription');
@@ -83,6 +83,11 @@
       document.getElementById('vers-inscription').hidden = false;
       document.getElementById('ligne-mdp-oublie').hidden = false;
     });
+
+    // Arrivée depuis l'affiche QR d'un village (jouer.html, porte « J'habite ici ») : on ouvre
+    // directement ses jeux après connexion ou inscription.
+    const villageDemande = new URLSearchParams(window.location.search).get('village');
+    const pageApresConnexion = villageDemande ? `index.html?village=${encodeURIComponent(villageDemande)}` : 'index.html';
 
     formMdpOublie.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -144,7 +149,7 @@
             streak_actuel: data.streak_actuel,
           }));
         }
-        document.location.href = 'index.html';
+        document.location.href = pageApresConnexion;
       } catch {
         zoneErreur.textContent = 'Serveur inaccessible — vérifie API_BASE dans config.js';
       }
@@ -169,7 +174,7 @@
           zoneErreur.textContent = data.erreur ? (typeof data.erreur === 'string' ? data.erreur : 'Vérifie les champs saisis') : 'Inscription impossible';
           return;
         }
-        document.location.href = 'index.html';
+        document.location.href = pageApresConnexion;
       } catch {
         zoneErreur.textContent = 'Serveur inaccessible — vérifie API_BASE dans config.js';
       }

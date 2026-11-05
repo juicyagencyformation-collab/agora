@@ -44,6 +44,10 @@ window.COMMUNE_SLUG = (() => {
   return 'eaucourt'; // valeur transitoire, jamais réellement utilisée : la page change avant tout appel API
 })();
 
+// Espace Explorateurs (gens de passage, voir worker/src/middleware/explorateurs.ts) : l'app n'y
+// montre que les jeux des villages et le profil.
+window.EST_EXPLORATEUR = window.COMMUNE_SLUG === 'explorateurs';
+
 // Clé publique VAPID pour les notifications push (la clé privée reste secrète côté Worker)
 window.VAPID_PUBLIC_KEY = 'BP4VsbzEaz9CFIXy14keOhwtC-ws3RecrNmU75wjHW_r9HWxsghXI1PoYopDNI2GX4ghozXzNZTtllXAaSBTt_8';
 

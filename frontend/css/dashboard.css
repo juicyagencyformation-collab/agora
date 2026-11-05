@@ -772,7 +772,20 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 #onglet-chasse-tresor.en-visite #btn-jouer-ailleurs,
 #onglet-chasse-tresor.en-visite #btn-classement-exploration,
 #onglet-chasse-tresor.en-visite #zone-classement-exploration,
-#onglet-chasse-tresor.en-visite #btn-ouvrir-creation-enigme { display: none !important; }
+#onglet-chasse-tresor.en-visite #btn-ouvrir-creation-enigme,
+#onglet-chasse-tresor.en-visite #aide-creation-enigme { display: none !important; }
+
+/* Espace Explorateurs (gens de passage, voir worker/src/middleware/explorateurs.ts) : seuls les
+   jeux des villages et le profil — ni accueil, ni modules de village, ni publication. */
+.seulement-explorateur { display: none !important; }
+.mode-explorateur .barre-onglets > .seulement-explorateur { display: flex !important; }
+.mode-explorateur .barre-onglets > :not(.seulement-explorateur),
+.mode-explorateur .sidebar-nav button:not([data-onglet="chasse-tresor"]):not([data-onglet="profil"]),
+.mode-explorateur #btn-classement-exploration,
+.mode-explorateur #zone-classement-exploration,
+.mode-explorateur #btn-ouvrir-creation-enigme,
+.mode-explorateur #aide-creation-enigme,
+.mode-explorateur #onglet-chasse-tresor .form-admin-only { display: none !important; }
 
 .chasse-jump-nav { display: flex; gap: 8px; margin-bottom: 18px; }
 .chasse-jump-chip {

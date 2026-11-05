@@ -3,6 +3,12 @@ let enigmesCache = [];
 let idEnigmeDetailOuverte = null;
 
 async function chargerEnigmes() {
+  // Explorateur sans village choisi : l'invitation à choisir est affichée côté chasses.
+  if (window.EST_EXPLORATEUR && !villageVisite) {
+    enigmesCache = [];
+    renderListeEnigmes([]);
+    return;
+  }
   // En visite (villageVisite, voir chasse-tresor.js), la liste vient du même appel que les chasses.
   const res = await appelApi(villageVisite ? `/${window.COMMUNE_SLUG}/jeux-ailleurs/${villageVisite.slug}` : `/${window.COMMUNE_SLUG}/enigmes`);
   if (!res.ok) return;
@@ -25,7 +31,12 @@ function renderListeEnigmes(enigmes) {
   const conteneur = document.getElementById('liste-enigmes');
   conteneur.innerHTML = '';
   if (!enigmes.length) {
-    conteneur.innerHTML = `<p class="dechets-vide">Aucune énigme pour l'instant — sois le premier à en poser une !</p>`;
+    // En visite (ou Explorateur), on ne peut pas publier d'énigme : pas d'invitation à le faire.
+    conteneur.innerHTML = villageVisite
+      ? `<p class="dechets-vide">Aucune énigme photo dans ce village pour l'instant.</p>`
+      : window.EST_EXPLORATEUR
+        ? `<p class="dechets-vide">Choisissez d'abord un village.</p>`
+        : `<p class="dechets-vide">Aucune énigme pour l'instant — sois le premier à en poser une !</p>`;
   }
   enigmes.forEach((e) => conteneur.appendChild(renderCarteEnigmeCompacte(e)));
 }

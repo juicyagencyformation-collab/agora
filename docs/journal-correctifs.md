@@ -5,6 +5,33 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-05 — Chasse au trésor : la cachette de l'étape suivante lisible dans les réponses réseau
+
+**Gravité :** faible (triche possible au jeu, aucune donnée personnelle exposée)
+**Fichiers :** `worker/src/routes/chasses_tresor.ts`, `worker/src/routes/jeux_ailleurs.ts`, `frontend/js/chasse-tresor.js`
+
+### Symptôme
+Aucun signalé : repéré en relisant la logique des jeux avant l'ouverture aux touristes.
+
+### Cause
+En mode « chasse » (QR codes), la liste des chasses renvoyait l'étape suivante en entier : titre
+(« Le lavoir ») et coordonnées GPS, alors que l'écran n'affiche que l'indice. Quiconque ouvrait les
+outils du navigateur allait droit au QR. Par ailleurs, scanner un QR ne vérifiait pas la position :
+une photo du QR partagée en ligne suffisait à valider l'étape depuis chez soi.
+
+### Correction et vérification
+L'étape suivante ne contient plus que `id`, `ordre`, `indice` et `type_contenu` en mode chasse (la
+balade garde ses points, nécessaires à la carte). Le scan d'un QR exige désormais la position du
+joueur, à 200 m au plus de l'étape (`erreurDistanceQr`), chez soi comme dans un autre village.
+Tests ajoutés dans `worker/test/jeux-ailleurs.test.ts` (QR scanné depuis Paris refusé, pas de titre
+ni de coordonnées en mode chasse).
+
+### À retenir
+Toute donnée envoyée au téléphone est lisible par le joueur, même si l'écran ne l'affiche pas : un
+secret de jeu ne sort jamais du Worker avant d'être gagné (même règle que la position des énigmes photo).
+
+---
+
 ## 2026-10-27 — Backoffice : « Voir la convention » affichait « Devis introuvable »
 
 **Gravité :** faible (document de convention inaccessible, aucune donnée touchée)

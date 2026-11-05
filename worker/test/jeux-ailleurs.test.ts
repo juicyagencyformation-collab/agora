@@ -21,6 +21,8 @@ const ENV: any = {
 const QR_FAY = '11111111-1111-4111-8111-111111111111';
 const QR_TOURLY = '22222222-2222-4222-8222-222222222222';
 const ETAPE_BALADE = '33333333-3333-4333-8333-333333333333';
+// Position du joueur au pied de l'étape QR de Fay (le serveur exige d'être à moins de 200 m).
+const SUR_PLACE_FAY = { lat: 49.5005, lng: 1.9 };
 
 function reinitialiser() {
   db = {
@@ -150,7 +152,7 @@ describe('jeux dans une autre commune', () => {
   });
 
   it('valide une étape par QR : réussite chez Fay, XP sur le compte de Tourly', async () => {
-    const res = await post('/valider-qr', { qr_token: QR_FAY });
+    const res = await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY });
     expect(res.status).toBe(200);
     expect((await res.json()).commune_nom).toBe('Fay-les-Étangs');
     expect(db.progressions_chasse).toHaveLength(1);
@@ -161,8 +163,26 @@ describe('jeux dans une autre commune', () => {
     expect(joueur.commune_id).toBe('c-tourly');
   });
 
+  it('refuse un QR scanné loin de l’étape, ou sans position', async () => {
+    const loin = await post('/valider-qr', { qr_token: QR_FAY, lat: 48.85, lng: 2.35 }); // depuis Paris
+    expect(loin.status).toBe(400);
+    expect((await loin.json()).erreur).toMatch(/se valide sur place/);
+    const sansPosition = await post('/valider-qr', { qr_token: QR_FAY });
+    expect(sansPosition.status).toBe(400);
+    expect(db.progressions_chasse).toHaveLength(0);
+  });
+
+  it('ne livre en mode chasse que l’indice de l’étape suivante, ni titre ni coordonnées', async () => {
+    const data = await (await requete('/fay')).json();
+    const chasse = data.chasses.find((c: any) => c.id === 'ch-fay');
+    expect(chasse.etape_suivante).toEqual({ id: 'et-fay', ordre: 0, indice: 'Près de l’eau', type_contenu: 'aucun' });
+    // En balade, la carte a besoin des points : ils restent fournis.
+    const balade = data.chasses.find((c: any) => c.id === 'ch-balade');
+    expect(balade.etape_suivante).toMatchObject({ lat: 49.6, lng: 1.8 });
+  });
+
   it('renvoie un QR de sa propre commune vers le parcours normal', async () => {
-    const res = await post('/valider-qr', { qr_token: QR_TOURLY });
+    const res = await post('/valider-qr', { qr_token: QR_TOURLY, lat: 49.1, lng: 1.1 });
     expect(res.status).toBe(400);
     expect(db.progressions_chasse).toHaveLength(0);
   });
@@ -189,7 +209,7 @@ describe('jeux dans une autre commune', () => {
   });
 
   it('montre le visiteur dans le classement de la chasse, sous son nom public', async () => {
-    await post('/valider-qr', { qr_token: QR_FAY });
+    await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY });
     const res = await requete('/fay/chasses-tresor/ch-fay/classement', {}, 'habitant-fay', 'c-fay');
     // Un habitant de Fay n'a rien à faire sur /jeux-ailleurs/fay : sa propre commune est refusée.
     expect(res.status).toBe(404);

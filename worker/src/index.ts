@@ -5,7 +5,8 @@ import { origineAutorisee, protectionCsrf, limiterDebit } from './lib/securite';
 import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion } from './cron';
+import { gardeEspaceExplorateurs } from './middleware/explorateurs';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 
@@ -76,6 +77,8 @@ app.route('/q', liensCourts);
 
 // Résolution tenant : chaque route commence par /:slug/...
 app.use('/:slug/*', tenantMiddleware);
+// Espace Explorateurs (gens de passage) : rien d'autre que le compte et les jeux des villages.
+app.use('/:slug/*', gardeEspaceExplorateurs);
 
 // Auth (pas de JWT requis pour login, mais tenant résolu pour retrouver commune_id)
 app.route('/:slug/auth', auth);
@@ -189,7 +192,8 @@ export default {
     } else if (event.cron === '0 6 * * *') {
       await envoyerResumeMeteoMatinal(env);
     } else if (event.cron === '0 * * * *') {
-      await synchroniserVigilanceMeteoFrance(env);
+      // Purge des Explorateurs ici plutôt qu'à 4 h, créneau déjà chargé : 16 requêtes au plus.
+      await executerIsolement(env, [synchroniserVigilanceMeteoFrance, purgerExplorateursInactifs]);
     } else if (event.cron === '0 3 1 * *') {
       await executerIsolement(env, [nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
     } else {

@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261017-1">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261103-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261105-1">
 </head>
 <body>
 
@@ -235,7 +235,7 @@
       </h4>
       <div id="sous-contenu-enigmes">
         <div id="vue-liste-enigmes">
-          <p style="font-size:12.5px;color:var(--roseau);">Prends une photo à un endroit précis du village. Les autres doivent deviner où, en s'y rendant physiquement !</p>
+          <p id="aide-creation-enigme" style="font-size:12.5px;color:var(--roseau);">Prends une photo à un endroit précis du village. Les autres doivent deviner où, en s'y rendant physiquement !</p>
           <button type="button" id="btn-ouvrir-creation-enigme" class="bouton-ouvrir-modale">+ Publier une énigme</button>
           <div id="liste-enigmes"></div>
         </div>
@@ -725,6 +725,9 @@
     <button data-onglet="alertes"><span class="ic">🔔</span><span>Alertes</span></button>
     <button data-onglet="coups-de-main"><span class="ic">🤲</span><span>Entraide</span></button>
     <button type="button" id="btn-ouvrir-plus-onglets"><span class="ic">⋯</span><span>Plus</span></button>
+    <!-- Espace Explorateurs uniquement (body.mode-explorateur) : les jeux et le profil, rien d'autre. -->
+    <button class="seulement-explorateur" data-onglet="chasse-tresor"><span class="ic">🧭</span><span>Jeux des villages</span></button>
+    <button class="seulement-explorateur" data-onglet="profil"><span class="ic">⭐</span><span>Mon profil</span></button>
   </nav>
 
   <div id="feuille-plus-onglets" class="feuille-plus-onglets" hidden>
@@ -755,7 +758,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <script src="/js/vendor/jsQR.min.js?v=20261005-6"></script>
-  <script src="/js/config.js?v=20261012-2"></script>
+  <script src="/js/config.js?v=20261105-1"></script>
   <script src="/js/utils.js?v=20261005-6"></script>
   <script src="/js/api.js?v=20261006-2"></script>
   <script src="/js/editeur-riche.js?v=20261005-6"></script>
@@ -767,18 +770,18 @@
   <script src="/js/agenda.js?v=20261005-6"></script>
   <script src="/js/coups-de-main.js?v=20261013-1"></script>
   <script src="/js/coups-de-main-form.js?v=20261018-1"></script>
-  <script src="/js/chasse-tresor.js?v=20261103-1"></script>
+  <script src="/js/chasse-tresor.js?v=20261105-1"></script>
   <script src="/js/conseil.js?v=20261005-6"></script>
   <script src="/js/annuaire.js?v=20261005-6"></script>
   <script src="/js/bulletin.js?v=20261005-6"></script>
   <script src="/js/photo-du-jour.js?v=20261024-1"></script>
   <script src="/js/memoire.js?v=20261007-2"></script>
-  <script src="/js/enigmes.js?v=20261103-1"></script>
+  <script src="/js/enigmes.js?v=20261105-1"></script>
   <script src="/js/profil.js?v=20261103-1"></script>
   <script src="/js/notifications.js?v=20261006-3"></script>
   <script src="/js/lois.js?v=20261005-6"></script>
   <script src="/js/moderation.js?v=20261026-3"></script>
   <script src="/js/participation-citoyenne.js?v=20261005-6"></script>
-  <script src="/js/navigation.js?v=20261026-3"></script>
+  <script src="/js/navigation.js?v=20261105-1"></script>
 </body>
 </html>

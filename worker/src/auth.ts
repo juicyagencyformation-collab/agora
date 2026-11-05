@@ -526,6 +526,34 @@ app.post('/basculer/:autreUserId', jwtMiddleware, async (c) => {
 // identité réelle. Supprimer la ligne casserait les contenus communautaires utiles aux
 // autres citoyens ; l'anonymisation irréversible est une pratique reconnue conforme au
 // droit à l'effacement (recommandation CNIL).
+// Partagé avec cron.ts (purgerExplorateursInactifs) : une seule définition de ce qu'« effacer un
+// compte » veut dire, que la demande vienne de la personne ou de la durée de conservation.
+// Groupé (4 requêtes + 1 par compte, l'email anonyme étant propre à chacun) pour rester sous la
+// limite de sous-requêtes d'une exécution du cron.
+export async function anonymiserComptes(env: any, commune_id: string, user_ids: string[]) {
+  if (!user_ids.length) return;
+  const ids = `in.(${user_ids.join(',')})`;
+  await supabaseDelete(env, 'push_subscriptions', { user_id: ids });
+  await supabaseDelete(env, 'refresh_tokens', { user_id: ids });
+  await supabaseDelete(env, 'annuaire', { user_id: ids, commune_id: `eq.${commune_id}` });
+
+  // Coordonnées laissées lors d'inscriptions à des événements : effacées, la ligne de
+  // participation reste (l'organisateur garde un compte de participants exact).
+  await supabaseUpdate(env, 'event_attendees', { contact_telephone: null, contact_email: null }, {
+    user_id: ids, commune_id: `eq.${commune_id}`,
+  });
+
+  for (const user_id of user_ids) {
+    await supabaseUpdate(env, 'users', {
+      email: `supprime-${user_id}@anonyme.local`,
+      password_hash: crypto.randomUUID(),
+      nom: 'Compte',
+      prenom: 'supprimé',
+      compte_supprime_le: new Date().toISOString(),
+    }, { id: `eq.${user_id}`, commune_id: `eq.${commune_id}` });
+  }
+}
+
 app.delete('/moi', jwtMiddleware, async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
@@ -540,23 +568,7 @@ app.delete('/moi', jwtMiddleware, async (c) => {
     return c.json({ erreur: 'Ce compte de démonstration ne peut pas être supprimé.' }, 403);
   }
 
-  await supabaseDelete(c.env, 'push_subscriptions', { user_id: `eq.${user_id}` });
-  await supabaseDelete(c.env, 'refresh_tokens', { user_id: `eq.${user_id}` });
-  await supabaseDelete(c.env, 'annuaire', { user_id: `eq.${user_id}`, commune_id: `eq.${commune_id}` });
-
-  // Coordonnées laissées lors d'inscriptions à des événements : effacées, la ligne de
-  // participation reste (l'organisateur garde un compte de participants exact).
-  await supabaseUpdate(c.env, 'event_attendees', { contact_telephone: null, contact_email: null }, {
-    user_id: `eq.${user_id}`, commune_id: `eq.${commune_id}`,
-  });
-
-  await supabaseUpdate(c.env, 'users', {
-    email: `supprime-${user_id}@anonyme.local`,
-    password_hash: crypto.randomUUID(),
-    nom: 'Compte',
-    prenom: 'supprimé',
-    compte_supprime_le: new Date().toISOString(),
-  }, { id: `eq.${user_id}`, commune_id: `eq.${commune_id}` });
+  await anonymiserComptes(c.env, commune_id, [user_id]);
 
   deleteCookie(c, 'agora_access', { path: '/' });
   deleteCookie(c, 'agora_refresh', { path: '/' });

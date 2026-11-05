@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jouer au village — Plateforme-Agora</title>
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6" />
+  <meta name="theme-color" content="#1B2A4A">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;0,900;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <!--
+    frontend/jouer.html — page d'arrivée de l'affiche QR d'un village : plateforme-agora.fr/<slug>/jouer
+    (servie par frontend/functions/[[path]].js, PAGES_RACINE). Aiguille chacun vers les jeux du village :
+    - déjà connecté chez ce village → ses jeux ; connecté ailleurs → ses jeux en visite (jeux_ailleurs) ;
+    - sinon deux portes : « J'habite ici » (connexion/inscription habitant habituelle) ou « Je suis de
+      passage » (compte Explorateur, espace sans aucun contenu de village — migration 098).
+    Inscription instantanée, sans email de confirmation : rien ne dépend de la délivrabilité des emails.
+    Volontairement sans config.js : une simple visite ne doit pas mémoriser ce village comme « ma commune ».
+  -->
+  <style>
+    :root {
+      --navy: #1B2A4A; --navy-light: #2d4270;
+      --green: #2EAB7B; --green-light: #e8f7f1;
+      --orange-light: #fef5e4; --coral: #E8623A;
+      --white: #FFFFFF; --cream: #F8F7F4;
+      --text-muted: #6b7280; --border-light: #e8e6e1;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif; color: var(--navy); background: var(--cream); margin: 0;
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px 16px; -webkit-font-smoothing: antialiased;
+    }
+    .carte {
+      background: var(--white); padding: 32px 26px; border-radius: 20px; width: 100%; max-width: 420px;
+      box-shadow: 0 16px 40px rgba(27,42,74,0.12); border: 1px solid var(--border-light);
+    }
+    .marque { display: flex; justify-content: center; margin-bottom: 18px; }
+    .marque img { max-width: 64px; max-height: 64px; object-fit: contain; }
+    h1 { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.5rem; line-height: 1.25; text-align: center; margin: 0 0 8px; text-wrap: balance; }
+    .sous-titre { text-align: center; font-size: 14px; color: var(--text-muted); margin: 0 0 22px; line-height: 1.5; }
+    .porte {
+      display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; cursor: pointer;
+      background: var(--white); border: 1.5px solid var(--border-light); border-radius: 14px;
+      padding: 14px 16px; margin-bottom: 10px; font-family: inherit; color: var(--navy);
+      transition: border-color .15s, box-shadow .15s; text-decoration: none;
+    }
+    .porte:hover, .porte:focus-visible { border-color: var(--green); box-shadow: 0 2px 10px rgba(46,171,123,.12); outline: none; }
+    .porte .ic { font-size: 26px; }
+    .porte strong { display: block; font-size: 15px; }
+    .porte span.detail { font-size: 12.5px; color: var(--text-muted); }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%; font-family: inherit; font-size: 14.5px; color: var(--navy);
+      border: 1px solid var(--border-light); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; outline: none;
+    }
+    input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-light); }
+    form button {
+      width: 100%; background: var(--navy); color: var(--white); border: none; padding: 13px 20px; border-radius: 10px;
+      font-family: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; margin-top: 4px;
+    }
+    form button:hover { background: var(--navy-light); }
+    form button:disabled { opacity: .6; cursor: wait; }
+    .case { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-muted); margin: 8px 0 12px; line-height: 1.45; }
+    .case input { margin: 2px 0 0; }
+    .case a { color: var(--navy); }
+    .erreur { font-size: 13px; color: var(--coral); margin: 0 0 6px; min-height: 1em; }
+    .bloc-info { background: var(--orange-light); border-radius: 12px; padding: 12px 14px; margin: 14px 0 0; font-size: 12.5px; line-height: 1.55; color: #6b5a2a; }
+    .liens { text-align: center; margin-top: 14px; font-size: 13px; }
+    .liens a { color: var(--green); font-weight: 600; cursor: pointer; text-decoration: none; }
+    .liens a:hover { text-decoration: underline; }
+    .titre-etape { font-family: 'Fraunces', serif; font-weight: 700; font-size: 1.1rem; margin: 0 0 14px; text-align: center; }
+    .pied { display: block; text-align: center; margin-top: 18px; font-size: 12px; color: var(--text-muted); }
+    .pied a { color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="carte">
+    <div class="marque"><img id="logo" src="/icons/icon-192.png?v=20261005-6" alt="Plateforme-Agora" /></div>
+
+    <div id="etape-chargement"><p class="sous-titre">Chargement…</p></div>
+
+    <div id="etape-introuvable" hidden>
+      <h1>Village introuvable</h1>
+      <p class="sous-titre">Ce QR code ne mène à aucun village ouvert pour le moment. Vérifiez l'adresse, ou renseignez-vous auprès de la mairie.</p>
+    </div>
+
+    <div id="etape-choix" hidden>
+      <h1>Jouez à <span class="nom-village"></span></h1>
+      <p class="sous-titre">Chasses au trésor et énigmes photo pour découvrir le village et son patrimoine, sur place.</p>
+      <a class="porte" id="porte-habitant">
+        <span class="ic">🏡</span>
+        <span><strong>J'habite à <span class="nom-village"></span></strong><span class="detail">Je me connecte ou je crée mon compte d'habitant</span></span>
+      </a>
+      <button type="button" class="porte" id="porte-passage">
+        <span class="ic">🧭</span>
+        <span><strong>Je suis de passage</strong><span class="detail">Un compte gratuit en une minute, valable dans tous les villages</span></span>
+      </button>
+      <div class="bloc-info">📍 Les étapes se valident sur place : autorisez la localisation de votre téléphone et gardez un peu de réseau mobile.</div>
+      <p class="liens" style="font-size:12px;color:var(--text-muted);font-weight:400;">Vous avez déjà un compte dans votre propre commune ? Connectez-vous chez vous, puis scannez de nouveau ce QR code : vous jouerez ici avec le même compte.</p>
+    </div>
+
+    <div id="etape-inscription" hidden>
+      <p class="titre-etape">🧭 Mon compte Explorateur</p>
+      <form id="form-inscription">
+        <input type="text" name="site_web" autocomplete="off" tabindex="-1" style="position:absolute;left:-9999px;" aria-hidden="true">
+        <input type="text" name="prenom" placeholder="Prénom" autocomplete="given-name" maxlength="100" required>
+        <input type="text" name="nom" placeholder="Nom" autocomplete="family-name" maxlength="100" required>
+        <input type="email" name="email" placeholder="Email" autocomplete="email" required>
+        <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password" minlength="6" required>
+        <label class="case"><input type="checkbox" name="age" required> J'ai au moins 15 ans (en-dessous, demandez à un parent de créer le compte).</label>
+        <label class="case"><input type="checkbox" name="consentement" required> <span>J'accepte les <a href="/explorateurs/conditions-utilisation.html" target="_blank">conditions d'utilisation</a> et la <a href="/explorateurs/confidentialite.html#explorateurs" target="_blank">politique de confidentialité</a>.</span></label>
+        <p class="erreur" id="erreur-inscription"></p>
+        <button type="submit">Créer mon compte et jouer</button>
+      </form>
+      <p class="liens"><a id="vers-connexion">J'ai déjà un compte Explorateur</a></p>
+      <p class="liens"><a class="vers-choix">← Retour</a></p>
+    </div>
+
+    <div id="etape-connexion" hidden>
+      <p class="titre-etape">🧭 Connexion Explorateur</p>
+      <form id="form-connexion">
+        <input type="email" name="email" placeholder="Email" autocomplete="email" required>
+        <input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" required>
+        <p class="erreur" id="erreur-connexion"></p>
+        <button type="submit">Me connecter et jouer</button>
+      </form>
+      <p class="liens"><a href="/explorateurs/connexion.html">Mot de passe oublié ?</a></p>
+      <p class="liens"><a class="vers-choix">← Retour</a></p>
+    </div>
+  </div>
+  <p class="pied"><a href="/explorateurs/confidentialite.html#explorateurs">Confidentialité</a> · <a href="/explorateurs/mentions-legales.html">Mentions légales</a></p>
+
+  <script>
+    const API = '/api';
+    const ESPACE = 'explorateurs';
+    const slug = decodeURIComponent(window.location.pathname.split('/').filter(Boolean)[0] || '');
+    const etapes = ['chargement', 'introuvable', 'choix', 'inscription', 'connexion'];
+    const afficher = (nom) => etapes.forEach((e) => { document.getElementById(`etape-${e}`).hidden = e !== nom; });
+    const allerJouer = (maCommune) => { window.location.href = `/${encodeURIComponent(maCommune)}/?village=${encodeURIComponent(slug)}`; };
+
+    // Commune de la session en cours (null = pas connecté). /auth/me répond 403 + votre_commune
+    // si la personne est connectée dans une autre commune : c'est exactement ce qu'on veut savoir.
+    async function communeDeLaSession() {
+      const me = () => fetch(`${API}/${encodeURIComponent(slug)}/auth/me`, { credentials: 'include' });
+      let res = await me();
+      if (res.status === 401) {
+        const rafraichi = await fetch(`${API}/${encodeURIComponent(slug)}/auth/refresh`, { method: 'POST', credentials: 'include' });
+        if (!rafraichi.ok) return null;
+        res = await me();
+      }
+      if (res.ok) return slug;
+      if (res.status === 403) return (await res.json().catch(() => ({}))).votre_commune || null;
+      return null;
+    }
+
+    async function demarrer() {
+      if (!slug || slug === 'jouer') { afficher('introuvable'); return; }
+      if (slug === ESPACE) { window.location.href = `/${ESPACE}/`; return; }
+      const resCommune = await fetch(`${API}/${encodeURIComponent(slug)}/commune`).catch(() => null);
+      if (!resCommune?.ok) { afficher('introuvable'); return; }
+      const { commune } = await resCommune.json();
+      document.title = `Jouer à ${commune.nom} — Plateforme-Agora`;
+      document.querySelectorAll('.nom-village').forEach((el) => { el.textContent = commune.nom; });
+      if (commune.logo_url) document.getElementById('logo').src = commune.logo_url;
+      document.getElementById('porte-habitant').href = `/${encodeURIComponent(slug)}/connexion.html?village=${encodeURIComponent(slug)}`;
+
+      const maCommune = await communeDeLaSession().catch(() => null);
+      if (maCommune) { allerJouer(maCommune); return; }
+      afficher('choix');
+    }
+
+    async function envoyer(form, chemin, corps, zoneErreur) {
+      const bouton = form.querySelector('button');
+      bouton.disabled = true;
+      zoneErreur.textContent = '';
+      try {
+        const res = await fetch(`${API}/${ESPACE}/auth/${chemin}`, {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) { allerJouer(ESPACE); return; }
+        zoneErreur.textContent = typeof data.erreur === 'string' ? data.erreur : 'Vérifiez les champs saisis.';
+      } catch {
+        zoneErreur.textContent = 'Connexion impossible, vérifiez votre réseau.';
+      }
+      bouton.disabled = false;
+    }
+
+    document.getElementById('porte-passage').addEventListener('click', () => afficher('inscription'));
+    document.getElementById('vers-connexion').addEventListener('click', () => afficher('connexion'));
+    document.querySelectorAll('.vers-choix').forEach((a) => a.addEventListener('click', () => afficher('choix')));
+
+    document.getElementById('form-inscription').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const erreur = document.getElementById('erreur-inscription');
+      envoyer(e.target, 'register', {
+        prenom: f.get('prenom').trim(), nom: f.get('nom').trim(), email: f.get('email').trim(),
+        password: f.get('password'), consentement_rgpd: true, site_web: f.get('site_web') || undefined,
+      }, erreur);
+    });
+
+    document.getElementById('form-connexion').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      envoyer(e.target, 'login', { email: f.get('email').trim(), password: f.get('password') }, document.getElementById('erreur-connexion'));
+    });
+
+    demarrer();
+  </script>
+</body>
+</html>

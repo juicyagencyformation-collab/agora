@@ -21,7 +21,7 @@
   <p id="nom-commune-rgpd" style="color:var(--roseau);"></p>
 
   <h2>Responsable du traitement</h2>
-  <p>Le responsable du traitement des données est la mairie de <strong id="nom-commune-texte">votre commune</strong>, éditrice de cette application citoyenne.</p>
+  <p id="responsable-commune">Le responsable du traitement des données est la mairie de <strong id="nom-commune-texte">votre commune</strong>, éditrice de cette application citoyenne.</p>
 
   <h2>Données collectées</h2>
   <ul>
@@ -35,6 +35,16 @@
   <h2>Finalités</h2>
   <p>Ces données sont utilisées uniquement pour faire fonctionner les services de l'application (fil d'actualités, mur des voisins, agenda, alertes, jeux citoyens) et pour vous permettre d'être identifié auprès des autres habitants dans le cadre de la vie communale.</p>
   <p><strong>Jeux entre villages.</strong> Vous pouvez jouer aux chasses au trésor et énigmes photo d'autres communes qui utilisent l'application. Vos réussites sont alors enregistrées chez la commune visitée, et votre nom apparaît dans ses classements selon votre réglage « Mon nom sur mes publications et dans les classements » (prénom et initiale, ou anonyme). Aucune autre donnée de votre compte ne lui est communiquée. Vos points s'ajoutent à votre compte.</p>
+
+  <h2 id="explorateurs">Comptes Explorateurs (visiteurs de passage)</h2>
+  <p>Un compte <strong>Explorateur</strong> permet à une personne de passage (touriste, randonneur, camping-cariste…) de jouer aux chasses au trésor et énigmes photo des villages, sans être habitant d'une commune. Pour ces comptes, le responsable du traitement est <strong>Juicy Solutions</strong> (Léandre Sallé), éditeur de Plateforme-Agora, et non une mairie.</p>
+  <ul>
+    <li>Données traitées : prénom, nom, email, mot de passe (jamais stocké en clair), réussites et points de jeu, localisation ponctuelle au moment de valider une étape ou une énigme.</li>
+    <li>Aucun accès aux contenus des villages (actualités, mur des voisins, entraide, annuaire, habitants) : un compte Explorateur ne voit que les jeux.</li>
+    <li>Dans les classements d'un village, votre nom apparaît selon votre réglage « Mon nom sur mes publications et dans les classements » (prénom et initiale, ou anonyme).</li>
+    <li>Conservation : le compte est automatiquement anonymisé après <strong>12 mois sans connexion</strong>. Vous pouvez aussi le supprimer à tout moment depuis <strong>Mon profil</strong>.</li>
+    <li>Contact pour exercer vos droits : <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</li>
+  </ul>
 
   <h2>Base légale</h2>
   <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune.</p>
@@ -58,12 +68,18 @@
 
   <a class="retour" href="connexion.html">← Retour à la connexion</a>
 
-  <script src="/js/config.js?v=20261012-2"></script>
+  <script src="/js/config.js?v=20261105-1"></script>
   <script>
     fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (!data?.commune) return;
+        // Espace Explorateurs : pas de mairie derrière ces comptes, voir la section dédiée.
+        if (window.EST_EXPLORATEUR) {
+          document.getElementById('nom-commune-rgpd').textContent = 'Comptes Explorateurs';
+          document.getElementById('responsable-commune').innerHTML = 'Pour les comptes Explorateurs, le responsable du traitement est <strong>Juicy Solutions</strong>, éditeur de Plateforme-Agora — voir la section <a href="#explorateurs">Comptes Explorateurs</a>.';
+          return;
+        }
         document.getElementById('nom-commune-rgpd').textContent = `Commune de ${data.commune.nom}`;
         document.getElementById('nom-commune-texte').textContent = data.commune.nom;
         const lien = document.getElementById('lien-contact-rgpd');

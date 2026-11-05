@@ -21,6 +21,15 @@ function urlJeux(module, chemin = '') {
 }
 
 async function chargerChasses() {
+  // Explorateur sans village choisi : il n'a pas de chasses « chez lui », on l'invite à choisir.
+  if (window.EST_EXPLORATEUR && !villageVisite) {
+    chassesCache = [];
+    document.getElementById('vue-liste-chasses').hidden = false;
+    document.getElementById('vue-detail-chasse').hidden = true;
+    document.getElementById('liste-chasses').innerHTML =
+      '<p class="dechets-vide">Choisissez le village où vous êtes (bouton « Choisir un village » ci-dessus) pour voir ses chasses au trésor et ses énigmes photo.</p>';
+    return;
+  }
   const url = villageVisite
     ? `/${window.COMMUNE_SLUG}/jeux-ailleurs/${villageVisite.slug}`
     : modeArchivesChasses
@@ -314,11 +323,24 @@ async function ouvrirScanner() {
   await demarrerScannerQr('zone-scanner', validerEtape);
 }
 
-function envoyerQrEtape(url, qr_token, reponse) {
+// Le serveur exige la position du joueur pour valider un QR (le QR seul ne suffit plus : voir
+// erreurDistanceQr côté Worker, tolérance de 200 m). Précision de 100 m suffisante ici, pour ne
+// pas faire attendre. null = localisation refusée ou indisponible (message déjà affiché).
+async function positionPourQr() {
+  try {
+    const pos = await obtenirPositionPrecise(null, 6000, 100);
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    afficherToastMessage('Activez la localisation : les étapes se valident sur place.', 'erreur');
+    return null;
+  }
+}
+
+function envoyerQrEtape(url, qr_token, reponse, position) {
   return appelApi(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ qr_token, ...(reponse != null ? { reponse } : {}) }),
+    body: JSON.stringify({ qr_token, ...position, ...(reponse != null ? { reponse } : {}) }),
   });
 }
 
@@ -326,11 +348,13 @@ function envoyerQrEtape(url, qr_token, reponse) {
 // Chez soi, un QR inconnu y est retenté : c'est peut-être l'étape d'une chasse d'un autre
 // village, scannée sur place — ça marche alors sans rien choisir.
 async function validerEtape(qr_token, reponse = null) {
+  const position = await positionPourQr();
+  if (!position) return;
   const urlAilleurs = `/${window.COMMUNE_SLUG}/jeux-ailleurs/valider-qr`;
-  let url = villageVisite ? urlAilleurs : `/${window.COMMUNE_SLUG}/chasses-tresor/valider`;
-  let res = await envoyerQrEtape(url, qr_token, reponse);
-  if (res.status === 404 && !villageVisite) {
-    const resAilleurs = await envoyerQrEtape(urlAilleurs, qr_token, reponse);
+  let url = villageVisite || window.EST_EXPLORATEUR ? urlAilleurs : `/${window.COMMUNE_SLUG}/chasses-tresor/valider`;
+  let res = await envoyerQrEtape(url, qr_token, reponse, position);
+  if (res.status === 404 && url !== urlAilleurs) {
+    const resAilleurs = await envoyerQrEtape(urlAilleurs, qr_token, reponse, position);
     if (resAilleurs.status !== 404) { res = resAilleurs; url = urlAilleurs; }
   }
   const data = await res.json();
@@ -366,7 +390,10 @@ function afficherEnigmeEtape(qr_token, question, url) {
     e.preventDefault();
     const reponse = overlay.querySelector('#reponse-enigme-etape').value.trim();
     if (!reponse) return;
-    const res = await envoyerQrEtape(url, qr_token, reponse);
+    // Position relue à la réponse aussi : le serveur la revérifie (même règle qu'en balade).
+    const position = await positionPourQr();
+    if (!position) return;
+    const res = await envoyerQrEtape(url, qr_token, reponse, position);
     const data = await res.json();
     if (res.ok) {
       fermerModaleFormulaire(overlay);
@@ -414,6 +441,12 @@ function initSousOngletsChasse() {
     if (!zone.hidden) await chargerClassementExploration();
   });
   document.getElementById('btn-jouer-ailleurs')?.addEventListener('click', () => ouvrirRechercheVillage());
+  if (window.EST_EXPLORATEUR) {
+    const bandeau = document.querySelector('#onglet-chasse-tresor > .bandeau-onglet');
+    bandeau.querySelector('h3').textContent = 'Jeux des villages';
+    bandeau.querySelector('p').textContent = 'Chasses au trésor et énigmes photo pour découvrir les villages et leur patrimoine : choisissez le village où vous êtes, puis jouez sur place.';
+    document.getElementById('btn-jouer-ailleurs').textContent = '🧭 Choisir un village';
+  }
   initJumpNavChasse();
   initScrollSpyChasse();
 }
@@ -421,7 +454,7 @@ function initSousOngletsChasse() {
 // ── Jouer dans un autre village : recherche, entrée, sortie ──
 
 function ouvrirRechercheVillage() {
-  const overlay = ouvrirModaleFormulaire('🧳 Jouer dans un autre village', `
+  const overlay = ouvrirModaleFormulaire(window.EST_EXPLORATEUR ? '🧭 Choisir un village' : '🧳 Jouer dans un autre village', `
     <p style="font-size:12.5px;color:var(--roseau);margin-top:0;">Les chasses et énigmes se valident sur place : choisissez le village où vous êtes, ou celui que vous allez visiter.</p>
     <input type="search" id="recherche-village" placeholder="Nom du village" autocomplete="off">
     <div id="resultats-village" style="margin-top:10px;"></div>
@@ -484,9 +517,10 @@ function appliquerModeVillage() {
   bandeau.innerHTML = `
     <p style="margin:0 0 6px;">🧳 Vous jouez à <strong>${escapeAttr(villageVisite.nom)}</strong>.</p>
     <p style="margin:0 0 10px;font-size:12px;color:var(--roseau);">Dans ses classements, vous apparaissez comme « ${escapeAttr(villageVisite.mon_nom_public)} » — modifiable dans Profil → Confidentialité. Vos points s'ajoutent à votre compte.</p>
-    <button type="button" class="btn-classement-exploration" id="btn-quitter-village" style="margin:0;">← Revenir à mon village</button>
+    <button type="button" class="btn-classement-exploration" id="btn-quitter-village" style="margin:0;">${window.EST_EXPLORATEUR ? '🧭 Changer de village' : '← Revenir à mon village'}</button>
   `;
-  bandeau.querySelector('#btn-quitter-village').addEventListener('click', () => quitterVillage());
+  // Un Explorateur n'a pas de village à lui : il change de village au lieu de « rentrer ».
+  bandeau.querySelector('#btn-quitter-village').addEventListener('click', () => (window.EST_EXPLORATEUR ? ouvrirRechercheVillage() : quitterVillage()));
 }
 
 // Puces de raccourci "Chasses officielles" / "Énigme photo" : des <button> + scrollIntoView(),

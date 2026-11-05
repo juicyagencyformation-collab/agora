@@ -14,12 +14,12 @@
 //   joueur (commune_joueur) ;
 // - commune visitée : active, ni nationale ni démo, différente de celle du joueur, module actif.
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect } from '../db';
 import { COLONNES_NOM_PUBLIC, nomPublic } from '../lib/nom-public';
 import {
   listerChassesJouables, finaliserValidationEtape, validerEtapeParPosition, validationPositionSchema, classementChasse,
+  validationQrSchema, COLONNES_ETAPE_QR, erreurDistanceQr,
 } from './chasses_tresor';
 import { listerEnigmesJouables, validerEnigme, validationEnigmeSchema, signalerEnigme } from './enigmes';
 import { motifNomCommune } from './decouverte';
@@ -85,16 +85,15 @@ app.get('/communes', async (c) => {
 });
 
 // POST /valider-qr — un QR d'étape scanné n'importe où : la commune est retrouvée à partir du
-// qr_token (unique sur toute la plateforme, et seulement lisible sur place, imprimé à l'étape).
-const validationQrSchema = z.object({ qr_token: z.string().uuid(), reponse: z.string().max(200).optional() });
-
+// qr_token (unique sur toute la plateforme, imprimé à l'étape), et la position du joueur doit être
+// proche de l'étape (erreurDistanceQr), exactement comme chez soi.
 app.post('/valider-qr', async (c) => {
   const body = validationQrSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const communeJoueur = c.get('commune_id');
 
   const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
-    select: 'id,commune_id,chasse_id,ordre,type_contenu,contenu,photo_url,enigme_reponse',
+    select: COLONNES_ETAPE_QR,
     qr_token: `eq.${body.data.qr_token}`,
   });
   if (!etape) return c.json({ erreur: 'QR code invalide' }, 404);
@@ -106,9 +105,12 @@ app.post('/valider-qr', async (c) => {
   if (!commune) return c.json({ erreur: 'QR code invalide' }, 404);
 
   const [chasseActive] = await supabaseSelect(c.env, 'chasses_tresor', {
-    select: 'id', commune_id: `eq.${commune.id}`, id: `eq.${etape.chasse_id}`, actif: 'eq.true',
+    select: 'id,rayon_metres', commune_id: `eq.${commune.id}`, id: `eq.${etape.chasse_id}`, actif: 'eq.true',
   });
   if (!chasseActive) return c.json({ erreur: 'Cette chasse n\'est plus active' }, 404);
+
+  const tropLoin = erreurDistanceQr(etape, chasseActive.rayon_metres, body.data);
+  if (tropLoin) return c.json(tropLoin, 400);
 
   return finaliserValidationEtape(c, commune.id, communeJoueur, c.get('user_id'), etape, body.data.reponse, { commune_nom: commune.nom });
 });

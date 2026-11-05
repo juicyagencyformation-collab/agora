@@ -9,6 +9,8 @@ import { verifierRelanceInactivite } from './backoffice/onboarding';
 import { verifierSequenceOnboarding } from './backoffice/onboarding-drip';
 import { synchroniserEmailsRecus } from './backoffice/emails-recus';
 import { envoyerBilansMensuels } from './lib/bilan-mensuel';
+import { anonymiserComptes } from './auth';
+import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -395,4 +397,24 @@ async function rafraichirContenuDemoBonvivreInterne(env: any) {
 // 083) : le verrou ne regarde que les 15 dernières minutes, le reste ne sert plus à rien.
 export async function purgerTentativesConnexion(env: any) {
   await supabaseDelete(env, 'tentatives_connexion', { created_at: `lt.${new Date(Date.now() - 24 * 3600 * 1000).toISOString()}` });
+}
+
+// Espace Explorateurs (migration 098) : un compte de passage n'a pas vocation à durer. Anonymisé
+// après 12 mois sans connexion — durée annoncée dans la politique de confidentialité (Juicy
+// Solutions en est responsable de traitement, pas une mairie). Même effacement que « Supprimer
+// mon compte » (anonymiserComptes) : les réussites restent dans les classements, sans identité.
+// Lancée chaque heure, 10 comptes au plus par passage : 16 requêtes maximum, loin de la limite
+// de 50 sous-requêtes par exécution (voir docs/journal-correctifs.md, export du 2026-10-26).
+export async function purgerExplorateursInactifs(env: any) {
+  const [espace] = await supabaseSelect(env, 'communes', { select: 'id', slug: `eq.${SLUG_EXPLORATEURS}`, niveau_national: 'eq.true' });
+  if (!espace) return;
+  const seuil = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString();
+  const inactifs = await supabaseSelect(env, 'users', {
+    select: 'id',
+    commune_id: `eq.${espace.id}`,
+    compte_supprime_le: 'is.null',
+    or: `(derniere_connexion_streak.lt.${seuil.slice(0, 10)},and(derniere_connexion_streak.is.null,created_at.lt.${seuil}))`,
+    limit: '10',
+  });
+  await anonymiserComptes(env, espace.id, inactifs.map((u: any) => u.id));
 }
