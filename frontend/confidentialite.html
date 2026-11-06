@@ -21,7 +21,7 @@
   <p id="nom-commune-rgpd" style="color:var(--roseau);"></p>
 
   <h2>Responsable du traitement</h2>
-  <p id="responsable-commune">Le responsable du traitement des données est la mairie de <strong id="nom-commune-texte">votre commune</strong>, éditrice de cette application citoyenne.</p>
+  <p id="responsable-commune">Le responsable du traitement dépend de l'espace utilisé. Pour l'espace d'une commune <strong>géré par sa mairie</strong>, c'est la mairie de <strong id="nom-commune-texte">la commune</strong>, et Juicy Solutions (Léandre Sallé, éditeur de Plateforme-Agora) est son sous-traitant au sens de l'article 28 du RGPD. Pour un espace <strong>ouvert par des habitants</strong> et non géré par la mairie, pour les comptes Explorateurs et pour le site plateforme-agora.fr, c'est <strong>Juicy Solutions</strong> — 10, rue du Pont, 80580 Eaucourt-sur-Somme — <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
 
   <h2>Données collectées</h2>
   <ul>
@@ -30,6 +30,7 @@
     <li>Localisation ponctuelle, uniquement lorsque vous l'autorisez (signalements, chasse au trésor, énigmes photo)</li>
     <li>Coordonnées optionnelles laissées lors d'une inscription à un événement</li>
     <li>Abonnement aux notifications (si activées), lié à votre navigateur</li>
+    <li>À l'inscription uniquement : adresse IP et caractéristiques techniques du navigateur, analysées par Cloudflare Turnstile pour vérifier que le formulaire est rempli par une personne et non par un robot, ainsi que la durée de remplissage du formulaire (non conservée)</li>
   </ul>
 
   <h2>Finalités</h2>
@@ -46,31 +47,39 @@
     <li>Contact pour exercer vos droits : <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</li>
   </ul>
 
+  <h2 id="demandes-mairies">Demandes envoyées depuis le site plateforme-agora.fr</h2>
+  <p>Le formulaire de demande de la page d'accueil (commune, nom, fonction, email, téléphone facultatif, message) sert uniquement à recontacter la personne au sujet de sa demande et à présenter la plateforme à sa commune. Responsable du traitement : Juicy Solutions. Base légale : l'intérêt légitime à répondre à une demande professionnelle. Ces informations ne sont ni vendues ni cédées, et sont supprimées 3 ans après le dernier échange si la commune ne devient pas cliente. Vous pouvez demander leur suppression à tout moment à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
+
   <h2>Base légale</h2>
-  <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune.</p>
+  <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune. La vérification anti-robot à l'inscription et les limites du nombre d'inscriptions reposent sur l'intérêt légitime à protéger le service et ses utilisateurs contre les inscriptions automatisées (article 6.1.f du RGPD).</p>
 
   <h2>Hébergement et sous-traitants</h2>
-  <p>L'application est hébergée sur l'infrastructure de <strong>Cloudflare</strong> (Workers, Pages, R2) et <strong>Supabase</strong> (base de données). Les emails (confirmation de compte, notifications, bilans d'activité) sont envoyés via <strong>Resend</strong>. Pour les communes ayant activé la modération automatique des photos, chaque photo soumise est analysée par un modèle d'intelligence artificielle hébergé par <strong>Cloudflare (Workers AI)</strong> afin de détecter un contenu inapproprié avant publication — l'image n'est conservée par ce service que le temps de l'analyse, jamais utilisée pour l'entraîner ni partagée à d'autres fins. Ces prestataires agissent en tant que sous-traitants techniques et n'utilisent pas vos données à d'autres fins.</p>
+  <p>L'application est hébergée sur l'infrastructure de <strong>Cloudflare</strong> (Workers, Pages, R2) et <strong>Supabase</strong> (base de données). Les emails (confirmation de compte, notifications, bilans d'activité) sont envoyés via <strong>Resend</strong>. À l'inscription, <strong>Cloudflare Turnstile</strong> vérifie que le formulaire est rempli par une personne (adresse IP et caractéristiques techniques du navigateur), sans case à cocher dans la plupart des cas ; Cloudflare n'utilise pas ces données à des fins publicitaires. Pour les communes ayant activé la modération automatique des photos, chaque photo soumise est analysée par un modèle d'intelligence artificielle hébergé par <strong>Cloudflare (Workers AI)</strong> afin de détecter un contenu inapproprié avant publication — l'image n'est conservée par ce service que le temps de l'analyse, jamais utilisée pour l'entraîner ni partagée à d'autres fins. Ces prestataires agissent en tant que sous-traitants techniques et n'utilisent pas vos données à d'autres fins.</p>
+  <p><strong>Localisation et transferts.</strong> La base de données et les fichiers sont hébergés dans l'Union européenne. Cloudflare, Supabase et Resend sont des sociétés américaines : les données qui peuvent transiter hors de l'Union européenne (traitement au plus près de l'utilisateur, envoi des emails, vérification anti-robot) sont encadrées conformément au chapitre V du RGPD, par le cadre de protection des données UE–États-Unis (<em>Data Privacy Framework</em>) pour les prestataires certifiés et/ou par les clauses contractuelles types de la Commission européenne.</p>
 
   <h2>Durée de conservation</h2>
   <p>Certains contenus sont éphémères par nature et supprimés automatiquement (messages du Mur des voisins après 24-48h, photos de la galerie "Photo du jour" et "Énigme photo" selon la durée définie par la mairie). Les autres données sont conservées tant que votre compte est actif.</p>
 
   <h2>Vos droits</h2>
-  <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, d'effacement et de portabilité de vos données. Vous pouvez exercer directement certains de ces droits depuis l'application, dans <strong>Mon profil</strong> :</p>
+  <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation, d'opposition et de portabilité de vos données, ainsi que du droit de retirer votre consentement à tout moment. Vous pouvez exercer directement certains de ces droits depuis l'application, dans <strong>Mon profil</strong> :</p>
   <ul>
     <li><strong>Télécharger mes données</strong> — export complet au format JSON</li>
     <li><strong>Supprimer mon compte</strong> — anonymisation immédiate et irréversible de vos données personnelles</li>
   </ul>
-  <p>Pour toute autre demande, vous pouvez contacter la mairie : <a id="lien-contact-rgpd" href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Vous disposez également du droit d'introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank">www.cnil.fr</a>).</p>
+  <p>Pour toute autre demande, vous pouvez contacter le responsable du traitement : <a id="lien-contact-rgpd" href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Vous disposez également du droit d'introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank">www.cnil.fr</a>).</p>
 
   <h2>Sécurité</h2>
   <p>L'accès à vos données est protégé par authentification, et l'isolation entre communes est strictement appliquée : aucune commune ne peut accéder aux données d'une autre.</p>
 
   <a class="retour" href="connexion.html">← Retour à la connexion</a>
 
-  <script src="/js/config.js?v=20261105-1"></script>
+  <script src="/js/config.js?v=20261106-4"></script>
   <script>
-    fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+    // Ouverte à la racine (pied de page du site) : version plateforme, retour vers l'accueil.
+    if (!window.COMMUNE_SLUG) {
+      const retour = document.querySelector('.retour');
+      retour.href = '/'; retour.textContent = '← Retour à l’accueil';
+    } else fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (!data?.commune) return;
@@ -87,7 +96,7 @@
           document.getElementById('responsable-commune').innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(data.commune.nom) ? 'd’' : 'de '}<strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong> et n'est pas (encore) géré par la mairie : le responsable du traitement est <strong>Juicy Solutions</strong> (Léandre Sallé), éditeur de Plateforme-Agora, joignable à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Si la mairie adopte l'espace, elle en devient responsable et Juicy Solutions son sous-traitant.`;
           return;
         }
-        document.getElementById('nom-commune-texte').textContent = data.commune.nom;
+        document.getElementById('responsable-commune').innerHTML = `Le responsable du traitement des données est la mairie de <strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong>, éditrice de cet espace. Juicy Solutions (Léandre Sallé), éditeur de Plateforme-Agora, est son sous-traitant au sens de l'article 28 du RGPD.`;
         const lien = document.getElementById('lien-contact-rgpd');
         if (data.commune.contact_email) {
           lien.href = `mailto:${data.commune.contact_email}`;

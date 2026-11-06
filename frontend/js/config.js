@@ -28,6 +28,13 @@ window.COMMUNE_SLUG = (() => {
     localStorage.setItem('agora_derniere_commune', premier);
     return premier;
   }
+  // Pages légales ouvertes à la racine (pied de page du site plateforme-agora.fr) : version
+  // « plateforme », sans commune — jamais de redirection (obligation légale d'accès : LCEN,
+  // RGPD) ni de commune mémorisée (le visiteur lit les règles du site, pas celles d'un village).
+  // Corrigé le 2026-11-06 : elles renvoyaient tout visiteur nouveau vers /rejoindre.html.
+  if (['confidentialite', 'conditions-utilisation', 'mentions-legales'].includes((premier || '').replace(/\.[a-z0-9]+$/i, ''))) {
+    return null;
+  }
   const memorisee = localStorage.getItem('agora_derniere_commune');
   if (memorisee && !estPage(memorisee)) return memorisee;
 

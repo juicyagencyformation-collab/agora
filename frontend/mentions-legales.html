@@ -20,36 +20,54 @@
   <h1>Mentions légales</h1>
   <p id="nom-commune-mentions" style="color:var(--roseau);"></p>
 
-  <h2>Éditeur du site</h2>
-  <p>Cette application est éditée par la mairie de <strong id="nom-commune-texte-mentions">votre commune</strong>, dans le cadre de ses missions de service public et d'information des habitants.</p>
-  <p>Directeur de la publication : le maire de la commune, ou son représentant désigné.</p>
+  <h2>Éditeur de la plateforme</h2>
+  <p>Le site plateforme-agora.fr et la plateforme Plateforme-Agora sont édités par <strong>Léandre Sallé</strong>, entrepreneur individuel exerçant sous le nom « Juicy Solutions » — 10, rue du Pont, 80580 Eaucourt-sur-Somme — SIREN 882 992 472, RCS d'Amiens — téléphone : 06 48 06 10 97 — <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
+  <p>Directeur de la publication de la plateforme : Léandre Sallé.</p>
+
+  <h2>Éditeur de l'espace de chaque commune</h2>
+  <p id="editeur-espace">L'espace d'une commune <strong>géré par sa mairie</strong> est édité par la mairie, dans le cadre de ses missions de service public et d'information des habitants ; directeur de la publication : le maire ou son représentant désigné. Un espace <strong>ouvert par des habitants</strong> et non géré par la mairie (signalé par un bandeau dans l'application) est édité par Juicy Solutions ; la mairie n'en est pas responsable.</p>
 
   <h2>Hébergement</h2>
   <p>
-    Application web (frontend) hébergée par <strong>Cloudflare, Inc.</strong> — 101 Townsend St, San Francisco, CA 94107, États-Unis.<br>
-    Traitement applicatif (backend) hébergé par <strong>Cloudflare Workers</strong>.<br>
-    Base de données hébergée par <strong>Supabase Inc.</strong>
+    Application web et traitement applicatif hébergés par <strong>Cloudflare, Inc.</strong> (Cloudflare Pages et Workers) — 101 Townsend St, San Francisco, CA 94107, États-Unis — +1 650 319 8930.<br>
+    Fichiers (photos, documents) stockés par Cloudflare dans l'Union européenne.<br>
+    Base de données hébergée par <strong>Supabase Inc.</strong> dans l'Union européenne.
   </p>
 
   <h2>Contact</h2>
   <p>Pour toute question relative au site ou à son contenu : <a id="lien-contact-mentions" href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
 
   <h2>Propriété intellectuelle</h2>
-  <p>Les contenus publiés par les habitants (messages, photos, articles) restent la propriété de leurs auteurs respectifs. La structure et le code de l'application sont la propriété de leur éditeur, Juicy Solutions (Léandre Sallé), qui en concède l'usage à la commune dans le cadre de son abonnement.</p>
+  <p>Les contenus publiés par les habitants (messages, photos, articles) restent la propriété de leurs auteurs respectifs. La structure et le code de l'application sont la propriété de leur éditeur, Juicy Solutions (Léandre Sallé), qui en concède l'usage aux communes.</p>
 
   <h2>Protection des données personnelles</h2>
   <p>Voir la <a href="confidentialite.html">politique de confidentialité</a> pour le détail du traitement de vos données personnelles.</p>
 
   <a class="retour" href="connexion.html">← Retour à la connexion</a>
 
-  <script src="/js/config.js?v=20261105-1"></script>
+  <script src="/js/config.js?v=20261106-4"></script>
   <script>
-    fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+    // Ouverte à la racine (pied de page du site) : version plateforme, retour vers l'accueil.
+    if (!window.COMMUNE_SLUG) {
+      const retour = document.querySelector('.retour');
+      retour.href = '/'; retour.textContent = '← Retour à l’accueil';
+    } else fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (!data?.commune) return;
+        const nom = data.commune.nom.replace(/[<>&]/g, '');
+        const editeur = document.getElementById('editeur-espace');
+        if (window.EST_EXPLORATEUR) {
+          editeur.innerHTML = 'L’espace Explorateurs (jeux des villages pour les gens de passage) est édité par Juicy Solutions ; directeur de la publication : Léandre Sallé.';
+          return;
+        }
         document.getElementById('nom-commune-mentions').textContent = `Commune de ${data.commune.nom}`;
-        document.getElementById('nom-commune-texte-mentions').textContent = data.commune.nom;
+        // Espace citoyen (migration 100) : la mairie n'a rien signé, elle n'en est pas l'éditrice.
+        if (data.commune.espace_officiel === false) {
+          editeur.innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(nom) ? 'd’' : 'de '}<strong>${nom}</strong> et n'est pas géré par la mairie : il est édité par Juicy Solutions (coordonnées ci-dessus) ; directeur de la publication : Léandre Sallé. La mairie de ${nom} n'est pas responsable de son contenu.`;
+          return;
+        }
+        editeur.innerHTML = `Cet espace est édité par la mairie de <strong>${nom}</strong>, dans le cadre de ses missions de service public et d'information des habitants. Directeur de la publication : le maire de la commune, ou son représentant désigné.`;
         const lien = document.getElementById('lien-contact-mentions');
         if (data.commune.contact_email) {
           lien.href = `mailto:${data.commune.contact_email}`;
