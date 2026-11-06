@@ -58,7 +58,7 @@
     nav.liens { display: flex; gap: 26px; font-size: 14.5px; font-weight: 500; }
     nav.liens a { text-decoration: none; color: var(--muted); } nav.liens a:hover { color: var(--navy); }
     header .btn { padding: 10px 16px; font-size: 14px; }
-    @media (max-width: 860px) { nav.liens { display: none; } }
+    @media (max-width: 1080px) { nav.liens { display: none; } }
 
     /* — Haut de page : recherche + téléphone live — */
     .hero { padding-block: 56px 72px; position: relative; overflow: hidden; }
@@ -88,6 +88,20 @@
     .resultat .prix b { display: block; font-size: 19px; color: #fff; font-family: var(--titre); }
     .resultat .btn { justify-content: center; }
     .lien-habitant { display: inline-block; margin-top: 14px; font-size: 14px; color: var(--muted); }
+    /* Deux portes après la recherche (2026-11-06) : l'habitant s'inscrit en un clic, la mairie active */
+    .btn--clair { background: rgba(255,255,255,.08); color: #fff; border: 1.5px solid rgba(255,255,255,.3); }
+    .btn--clair:hover { background: rgba(255,255,255,.16); }
+    .actions-barre { display: flex; gap: 10px; }
+    .portes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .porte { border-radius: 12px; padding: 14px; display: grid; gap: 8px; grid-template-rows: auto 1fr auto; }
+    .porte h3 { font-size: 17px; }
+    .porte p { margin: 0; font-size: 13px; line-height: 1.45; }
+    .porte .btn { padding: 11px 14px; font-size: 14px; justify-content: center; }
+    .porte--habitant { background: #fff; color: var(--navy); }
+    .porte--habitant p { color: var(--muted); }
+    .porte--mairie { background: rgba(255,255,255,.07); }
+    .porte--mairie p { color: rgba(255,255,255,.75); }
+    @media (max-width: 520px) { .portes { grid-template-columns: 1fr; } }
     .preuves-mini { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; font-size: 13px; color: var(--muted); }
     .preuves-mini span::before { content: "✓ "; color: var(--green); font-weight: 700; }
 
@@ -223,7 +237,8 @@
 
     /* Barre d'action mobile */
     .barre-mobile { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 10px max(14px, env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-right)); background: rgba(255,255,255,.96); border-top: 1px solid var(--border); display: none; }
-    .barre-mobile .btn { width: 100%; justify-content: center; }
+    .barre-mobile .btn { width: 100%; justify-content: center; padding: 13px 10px; font-size: 14.5px; }
+    .barre-mobile .doubles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     @media (max-width: 760px) { .barre-mobile { display: block; } body { padding-bottom: 76px; } header.barre .btn { display: none; } }
 
     /* — Version 3 : haut de page sur fond marine (comme le bas), preuve sur fond clair, avant / avec bien séparés — */
@@ -269,7 +284,10 @@
     <nav class="liens" aria-label="Sections">
       <a href="#demo">Démo live</a><a href="#semaine">Au quotidien</a><a href="#temps">Temps gagné</a><a href="#tarifs">Tarifs</a><a href="#faq">Questions</a>
     </nav>
-    <a class="btn btn--vert" href="#demande" data-cta>Demander l'activation</a>
+    <div class="actions-barre">
+      <a class="btn btn--clair" href="#recherche-commune" data-habitant>Espace habitants</a>
+      <a class="btn btn--vert" href="#demande" data-cta>Demander l'activation</a>
+    </div>
   </div>
 </header>
 
@@ -283,14 +301,14 @@
         <p class="sous">L'application de votre commune : la mairie informe, les habitants participent, le secrétariat respire. Pilotée seule par la mairie, sans compétence technique.</p>
 
         <div class="recherche" role="search">
-          <label for="recherche-commune">Votre commune est-elle prête ?</label>
+          <label for="recherche-commune">Trouvez votre commune</label>
           <div class="champ">
             <input id="recherche-commune" type="text" autocomplete="off" placeholder="Tapez le nom de votre commune…" aria-autocomplete="list" aria-controls="liste-communes">
           </div>
           <ul class="suggestions" id="liste-communes" role="listbox" hidden></ul>
           <div id="resultat-commune" aria-live="polite"></div>
         </div>
-        <a class="lien-habitant" href="/rejoindre.html">Vous êtes habitant ? Rejoindre ma commune →</a>
+        <a class="lien-habitant" id="lien-connexion-habitant" href="/rejoindre.html">Déjà inscrit ? Me connecter à ma commune →</a>
         <div class="preuves-mini"><span>Gratuit pour commencer</span><span>Conçue en France</span><span>Données hébergées en Europe</span></div>
       </div>
 
@@ -480,7 +498,7 @@
   <div class="wrap"><span>Léandre Sallé, entrepreneur individuel · élu municipal à Eaucourt-sur-Somme · SIRET 882 992 472 00010</span><span><a href="/mentions-legales">Mentions légales</a> · <a href="/confidentialite">Confidentialité</a> · <a href="/conditions-utilisation">CGU</a></span></div>
 </footer>
 
-<div class="barre-mobile"><a class="btn btn--vert" href="#demande" data-cta>Demander l'activation</a></div>
+<div class="barre-mobile"><div class="doubles"><a class="btn btn--contour" href="#recherche-commune" data-habitant>J'habite ici</a><a class="btn btn--vert" href="#demande">Je suis la mairie</a></div></div>
 
 <script>
 (function () {
@@ -574,14 +592,21 @@
     var carte = document.createElement('div'); carte.className = 'resultat';
     var nom = document.createElement('div'); nom.className = 'nom'; nom.textContent = r.nom;
     var etat = document.createElement('div'); etat.className = 'etat';
-    etat.textContent = (r.espace_pret ? '● Son espace existe déjà : il n\u2019attend que la mairie.' : '● Nous préparons son espace sous 48 heures.')
+    etat.textContent = (r.espace_pret ? '● Son espace est ouvert.' : '● Nous préparons son espace sous 48 heures.')
       + (r.population ? '  ' + r.population.toLocaleString('fr-FR') + ' habitants.' : '');
-    var prix = document.createElement('div'); prix.className = 'prix';
-    prix.innerHTML = '<div><b>0 €</b>Version gratuite</div><div><b></b>Version complète, dès</div>';
-    prix.querySelectorAll('b')[1].textContent = mensuel(autonomie(r.population || 0)) + ' / mois';
-    var btn = document.createElement('a'); btn.className = 'btn btn--vert'; btn.href = '#demande'; btn.textContent = 'Activer ' + r.nom + ' →';
+    // Porte habitant : droit au formulaire d'inscription de la commune (?inscription), ou la
+    // recherche « Rejoindre » si l'espace n'a pas d'adresse publique (commune de test).
+    var lienHabitant = r.slug ? '/' + r.slug + '/connexion.html?inscription' : '/rejoindre.html';
+    var portes = document.createElement('div'); portes.className = 'portes';
+    portes.innerHTML = '<div class="porte porte--habitant"><h3>🏠 J’habite ici</h3><p>Créez votre compte gratuit en une minute : actualités, agenda et alertes de votre commune.</p><a class="btn btn--vert">M’inscrire →</a></div>'
+      + '<div class="porte porte--mairie"><h3>🏛️ Je suis la mairie</h3><p>Gratuit pour commencer, version complète dès <b></b> / mois.</p><a class="btn btn--clair" href="#demande"></a></div>';
+    portes.querySelector('.porte--habitant a').href = lienHabitant;
+    portes.querySelector('.porte--mairie b').textContent = mensuel(autonomie(r.population || 0));
+    var btn = portes.querySelector('.porte--mairie a'); btn.textContent = 'Activer ' + r.nom + ' →';
     btn.addEventListener('click', function () { var d = document.getElementById('f-demande'); if (!d.value) d.value = 'gratuit'; });
-    carte.append(nom, etat, prix, btn); zone.appendChild(carte);
+    carte.append(nom, etat, portes); zone.appendChild(carte);
+    document.querySelectorAll('[data-habitant]').forEach(function (a) { a.href = lienHabitant; });
+    document.getElementById('lien-connexion-habitant').href = r.slug ? '/' + r.slug + '/connexion.html' : '/rejoindre.html';
     // La page entière parle désormais de cette commune
     document.getElementById('titre-hero').innerHTML = '<em></em>, dans chaque poche.';
     document.querySelector('#titre-hero em').textContent = r.nom;
@@ -591,6 +616,18 @@
     document.getElementById('f-commune').value = r.nom + ' (' + r.code_postal + ')';
     document.querySelectorAll('[data-cta]').forEach(function (b) { b.textContent = 'Activer ' + r.nom; });
   }
+
+  // ── Boutons « Espace habitants » / « J'habite ici » tant qu'aucune commune n'est choisie : ils
+  // amènent au champ de recherche (après le choix, choisir() les fait pointer vers l'inscription).
+  document.querySelectorAll('[data-habitant]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (a.getAttribute('href').charAt(0) !== '#') return;
+      e.preventDefault();
+      var doux = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      champ.scrollIntoView({ behavior: doux ? 'smooth' : 'auto', block: 'center' });
+      champ.focus({ preventScroll: true });
+    });
+  });
 
   // ── Bandeau de preuve : totaux de toute la plateforme recalculés une fois par jour par le
   // serveur (GET /api/decouverte/chiffres, cache 24 h). En cas d'échec, les valeurs écrites restent.

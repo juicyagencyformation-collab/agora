@@ -14,6 +14,7 @@ import { hasherMotDePasse } from '../lib/password';
 import { OPTIONS_COOKIE } from '../lib/securite';
 import { hasherToken, genererRefreshToken } from '../auth';
 import { genererSlugUnique } from '../backoffice/prospection';
+import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from '../backoffice/administration';
 import { emailConfirmationActivationHtml } from '../backoffice/email-commune';
 import { envoyerEmail } from '../lib/email';
@@ -197,8 +198,16 @@ app.get('/communes/rechercher', async (c) => {
   const autres = debut.length < Number(filtre.limit) ? await supabaseSelect(c.env, 'prospects', { select: colonnes, ...filtre }) : [];
   const vus = new Set<string>();
   const prospects = [...debut, ...autres].filter((p: any) => !vus.has(p.id) && vus.add(p.id)).slice(0, Number(filtre.limit));
+  // slug de l'espace (déjà public : c'est l'adresse plateforme-agora.fr/<slug>/) pour le bouton
+  // « J'habite ici » de l'accueil, qui mène droit à l'inscription (2026-11-06). Communes de test
+  // jamais proposées : un habitant ne doit pas s'y inscrire par erreur.
+  const ids = prospects.map((p: any) => p.commune_id).filter(Boolean);
+  const espaces = ids.length ? await supabaseSelect(c.env, 'communes', { select: 'id,slug', id: `in.(${ids.join(',')})` }) : [];
+  const slugs = new Map(espaces.filter((e: any) => !SLUGS_COMMUNES_TEST.includes(e.slug)).map((e: any) => [e.id, e.slug]));
   return c.json({
-    resultats: prospects.map(({ commune_id, ...p }: any) => ({ ...p, espace_pret: Boolean(commune_id) })),
+    resultats: prospects.map(({ commune_id, ...p }: any) => ({
+      ...p, espace_pret: Boolean(commune_id), slug: slugs.get(commune_id) ?? null,
+    })),
   });
 });
 

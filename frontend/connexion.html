@@ -124,6 +124,11 @@
       formConnexion.hidden = false;
       document.getElementById('vers-inscription').hidden = false;
     });
+    // Arrivée depuis le bouton « J'habite ici » de la page d'accueil (?inscription) : le formulaire
+    // de création de compte s'ouvre directement, sans passer par « Créer un compte ».
+    if (new URLSearchParams(window.location.search).has('inscription')) {
+      document.getElementById('vers-inscription').click();
+    }
 
     formConnexion.addEventListener('submit', async (e) => {
       e.preventDefault();

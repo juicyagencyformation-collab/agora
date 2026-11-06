@@ -125,6 +125,16 @@ describe('GET /communes/rechercher', () => {
     expect(resultats[0].nom).toBe('Testville');
     expect(resultats[0].espace_pret).toBe(true);
     expect(resultats[0]).not.toHaveProperty('commune_id');
+    // Bouton « J'habite ici » de l'accueil : mène droit à plateforme-agora.fr/testville/
+    expect(resultats[0].slug).toBe('testville');
+  });
+
+  it('ne donne jamais l\'adresse d\'une commune de test (un habitant ne doit pas s\'y inscrire)', async () => {
+    db.communes.push({ id: 'commune-test', nom: 'Eaucourt-sur-Somme', slug: 'eaucourt-sur-somme' });
+    ajouterProspect({ nom: 'Eaucourt-sur-Somme', commune_id: 'commune-test' });
+    const res = await decouverte.request('/communes/rechercher?q=eaucourt', {}, ENV);
+    const { resultats } = await res.json();
+    expect(resultats[0].slug).toBeNull();
   });
 
   it('place les noms qui commencent par la saisie avant ceux qui la contiennent', async () => {
