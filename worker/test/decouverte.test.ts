@@ -147,7 +147,7 @@ describe('POST /communes/:id/demander-acces', () => {
     expect(res.status).toBe(404);
   });
 
-  it('crée la commune mais AUCUN compte, n\'ouvre AUCUNE session, et envoie juste un email de confirmation', async () => {
+  it('ne crée RIEN (ni commune, ni compte, ni session) avant la confirmation, et envoie juste un email', async () => {
     const prospect = ajouterProspect({ nom: 'Testville' });
     const res = await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsValide),
@@ -155,11 +155,11 @@ describe('POST /communes/:id/demander-acces', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('set-cookie')).toBeNull();
 
-    expect(db.communes).toHaveLength(1);
-    expect(db.communes[0].forfait).toBe('Gratuit');
+    // Depuis le 2026-11-06 : l'espace de la commune n'est ouvert qu'au clic sur le lien.
+    expect(db.communes).toHaveLength(0);
     expect(db.users).toHaveLength(0); // le compte n'existe pas encore à ce stade
     expect(db.activations_libres).toHaveLength(1);
-    expect(db.activations_libres[0].email).toBe('jean@testville.fr');
+    expect(db.activations_libres[0]).toMatchObject({ email: 'jean@testville.fr', commune_id: null, prospect_id: prospect.id });
 
     expect(emailsEnvoyes).toHaveLength(1);
     expect(emailsEnvoyes[0].to).toBe('jean@testville.fr');
@@ -272,10 +272,26 @@ describe('POST /communes/activation/:token/creer-compte', () => {
     expect(db.users.find((u: any) => u.id !== 'u1').role).toBe('citoyen');
   });
 
-  it('refuse (400) si un compte existe déjà avec cet email sur cette commune', async () => {
+  it('ouvre l’espace de la commune au clic seulement, avec le palier gratuit', async () => {
     const token = await demanderEtRecupererToken();
-    const communeId = db.activations_libres[0].commune_id;
-    db.users.push({ id: 'existant', commune_id: communeId, role: 'citoyen', email: 'jean@testville.fr' });
+    expect(db.communes).toHaveLength(0);
+    const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),
+    }, ENV);
+    expect(res.status).toBe(201);
+    expect(db.communes).toHaveLength(1);
+    expect(db.communes[0]).toMatchObject({ nom: 'Testville', forfait: 'Gratuit' });
+  });
+
+  it('refuse (400) si un compte existe déjà avec cet email sur cette commune', async () => {
+    db.communes.push({ id: 'commune-1', nom: 'Testville', slug: 'testville' });
+    const prospect = ajouterProspect({ nom: 'Testville', commune_id: 'commune-1' });
+    await decouverte.request(`/communes/${prospect.id}/demander-acces`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'jean@testville.fr', consentement_rgpd: true }),
+    }, ENV);
+    const token = tokenDepuisEmail(emailsEnvoyes[emailsEnvoyes.length - 1].html);
+    db.users.push({ id: 'existant', commune_id: 'commune-1', role: 'citoyen', email: 'jean@testville.fr' });
 
     const res = await decouverte.request(`/communes/activation/${token}/creer-compte`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpsCreation),

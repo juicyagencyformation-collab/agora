@@ -1559,3 +1559,16 @@ body.carte-balade-plein-ecran { overflow: hidden; }
 /* Balade : rappel de la prochaine découverte et validations en attente de réseau. */
 .guidage-balade .suite-balade { font-size: 12.5px; color: var(--roseau); }
 .guidage-balade .attente-reseau { font-size: 12.5px; font-weight: 700; color: #9a6a00; }
+/* Espace citoyen (non géré par la mairie, migration 100) : bandeau fin en haut de l'app. */
+#bandeau-espace-citoyen {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: #FBF3E2; color: #6b5a2a; border-bottom: 1px solid #EBD9B0;
+  font-family: 'DM Sans', sans-serif; font-size: 12.5px; text-align: center; line-height: 1.4;
+  padding: 8px 36px 8px 12px; position: relative;
+}
+#bandeau-espace-citoyen[hidden] { display: none; }
+#bandeau-espace-citoyen a { color: var(--eau); font-weight: 700; }
+#bandeau-espace-citoyen button {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #6b5a2a; font-size: 13px; cursor: pointer; padding: 4px;
+}

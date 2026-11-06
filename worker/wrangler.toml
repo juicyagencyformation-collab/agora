@@ -7,6 +7,8 @@ R2_PUBLIC_BASE = "https://cdn.plateforme-agora.fr"
 FRONTEND_URL = "https://plateforme-agora.fr"
 EMAIL_FROM = "Agora <contact@plateforme-agora.fr>"
 EMAIL_REPLY_TO_PROSPECTION = "prospection@replies.plateforme-agora.fr"
+# Sites autorisés pour Turnstile (lib/anti-robots.ts) ; le secret TURNSTILE_SECRET se pose dans le tableau de bord Cloudflare.
+TURNSTILE_HOSTNAMES = "plateforme-agora.fr,newappcitoyenne.pages.dev"
 
 [[r2_buckets]]
 binding = "BUCKET_R2"

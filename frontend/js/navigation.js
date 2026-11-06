@@ -144,9 +144,31 @@ async function initCommune() {
     window.COMMUNE_COORDS_MANQUANTES = commune.lat === null;
     window.COMMUNE_LOGO_URL = commune.logo_url ?? null;
     window.COMMUNE_ACCES_LIBRE = !!commune.acces_libre;
+    // Espace citoyen (non adopté par la mairie, migration 100) : bandeau d'information. Absent
+    // = officiel par prudence (jamais de bandeau à tort sur une vraie commune cliente).
+    if (commune.espace_officiel === false && !commune.acces_libre && !window.EST_EXPLORATEUR) afficherBandeauEspaceCitoyen(commune.nom);
     if (commune.nom) document.getElementById('nom-commune').textContent = commune.nom;
     appliquerTheme(commune);
   } catch {}
+}
+
+// Espace ouvert par les habitants, pas (encore) géré par la mairie : à dire clairement, pour que
+// personne ne le prenne pour la communication officielle de la commune (voir CGU, article 2 bis).
+// Refermable pour la session ; il revient à la prochaine ouverture de l'app.
+function afficherBandeauEspaceCitoyen(nomCommune) {
+  const zone = document.getElementById('bandeau-espace-citoyen');
+  if (!zone) return;
+  try { if (sessionStorage.getItem('agora_bandeau_citoyen_ferme')) return; } catch { /* stockage indisponible */ }
+  const sujet = encodeURIComponent(`Gestion officielle de l'espace de ${nomCommune}`);
+  zone.innerHTML = `
+    <span>🏘️ Espace ouvert par les habitants de ${escapeAttr(nomCommune)}, <strong>non géré par la mairie</strong>.
+    Vous êtes élu(e) ? <a href="mailto:contact@plateforme-agora.fr?subject=${sujet}">Demandez la gestion officielle</a>.</span>
+    <button type="button" aria-label="Fermer">✕</button>`;
+  zone.hidden = false;
+  zone.querySelector('button').addEventListener('click', () => {
+    zone.hidden = true;
+    try { sessionStorage.setItem('agora_bandeau_citoyen_ferme', '1'); } catch { /* stockage indisponible */ }
+  });
 }
 
 const CHARGEURS = {

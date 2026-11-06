@@ -186,9 +186,30 @@ app.post('/:cible/enigmes/:id/valider', async (c) => {
   return validerEnigme(c, commune.id, communeJoueur, c.get('user_id'), c.req.param('id'), body.data);
 });
 
+// Signaler depuis un autre village (2026-11-06) : un signalement masque l'énigme aussitôt (règle
+// n°4). Sans garde-fou, une armée de comptes Explorateurs créés en masse pourrait masquer toutes
+// les énigmes de France en quelques minutes. Il faut donc avoir déjà réussi un jeu sur place
+// (étape ou énigme, n'importe où), et 3 signalements par jour au plus. Les habitants de la
+// commune signalent sans restriction (routes/enigmes.ts).
+export const MAX_SIGNALEMENTS_VISITEUR_JOUR = 3;
+
 app.post('/:cible/enigmes/:id/signaler', async (c) => {
   const commune = await communeVisitable(c.env, parSlug(c.req.param('cible')), c.get('commune_id'), 'enigmes');
   if (!commune) return c.json(INTROUVABLE, 404);
+  const user_id = c.get('user_id');
+  const [[etape], [enigme], signalementsDuJour] = await Promise.all([
+    supabaseSelect(c.env, 'progressions_chasse', { select: 'id', user_id: `eq.${user_id}`, limit: '1' }),
+    supabaseSelect(c.env, 'enigme_reussites', { select: 'id', user_id: `eq.${user_id}`, limit: '1' }),
+    supabaseSelect(c.env, 'enigme_signalements', {
+      select: 'id', user_id: `eq.${user_id}`, created_at: `gte.${new Date(Date.now() - 24 * 3600_000).toISOString()}`,
+    }),
+  ]);
+  if (!etape && !enigme) {
+    return c.json({ erreur: 'Pour signaler une énigme d’un autre village, réussissez d’abord une étape ou une énigme sur place.' }, 403);
+  }
+  if (signalementsDuJour.length >= MAX_SIGNALEMENTS_VISITEUR_JOUR) {
+    return c.json({ erreur: 'Vous avez déjà signalé 3 énigmes aujourd’hui : la mairie examine vos signalements.' }, 429);
+  }
   return signalerEnigme(c, commune.id, c.get('user_id'), c.req.param('id'));
 });
 

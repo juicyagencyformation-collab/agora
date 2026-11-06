@@ -133,6 +133,7 @@
           <input type="checkbox" name="consentement_rgpd" required>
           J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
         </label>
+        <div id="turnstile-demande"></div>
         <p id="erreur-demande" style="font-size:13px;color:var(--coral);margin:0 0 6px;"></p>
         <button type="submit">Recevoir le lien de création</button>
       </form>
@@ -193,6 +194,7 @@
   <a href="mentions-legales.html" class="lien-confidentialite">Mentions légales</a>
 
   <script src="/js/config.js?v=20261105-1"></script>
+  <script src="/js/turnstile.js?v=20261106-1"></script>
   <script>
     const champRecherche = document.getElementById('champ-recherche');
     const listeResultats = document.getElementById('liste-resultats');
@@ -270,8 +272,11 @@
     }
 
     let prospectChoisi = null;
+    // Anti-robots (js/turnstile.js) : chrono relancé à l'ouverture du formulaire de demande.
+    const protectionDemande = protegerFormulaire(document.getElementById('turnstile-demande'), 'rejoindre');
     function ouvrirDemande(r) {
       prospectChoisi = r;
+      protectionDemande.redemarrerChrono();
       document.getElementById('titre-demande').textContent = `Rejoindre ${r.nom}`;
       document.getElementById('erreur-demande').textContent = '';
       afficherEtape('demande');
@@ -284,7 +289,7 @@
     document.getElementById('form-demande').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!prospectChoisi) return;
-      const donnees = Object.fromEntries(new FormData(e.target));
+      const donnees = { ...Object.fromEntries(new FormData(e.target)), ...protectionDemande.champs() };
       donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
       const zoneErreur = document.getElementById('erreur-demande');
       zoneErreur.textContent = '';
@@ -297,7 +302,8 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          zoneErreur.textContent = data.erreur || 'Demande impossible';
+          zoneErreur.textContent = typeof data.erreur === 'string' ? data.erreur : 'Demande impossible';
+          protectionDemande.reinitialiser(); // un jeton anti-robot ne sert qu'une fois
           return;
         }
         document.getElementById('email-confirme').textContent = donnees.email;

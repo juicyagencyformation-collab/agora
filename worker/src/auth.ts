@@ -10,6 +10,8 @@ import { envoyerEmail } from './lib/email';
 import { hasherMotDePasse, verifierMotDePasse } from './lib/password';
 import { OPTIONS_COOKIE, connexionVerrouillee, enregistrerEchecConnexion, effacerEchecsConnexion, MESSAGE_TROP_DE_TENTATIVES } from './lib/securite';
 import { declencherBienvenuePremiereInscription } from './backoffice/onboarding';
+import { jetonTurnstileValide, saisieTropRapide, plafondInscriptionsAtteint, PLAFOND_INSCRIPTIONS_HEURE, PLAFOND_INSCRIPTIONS_HEURE_EXPLORATEURS } from './lib/anti-robots';
+import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
 
 // Compte bloqué depuis le backoffice (migration 082) — même message partout.
 const MESSAGE_COMPTE_BLOQUE = 'Ce compte est suspendu. Contactez votre mairie.';
@@ -40,15 +42,25 @@ const registerSchema = z.object({
 });
 
 app.post('/register', async (c) => {
-  const body = registerSchema.safeParse(await c.req.json());
+  const brut = await c.req.json().catch(() => null);
+  const body = registerSchema.safeParse(brut);
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const data = body.data;
 
   // Un vrai utilisateur ne voit ni ne remplit jamais ce champ (masqué en CSS) : s'il est
   // rempli, c'est un robot. On répond succès factice pour ne pas l'alerter, sans rien créer.
-  if (data.site_web) return c.json({ ok: true }, 201);
+  // Même réponse pour un formulaire rempli en un éclair (voir lib/anti-robots.ts).
+  if (data.site_web || saisieTropRapide(brut?.duree_saisie_ms)) return c.json({ ok: true }, 201);
 
   const commune_id = c.get('commune_id_resolue');
+  if (!(await jetonTurnstileValide(c, brut?.turnstile, 'inscription'))) {
+    return c.json({ erreur: 'La vérification anti-robot a échoué : rechargez la page et réessayez.' }, 403);
+  }
+  const estExplorateurs = c.get('slug_commune') === SLUG_EXPLORATEURS;
+  const max = estExplorateurs ? PLAFOND_INSCRIPTIONS_HEURE_EXPLORATEURS : PLAFOND_INSCRIPTIONS_HEURE;
+  if (await plafondInscriptionsAtteint(c.env, commune_id, c.get('slug_commune'), max)) {
+    return c.json({ erreur: 'Beaucoup d’inscriptions en ce moment ici : réessayez dans une heure.' }, 429);
+  }
   // Normalisé (espaces + casse) : un email est en pratique insensible à la casse partout
   // (Gmail, Outlook...), et une virgule/espace collé au copier-coller ne doit jamais faire
   // échouer une vérification qui devrait réussir.
@@ -429,6 +441,11 @@ app.get('/me', jwtMiddleware, async (c) => {
       select: 'cgu_sous_traitance_acceptee_le', id: `eq.${user_id}`,
     });
     cguSousTraitanceAAccepter = !moi?.cgu_sous_traitance_acceptee_le;
+  }
+  // Un compte mairie qui ouvre l'app : la mairie s'approprie l'espace, qui devient officiel
+  // (migration 100). Sans effet s'il l'est déjà (filtre), sans risque avant la migration (catch).
+  if (['admin', 'elu', 'maire'].includes(role)) {
+    await supabaseUpdate(c.env, 'communes', { espace_officiel: true }, { id: `eq.${commune_id}`, espace_officiel: 'eq.false' }).catch(() => {});
   }
 
   return c.json({

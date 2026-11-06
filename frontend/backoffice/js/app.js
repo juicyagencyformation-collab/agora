@@ -1985,6 +1985,20 @@ function backoffice() {
     },
     // Même contrôle pour une commune SANS fiche prospect (migration 099, ex. la vraie « eaucourt »,
     // créée avant la prospection) : étoiles enregistrées sur la commune elle-même.
+    // Espace officiel / citoyen (migration 100) : à faire quand une mairie adopte son espace (ou
+    // demande à le rendre aux habitants). Le serveur le fait aussi seul à la 1re connexion d'un
+    // compte mairie.
+    async basculerEspaceOfficiel() {
+      const commune = this.fiche.commune;
+      const officiel = !commune.espace_officiel;
+      if (!confirm(officiel
+        ? `Marquer l'espace de ${commune.nom} comme OFFICIEL ? La mairie en devient responsable du traitement et le bandeau « non géré par la mairie » disparaît.`
+        : `Repasser l'espace de ${commune.nom} en ESPACE CITOYEN ? Juicy Solutions en redevient responsable et le bandeau réapparaît.`)) return;
+      try {
+        await boFetch('/administration/communes/' + commune.id + '/espace-officiel', { method: 'PATCH', body: JSON.stringify({ espace_officiel: officiel }) });
+        commune.espace_officiel = officiel;
+      } catch (e) { alert('Statut non modifié : ' + e.message); }
+    },
     async definirEtoilesCommune(n) {
       const commune = this.fiche.commune;
       const valeur = commune.etoiles === n ? 0 : n;

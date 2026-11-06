@@ -17,6 +17,7 @@ import { genererSlugUnique } from '../backoffice/prospection';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from '../backoffice/administration';
 import { emailConfirmationActivationHtml } from '../backoffice/email-commune';
 import { envoyerEmail } from '../lib/email';
+import { jetonTurnstileValide, saisieTropRapide, plafondDemandesRejoindreAtteint } from '../lib/anti-robots';
 
 const DUREE_TOKEN_ACTIVATION_MS = 48 * 3600 * 1000;
 
@@ -216,42 +217,35 @@ const demandeAccesSchema = z.object({
 // Léandre le 2026-10-08, après une 1re version qui créait le compte trop tôt avec un nom
 // générique. Le vrai compte n'est créé qu'au clic + à la validation du formulaire (voir
 // POST /communes/activation/:token/creer-compte plus bas).
+// Depuis le 2026-11-06 (migration 100) : RIEN n'est créé ici, pas même l'espace de la commune s'il
+// n'existe pas encore — il ne l'est qu'au clic sur le lien (ouvrirEspaceDepuisProspect). Avant, un
+// robot pouvait ouvrir des espaces en masse. Protégé en plus par Turnstile, le temps de saisie et un
+// plafond global de demandes par jour (quota d'emails), voir lib/anti-robots.ts.
 app.post('/communes/:prospectId/demander-acces', async (c) => {
-  const body = demandeAccesSchema.safeParse(await c.req.json());
+  const brut = await c.req.json().catch(() => null);
+  const body = demandeAccesSchema.safeParse(brut);
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const data = body.data;
-  if (data.site_web) return c.json({ ok: true }); // honeypot : faux succès, rien créé
+  // Pièges à robots (champ caché, formulaire rempli en un éclair) : faux succès, rien créé.
+  if (data.site_web || saisieTropRapide(brut?.duree_saisie_ms)) return c.json({ ok: true });
+  if (!(await jetonTurnstileValide(c, brut?.turnstile, 'rejoindre'))) {
+    return c.json({ erreur: 'La vérification anti-robot a échoué : rechargez la page et réessayez.' }, 403);
+  }
+  if (await plafondDemandesRejoindreAtteint(c.env)) {
+    return c.json({ erreur: 'Beaucoup de demandes aujourd’hui : réessayez demain, ou écrivez-nous à contact@plateforme-agora.fr.' }, 429);
+  }
 
   const prospectId = c.req.param('prospectId');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,population,lat,lng,contact_email,commune_id',
+    select: 'id,nom,commune_id',
     id: `eq.${prospectId}`,
   });
   if (!prospect) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  let communeId: string = prospect.commune_id || '';
-
-  if (!communeId) {
-    const slug = await genererSlugUnique(c.env, prospect.nom);
-    const [commune] = await supabaseInsert(c.env, 'communes', {
-      nom: prospect.nom, slug,
-      population: prospect.population ?? null,
-      lat: prospect.lat ?? null, lng: prospect.lng ?? null,
-      contact_email: prospect.contact_email ?? null,
-      forfait: 'Gratuit', niveau_national: false,
-    });
-    communeId = commune.id;
-    await appliquerOngletsSurCommune(c.env, communeId, await chargerOngletsGratuits(c.env));
-    await supabaseUpdate(c.env, 'prospects', { commune_id: communeId }, { id: `eq.${prospect.id}` });
-  } else {
-    const [communeExistante] = await supabaseSelect(c.env, 'communes', { select: 'id', id: `eq.${communeId}` });
-    if (!communeExistante) return c.json({ erreur: 'Commune introuvable' }, 404);
-  }
-
   const email = data.email.trim().toLowerCase();
   const token = genererRefreshToken();
   await supabaseInsert(c.env, 'activations_libres', {
-    commune_id: communeId, email,
+    commune_id: prospect.commune_id || null, prospect_id: prospect.id, email,
     token_hash: await hasherToken(token),
     expires_at: new Date(Date.now() + DUREE_TOKEN_ACTIVATION_MS).toISOString(),
   });
@@ -269,14 +263,17 @@ app.post('/communes/:prospectId/demander-acces', async (c) => {
 app.get('/communes/activation/:token', async (c) => {
   const token = c.req.param('token');
   const [activation] = await supabaseSelect(c.env, 'activations_libres', {
-    select: 'id,commune_id,email,expires_at,utilise_le',
+    select: 'id,commune_id,prospect_id,email,expires_at,utilise_le',
     token_hash: `eq.${await hasherToken(token)}`,
   });
   if (!activation || activation.utilise_le || new Date(activation.expires_at) < new Date()) {
     return c.json({ erreur: 'Ce lien n\'est plus valable. Refaites une demande depuis la page Rejoindre.' }, 410);
   }
-  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'nom', id: `eq.${activation.commune_id}` });
-  return c.json({ nom_commune: commune?.nom, email: activation.email });
+  // Commune pas encore ouverte : son nom vient de la fiche prospect.
+  const [lieu] = activation.commune_id
+    ? await supabaseSelect(c.env, 'communes', { select: 'nom', id: `eq.${activation.commune_id}` })
+    : await supabaseSelect(c.env, 'prospects', { select: 'nom', id: `eq.${activation.prospect_id}` });
+  return c.json({ nom_commune: lieu?.nom, email: activation.email });
 });
 
 const creationCompteSchema = z.object({
@@ -301,14 +298,15 @@ app.post('/communes/activation/:token/creer-compte', async (c) => {
   if (data.site_web) return c.json({ ok: true, slug: '' }, 201); // honeypot
 
   const [activation] = await supabaseSelect(c.env, 'activations_libres', {
-    select: 'id,commune_id,email,expires_at,utilise_le',
+    select: 'id,commune_id,prospect_id,email,expires_at,utilise_le',
     token_hash: `eq.${await hasherToken(token)}`,
   });
   if (!activation || activation.utilise_le || new Date(activation.expires_at) < new Date()) {
     return c.json({ erreur: 'Ce lien n\'est plus valable. Refaites une demande depuis la page Rejoindre.' }, 410);
   }
 
-  const communeId = activation.commune_id;
+  // Email confirmé par le clic : c'est seulement maintenant qu'un espace pas encore ouvert l'est.
+  const communeId = activation.commune_id || await ouvrirEspaceDepuisProspect(c.env, activation.prospect_id);
   const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${communeId}` });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
@@ -347,6 +345,28 @@ app.post('/communes/activation/:token/creer-compte', async (c) => {
 
   return c.json({ ok: true, slug: commune.slug }, 201);
 });
+
+// Ouvre l'espace d'une commune à partir de sa fiche prospect (ou renvoie celui qui existe déjà) :
+// espace CITOYEN (espace_officiel = false par défaut) avec les modules du palier gratuit.
+async function ouvrirEspaceDepuisProspect(env: any, prospectId: string | null): Promise<string | null> {
+  if (!prospectId) return null;
+  const [prospect] = await supabaseSelect(env, 'prospects', {
+    select: 'id,nom,population,lat,lng,departement,contact_email,commune_id', id: `eq.${prospectId}`,
+  });
+  if (!prospect) return null;
+  if (prospect.commune_id) return prospect.commune_id;
+  const [commune] = await supabaseInsert(env, 'communes', {
+    nom: prospect.nom, slug: await genererSlugUnique(env, prospect.nom),
+    population: prospect.population ?? null,
+    lat: prospect.lat ?? null, lng: prospect.lng ?? null,
+    departement: prospect.departement ?? null,
+    contact_email: prospect.contact_email ?? null,
+    forfait: 'Gratuit', niveau_national: false,
+  });
+  await appliquerOngletsSurCommune(env, commune.id, await chargerOngletsGratuits(env));
+  await supabaseUpdate(env, 'prospects', { commune_id: commune.id }, { id: `eq.${prospect.id}` });
+  return commune.id;
+}
 
 const demandeManquanteSchema = z.object({
   nom_commune: z.string().min(1).max(200),

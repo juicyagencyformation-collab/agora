@@ -152,6 +152,23 @@ describe('jeux dans une autre commune', () => {
     }
   });
 
+  it('signalement depuis un autre village : seulement après un jeu réussi, 3 par jour au plus', async () => {
+    // Jamais rien réussi : refusé, l'énigme reste visible.
+    expect((await post('/fay/enigmes/en-fay/signaler', {})).status).toBe(403);
+    expect(db.photos_enigmes.find((e) => e.id === 'en-fay').statut).toBe('active');
+    // Après une étape validée sur place : accepté (masquage immédiat, règle n°4).
+    await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY });
+    expect((await post('/fay/enigmes/en-fay/signaler', {})).status).toBe(200);
+    expect(db.photos_enigmes.find((e) => e.id === 'en-fay').statut).toBe('masquee');
+    // 3 signalements déjà faits aujourd'hui : le 4e est refusé.
+    db.enigme_signalements.push(
+      { id: 's2', user_id: 'joueur', enigme_id: 'x2', commune_id: 'c-fay', created_at: new Date().toISOString() },
+      { id: 's3', user_id: 'joueur', enigme_id: 'x3', commune_id: 'c-fay', created_at: new Date().toISOString() },
+    );
+    db.photos_enigmes.find((e) => e.id === 'en-fay').statut = 'active';
+    expect((await post('/fay/enigmes/en-fay/signaler', {})).status).toBe(429);
+  });
+
   it('valide une étape par QR : réussite chez Fay, XP sur le compte de Tourly', async () => {
     const res = await post('/valider-qr', { qr_token: QR_FAY, ...SUR_PLACE_FAY });
     expect(res.status).toBe(200);

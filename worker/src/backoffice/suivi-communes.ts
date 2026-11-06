@@ -156,7 +156,17 @@ app.get('/anomalies', async (c) => {
   ]);
   const dpaManquants = new Map<string, number>();
   dpas.forEach((d, i) => { if (d) dpaManquants.set(ids[i], d.champs.filter((ch: any) => !ch.valeur).length); });
-  return c.json({ anomalies: detecterAnomalies(communes, conventions, dpaManquants) });
+  // Plafonds d'inscriptions atteints ces dernières 24 h (lib/anti-robots.ts) : possible attaque de
+  // robots, ou vrai succès d'un lancement — dans les deux cas, Léandre doit le savoir.
+  const plafonds = await supabaseSelect(c.env, 'journal_activite', {
+    select: 'details,created_at', action: 'eq.plafond_inscriptions',
+    created_at: `gte.${new Date(Date.now() - 24 * 3600_000).toISOString()}`, order: 'created_at.desc', limit: '20',
+  }).catch(() => [] as any[]);
+  const alertesInscriptions: Anomalie[] = plafonds.map((p: any) => ({
+    code: 'plafond_inscriptions', gravite: 'haute', commune_id: null, commune_nom: null, commune_slug: null,
+    message: `Plafond d'inscriptions atteint (${p.details}) le ${new Date(p.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })} : robots ou vrai lancement ? Les inscriptions reprennent seules après une heure.`,
+  }));
+  return c.json({ anomalies: [...alertesInscriptions, ...detecterAnomalies(communes, conventions, dpaManquants)] });
 });
 
 // Liste de démarrage d'une commune (chaque étape se coche d'elle-même dès qu'elle est faite) et son

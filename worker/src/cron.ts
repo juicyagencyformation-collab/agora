@@ -403,17 +403,20 @@ export async function purgerTentativesConnexion(env: any) {
 // après 12 mois sans connexion — durée annoncée dans la politique de confidentialité (Juicy
 // Solutions en est responsable de traitement, pas une mairie). Même effacement que « Supprimer
 // mon compte » (anonymiserComptes) : les réussites restent dans les classements, sans identité.
+// Depuis le 2026-11-06, aussi : un compte qui n'a JAMAIS rien réussi (ni étape, ni énigme, ni
+// parcours) 30 jours après sa création — profil typique d'un compte robot, et moins de données gardées.
 // Lancée chaque heure, 10 comptes au plus par passage : 16 requêtes maximum, loin de la limite
 // de 50 sous-requêtes par exécution (voir docs/journal-correctifs.md, export du 2026-10-26).
 export async function purgerExplorateursInactifs(env: any) {
   const [espace] = await supabaseSelect(env, 'communes', { select: 'id', slug: `eq.${SLUG_EXPLORATEURS}`, niveau_national: 'eq.true' });
   if (!espace) return;
   const seuil = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString();
+  const seuil30 = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
   const inactifs = await supabaseSelect(env, 'users', {
     select: 'id',
     commune_id: `eq.${espace.id}`,
     compte_supprime_le: 'is.null',
-    or: `(derniere_connexion_streak.lt.${seuil.slice(0, 10)},and(derniere_connexion_streak.is.null,created_at.lt.${seuil}))`,
+    or: `(derniere_connexion_streak.lt.${seuil.slice(0, 10)},and(derniere_connexion_streak.is.null,created_at.lt.${seuil}),and(created_at.lt.${seuil30},etapes_chasse_validees.eq.0,enigmes_trouvees.eq.0,chasses_terminees.eq.0))`,
     limit: '10',
   });
   await anonymiserComptes(env, espace.id, inactifs.map((u: any) => u.id));

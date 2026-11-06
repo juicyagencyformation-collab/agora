@@ -73,7 +73,10 @@ soumis par les citoyens — voir règle 4 ci-dessous.
 3. Zéro framework JS, zéro bibliothèque npm côté client, sauf exceptions explicitement
    validées et vendorées en local (pas de `npm install` client, pas de CDN externe non
    vendoré) : Leaflet.js (cartes) et jsQR (`frontend/js/vendor/jsQR.min.js`, décodage QR —
-   nécessaire car Safari/iOS n'implémente pas l'API native BarcodeDetector). Toute nouvelle
+   nécessaire car Safari/iOS n'implémente pas l'API native BarcodeDetector). **Exception validée
+   par Léandre le 2026-11-06 :** Cloudflare Turnstile (captcha invisible des formulaires
+   d'inscription), chargé depuis challenges.cloudflare.com car non vendorable — uniquement via
+   `frontend/js/turnstile.js`, vérifié côté Worker par `worker/src/lib/anti-robots.ts`. Toute nouvelle
    exception à cette règle doit être validée explicitement avec Léandre avant ajout, jamais
    décidée seule.
 4. Toute action de modération suit le même schéma : signalement → masquage immédiat → revue mairie

@@ -53,6 +53,7 @@
         <input type="checkbox" name="consentement_rgpd" required>
         J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
       </label>
+      <div id="turnstile-inscription"></div>
       <p id="erreur-inscription"></p>
       <button type="submit">Créer mon compte</button>
     </form>
@@ -64,6 +65,7 @@
   <a href="conditions-utilisation.html" class="lien-confidentialite">Conditions générales d'utilisation</a>
 
   <script src="/js/config.js?v=20261105-1"></script>
+  <script src="/js/turnstile.js?v=20261106-1"></script>
   <script>
     const formConnexion = document.getElementById('form-connexion');
     const formInscription = document.getElementById('form-inscription');
@@ -107,7 +109,10 @@
       }
     });
 
+    // Anti-robots (js/turnstile.js) : chrono relancé à l'ouverture du formulaire d'inscription.
+    const protectionInscription = protegerFormulaire(document.getElementById('turnstile-inscription'), 'inscription');
     document.getElementById('vers-inscription').addEventListener('click', () => {
+      protectionInscription.redemarrerChrono();
       formConnexion.hidden = true;
       document.getElementById('vers-inscription').hidden = true;
       formInscription.hidden = false;
@@ -157,7 +162,7 @@
 
     formInscription.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const donnees = Object.fromEntries(new FormData(e.target));
+      const donnees = { ...Object.fromEntries(new FormData(e.target)), ...protectionInscription.champs() };
       donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
       const zoneErreur = document.getElementById('erreur-inscription');
       zoneErreur.textContent = '';
@@ -172,6 +177,7 @@
         const data = await res.json();
         if (!res.ok) {
           zoneErreur.textContent = data.erreur ? (typeof data.erreur === 'string' ? data.erreur : 'Vérifie les champs saisis') : 'Inscription impossible';
+          protectionInscription.reinitialiser(); // un jeton anti-robot ne sert qu'une fois
           return;
         }
         document.location.href = pageApresConnexion;

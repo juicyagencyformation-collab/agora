@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261104-3" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261106-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -2606,6 +2606,14 @@
                           x-text="n <= (fiche?.commune.etoiles || 0) ? '★' : '☆'"></span>
                   </template>
                 </div>
+                <!-- Statut de l'espace (migration 100) : officiel = adopté par la mairie ; citoyen =
+                     ouvert par les habitants, bandeau « non géré par la mairie » dans l'app. -->
+                <div style="margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+                  <span class="bo-badge" :class="fiche?.commune.espace_officiel ? 'bo-badge--ok' : ''"
+                        x-text="fiche?.commune.espace_officiel ? '🏛 Espace officiel (adopté par la mairie)' : '🏘 Espace citoyen (non géré par la mairie)'"></span>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" @click="basculerEspaceOfficiel()"
+                          x-text="fiche?.commune.espace_officiel ? 'Repasser en espace citoyen' : 'Marquer comme officiel'"></button>
+                </div>
               </div>
             </div>
           </template>
@@ -4407,7 +4415,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261105-1"></script>
+  <script src="/backoffice/js/app.js?v=20261106-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

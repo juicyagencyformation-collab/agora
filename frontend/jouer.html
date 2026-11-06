@@ -109,6 +109,7 @@
         <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password" minlength="6" required>
         <label class="case"><input type="checkbox" name="age" required> J'ai au moins 15 ans (en-dessous, demandez à un parent de créer le compte).</label>
         <label class="case"><input type="checkbox" name="consentement" required> <span>J'accepte les <a href="/explorateurs/conditions-utilisation.html" target="_blank">conditions d'utilisation</a> et la <a href="/explorateurs/confidentialite.html#explorateurs" target="_blank">politique de confidentialité</a>.</span></label>
+        <div id="turnstile-inscription"></div>
         <p class="erreur" id="erreur-inscription"></p>
         <button type="submit">Créer mon compte et jouer</button>
       </form>
@@ -130,6 +131,7 @@
   </div>
   <p class="pied"><a href="/explorateurs/confidentialite.html#explorateurs">Confidentialité</a> · <a href="/explorateurs/mentions-legales.html">Mentions légales</a></p>
 
+  <script src="/js/turnstile.js?v=20261106-1"></script>
   <script>
     const API = '/api';
     const ESPACE = 'explorateurs';
@@ -169,7 +171,7 @@
       afficher('choix');
     }
 
-    async function envoyer(form, chemin, corps, zoneErreur) {
+    async function envoyer(form, chemin, corps, zoneErreur, protection = null) {
       const bouton = form.querySelector('button');
       bouton.disabled = true;
       zoneErreur.textContent = '';
@@ -180,13 +182,16 @@
         const data = await res.json().catch(() => ({}));
         if (res.ok) { allerJouer(ESPACE); return; }
         zoneErreur.textContent = typeof data.erreur === 'string' ? data.erreur : 'Vérifiez les champs saisis.';
+        protection?.reinitialiser(); // un jeton anti-robot ne sert qu'une fois
       } catch {
         zoneErreur.textContent = 'Connexion impossible, vérifiez votre réseau.';
       }
       bouton.disabled = false;
     }
 
-    document.getElementById('porte-passage').addEventListener('click', () => afficher('inscription'));
+    // Anti-robots (js/turnstile.js) : chrono relancé à l'ouverture du formulaire Explorateur.
+    const protectionInscription = protegerFormulaire(document.getElementById('turnstile-inscription'), 'inscription');
+    document.getElementById('porte-passage').addEventListener('click', () => { afficher('inscription'); protectionInscription.redemarrerChrono(); });
     document.getElementById('vers-connexion').addEventListener('click', () => afficher('connexion'));
     document.querySelectorAll('.vers-choix').forEach((a) => a.addEventListener('click', () => afficher('choix')));
 
@@ -197,7 +202,8 @@
       envoyer(e.target, 'register', {
         prenom: f.get('prenom').trim(), nom: f.get('nom').trim(), email: f.get('email').trim(),
         password: f.get('password'), consentement_rgpd: true, site_web: f.get('site_web') || undefined,
-      }, erreur);
+        ...protectionInscription.champs(),
+      }, erreur, protectionInscription);
     });
 
     document.getElementById('form-connexion').addEventListener('submit', (e) => {

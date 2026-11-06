@@ -169,7 +169,7 @@ app.get('/communes/:id', async (c) => {
   const id = c.req.param('id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,horaires_ouverture,permanences,couleur_theme,couleur_accent,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,etoiles,created_at',
+    select: 'id,slug,nom,population,logo_url,contact_email,telephone_mairie,email_mairie,horaires_ouverture,permanences,couleur_theme,couleur_accent,lat,lng,forfait,quota_go,statut_client,prix_annuel_ttc,duree_engagement_mois,prochaine_echeance,formule,etoiles,espace_officiel,created_at',
     id: `eq.${id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
@@ -499,6 +499,18 @@ app.get('/onboarding-drip/a-traiter', async (c) => {
 // PATCH /communes/:id/etoiles — favori d'une commune SANS fiche prospect (migration 099 ; une
 // commune qui a une fiche prospect garde ses étoiles côté prospect). Champ interne au backoffice,
 // jamais lu par l'application des habitants : ouvert à tout le staff, comme les étoiles prospect.
+// PATCH /communes/:id/espace-officiel — espace adopté par la mairie (officiel) ou ouvert par les
+// habitants (citoyen), migration 100. Change le responsable du traitement affiché et le bandeau de
+// l'app : réservé aux administrateurs du staff, et tracé dans le journal.
+app.patch('/communes/:id/espace-officiel', exigerAdmin, async (c) => {
+  const body = z.object({ espace_officiel: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Valeur invalide.' }, 400);
+  const maj = await supabaseUpdate(c.env, 'communes', { espace_officiel: body.data.espace_officiel }, { id: `eq.${c.req.param('id')}` });
+  if (!maj.length) return c.json({ erreur: 'Commune introuvable' }, 404);
+  await journaliser(c.env, c.get('staff_id'), 'espace_officiel', `${maj[0].nom} : ${body.data.espace_officiel ? 'officiel' : 'citoyen'}`);
+  return c.json({ ok: true });
+});
+
 app.patch('/communes/:id/etoiles', async (c) => {
   const body = z.object({ etoiles: z.number().int().min(0).max(5) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ erreur: 'Nombre d’étoiles invalide (0 à 5).' }, 400);
