@@ -5,6 +5,48 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-06 — Pages légales inaccessibles depuis l'accueil, éditeur erroné des espaces citoyens
+
+**Gravité :** haute (conformité légale : LCEN et RGPD)
+**Fichiers :** `frontend/js/config.js`, `frontend/mentions-legales.html`, `frontend/confidentialite.html`,
+`frontend/conditions-utilisation.html`, `frontend/accueil.html`, `frontend/guide-communes.html`
+
+### Symptôme
+- Un visiteur nouveau qui cliquait « Mentions légales », « Confidentialité » ou « CGU » en bas de
+  la page d'accueil était renvoyé vers « Rejoindre ma commune » : les pages légales du site
+  étaient inaccessibles.
+- Les mentions légales affirmaient partout « éditée par la mairie, directeur de la publication :
+  le maire », y compris pour les 34 821 espaces citoyens ouverts le jour même, que la mairie n'a
+  jamais adoptés.
+- Confidentialité : Turnstile, les transferts hors UE et le formulaire de demande des mairies
+  n'étaient pas mentionnés ; « contacter la mairie » même pour un espace citoyen.
+
+### Cause
+`config.js` redirige vers `/rejoindre.html` toute page sans commune déterminable, y compris les
+pages légales ouvertes à la racine. Les textes dataient d'avant les espaces citoyens (migration 100).
+
+### Correction
+- `config.js` : pages légales à la racine → `COMMUNE_SLUG = null`, aucune redirection, aucune
+  commune mémorisée ; elles affichent la version « plateforme » et un retour vers l'accueil.
+- Mentions légales : éditeur de la plateforme (Juicy Solutions, adresse, SIREN, téléphone) toujours
+  affiché ; éditeur de l'espace selon son statut (mairie si officiel, Juicy si citoyen ou Explorateurs).
+- Confidentialité : responsable selon l'espace, Turnstile (intérêt légitime, art. 6.1.f),
+  transferts (chapitre V : DPF et/ou clauses types), demandes des mairies (conservation 3 ans),
+  droits de limitation, d'opposition et de retrait du consentement.
+- Accueil : FAQ « Des habitants utilisent déjà l'espace de notre commune ? », réponse RGPD nuancée,
+  mention d'information sous le formulaire. Guide : section « Espace citoyen ou officiel ».
+
+### Vérification
+Chrome headless sans historique, en production : `/confidentialite`, `/conditions-utilisation`,
+`/mentions-legales` restent sur leur page ; Adon (citoyen) → Juicy ; Eaucourt (officiel) → mairie ;
+Explorateurs → Juicy.
+
+### À retenir
+Toute nouvelle page légale ou à la racine doit figurer dans la liste de `config.js` ; à chaque
+changement du statut juridique d'un espace, relire mentions légales, confidentialité et CGU ensemble.
+
+---
+
 ## 2026-11-05 — Relances automatiques arrêtées, email de Bienvenue corrigé
 
 **Gravité :** faible (décision de prudence et qualité des textes)
