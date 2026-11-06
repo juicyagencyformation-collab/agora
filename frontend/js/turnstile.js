@@ -6,7 +6,7 @@
 //   peut pas être vendoré. Clé de site PUBLIQUE ci-dessous ; vide = pas de captcha (avant la
 //   création du widget), et le serveur ne l'exige pas tant que TURNSTILE_SECRET n'est pas posé.
 // - Temps de saisie : envoyé avec le formulaire (un robot remplit en quelques millisecondes).
-const TURNSTILE_SITEKEY = '';
+const TURNSTILE_SITEKEY = '0x4AAAAAAF2O_1TVh7HoF-Ln'; // widget « Plateforme-Agora inscriptions », créé le 2026-11-06
 
 // conteneur : élément où placer le widget (invisible sauf défi exceptionnel) ; action : même nom
 // que celui attendu par le serveur ('inscription' ou 'rejoindre').
