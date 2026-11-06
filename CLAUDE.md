@@ -67,7 +67,7 @@ soumis par les citoyens — voir règle 4 ci-dessous.
    (niveau_national=true, aucun contenu de village) puis jouent partout via cette même exception.
    `worker/src/middleware/explorateurs.ts` refuse PAR DÉFAUT tout `/explorateurs/...` hors
    auth/commune/profil/push/jeux-ailleurs (+ lecture des onglets) — ne jamais y ajouter un module
-   de village. Responsable de traitement de ces comptes : Juicy Solutions ; anonymisés après 12
+   de village. Responsable de traitement de ces comptes : Léandre Sallé (entrepreneur individuel — jamais « Juicy Solutions » dans un texte légal, ce n'est pas une entité juridique) ; anonymisés après 12
    mois sans connexion (`purgerExplorateursInactifs`, cron horaire). Entrée par l'affiche QR
    `plateforme-agora.fr/<slug>/jouer` (`frontend/jouer.html`). Tests : `worker/test/explorateurs.test.ts`.
 3. Zéro framework JS, zéro bibliothèque npm côté client, sauf exceptions explicitement

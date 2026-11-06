@@ -42,9 +42,7 @@ ci-après dénommée « **le Responsable du traitement** » ou « **la Commune**
 
 **ET**
 
-**Monsieur Léandre SALLE, entrepreneur individuel (EI)**, exerçant son activité sous le nom
-d'usage « Juicy Solutions » (non déclaré comme nom commercial au Registre National des
-Entreprises), immatriculé au RCS d'Amiens sous le numéro SIREN 882 992 472, dont le siège est
+**Monsieur Léandre SALLE, entrepreneur individuel (EI)**, immatriculé au RCS d'Amiens sous le numéro SIREN 882 992 472, dont le siège est
 situé [adresse complète], 80 Eaucourt-sur-Somme, éditeur et exploitant de la plateforme Agora
 (plateforme-agora.fr), joignable pour toute question relative aux données personnelles à
 l'adresse [rgpd@plateforme-agora.fr],

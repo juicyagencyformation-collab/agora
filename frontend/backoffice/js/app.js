@@ -1993,7 +1993,7 @@ function backoffice() {
       const officiel = !commune.espace_officiel;
       if (!confirm(officiel
         ? `Marquer l'espace de ${commune.nom} comme OFFICIEL ? La mairie en devient responsable du traitement et le bandeau « non géré par la mairie » disparaît.`
-        : `Repasser l'espace de ${commune.nom} en ESPACE CITOYEN ? Juicy Solutions en redevient responsable et le bandeau réapparaît.`)) return;
+        : `Repasser l'espace de ${commune.nom} en ESPACE CITOYEN ? Léandre Sallé en redevient responsable et le bandeau réapparaît.`)) return;
       try {
         await boFetch('/administration/communes/' + commune.id + '/espace-officiel', { method: 'PATCH', body: JSON.stringify({ espace_officiel: officiel }) });
         commune.espace_officiel = officiel;

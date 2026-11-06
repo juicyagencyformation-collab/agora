@@ -82,7 +82,7 @@ export function bilanMensuelHtml(nomCommune: string, periode: Date, b: BilanMens
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c">
-      Juicy Solutions — Léandre Sallé · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Ce bilan mensuel fait partie de votre formule Accompagné/Premium. Une question&nbsp;? Répondez simplement à cet email.
     </div>
   </div>`;

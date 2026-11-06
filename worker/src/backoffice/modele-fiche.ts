@@ -18,7 +18,7 @@ export const MODELE_FICHE_DEFAUT = `
         </div>
       </div>
       <div class="editeur">
-        Édité par <strong>Juicy Solutions</strong><br />
+        Édité par <strong>Léandre Sallé</strong><br />
         Léandre Sallé
       </div>
     </header>
@@ -65,7 +65,7 @@ export const MODELE_FICHE_DEFAUT = `
     </div>
 
     <footer>
-      <span>Juicy Solutions — plateforme-agora.fr</span>
+      <span>Léandre Sallé — plateforme-agora.fr</span>
       <span>Contact : juicy.agency.formation@gmail.com</span>
     </footer>`;
 

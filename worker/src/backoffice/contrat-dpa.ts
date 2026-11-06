@@ -42,7 +42,6 @@ function manque(cle: CleDpa): string {
 export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string {
   const val = (cle: CleDpa) => (infos[cle] ? echapper(infos[cle]) : manque(cle));
   const nomCommune = echapper(commune.nom);
-  const raisonSociale = echapper(infos.entreprise_raison_sociale) || 'Juicy Solutions';
   const formeJuridique = infos.entreprise_forme_juridique ? echapper(infos.entreprise_forme_juridique) : 'entrepreneur individuel (EI)';
   const emailEntreprise = echapper(infos.entreprise_email) || 'contact@plateforme-agora.fr';
   // Le contrat cite le SIREN (9 chiffres) : ce sont les 9 premiers chiffres du SIRET des Réglages.
@@ -122,8 +121,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
       est située ${val('adresse_mairie')}, représentée par ${signataire}, ${qualite}, agissant en vertu de ${val('habilitation')},
       ci-après dénommée « <strong>le Responsable du traitement</strong> » ou « <strong>la Commune</strong> »,</p></div>
       <div class="et">ET</div>
-      <div class="partie"><p><strong>Monsieur Léandre SALLE, ${formeJuridique}</strong>, exerçant son activité sous le nom d'usage
-      « ${raisonSociale} » (non déclaré comme nom commercial au Registre National des Entreprises),
+      <div class="partie"><p><strong>Monsieur Léandre SALLE, ${formeJuridique}</strong>,
       immatriculé au RCS d'Amiens sous le numéro SIREN ${siren}, dont le siège est situé
       ${val('entreprise_adresse')}, ${val('entreprise_cp_ville')}, éditeur et exploitant de la plateforme Agora
       (plateforme-agora.fr), joignable pour toute question relative aux données personnelles à l'adresse

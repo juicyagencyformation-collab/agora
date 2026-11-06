@@ -152,7 +152,7 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c">
-      Juicy Solutions — Léandre Sallé · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Une question&nbsp;? Répondez simplement à cet email.
     </div>
     ${blocPsModules()}
@@ -208,7 +208,7 @@ export function emailConfirmationActivationHtml(nomCommune: string, lienConfirma
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c">
-      Juicy Solutions — Léandre Sallé · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Une question&nbsp;? Répondez simplement à cet email.
     </div>
   </div>`;
@@ -298,7 +298,7 @@ export const MODELE_PRESENTATION_DEFAUT = {
       {{signature_photo}}
       <div style="font-size:12px;color:#5b6b5c;line-height:1.6">
         <div style="font-weight:700;font-size:13px;color:#2c5f2d;margin-bottom:4px">Qui je suis&nbsp;?</div>
-        Conseiller municipal à Eaucourt-sur-Somme et fondateur de Juicy Solutions, j'ai créé Agora
+        Conseiller municipal à Eaucourt-sur-Somme, j'ai créé Agora
         avec une conviction simple&nbsp;: les petites communes méritent des outils à la hauteur de
         leur engagement, pas des solutions clé en main pensées ailleurs. Je porte aussi «&nbsp;Le
         P'tit Journal Eaucourtois&nbsp;», le journal local — l'information de proximité, c'est un
@@ -307,7 +307,7 @@ export const MODELE_PRESENTATION_DEFAUT = {
     </div>
 
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · SIRET 882992472 · plateforme-agora.fr<br />
+      Léandre Sallé, entrepreneur individuel · SIRET 882 992 472 00010 · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme, je développe Agora pour les petites communes. Répondez à cet
       email, je vous rappelle avec plaisir — sinon appelez-moi directement au
       06&nbsp;48&nbsp;06&nbsp;10&nbsp;97, ou laissez-moi un SMS.
@@ -463,7 +463,7 @@ export const MODELE_BIENVENUE_INSCRIPTION_DEFAUT = {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme · 06 48 06 10 97
     </div>
   </div>`,
@@ -495,7 +495,7 @@ export const MODELE_RELANCE_INACTIVITE_DEFAUT = {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme
     </div>
   </div>`,
@@ -537,7 +537,7 @@ export const MODELE_ONBOARDING_RELANCE_J3_DEFAUT = {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme · 06 48 06 10 97
     </div>
   </div>`,
@@ -567,7 +567,7 @@ export const MODELE_ONBOARDING_CHECKIN_J7_DEFAUT = {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme
     </div>
   </div>`,
@@ -598,7 +598,7 @@ export const MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT = {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme · 06 48 06 10 97
     </div>
   </div>`,
@@ -654,7 +654,7 @@ export const MODELE_ONBOARDING_UPSELL_DEFAUT = {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c;line-height:1.7">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Élu à Eaucourt-sur-Somme · 06 48 06 10 97
     </div>
   </div>`,
@@ -762,7 +762,7 @@ export async function envoyerPresentation(
 
 // — Email de rappel d'échéance d'abonnement (envoyé ~60 jours avant, voir cron.ts). Simple et
 // factuel : ce n'est pas une facture (pas de mentions légales/SIRET/TVA), juste un rappel qui
-// invite la mairie à recontacter Juicy Solutions pour le renouvellement (règlement par mandat
+// invite la mairie à recontacter Léandre Sallé pour le renouvellement (règlement par mandat
 // administratif, hors app). —
 export async function envoyerEmailEcheance(env: any, d: {
   nomCommune: string; destinataire: string; echeance: string; montant: number | null;
@@ -786,7 +786,7 @@ export async function envoyerEmailEcheance(env: any, d: {
 
     <hr style="border:none;border-top:1px solid #dfe7df;margin:24px 0" />
     <div style="font-size:12px;color:#5b6b5c">
-      Léandre Sallé — Juicy Solutions · plateforme-agora.fr<br />
+      Léandre Sallé — Plateforme-Agora · plateforme-agora.fr<br />
       Une question&nbsp;? Répondez simplement à cet email.
     </div>
   </div>`;

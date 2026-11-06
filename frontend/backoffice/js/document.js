@@ -88,7 +88,7 @@
         </table>
         <h2 class="dossier-titre">Notes</h2>
         <div class="dossier-notes"></div>
-        <footer>Plateforme-Agora — Juicy Solutions · Dossier confidentiel : contient des engagements contractuels et des données de la commune.</footer>
+        <footer>Plateforme-Agora — Léandre Sallé · Dossier confidentiel : contient des engagements contractuels et des données de la commune.</footer>
       `;
     } catch (e) {
       feuille.textContent = 'Impossible de charger le dossier : ' + (e.message || 'erreur inconnue');

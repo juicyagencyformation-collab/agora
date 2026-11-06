@@ -399,9 +399,24 @@ export async function purgerTentativesConnexion(env: any) {
   await supabaseDelete(env, 'tentatives_connexion', { created_at: `lt.${new Date(Date.now() - 24 * 3600 * 1000).toISOString()}` });
 }
 
+// Échanges de prospection avec les mairies : conservés 3 ans (recommandation CNIL pour la
+// prospection entre professionnels), durée annoncée dans la politique de confidentialité
+// (section « Demandes envoyées depuis le site », 2026-11-06). Réponses reçues (emails_recus) et
+// suivi des envois (envois_prospection) au-delà de 3 ans : supprimés. emails_rejetes n'est
+// volontairement PAS purgée : c'est la liste d'opposition (adresses qui ont rejeté un email ou
+// l'ont signalé comme indésirable), à garder pour ne plus jamais leur écrire.
+// Mensuelle (le 1er à 3 h) : 2 requêtes, largement suffisant pour une durée de 3 ans.
+export const DUREE_CONSERVATION_PROSPECTION_MS = 3 * 365.25 * 24 * 3600 * 1000;
+
+export async function purgerEchangesProspection(env: any) {
+  const limite = new Date(Date.now() - DUREE_CONSERVATION_PROSPECTION_MS).toISOString();
+  await supabaseDelete(env, 'emails_recus', { created_at: `lt.${limite}` });
+  await supabaseDelete(env, 'envois_prospection', { envoye_le: `lt.${limite}` });
+}
+
 // Espace Explorateurs (migration 098) : un compte de passage n'a pas vocation à durer. Anonymisé
-// après 12 mois sans connexion — durée annoncée dans la politique de confidentialité (Juicy
-// Solutions en est responsable de traitement, pas une mairie). Même effacement que « Supprimer
+// après 12 mois sans connexion — durée annoncée dans la politique de confidentialité (Léandre Sallé,
+// entrepreneur individuel, en est responsable de traitement, pas une mairie). Même effacement que « Supprimer
 // mon compte » (anonymiserComptes) : les réussites restent dans les classements, sans identité.
 // Depuis le 2026-11-06, aussi : un compte qui n'a JAMAIS rien réussi (ni étape, ni énigme, ni
 // parcours) 30 jours après sa création — profil typique d'un compte robot, et moins de données gardées.

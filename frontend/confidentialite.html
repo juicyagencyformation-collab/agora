@@ -21,7 +21,7 @@
   <p id="nom-commune-rgpd" style="color:var(--roseau);"></p>
 
   <h2>Responsable du traitement</h2>
-  <p id="responsable-commune">Le responsable du traitement dépend de l'espace utilisé. Pour l'espace d'une commune <strong>géré par sa mairie</strong>, c'est la mairie de <strong id="nom-commune-texte">la commune</strong>, et Juicy Solutions (Léandre Sallé, éditeur de Plateforme-Agora) est son sous-traitant au sens de l'article 28 du RGPD. Pour un espace <strong>ouvert par des habitants</strong> et non géré par la mairie, pour les comptes Explorateurs et pour le site plateforme-agora.fr, c'est <strong>Juicy Solutions</strong> — 10, rue du Pont, 80580 Eaucourt-sur-Somme — <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
+  <p id="responsable-commune">Le responsable du traitement dépend de l'espace utilisé. Pour l'espace d'une commune <strong>géré par sa mairie</strong>, c'est la mairie de <strong id="nom-commune-texte">la commune</strong>, et Léandre Sallé (entrepreneur individuel, éditeur de Plateforme-Agora) est son sous-traitant au sens de l'article 28 du RGPD. Pour un espace <strong>ouvert par des habitants</strong> et non géré par la mairie, pour les comptes Explorateurs et pour le site plateforme-agora.fr, c'est <strong>Léandre Sallé</strong>, entrepreneur individuel, éditeur de Plateforme-Agora — 10, rue du Pont, 80580 Eaucourt-sur-Somme — <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
 
   <h2>Données collectées</h2>
   <ul>
@@ -38,7 +38,7 @@
   <p><strong>Jeux entre villages.</strong> Vous pouvez jouer aux chasses au trésor et énigmes photo d'autres communes qui utilisent l'application. Vos réussites sont alors enregistrées chez la commune visitée, et votre nom apparaît dans ses classements selon votre réglage « Mon nom sur mes publications et dans les classements » (prénom et initiale, ou anonyme). Aucune autre donnée de votre compte ne lui est communiquée. Vos points s'ajoutent à votre compte.</p>
 
   <h2 id="explorateurs">Comptes Explorateurs (visiteurs de passage)</h2>
-  <p>Un compte <strong>Explorateur</strong> permet à une personne de passage (touriste, randonneur, camping-cariste…) de jouer aux chasses au trésor et énigmes photo des villages, sans être habitant d'une commune. Pour ces comptes, le responsable du traitement est <strong>Juicy Solutions</strong> (Léandre Sallé), éditeur de Plateforme-Agora, et non une mairie.</p>
+  <p>Un compte <strong>Explorateur</strong> permet à une personne de passage (touriste, randonneur, camping-cariste…) de jouer aux chasses au trésor et énigmes photo des villages, sans être habitant d'une commune. Pour ces comptes, le responsable du traitement est <strong>Léandre Sallé</strong> (entrepreneur individuel), éditeur de Plateforme-Agora, et non une mairie.</p>
   <ul>
     <li>Données traitées : prénom, nom, email, mot de passe (jamais stocké en clair), réussites et points de jeu, localisation ponctuelle au moment de valider une étape ou une énigme.</li>
     <li>Aucun accès aux contenus des villages (actualités, mur des voisins, entraide, annuaire, habitants) : un compte Explorateur ne voit que les jeux.</li>
@@ -48,7 +48,7 @@
   </ul>
 
   <h2 id="demandes-mairies">Demandes envoyées depuis le site plateforme-agora.fr</h2>
-  <p>Le formulaire de demande de la page d'accueil (commune, nom, fonction, email, téléphone facultatif, message) sert uniquement à recontacter la personne au sujet de sa demande et à présenter la plateforme à sa commune. Responsable du traitement : Juicy Solutions. Base légale : l'intérêt légitime à répondre à une demande professionnelle. Ces informations ne sont ni vendues ni cédées, et sont supprimées 3 ans après le dernier échange si la commune ne devient pas cliente. Vous pouvez demander leur suppression à tout moment à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
+  <p>Le formulaire de demande de la page d'accueil (commune, nom, fonction, email, téléphone facultatif, message) sert uniquement à recontacter la personne au sujet de sa demande et à présenter la plateforme à sa commune. Responsable du traitement : Léandre Sallé. Base légale : l'intérêt légitime à répondre à une demande professionnelle. Ces informations ne sont ni vendues ni cédées, et sont supprimées 3 ans après le dernier échange si la commune ne devient pas cliente. Vous pouvez demander leur suppression à tout moment à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
 
   <h2>Base légale</h2>
   <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune. La vérification anti-robot à l'inscription et les limites du nombre d'inscriptions reposent sur l'intérêt légitime à protéger le service et ses utilisateurs contre les inscriptions automatisées (article 6.1.f du RGPD).</p>
@@ -86,17 +86,17 @@
         // Espace Explorateurs : pas de mairie derrière ces comptes, voir la section dédiée.
         if (window.EST_EXPLORATEUR) {
           document.getElementById('nom-commune-rgpd').textContent = 'Comptes Explorateurs';
-          document.getElementById('responsable-commune').innerHTML = 'Pour les comptes Explorateurs, le responsable du traitement est <strong>Juicy Solutions</strong>, éditeur de Plateforme-Agora — voir la section <a href="#explorateurs">Comptes Explorateurs</a>.';
+          document.getElementById('responsable-commune').innerHTML = 'Pour les comptes Explorateurs, le responsable du traitement est <strong>Léandre Sallé</strong>, éditeur de Plateforme-Agora — voir la section <a href="#explorateurs">Comptes Explorateurs</a>.';
           return;
         }
         document.getElementById('nom-commune-rgpd').textContent = `Commune de ${data.commune.nom}`;
         // Espace citoyen (non adopté par la mairie, migration 100) : la mairie n'a rien signé, elle
         // ne peut pas être désignée responsable — c'est l'éditeur, jusqu'à l'adoption.
         if (data.commune.espace_officiel === false) {
-          document.getElementById('responsable-commune').innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(data.commune.nom) ? 'd’' : 'de '}<strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong> et n'est pas (encore) géré par la mairie : le responsable du traitement est <strong>Juicy Solutions</strong> (Léandre Sallé), éditeur de Plateforme-Agora, joignable à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Si la mairie adopte l'espace, elle en devient responsable et Juicy Solutions son sous-traitant.`;
+          document.getElementById('responsable-commune').innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(data.commune.nom) ? 'd’' : 'de '}<strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong> et n'est pas (encore) géré par la mairie : le responsable du traitement est <strong>Léandre Sallé</strong> (entrepreneur individuel), éditeur de Plateforme-Agora, joignable à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Si la mairie adopte l'espace, elle en devient responsable et Léandre Sallé son sous-traitant.`;
           return;
         }
-        document.getElementById('responsable-commune').innerHTML = `Le responsable du traitement des données est la mairie ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(data.commune.nom) ? 'd’' : 'de '}<strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong>, éditrice de cet espace. Juicy Solutions (Léandre Sallé), éditeur de Plateforme-Agora, est son sous-traitant au sens de l'article 28 du RGPD.`;
+        document.getElementById('responsable-commune').innerHTML = `Le responsable du traitement des données est la mairie ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(data.commune.nom) ? 'd’' : 'de '}<strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong>, éditrice de cet espace. Léandre Sallé (entrepreneur individuel), éditeur de Plateforme-Agora, est son sous-traitant au sens de l'article 28 du RGPD.`;
         const lien = document.getElementById('lien-contact-rgpd');
         if (data.commune.contact_email) {
           lien.href = `mailto:${data.commune.contact_email}`;

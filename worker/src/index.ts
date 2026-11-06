@@ -6,7 +6,7 @@ import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
 import { gardeEspaceExplorateurs } from './middleware/explorateurs';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs } from './cron';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs, purgerEchangesProspection } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 
@@ -206,7 +206,7 @@ export default {
       // Purge des Explorateurs ici plutôt qu'à 4 h, créneau déjà chargé : 16 requêtes au plus.
       await executerIsolement(env, [synchroniserVigilanceMeteoFrance, purgerExplorateursInactifs]);
     } else if (event.cron === '0 3 1 * *') {
-      await executerIsolement(env, [nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
+      await executerIsolement(env, [purgerEchangesProspection, nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
     } else {
       await nettoyerCoupsDeMainExpires(env);
     }
