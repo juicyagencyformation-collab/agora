@@ -161,7 +161,7 @@ function afficherBandeauEspaceCitoyen(nomCommune) {
   try { if (sessionStorage.getItem('agora_bandeau_citoyen_ferme')) return; } catch { /* stockage indisponible */ }
   const sujet = encodeURIComponent(`Gestion officielle de l'espace de ${nomCommune}`);
   zone.innerHTML = `
-    <span>🏘️ Espace ouvert par les habitants de ${escapeAttr(nomCommune)}, <strong>non géré par la mairie</strong>.
+    <span>🏘️ Espace ouvert par les habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(nomCommune) ? 'd’' : 'de '}${escapeAttr(nomCommune)}, <strong>non géré par la mairie</strong>.
     Vous êtes élu(e) ? <a href="mailto:contact@plateforme-agora.fr?subject=${sujet}">Demandez la gestion officielle</a>.</span>
     <button type="button" aria-label="Fermer">✕</button>`;
   zone.hidden = false;

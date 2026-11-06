@@ -84,7 +84,7 @@
         // Espace citoyen (non adopté par la mairie, migration 100) : la mairie n'a rien signé, elle
         // ne peut pas être désignée responsable — c'est l'éditeur, jusqu'à l'adoption.
         if (data.commune.espace_officiel === false) {
-          document.getElementById('responsable-commune').innerHTML = `Cet espace a été ouvert par des habitants de <strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong> et n'est pas (encore) géré par la mairie : le responsable du traitement est <strong>Juicy Solutions</strong> (Léandre Sallé), éditeur de Plateforme-Agora, joignable à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Si la mairie adopte l'espace, elle en devient responsable et Juicy Solutions son sous-traitant.`;
+          document.getElementById('responsable-commune').innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(data.commune.nom) ? 'd’' : 'de '}<strong>${data.commune.nom.replace(/[<>&]/g, '')}</strong> et n'est pas (encore) géré par la mairie : le responsable du traitement est <strong>Juicy Solutions</strong> (Léandre Sallé), éditeur de Plateforme-Agora, joignable à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Si la mairie adopte l'espace, elle en devient responsable et Juicy Solutions son sous-traitant.`;
           return;
         }
         document.getElementById('nom-commune-texte').textContent = data.commune.nom;
