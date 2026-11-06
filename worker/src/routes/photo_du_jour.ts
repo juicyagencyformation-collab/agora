@@ -16,7 +16,10 @@ function dateDuJourUTC(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function seuilAffichagePourDuree(duree: string): string {
+// Commune de démonstration (acces_libre, ex. Bonvivre) : toutes ses photos restent affichées, la
+// démo ne doit jamais paraître vide (même exception dans les purges du cron, 2026-11-06).
+function seuilAffichagePourDuree(duree: string, demo = false): string {
+  if (demo) return '2000-01-01';
   const jours = duree === 'jour' ? 1 : duree === 'mois' ? 30 : 7; // 'semaine' par défaut
   const seuil = new Date(Date.now() - jours * 24 * 3600 * 1000);
   return seuil.toISOString().slice(0, 10);
@@ -28,7 +31,7 @@ app.get('/', async (c) => {
   const user_id = c.get('user_id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree', id: `eq.${commune_id}`,
+    select: 'photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,acces_libre', id: `eq.${commune_id}`,
   });
   const seuil = commune?.photo_jour_seuil_validations ?? 6;
   const maxParJour = commune?.photo_jour_max_par_jour ?? 1;
@@ -38,7 +41,7 @@ app.get('/', async (c) => {
     select: 'id,user_id,url,date_publication,created_at,libre_de_droit,force_deflout,legende',
     commune_id: `eq.${commune_id}`,
     statut: 'eq.visible',
-    date_publication: `gte.${seuilAffichagePourDuree(duree)}`,
+    date_publication: `gte.${seuilAffichagePourDuree(duree, commune?.acces_libre === true)}`,
     order: 'created_at.desc',
   });
 
@@ -103,7 +106,7 @@ app.get('/vedette', async (c) => {
   const commune_id = c.get('commune_id');
 
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'photo_jour_duree', id: `eq.${commune_id}`,
+    select: 'photo_jour_duree,acces_libre', id: `eq.${commune_id}`,
   });
   const duree = commune?.photo_jour_duree ?? 'semaine';
 
@@ -112,7 +115,7 @@ app.get('/vedette', async (c) => {
     commune_id: `eq.${commune_id}`,
     statut: 'eq.visible',
     libre_de_droit: 'eq.true',
-    date_publication: `gte.${seuilAffichagePourDuree(duree)}`,
+    date_publication: `gte.${seuilAffichagePourDuree(duree, commune?.acces_libre === true)}`,
   });
   if (!photos.length) return c.json({ vedette: null });
 

@@ -95,4 +95,14 @@ describe('purgerMur — pagination au-delà de 1000 communes', () => {
     expect(db.posts.map((p) => p.id)).toEqual(['garde']);
     expect(requetes).toBeLessThan(10);
   });
+
+  it('ne purge jamais une commune de démonstration (acces_libre, ex. Bonvivre)', async () => {
+    const ancien = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    db.communes.push({ id: 'demo', mur_duree: '24h', acces_libre: true }, { id: 'vraie', mur_duree: '24h', acces_libre: false });
+    db.posts.push({ id: 'p-demo', commune_id: 'demo', created_at: ancien }, { id: 'p-vraie', commune_id: 'vraie', created_at: ancien });
+
+    await purgerMur(ENV);
+
+    expect(db.posts.map((p) => p.id)).toEqual(['p-demo']);
+  });
 });

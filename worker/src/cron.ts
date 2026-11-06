@@ -46,15 +46,19 @@ async function supprimerParIds(env: any, table: string, ids: string[]) {
 
 const ilYa = (heures: number) => Date.now() - heures * 3600 * 1000;
 
+// Communes de démonstration (acces_libre = true, ex. Bonvivre embarquée sur la page d'accueil) :
+// exclues des trois purges de contenu éphémère (photo du jour, énigmes, mur) — sinon la démo se
+// vide toute seule en quelques jours (2026-11-06).
 export async function purgerPhotosDuJour(env: any) {
   const plusCourt = new Date(ilYa(24)).toISOString().slice(0, 10);
   const photos = await supabaseSelectTout(env, 'photos_du_jour', {
     select: 'id,r2_key,commune_id,date_publication', date_publication: `lt.${plusCourt}`, order: 'id.asc',
   });
   if (!photos.length) return;
-  const communes = await chargerCommunesConcernees(env, photos, 'id,photo_jour_duree');
+  const communes = await chargerCommunesConcernees(env, photos, 'id,photo_jour_duree,acces_libre');
 
   const aPurger = photos.filter((p: any) => {
+    if (communes.get(p.commune_id)?.acces_libre) return false; // démo (Bonvivre) : contenu permanent
     const duree = communes.get(p.commune_id)?.photo_jour_duree ?? 'semaine';
     const jours = duree === 'jour' ? 1 : duree === 'mois' ? 30 : 7;
     return p.date_publication < new Date(ilYa(jours * 24)).toISOString().slice(0, 10);
@@ -71,9 +75,10 @@ export async function purgerEnigmes(env: any) {
     select: 'id,r2_key,commune_id,created_at', created_at: `lt.${new Date(ilYa(48)).toISOString()}`, order: 'id.asc',
   });
   if (!enigmes.length) return;
-  const communes = await chargerCommunesConcernees(env, enigmes, 'id,enigme_duree');
+  const communes = await chargerCommunesConcernees(env, enigmes, 'id,enigme_duree,acces_libre');
 
   const aPurger = enigmes.filter((e: any) => {
+    if (communes.get(e.commune_id)?.acces_libre) return false; // démo (Bonvivre) : contenu permanent
     const duree = communes.get(e.commune_id)?.enigme_duree ?? 'mois';
     const heures = duree === '48h' ? 48
       : duree === 'semaine' ? 24 * 7
@@ -93,9 +98,10 @@ export async function purgerMur(env: any) {
     select: 'id,commune_id,created_at', created_at: `lt.${new Date(ilYa(24)).toISOString()}`, order: 'id.asc',
   });
   if (!posts.length) return;
-  const communes = await chargerCommunesConcernees(env, posts, 'id,mur_duree');
+  const communes = await chargerCommunesConcernees(env, posts, 'id,mur_duree,acces_libre');
 
   const aPurger = posts.filter((p: any) => {
+    if (communes.get(p.commune_id)?.acces_libre) return false; // démo (Bonvivre) : contenu permanent
     const heures = (communes.get(p.commune_id)?.mur_duree ?? '48h') === '24h' ? 24 : 48;
     return new Date(p.created_at).getTime() < ilYa(heures);
   });
