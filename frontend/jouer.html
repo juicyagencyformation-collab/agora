@@ -131,7 +131,7 @@
   </div>
   <p class="pied"><a href="/explorateurs/confidentialite.html#explorateurs">Confidentialité</a> · <a href="/explorateurs/mentions-legales.html">Mentions légales</a></p>
 
-  <script src="/js/turnstile.js?v=20261106-2"></script>
+  <script src="/js/turnstile.js?v=20261106-3"></script>
   <script>
     const API = '/api';
     const ESPACE = 'explorateurs';
@@ -195,14 +195,14 @@
     document.getElementById('vers-connexion').addEventListener('click', () => afficher('connexion'));
     document.querySelectorAll('.vers-choix').forEach((a) => a.addEventListener('click', () => afficher('choix')));
 
-    document.getElementById('form-inscription').addEventListener('submit', (e) => {
+    document.getElementById('form-inscription').addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
       const erreur = document.getElementById('erreur-inscription');
       envoyer(e.target, 'register', {
         prenom: f.get('prenom').trim(), nom: f.get('nom').trim(), email: f.get('email').trim(),
         password: f.get('password'), consentement_rgpd: true, site_web: f.get('site_web') || undefined,
-        ...protectionInscription.champs(),
+        ...(await protectionInscription.champs()),
       }, erreur, protectionInscription);
     });
 

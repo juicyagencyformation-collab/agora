@@ -10,7 +10,9 @@ const TURNSTILE_SITEKEY = '0x4AAAAAAF2O_1TVh7HoF-Ln'; // widget « Plateforme-Ag
 
 // conteneur : élément où placer le widget (invisible sauf défi exceptionnel) ; action : même nom
 // que celui attendu par le serveur ('inscription' ou 'rejoindre').
-// Renvoie { champs() → { turnstile, duree_saisie_ms } à ajouter au corps JSON, reinitialiser() à
+// Renvoie { champs() → PROMESSE de { turnstile, duree_saisie_ms } à ajouter au corps JSON (attend
+// jusqu'à 8 s que Turnstile ait produit son jeton : il lui faut une ou deux secondes après
+// l'affichage, et une personne rapide ou le remplissage automatique peuvent valider avant), reinitialiser() à
 // appeler après un échec (un jeton ne sert qu'une fois), redemarrerChrono() quand le formulaire
 // s'affiche réellement (étapes masquées) }.
 function protegerFormulaire(conteneur, action) {
@@ -34,11 +36,19 @@ function protegerFormulaire(conteneur, action) {
       }
     }
   }
+  const jeton = () => (idWidget != null && window.turnstile ? window.turnstile.getResponse(idWidget) || '' : '');
   return {
-    champs: () => ({
-      duree_saisie_ms: Date.now() - debut,
-      ...(idWidget != null ? { turnstile: window.turnstile.getResponse(idWidget) || undefined } : {}),
-    }),
+    champs: async () => {
+      const duree = Date.now() - debut;
+      // Bouton d'envoi désactivé pendant l'attente : un second appui enverrait le formulaire deux fois.
+      const bouton = conteneur?.closest('form')?.querySelector('button[type=submit], button:not([type])');
+      if (TURNSTILE_SITEKEY && !jeton()) {
+        if (bouton) bouton.disabled = true;
+        for (let i = 0; i < 40 && !jeton(); i++) await new Promise((ok) => setTimeout(ok, 200));
+        if (bouton) bouton.disabled = false;
+      }
+      return { duree_saisie_ms: duree, ...(jeton() ? { turnstile: jeton() } : {}) };
+    },
     reinitialiser: () => { if (idWidget != null) window.turnstile.reset(idWidget); },
     redemarrerChrono: () => { debut = Date.now(); },
   };

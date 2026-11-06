@@ -65,7 +65,7 @@
   <a href="conditions-utilisation.html" class="lien-confidentialite">Conditions générales d'utilisation</a>
 
   <script src="/js/config.js?v=20261105-1"></script>
-  <script src="/js/turnstile.js?v=20261106-2"></script>
+  <script src="/js/turnstile.js?v=20261106-3"></script>
   <script>
     const formConnexion = document.getElementById('form-connexion');
     const formInscription = document.getElementById('form-inscription');
@@ -162,7 +162,7 @@
 
     formInscription.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const donnees = { ...Object.fromEntries(new FormData(e.target)), ...protectionInscription.champs() };
+      const donnees = { ...Object.fromEntries(new FormData(e.target)), ...(await protectionInscription.champs()) };
       donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
       const zoneErreur = document.getElementById('erreur-inscription');
       zoneErreur.textContent = '';
