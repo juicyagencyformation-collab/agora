@@ -64,10 +64,10 @@
         document.getElementById('nom-commune-mentions').textContent = `Commune de ${data.commune.nom}`;
         // Espace citoyen (migration 100) : la mairie n'a rien signé, elle n'en est pas l'éditrice.
         if (data.commune.espace_officiel === false) {
-          editeur.innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(nom) ? 'd’' : 'de '}<strong>${nom}</strong> et n'est pas géré par la mairie : il est édité par Juicy Solutions (coordonnées ci-dessus) ; directeur de la publication : Léandre Sallé. La mairie de ${nom} n'est pas responsable de son contenu.`;
+          editeur.innerHTML = `Cet espace a été ouvert par des habitants ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(nom) ? 'd’' : 'de '}<strong>${nom}</strong> et n'est pas géré par la mairie : il est édité par Juicy Solutions (coordonnées ci-dessus) ; directeur de la publication : Léandre Sallé. La mairie ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(nom) ? 'd’' : 'de '}${nom} n'est pas responsable de son contenu.`;
           return;
         }
-        editeur.innerHTML = `Cet espace est édité par la mairie de <strong>${nom}</strong>, dans le cadre de ses missions de service public et d'information des habitants. Directeur de la publication : le maire de la commune, ou son représentant désigné.`;
+        editeur.innerHTML = `Cet espace est édité par la mairie ${/^[aeiouyhàâäéèêëîïôöûùü]/i.test(nom) ? 'd’' : 'de '}<strong>${nom}</strong>, dans le cadre de ses missions de service public et d'information des habitants. Directeur de la publication : le maire de la commune, ou son représentant désigné.`;
         const lien = document.getElementById('lien-contact-mentions');
         if (data.commune.contact_email) {
           lien.href = `mailto:${data.commune.contact_email}`;
