@@ -15,7 +15,10 @@ export function nomPublic(u: any, lecteurId?: string): { prenom: string; nom: st
   if (u.affichage_nom && u.affichage_nom !== 'initiale') {
     affiche = { prenom: 'Anonyme', nom: '' };
   } else {
-    const initiale = (u.nom ?? '').trim().charAt(0).toUpperCase();
+    // Premier caractère RÉEL (graphème), pas charAt(0) : un nom commençant par un emoji (ex. 🇨🇵)
+    // ou une lettre accentuée composée était coupé en deux et s'affichait « � » (2026-11-09).
+    const [premier] = new Intl.Segmenter('fr', { granularity: 'grapheme' }).segment((u.nom ?? '').trim());
+    const initiale = (premier?.segment ?? '').toUpperCase();
     affiche = { prenom: u.prenom ?? '?', nom: initiale ? `${initiale}.` : '' };
   }
   if (lecteurId && u.id === lecteurId) affiche.nom = [affiche.nom, '(vous)'].filter(Boolean).join(' ');

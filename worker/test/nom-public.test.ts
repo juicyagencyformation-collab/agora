@@ -15,6 +15,10 @@ describe('nomPublic', () => {
     expect(nomPublic({ ...lea, affichage_nom: 'anonyme' }, 'u1')).toEqual({ prenom: 'Anonyme', nom: '(vous)' });
     expect(nomPublic(lea, 'u1')).toEqual({ prenom: 'Léa', nom: 'M. (vous)' });
   });
+  it('ne coupe jamais un emoji ou une lettre composée en deux (plus de « � »)', () => {
+    expect(nomPublic({ ...lea, nom: '🇨🇵' }, 'autre')).toEqual({ prenom: 'Léa', nom: '🇨🇵.' });
+    expect(nomPublic({ ...lea, nom: 'Étienne' }, 'autre').nom).toBe('É.');
+  });
   it('reste sûr sans utilisateur ou sans nom', () => {
     expect(nomPublic(undefined, 'u1')).toEqual({ prenom: '?', nom: '' });
     expect(nomPublic({ id: 'u2', prenom: 'Paul', nom: '' }, 'u1')).toEqual({ prenom: 'Paul', nom: '' });
