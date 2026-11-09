@@ -67,9 +67,11 @@ function renderAnnonce(annonce) {
   el.style.borderLeftColor = couleur;
   const joursRestants = Math.ceil((new Date(annonce.expires_at) - Date.now()) / 86_400_000);
   const extrait = annonce.description.slice(0, 90);
+  // Sans photo : pas de vignette (les badges Offre/Demande et la bordure colorée suffisent) —
+  // le texte prend toute la largeur de la carte.
   const miniature = annonce.photo_url
     ? `<img src="${annonce.photo_url}" class="miniature-liste-article" loading="lazy" alt="">`
-    : `<div class="miniature-liste-article miniature-vide">${annonce.type === 'offre' ? '🤲' : '🙏'}</div>`;
+    : '';
 
   el.innerHTML = `
     <button type="button" class="entete-article-compact">
