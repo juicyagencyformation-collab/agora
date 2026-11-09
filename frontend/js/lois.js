@@ -36,7 +36,6 @@ function renderLoi(l) {
 
   el.innerHTML = `
     <button type="button" class="entete-article-compact">
-      <div class="miniature-liste-article miniature-vide">⚖️</div>
       <div class="texte-entete-article">
         <div class="badges-event-compact">
           ${estNouveau ? '<span class="badge-categorie-article badge-nouveau-loi">🆕 Nouveau</span>' : ''}

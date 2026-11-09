@@ -138,7 +138,9 @@ function renderCarteAlerteCompacte(alerte) {
 
   const miniature = alerte.images?.[0]
     ? `<img src="${alerte.images[0]}" class="miniature-liste-article" loading="lazy" alt="">`
-    : `<div class="miniature-liste-article miniature-vide" style="${alerte.urgent ? 'background:rgba(192,57,43,.15);' : ''}">${alerte.urgent ? '🚨' : '⚠️'}</div>`;
+    // Sans photo : vignette 🚨 seulement pour un signalement urgent (elle attire l'œil) ; sinon rien,
+    // le texte prend toute la largeur (même choix que les coups de main, 2026-11-09).
+    : alerte.urgent ? '<div class="miniature-liste-article miniature-vide" style="background:rgba(192,57,43,.15);">🚨</div>' : '';
 
   el.innerHTML = `
     <button type="button" class="entete-article-compact">
