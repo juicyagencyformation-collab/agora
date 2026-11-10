@@ -80,7 +80,7 @@ export function calculerPrixAccompagne(habitants: number, b: BaremeTarifaire): n
 export const DEFAUTS_OFFRES_TEXTE: Record<string, string> = {
   offre_autonomie_label: 'Autonomie',
   offre_autonomie_titre: 'Faire vivre le village et la mairie',
-  offre_autonomie_features: 'Tous les onglets de l’application\nModération automatique des photos\nSupport email\nValorisation du patrimoine en option, sur devis',
+  offre_autonomie_features: 'Tous les onglets de l’application\nL’application à votre nom et à votre logo\nModération automatique des photos\nEspace associations\nSupport email\nValorisation du patrimoine en option, sur devis',
   offre_accompagne_label: 'Accompagné',
   offre_accompagne_titre: 'Accompagnement personnalisé',
   offre_accompagne_badge: 'Le plus demandé',
