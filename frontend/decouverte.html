@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <link rel="stylesheet" href="/css/base.css?v=20261017-1">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261110-1">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261110-2">
   <style>
     body { padding: 0 0 40px; }
     .entete-decouverte {
@@ -129,9 +129,9 @@
           const el = document.createElement('article');
           el.className = 'carte-article-compacte';
           const dateAffichee = new Date(e.date_debut).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-          const badgeOrigine = e.commune_nationale
+          const badgeOrigine = (e.association_nom ? `🤝 ${escapeAttr(e.association_nom)} · ` : '') + (e.commune_nationale
             ? `🇫🇷 ${escapeAttr(e.commune_nom)} · National`
-            : `📍 ${escapeAttr(e.commune_nom)} · ${e.commune_distance_km} km`;
+            : `📍 ${escapeAttr(e.commune_nom)} · ${e.commune_distance_km} km`);
           el.innerHTML = `
             <div style="padding:12px;">
               <span class="badge-commune-origine">${badgeOrigine}</span>

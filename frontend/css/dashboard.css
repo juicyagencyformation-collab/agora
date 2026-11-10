@@ -1080,6 +1080,28 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 .texte-aide-responsables { font-size: 12.5px; color: var(--roseau); margin: 0 0 8px; }
 #form-ajout-responsable { margin-top: 14px; }
 
+/* ─── Publications d'association (migration 102) ─── */
+/* Un responsable d'association voit « + Publier un article » (réservé sinon à la mairie). */
+body.peut-publier-asso #onglet-actualites .form-admin-only {
+  display: block; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid var(--eauL);
+}
+.badge-association { color: var(--prairie); background: #EEF3EA; }
+.badge-masque { margin-left: 4px; color: var(--rouge); background: #FBEAEA; }
+.filtre-source-articles { width: auto; max-width: 100%; margin: 0 0 10px; font-size: 13px; }
+.filtre-source-articles[hidden] { display: none; }
+.vitrine-association { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--eauXL); }
+.vitrine-association h4 { font-size: 13px; color: var(--eau); margin: 12px 0 6px; }
+.actions-vitrine-association { display: flex; flex-wrap: wrap; gap: 8px; }
+.actions-vitrine-association button { padding: 7px 12px; font-size: 12.5px; }
+.liste-vitrine { font-size: 13px; color: var(--roseau); }
+.ligne-vitrine {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
+  background: var(--calc); border: none; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px;
+  text-align: left; cursor: pointer; color: var(--boue); font-size: 13px;
+}
+.ligne-vitrine span { font-size: 11.5px; color: var(--roseau); }
+.affiche-vitrine { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 10px; margin-bottom: 8px; }
+
 /* ─── Agenda ─── */
 .zone-contacts-event .commentaire { font-size: 12.5px; }
 .liens-calendrier { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }

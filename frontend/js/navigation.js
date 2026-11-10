@@ -84,6 +84,10 @@ async function initUtilisateur() {
     document.querySelectorAll('[data-onglet="bulletin"]').forEach((btn) => {
       btn.style.display = peutVoirModeration ? '' : 'none';
     });
+
+    // Associations au nom desquelles publier (annuaire.js) — sans attendre : rien d'autre n'en
+    // dépend au démarrage, seuls les formulaires de publication s'en servent.
+    if (typeof chargerAssociationsPublication === 'function') chargerAssociationsPublication();
   } catch {}
 }
 

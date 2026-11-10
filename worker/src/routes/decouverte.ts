@@ -1,7 +1,9 @@
 // worker/src/routes/decouverte.ts
 // Seule route de toute l'app qui lit délibérément à travers plusieurs communes.
 // Exception strictement scopée : uniquement les communes ayant activé partage_regional,
-// uniquement les événements officiels (jamais de contenu citoyen), aucune authentification
+// uniquement les événements officiels et ceux des associations validées par leur mairie
+// (décision de Léandre du 2026-11-10, migration 102 — jamais ceux d'un simple habitant, jamais
+// un événement masqué après signalement), aucune authentification
 // requise (page publique, gratuite, ouverte à tous — y compris aux habitants de communes
 // qui n'utilisent pas encore Agora).
 import { Hono } from 'hono';
@@ -115,18 +117,26 @@ app.get('/evenements', async (c) => {
 
     const idsCommunes = communesProches.map((commune: any) => commune.id);
     const evenements = await supabaseSelect(c.env, 'events', {
-      select: 'id,commune_id,titre,description,lieu,lat,lng,photo_url,date_debut,date_fin',
+      select: 'id,commune_id,titre,description,lieu,lat,lng,photo_url,date_debut,date_fin,fiche_id',
       commune_id: `in.(${idsCommunes.join(',')})`,
-      officiel: 'eq.true',
+      or: '(officiel.eq.true,fiche_id.not.is.null)',
+      statut: 'eq.visible',
       partage_autour: 'eq.true',
       date_fin: `gte.${new Date().toISOString()}`,
       order: 'date_debut.asc',
     });
 
-    const result = evenements.map((e: any) => {
+    // Nom de l'association organisatrice (« Comité des fêtes · Eaucourt ») — une seule requête.
+    const idsFiches = [...new Set(evenements.map((e: any) => e.fiche_id).filter(Boolean))];
+    const fiches = idsFiches.length ? await supabaseSelect(c.env, 'annuaire', {
+      select: 'id,nom', id: `in.(${idsFiches.join(',')})`,
+    }) : [];
+
+    const result = evenements.map(({ fiche_id, ...e }: any) => {
       const commune = communesProches.find((c: any) => c.id === e.commune_id);
       return {
         ...e,
+        association_nom: fiche_id ? (fiches.find((f: any) => f.id === fiche_id)?.nom ?? null) : null,
         commune_nom: commune?.nom,
         commune_slug: commune?.slug,
         commune_distance_km: commune?.distance_km,

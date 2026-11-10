@@ -340,6 +340,7 @@
         <h3>📰 A.2 Actualités</h3>
         <p class="module-qui"><span class="role-chip admin">Gestionnaires</span> publient · <span class="role-chip tous">Tous</span> lisent</p>
         <p>Le fil d'informations officiel de la commune. Filtrable par catégorie (Vie du village, Projets &amp; travaux, Environnement, Agenda, Info pratique). Lire un article rapporte 1 point d'expérience (une seule fois par article).</p>
+        <p><strong>Actualités des associations</strong> (si l'annuaire est activé) : les responsables d'association publient aussi dans ce fil, au nom de leur association (son nom s'affiche à la place de la catégorie), avec un sondage s'ils le souhaitent. Un menu « La mairie / Les associations » permet de trier. Ces actualités n'envoient pas de notification et ne rapportent pas de points à la lecture. Elles peuvent être signalées (« 🚩 Signaler ») : elles sont alors masquées aussitôt, et la mairie les rétablit ou les supprime.</p>
       </div>
     </section>
 
@@ -377,7 +378,7 @@
       <div class="module-carte">
         <h3>📅 A.6 Agenda</h3>
         <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> propose · action citoyenne = <span class="role-chip admin">gestionnaires</span></p>
-        <p>Deux sous-onglets : <strong>Agenda local</strong> et <strong>Autour de moi</strong> (voir A.17). Un événement créé par la mairie est marqué « 🏛️ Officiel ». Un clic « Je participe » suffit pour la plupart des événements. Sans photo, l'événement affiche une vignette avec le jour et le mois plutôt qu'une icône générique.</p>
+        <p>Deux sous-onglets : <strong>Agenda local</strong> et <strong>Autour de moi</strong> (voir A.17). Un événement créé par la mairie est marqué « 🏛️ Officiel », celui d'une association porte son nom (« 🤝 Comité des fêtes ») et part aussi dans « Autour de moi » chez les villages voisins. Tout événement qui n'est pas de la mairie peut être signalé : il est masqué aussitôt, puis revu par la mairie. Un clic « Je participe » suffit pour la plupart des événements. Sans photo, l'événement affiche une vignette avec le jour et le mois plutôt qu'une icône générique.</p>
         <p>Certains événements sont des <strong>actions citoyennes</strong> (nettoyage, plantation, chantier participatif...) : vous scannez un QR sur place à votre arrivée, puis l'organisateur valide votre présence, ce qui rapporte des <strong>points de participation citoyenne</strong> (voir A.14).</p>
         <div class="callout">
           <div class="callout__label">À savoir</div>
@@ -421,6 +422,7 @@
         <p>Bottin des commerces, artisans, associations et services publics. Vous pouvez créer <strong>votre propre fiche</strong> (une seule) si vous êtes commerçant, artisan ou responsable d'association.</p>
         <p><strong>Associations : la fiche tenue par l'association elle-même.</strong> Sur la fiche d'une association, un membre du bureau touche « 🙋 Je fais partie du bureau ». La mairie reçoit une notification et valide la demande en tête de l'annuaire (ou la refuse). Une fois validé, le responsable tient la fiche à jour : présentation, contacts, logo, documents (statuts, bulletin d'adhésion…). La fiche affiche alors « ✔ Tenue par l'association ». Une association peut avoir plusieurs responsables, et une même personne peut en gérer plusieurs.</p>
         <p>La mairie garde la main : sur chaque fiche d'association, le bouton « 👥 Responsables » permet de valider, de retirer un responsable (changement de bureau) ou d'en <strong>désigner un directement</strong> avec son adresse email, s'il est déjà inscrit. La catégorie de la fiche et sa suppression restent réservées à la mairie. Un responsable peut à tout moment « Ne plus gérer cette association ».</p>
+        <p><strong>La vitrine de l'association.</strong> En ouvrant sa fiche, chacun voit ses prochains événements et ses dernières actualités. Ses responsables y trouvent « 📰 Publier une actualité » et « 📅 Publier un événement » (une affiche, un titre et une date suffisent) ; le menu « Publier pour » des onglets Actualités et Agenda fait de même. Au plus 3 publications par association sur 24 heures. La mairie peut elle aussi publier au nom d'une association, par exemple pour relayer une affiche. Si la mairie supprime la fiche, les publications de l'association disparaissent avec elle.</p>
       </div>
     </section>
 
@@ -603,11 +605,11 @@
         <table>
           <thead><tr><th>Module</th><th>Création</th><th>Modération citoyenne</th><th>Modifier/supprimer</th></tr></thead>
           <tbody>
-            <tr><td>Actualités</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires</td></tr>
+            <tr><td>Actualités</td><td><span class="role-chip admin">Gestionnaires</span> + responsables d'association (en son nom)</td><td>Oui, pour les actualités d'association</td><td>Gestionnaires ; responsables pour celles de leur association</td></tr>
             <tr><td>Thermomètre</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires</td></tr>
             <tr><td>Mur des voisins</td><td><span class="role-chip tous">Tout citoyen</span></td><td>Oui</td><td>Auteur ou gestionnaire</td></tr>
             <tr><td>Coup de main</td><td><span class="role-chip tous">Tout citoyen</span></td><td>—</td><td>Auteur ou gestionnaire</td></tr>
-            <tr><td>Agenda</td><td><span class="role-chip tous">Tout citoyen</span> (action = gestionnaires)</td><td>—</td><td>Auteur ou gestionnaire</td></tr>
+            <tr><td>Agenda</td><td><span class="role-chip tous">Tout citoyen</span> (action = gestionnaires)</td><td>Oui, sauf événements de la mairie</td><td>Auteur, gestionnaire, ou responsable de l'association organisatrice</td></tr>
             <tr><td>Alertes</td><td><span class="role-chip tous">Tout citoyen</span></td><td>—</td><td>Auteur ou gestionnaire</td></tr>
             <tr><td>Chasse au trésor</td><td><span class="role-chip admin">Gestionnaires</span></td><td>—</td><td>Gestionnaires (pas de suppression si déjà jouée)</td></tr>
             <tr><td>Énigme photo</td><td><span class="role-chip tous">Tout citoyen</span></td><td>Oui</td><td>Auteur ou gestionnaire</td></tr>

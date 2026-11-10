@@ -6,6 +6,37 @@ const LABELS_CATEGORIE_ANNUAIRE = {
 
 let maFicheAnnuaireActuelle = null;
 
+// ── Publier au nom d'une association (lot 2, migration 102) ──
+// Associations au nom desquelles l'utilisateur peut publier : toutes pour la mairie, ses fiches
+// gérées pour un responsable, aucune si l'annuaire n'est pas actif (offre payante). Chargé une
+// fois au démarrage (navigation.js) ; un responsable voit alors le bouton « + Publier un article ».
+window.ASSOS_PUBLICATION = [];
+
+async function chargerAssociationsPublication() {
+  try {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/annuaire/publier-pour`);
+    window.ASSOS_PUBLICATION = res.ok ? ((await res.json()).associations ?? []) : [];
+  } catch { window.ASSOS_PUBLICATION = []; }
+  const estGestionnaire = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
+  document.body.classList.toggle('peut-publier-asso', !estGestionnaire && window.ASSOS_PUBLICATION.length > 0);
+}
+
+// Menu « Publier pour ». libelleSansAsso = première option (« La mairie », « Moi ») ; null quand
+// l'utilisateur ne peut publier qu'au nom d'une association (responsable dans Actualités).
+function htmlChampPublierPour(prefixe, libelleSansAsso, ficheIdPreselection = '') {
+  const assos = window.ASSOS_PUBLICATION || [];
+  if (!assos.length) return '';
+  return `
+    <label class="label-champ-edition">Publier pour</label>
+    <select id="publier-pour-${prefixe}">
+      ${libelleSansAsso ? `<option value="">${libelleSansAsso}</option>` : ''}
+      ${assos.map((a) => `<option value="${a.id}" ${a.id === ficheIdPreselection ? 'selected' : ''}>🤝 ${escapeAttr(a.nom)}</option>`).join('')}
+    </select>`;
+}
+function lireChampPublierPour(corps, prefixe) {
+  return corps.querySelector(`#publier-pour-${prefixe}`)?.value || undefined;
+}
+
 async function chargerAnnuaire(filtreCategorie = null) {
   const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/annuaire`, window.location.origin);
   if (filtreCategorie) url.searchParams.set('categorie', filtreCategorie);
@@ -86,9 +117,78 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
     zone.appendChild(bar);
   }
 
-  if (fiche.categorie === 'association' && !estGestionnaireAnnuaire) {
-    zone.appendChild(renderBlocBureauAssociation(fiche));
+  if (fiche.categorie === 'association') {
+    zone.appendChild(renderVitrineAssociation(fiche));
+    if (!estGestionnaireAnnuaire) zone.appendChild(renderBlocBureauAssociation(fiche));
   }
+}
+
+// Vitrine : prochains événements et dernières actualités de l'association, chargés à
+// l'ouverture de la fiche ; boutons de publication pour qui peut publier en son nom.
+function renderVitrineAssociation(fiche) {
+  const bloc = document.createElement('div');
+  bloc.className = 'vitrine-association';
+  const peutPublier = (window.ASSOS_PUBLICATION || []).some((a) => a.id === fiche.id);
+  bloc.innerHTML = `
+    ${peutPublier ? `<div class="actions-vitrine-association">
+      <button type="button" data-publier="article">📰 Publier une actualité</button>
+      <button type="button" data-publier="event">📅 Publier un événement</button>
+    </div>` : ''}
+    <h4>📅 Prochains événements</h4><div class="liste-vitrine" data-liste="events">Chargement…</div>
+    <h4>📰 Dernières actualités</h4><div class="liste-vitrine" data-liste="articles">Chargement…</div>`;
+
+  bloc.querySelector('[data-publier="article"]')?.addEventListener('click', () => ouvrirModaleCreationArticle({ ficheId: fiche.id }));
+  bloc.querySelector('[data-publier="event"]')?.addEventListener('click', () => ouvrirModaleCreationAgenda({ ficheId: fiche.id }));
+
+  const base = `${window.API_BASE}/${window.COMMUNE_SLUG}`;
+  const listeEvents = bloc.querySelector('[data-liste="events"]');
+  const listeArticles = bloc.querySelector('[data-liste="articles"]');
+
+  appelApi(new URL(`${base}/agenda?fiche=${fiche.id}`, window.location.origin))
+    .then((res) => (res.ok ? res.json() : { events: [] }))
+    .then(({ events = [] }) => {
+      listeEvents.innerHTML = events.length ? '' : '<p class="dechets-vide">Aucun événement à venir.</p>';
+      events.slice(0, 5).forEach((ev) => listeEvents.appendChild(ligneVitrine(
+        ev.titre, `${formatDateAffichageEvent(ev)}${ev.lieu ? ' · ' + ev.lieu : ''}`, () => ouvrirApercuEvenementVitrine(ev),
+      )));
+    })
+    .catch(() => { listeEvents.textContent = ''; });
+
+  appelApi(new URL(`${base}/actus?fiche=${fiche.id}`, window.location.origin))
+    .then((res) => (res.ok ? res.json() : { articles: [] }))
+    .then(({ articles = [] }) => {
+      listeArticles.innerHTML = articles.length ? '' : '<p class="dechets-vide">Aucune actualité pour l\'instant.</p>';
+      articles.slice(0, 5).forEach((a) => listeArticles.appendChild(ligneVitrine(
+        a.titre, new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), () => ouvrirApercuArticleVitrine(a),
+      )));
+    })
+    .catch(() => { listeArticles.textContent = ''; });
+
+  return bloc;
+}
+
+function ligneVitrine(titre, sousTitre, onClic) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ligne-vitrine';
+  btn.innerHTML = `<strong>${escapeAttr(titre)}</strong><span>${escapeAttr(sousTitre)}</span>`;
+  btn.addEventListener('click', onClic);
+  return btn;
+}
+
+function ouvrirApercuArticleVitrine(article) {
+  ouvrirModaleFormulaire(escapeAttr(article.titre), `
+    <div class="contenu-article">${linkifierHtmlRiche(article.contenu_html)}</div>
+    <div class="images-article">${(article.images || []).map((img) => `<img src="${escapeAttr(img.url)}" class="miniature-article" loading="lazy" alt="">`).join('')}</div>
+    <p class="texte-aide-responsables">Retrouvez aussi cette actualité dans l'onglet Actualités (sondage, réactions).</p>`);
+}
+
+function ouvrirApercuEvenementVitrine(ev) {
+  ouvrirModaleFormulaire(escapeAttr(ev.titre), `
+    ${ev.photo_url ? `<img src="${escapeAttr(ev.photo_url)}" class="affiche-vitrine" alt="">` : ''}
+    <p><strong>${escapeAttr(formatDateAffichageEvent(ev))}</strong>${ev.lieu ? ' · ' + escapeAttr(ev.lieu) : ''}</p>
+    ${ev.description ? `<p>${texteAvecLiensCliquables(ev.description)}</p>` : ''}
+    <p class="texte-aide-responsables">Pour vous inscrire, ouvrez cet événement dans l'onglet Agenda.</p>`);
 }
 
 // Habitant face à une fiche d'association : demander à la gérer, suivre sa demande, ou se retirer.

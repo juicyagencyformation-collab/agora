@@ -2,6 +2,7 @@
 let editeurArticleActuel;
 let choixSondageCompteur = 0;
 let filtreCategorieActuel = null;
+let filtreSourceActu = '';
 let modeArchivesActu = false;
 
 const LABELS_CATEGORIE_ARTICLE = {
@@ -16,11 +17,15 @@ async function chargerArticles(section = 'actualites', curseur = null) {
   const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/actus`, window.location.origin);
   url.searchParams.set('section', section);
   if (filtreCategorieActuel) url.searchParams.set('categorie', filtreCategorieActuel);
+  if (filtreSourceActu) url.searchParams.set('source', filtreSourceActu);
   if (modeArchivesActu) url.searchParams.set('archives', 'true');
   if (curseur) url.searchParams.set('curseur', curseur);
   const res = await appelApi(url);
   if (!res.ok) return;
   const { articles } = await res.json();
+  // Menu « Tout / Mairie / Associations » : seulement là où l'annuaire (offre payante) est actif.
+  const selectSource = document.getElementById('filtre-source-articles');
+  if (selectSource) selectSource.hidden = typeof ongletsVerrouilles !== 'undefined' && ongletsVerrouilles.has('annuaire');
   const conteneur = document.getElementById('liste-articles');
   conteneur.innerHTML = '';
   if (!articles.length) {
@@ -67,6 +72,16 @@ function initFiltresCategorieArticle() {
       chargerArticles();
     });
   });
+
+  // Menu déroulant (sobriété) plutôt qu'une rangée de boutons de plus.
+  const selectSource = document.createElement('select');
+  selectSource.id = 'filtre-source-articles';
+  selectSource.className = 'filtre-source-articles';
+  selectSource.innerHTML = `<option value="">Toutes les publications</option>
+    <option value="mairie">🏛️ La mairie</option>
+    <option value="associations">🤝 Les associations</option>`;
+  selectSource.addEventListener('change', () => { filtreSourceActu = selectSource.value; chargerArticles(); });
+  zone.before(selectSource);
 }
 
 function renderArticle(article) {
@@ -79,13 +94,17 @@ function renderArticle(article) {
   const dateAffichee = new Date(article.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
   const libelleCategorie = LABELS_CATEGORIE_ARTICLE[article.categorie] ?? article.categorie;
+  // Publié au nom d'une association : son nom remplace la catégorie (jamais le nom de la personne).
+  const libelleBadge = article.association ? `🤝 ${escapeAttr(article.association.nom)}` : libelleCategorie;
+  const badgeMasque = article.statut === 'masquee' ? '<span class="badge-categorie-article badge-masque">⚠️ Masqué (signalé)</span>' : '';
 
   el.innerHTML = miniature ? `
     <button type="button" class="entete-article-compact entete-article-banniere">
       <img src="${miniature}" class="banniere-article-img" loading="lazy" alt="">
-      <span class="badge-categorie-article badge-categorie-banniere">${libelleCategorie}</span>
+      <span class="badge-categorie-article badge-categorie-banniere">${libelleBadge}</span>
       <div class="banniere-article-degrade"></div>
       <div class="banniere-article-texte">
+        ${badgeMasque}
         <h3 class="titre-article-banniere">${escapeAttr(article.titre)}</h3>
         <span class="date-article-banniere">${dateAffichee}${article.deja_lu ? ' · lu ✓' : ''}</span>
       </div>
@@ -94,7 +113,7 @@ function renderArticle(article) {
   ` : `
     <button type="button" class="entete-article-compact">
       <div class="texte-entete-article">
-        <span class="badge-categorie-article">${libelleCategorie}</span>
+        <span class="badge-categorie-article ${article.association ? 'badge-association' : ''}">${libelleBadge}</span>${badgeMasque}
         <h3 class="titre-article-compact">${escapeAttr(article.titre)}</h3>
         <span class="date-article-compact">${dateAffichee}${article.deja_lu ? ' · lu ✓' : ''}</span>
       </div>
@@ -153,7 +172,34 @@ function remplirContenuDeplie(zone, article) {
     zone.querySelector('.sondage-article').appendChild(renderSondageArticle(article.sondage, article.id));
   }
 
-  if (['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE)) {
+  const estGestionnaireActu = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
+
+  // Règle n°4 : une actualité d'association se signale (masquée aussitôt, revue par la mairie).
+  if (article.signalable && !article.peut_gerer && article.statut !== 'masquee') {
+    const btnSignaler = document.createElement('button');
+    btnSignaler.type = 'button';
+    btnSignaler.className = 'lien-discret';
+    btnSignaler.textContent = '🚩 Signaler cette publication';
+    btnSignaler.addEventListener('click', async () => {
+      if (!confirm('Signaler cette publication ? Elle sera masquée le temps que la mairie la vérifie.')) return;
+      const res = await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}/signaler`, { method: 'POST' });
+      if (res.ok) { afficherToastMessage('Merci, la mairie va vérifier cette publication.'); chargerArticles(); }
+    });
+    zone.appendChild(btnSignaler);
+  }
+
+  if (article.statut === 'masquee' && estGestionnaireActu) {
+    const barRevue = document.createElement('div');
+    barRevue.className = 'actions-admin';
+    barRevue.innerHTML = '<button data-action="retablir">✓ Rétablir (signalement non fondé)</button>';
+    barRevue.querySelector('[data-action="retablir"]').addEventListener('click', async () => {
+      await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}/restaurer`, { method: 'PATCH' });
+      chargerArticles();
+    });
+    zone.appendChild(barRevue);
+  }
+
+  if (estGestionnaireActu || article.peut_gerer) {
     const bar = document.createElement('div');
     bar.className = 'actions-admin';
     const labelArchive = article.archive ? 'Restaurer' : 'Archiver';
@@ -221,9 +267,12 @@ function htmlBlocSondageArticle() {
   `;
 }
 
-function htmlFormulaireArticle() {
+function htmlFormulaireArticle(ficheIdPreselection = '') {
+  // La mairie publie en son nom ou pour une association ; un responsable, seulement pour la sienne.
+  const estGestionnaireActu = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   return `
     <form id="form-modale-article">
+      ${htmlChampPublierPour('article-modale', estGestionnaireActu ? '🏛️ La mairie' : null, ficheIdPreselection)}
       <input type="text" id="titre-article-modale" placeholder="Titre de l'article" maxlength="200" required>
       <select id="categorie-article-modale">
         ${Object.entries(LABELS_CATEGORIE_ARTICLE).map(([cle, label]) => `<option value="${cle}">${label}</option>`).join('')}
@@ -241,8 +290,9 @@ function htmlFormulaireArticle() {
   `;
 }
 
-function ouvrirModaleCreationArticle() {
-  const overlay = ouvrirModaleFormulaire('Publier un article', htmlFormulaireArticle());
+// options.ficheId : ouverte depuis la vitrine d'une association (annuaire.js), présélectionnée.
+function ouvrirModaleCreationArticle(options = {}) {
+  const overlay = ouvrirModaleFormulaire('Publier un article', htmlFormulaireArticle(options.ficheId || ''));
   const corps = overlay.querySelector('.corps-modale-formulaire');
   editeurArticleActuel = creerEditeurRiche('editeur-article-modale');
   choixSondageCompteur = 0;
@@ -407,6 +457,7 @@ async function soumettreArticleModale(corps, overlay) {
     body: JSON.stringify({
       section: 'actualites', categorie, titre, contenu_html: contenuHtml, image_r2_keys: imageR2Keys, sondage,
       fichier_pv_url: fichierPv?.url, fichier_pv_type: fichierPv?.type,
+      fiche_id: lireChampPublierPour(corps, 'article-modale'),
     }),
   });
   boutonSubmit.disabled = false;
@@ -416,7 +467,7 @@ async function soumettreArticleModale(corps, overlay) {
     chargerArticles();
   } else {
     const data = await res.json();
-    alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de publication');
+    alert(typeof data.erreur === 'string' ? data.erreur : (data.erreur ? JSON.stringify(data.erreur) : 'Erreur de publication'));
   }
 }
 

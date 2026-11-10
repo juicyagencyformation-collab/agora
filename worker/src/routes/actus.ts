@@ -8,9 +8,28 @@ import { uploaderFichier, deleteObject } from '../storage';
 import { sanitizeHtml } from '../lib/sanitize';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur } from '../lib/gamification';
 import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/push';
+import { photoSuspecte } from '../lib/moderation-image';
+import {
+  peutPublierPourFiche, plafondPublicationsAssoAtteint, fichesPublicationPossible,
+  idsFichesGerees, fichesAffichage, signalerPublication, MAX_PUBLICATIONS_ASSO_24H,
+} from '../lib/associations';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
+
+// Gérer un article (modifier, archiver, supprimer) : la mairie, ou — pour un article publié au
+// nom d'une association (migration 102) — un responsable actif de cette association.
+async function peutGererArticle(c: any, article: any): Promise<boolean> {
+  if (estGestionnaire(c.get('role'))) return true;
+  if (!article.fiche_id) return false;
+  return peutPublierPourFiche(c.env, c.get('commune_id'), article.fiche_id, c.get('user_id'), c.get('role'));
+}
+
+// Envoyer une photo / un PDF : la mairie, ou un habitant qui gère au moins une association.
+async function peutEnvoyerFichier(c: any): Promise<boolean> {
+  if (estGestionnaire(c.get('role'))) return true;
+  return (await fichesPublicationPossible(c.env, c.get('commune_id'), c.get('user_id'), c.get('role'))).length > 0;
+}
 
 // /actus dessert deux onglets distincts (Actualités et Conseil) selon le champ "section",
 // donc le contrôle d'onglet actif se fait ici plutôt qu'en middleware générique.
@@ -46,6 +65,8 @@ const articleSchema = z.object({
   // l'édition (PATCH envoie alors null), sans quoi il n'y aurait aucun moyen de l'enlever.
   fichier_pv_url: z.string().url().nullable().optional(),
   fichier_pv_type: z.enum(['pdf', 'image']).nullable().optional(),
+  // Publier au nom d'une association (création uniquement, jamais modifiable ensuite).
+  fiche_id: z.string().uuid().optional(),
 });
 
 app.get('/', async (c) => {
@@ -57,13 +78,22 @@ app.get('/', async (c) => {
     return c.json({ erreur: 'Onglet désactivé par la mairie' }, 403);
   }
 
+  const gestionnaire = estGestionnaire(c.get('role'));
   const filtres: Record<string, string> = {
-    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type,archive',
+    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type,archive,fiche_id,statut',
     commune_id: `eq.${commune_id}`,
     section: `eq.${section}`,
     order: 'created_at.desc',
     limit: '20',
   };
+  // Articles masqués après signalement : visibles de la seule mairie, qui tranche.
+  if (!gestionnaire) filtres.statut = 'eq.visible';
+  // Menu « Tout / Mairie / Associations », et vitrine d'une association (?fiche=).
+  const source = c.req.query('source');
+  if (source === 'mairie') filtres.fiche_id = 'is.null';
+  if (source === 'associations') filtres.fiche_id = 'not.is.null';
+  const ficheFiltre = z.string().uuid().safeParse(c.req.query('fiche'));
+  if (ficheFiltre.success) filtres.fiche_id = `eq.${ficheFiltre.data}`;
   // Par défaut : le fil principal (archive=false). ?archives=true : la section Archives,
   // consultable par tous (les actus archivées restent lisibles, juste hors du fil courant).
   filtres.archive = c.req.query('archives') === 'true' ? 'eq.true' : 'eq.false';
@@ -124,11 +154,19 @@ app.get('/', async (c) => {
   }) : [];
   const idsArticlesLus = new Set(mesLectures.map((l: any) => l.article_id));
 
+  const idsFiches = articles.map((a: any) => a.fiche_id).filter(Boolean);
+  const [fiches, mesFiches] = idsFiches.length
+    ? await Promise.all([fichesAffichage(c.env, commune_id, idsFiches), gestionnaire ? [] : idsFichesGerees(c.env, commune_id, user_id_lecteur)])
+    : [new Map(), []];
+
   const result = articles.map((a: any) => ({
     ...a,
     images: images.filter((i: any) => i.article_id === a.id),
     sondage: sondagesComplets.find((s: any) => s.article_id === a.id) ?? null,
     deja_lu: idsArticlesLus.has(a.id),
+    association: a.fiche_id ? (fiches.get(a.fiche_id) ?? null) : null,
+    peut_gerer: gestionnaire || (!!a.fiche_id && (mesFiches as string[]).includes(a.fiche_id)),
+    signalable: !!a.fiche_id,
   }));
 
   return c.json({ articles: result, commune_id });
@@ -136,15 +174,26 @@ app.get('/', async (c) => {
 
 app.post('/', async (c) => {
   const role = c.get('role');
-  if (!estGestionnaire(role)) {
-    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
-  }
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
 
   const body = articleSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const data = body.data;
+
+  // Sans association : réservé à la mairie (comme avant). Au nom d'une association : la mairie
+  // ou un responsable actif, uniquement dans Actualités (jamais dans Conseil), plafonné.
+  if (data.fiche_id) {
+    if (data.section !== 'actualites') return c.json({ erreur: 'Une association ne publie que dans les actualités' }, 400);
+    if (!(await peutPublierPourFiche(c.env, commune_id, data.fiche_id, user_id, role))) {
+      return c.json({ erreur: 'Vous ne pouvez pas publier au nom de cette association' }, 403);
+    }
+    if (!estGestionnaire(role) && await plafondPublicationsAssoAtteint(c.env, commune_id, data.fiche_id)) {
+      return c.json({ erreur: `Limite atteinte : ${MAX_PUBLICATIONS_ASSO_24H} publications par association sur 24 heures.` }, 429);
+    }
+  } else if (!estGestionnaire(role)) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
 
   if (!(await ongletActifPourSection(c.env, commune_id, data.section))) {
     return c.json({ erreur: 'Onglet désactivé par la mairie' }, 403);
@@ -157,8 +206,10 @@ app.post('/', async (c) => {
     titre: data.titre, contenu_html,
     fichier_pv_url: data.fichier_pv_url ?? null,
     fichier_pv_type: data.fichier_pv_type ?? null,
+    fiche_id: data.fiche_id ?? null,
   });
-  await enregistrerEvenementActivation(c.env, commune_id, 'article_publie');
+  // Indicateur d'activation de la mairie (backoffice) : seulement ses propres publications.
+  if (!data.fiche_id) await enregistrerEvenementActivation(c.env, commune_id, 'article_publie');
 
   if (data.image_r2_keys?.length) {
     await supabaseInsert(c.env, 'article_images', data.image_r2_keys.map((key, i) => ({
@@ -179,7 +230,9 @@ app.post('/', async (c) => {
     })));
   }
 
-  if (data.section === 'actualites') {
+  // Pas de notification pour une actualité d'association (choix du 2026-11-10) : avec plusieurs
+  // associations actives, les habitants couperaient toutes les notifications, mairie comprise.
+  if (data.section === 'actualites' && !data.fiche_id) {
     c.executionCtx.waitUntil((async () => {
       const abonnes = await utilisateursAbonnesA(c.env, commune_id, 'notif_articles');
       await envoyerNotificationAUtilisateurs(
@@ -193,12 +246,16 @@ app.post('/', async (c) => {
 });
 
 app.patch('/:id', async (c) => {
-  const role = c.get('role');
-  if (!estGestionnaire(role)) {
-    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
-  }
   const commune_id = c.get('commune_id');
   const article_id = c.req.param('id');
+
+  const [articleExistant] = await supabaseSelect(c.env, 'articles', {
+    select: 'id,fiche_id', commune_id: `eq.${commune_id}`, id: `eq.${article_id}`,
+  });
+  if (!articleExistant) return c.json({ erreur: 'Article introuvable' }, 404);
+  if (!(await peutGererArticle(c, articleExistant))) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
 
   const partialSchema = articleSchema.partial();
   const body = partialSchema.safeParse(await c.req.json());
@@ -305,12 +362,16 @@ app.patch('/:id', async (c) => {
 });
 
 app.delete('/:id', async (c) => {
-  const role = c.get('role');
-  if (!estGestionnaire(role)) {
-    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
-  }
   const commune_id = c.get('commune_id');
   const article_id = c.req.param('id');
+
+  const [articleExistant] = await supabaseSelect(c.env, 'articles', {
+    select: 'id,fiche_id', commune_id: `eq.${commune_id}`, id: `eq.${article_id}`,
+  });
+  if (!articleExistant) return c.json({ erreur: 'Article introuvable' }, 404);
+  if (!(await peutGererArticle(c, articleExistant))) {
+    return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  }
 
   const images = await supabaseSelect(c.env, 'article_images', {
     select: 'r2_key',
@@ -327,8 +388,7 @@ app.delete('/:id', async (c) => {
 });
 
 app.post('/upload', async (c) => {
-  const role = c.get('role');
-  if (!estGestionnaire(role)) {
+  if (!(await peutEnvoyerFichier(c))) {
     return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   }
   const commune_id = c.get('commune_id');
@@ -341,6 +401,10 @@ app.post('/upload', async (c) => {
   if (donnees.byteLength > 8 * 1024 * 1024) {
     return c.json({ erreur: 'Image trop lourde (max 8 Mo)' }, 400);
   }
+  // Photo d'un responsable d'association : filtre automatique, comme les autres envois habitants.
+  if (!estGestionnaire(c.get('role')) && await photoSuspecte(c.env, commune_id, donnees, contentType)) {
+    return c.json({ erreur: 'Cette photo ne respecte pas nos règles de contenu et n\'a pas été acceptée.' }, 422);
+  }
 
   const extension = contentType.split('/')[1];
   const key = `${commune_id}/articles/${crypto.randomUUID()}.${extension}`;
@@ -349,8 +413,7 @@ app.post('/upload', async (c) => {
 });
 
 app.post('/pv-upload', async (c) => {
-  const role = c.get('role');
-  if (!estGestionnaire(role)) {
+  if (!(await peutEnvoyerFichier(c))) {
     return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   }
   const commune_id = c.get('commune_id');
@@ -363,6 +426,9 @@ app.post('/pv-upload', async (c) => {
   const donnees = await c.req.arrayBuffer();
   if (donnees.byteLength > 15 * 1024 * 1024) {
     return c.json({ erreur: 'Fichier trop volumineux (15 Mo maximum)' }, 400);
+  }
+  if (!estGestionnaire(c.get('role')) && await photoSuspecte(c.env, commune_id, donnees, contentType)) {
+    return c.json({ erreur: 'Cette image ne respecte pas nos règles de contenu et n\'a pas été acceptée.' }, 422);
   }
 
   const extension = contentType === 'application/pdf' ? 'pdf' : (contentType === 'image/png' ? 'png' : 'jpg');
@@ -410,7 +476,15 @@ app.post('/:id/lu', async (c) => {
   });
   if (dejaLu) return c.json({ ok: true, deja_lu: true });
 
+  const [article] = await supabaseSelect(c.env, 'articles', {
+    select: 'id,fiche_id', commune_id: `eq.${commune_id}`, id: `eq.${article_id}`,
+  });
+  if (!article) return c.json({ erreur: 'Article introuvable' }, 404);
+
   await supabaseInsert(c.env, 'articles_lus_par_utilisateur', { commune_id, article_id, user_id });
+  // Anti-farming (règle n°6) : lire une actualité d'association ne rapporte pas de points — sinon
+  // un responsable pourrait publier/supprimer en boucle pour faire gagner des points.
+  if (article.fiche_id) return c.json({ ok: true, nouveaux_badges: [] });
   await incrementerCompteurUtilisateur(c.env, commune_id, user_id, 'articles_lus');
   const resultatXp = await attribuerXp(c.env, commune_id, user_id, XP_ACTIONS.lire_article);
 
@@ -434,6 +508,29 @@ app.post('/:id/lu', async (c) => {
   }
 
   return c.json({ ok: true, ...resultatXp });
+});
+
+// POST /:id/signaler — règle n°4 : seule une actualité d'association est signalable (celles de la
+// mairie sont des communications officielles). Un seul signalement la masque aussitôt.
+app.post('/:id/signaler', async (c) => {
+  const commune_id = c.get('commune_id');
+  const [article] = await supabaseSelect(c.env, 'articles', {
+    select: 'id,fiche_id', commune_id: `eq.${commune_id}`, id: `eq.${c.req.param('id')}`,
+  });
+  if (!article) return c.json({ erreur: 'Article introuvable' }, 404);
+  if (!article.fiche_id) return c.json({ erreur: 'Les publications de la mairie ne se signalent pas ici' }, 400);
+  await signalerPublication(c.env, commune_id, c.get('user_id'), { article_id: article.id });
+  return c.json({ ok: true });
+});
+
+// PATCH /:id/restaurer — la mairie rétablit un article masqué après revue.
+app.patch('/:id/restaurer', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  await supabaseUpdate(c.env, 'articles', { statut: 'visible' }, {
+    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true });
 });
 
 export default app;

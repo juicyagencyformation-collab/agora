@@ -26,6 +26,13 @@ admin, élu et superadmin peuvent créer/modifier/supprimer le contenu de : actu
 conseil (délibérations) est réservé à élu et superadmin uniquement. Ceci s'ajoute au schéma
 de modération standard (signalement → masquage immédiat → revue mairie) pour le contenu
 soumis par les citoyens — voir règle 4 ci-dessous.
+**Associations (validé par Léandre le 2026-11-10, migrations 101-102) :** un habitant
+« responsable actif » d'une fiche association de l'annuaire (demande validée ou désignation par
+la mairie) peut tenir la fiche à jour (sauf catégorie et suppression) et publier actualités
+(sondage possible) et événements AU NOM de l'association — pas de push, pas de points, 3
+publications / 24 h, signalables (règle 4), partagés dans « Autour de moi ». Offre payante :
+exige l'onglet annuaire actif. Logique centralisée dans `worker/src/lib/associations.ts` ;
+tests `worker/test/annuaire-responsables.test.ts` et `publications-associations.test.ts`.
 
 ## Format des réponses code
 - Toujours indiquer le chemin du fichier en commentaire en haut du bloc de code

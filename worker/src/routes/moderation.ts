@@ -301,7 +301,7 @@ app.get('/stats', async (c) => {
   const [
     citoyens, articles, alertesOuvertes, alertesEnCours, alertesResolues, sondages, messagesMur,
     evenementsAVenir, annonces, fichesAnnuaire, chassesActives, enigmesActives, photosJour,
-    avisLois, enAttentePhotos, enAttenteEnigmes, enAttenteMur, scoresCitoyens,
+    avisLois, enAttentePhotos, enAttenteEnigmes, enAttenteMur, enAttenteArticles, enAttenteEvents, scoresCitoyens,
   ] = await Promise.all([
     compter('users'),
     compter('articles', { section: 'eq.actualites' }),
@@ -320,6 +320,8 @@ app.get('/stats', async (c) => {
     compter('photos_du_jour', { statut: 'eq.masquee' }),
     compter('photos_enigmes', { statut: 'eq.masquee' }),
     compter('posts', { statut: 'eq.masquee' }),
+    compter('articles', { statut: 'eq.masquee' }),
+    compter('events', { statut: 'eq.masquee' }),
     supabaseSelect(c.env, 'users', { select: 'score_citoyen', commune_id: `eq.${commune_id}` }),
   ]);
 
@@ -332,7 +334,7 @@ app.get('/stats', async (c) => {
     annonces_entraide: annonces, fiches_annuaire: fichesAnnuaire,
     explorations_actives: chassesActives + enigmesActives,
     photos_jour: photosJour, avis_lois: avisLois,
-    en_attente_moderation: enAttentePhotos + enAttenteEnigmes + enAttenteMur,
+    en_attente_moderation: enAttentePhotos + enAttenteEnigmes + enAttenteMur + enAttenteArticles + enAttenteEvents,
     score_citoyen_total,
   });
 });

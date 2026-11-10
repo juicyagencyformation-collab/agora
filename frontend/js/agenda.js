@@ -126,9 +126,9 @@ function renderCarteEvenementAutour(e) {
   const el = document.createElement('article');
   el.className = 'carte-article-compacte';
   const dateAffichee = new Date(e.date_debut).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const badgeOrigine = e.commune_nationale
+  const badgeOrigine = (e.association_nom ? `🤝 ${escapeAttr(e.association_nom)} · ` : '') + (e.commune_nationale
     ? `🇫🇷 ${escapeAttr(e.commune_nom)} · National`
-    : `📍 ${escapeAttr(e.commune_nom)} · ${e.commune_distance_km} km`;
+    : `📍 ${escapeAttr(e.commune_nom)} · ${e.commune_distance_km} km`);
   el.innerHTML = `
     <div style="padding:12px;">
       <span class="badge-categorie-article">${badgeOrigine}</span>
@@ -256,7 +256,11 @@ function renderEvent(event) {
   el.className = 'carte-event-compact';
   el.dataset.eventId = event.id;
   const estGestionnaireEvent = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
-  const peutModifier = event.est_moi || estGestionnaireEvent;
+  // peut_gerer (serveur) inclut les responsables de l'association organisatrice (migration 102).
+  const peutModifier = event.peut_gerer ?? (event.est_moi || estGestionnaireEvent);
+  const badgeOrigine = event.association
+    ? `<span class="badge-categorie-article badge-association">🤝 ${escapeAttr(event.association.nom)}</span>`
+    : `<span class="badge-categorie-article ${event.officiel ? 'badge-officiel-event' : ''}">${event.officiel ? '🏛️ Officiel' : '👤 Citoyen'}</span>`;
   const dateAffichee = formatDateAffichageEvent(event);
   const badgeQuand = !modeHistoriqueAgenda ? badgeQuandEvenement(event.date_debut) : null;
 
@@ -273,8 +277,9 @@ function renderEvent(event) {
       ${event.photo_url ? `<img src="${event.photo_url}" class="miniature-liste-article">` : vignetteSansPhoto}
       <div class="texte-entete-event">
         <div class="badges-event-compact">
-          <span class="badge-categorie-article ${event.officiel ? 'badge-officiel-event' : ''}">${event.officiel ? '🏛️ Officiel' : '👤 Citoyen'}</span>
+          ${badgeOrigine}
           ${badgeQuand ? `<span class="badge-categorie-article ${badgeQuand.classe}">${badgeQuand.texte}</span>` : ''}
+          ${event.statut === 'masquee' ? '<span class="badge-categorie-article badge-masque">⚠️ Masqué (signalé)</span>' : ''}
         </div>
         <h3 class="titre-article-compact">${escapeAttr(event.titre)}</h3>
         <p class="extrait-article-compact">${dateAffichee}${event.lieu ? ' · ' + escapeAttr(event.lieu) : ''}</p>
@@ -314,7 +319,7 @@ function remplirContenuEvenement(zone, event, peutModifier) {
 
   zone.innerHTML = `
     ${event.description ? `<p>${texteAvecLiensCliquables(event.description)}</p>` : ''}
-    <p style="font-size:11.5px;color:var(--roseau);">Organisé par ${escapeAttr(event.auteur_prenom)} ${escapeAttr(event.auteur_nom)}</p>
+    <p style="font-size:11.5px;color:var(--roseau);">Organisé par ${event.association ? escapeAttr(event.association.nom) : `${escapeAttr(event.auteur_prenom)} ${escapeAttr(event.auteur_nom)}`}</p>
 
     <button type="button" class="btn-toggle-participants">👥 Voir les participants ▾</button>
     <div class="zone-participants-repliable" hidden></div>
@@ -336,9 +341,22 @@ function remplirContenuEvenement(zone, event, peutModifier) {
 
     <div class="actions-admin" style="margin-top:8px;">
       ${peutModifier ? '<button class="btn-modifier-event">Modifier</button><button class="btn-supprimer-event">Supprimer</button><button class="btn-voir-contacts-event">Voir les coordonnées</button>' : ''}
+      ${event.statut === 'masquee' && ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE) ? '<button class="btn-retablir-event">✓ Rétablir (signalement non fondé)</button>' : ''}
     </div>
+    ${event.signalable && !peutModifier && event.statut !== 'masquee' ? '<button type="button" class="lien-discret btn-signaler-event">🚩 Signaler cet événement</button>' : ''}
     <div class="zone-contacts-event" hidden></div>
   `;
+
+  // Règle n°4 : signalement → masquage immédiat → revue mairie.
+  zone.querySelector('.btn-signaler-event')?.addEventListener('click', async () => {
+    if (!confirm('Signaler cet événement ? Il sera masqué le temps que la mairie le vérifie.')) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda/${event.id}/signaler`, { method: 'POST' });
+    if (res.ok) { afficherToastMessage('Merci, la mairie va vérifier cet événement.'); chargerAgenda(); }
+  });
+  zone.querySelector('.btn-retablir-event')?.addEventListener('click', async () => {
+    await appelApi(`/${window.COMMUNE_SLUG}/agenda/${event.id}/restaurer`, { method: 'PATCH' });
+    chargerAgenda();
+  });
 
   if (event.necessite_validation_presence && !event.est_moi) {
     initZoneScanCivique(zone.querySelector('.carte-scan-civique'), event.id);
@@ -450,7 +468,7 @@ function htmlChampPartageAutour(prefixe, valeurActuelle) {
       <input type="checkbox" id="partage-autour-${prefixe}" ${coche ? 'checked' : ''}>
       <span>
         <strong>🗺️ Afficher dans « Autour de moi »</strong>
-        <small>Cet événement officiel sera visible par les communes voisines partenaires. Décoche pour le garder uniquement dans ta commune.</small>
+        <small>Cet événement (de la mairie ou d'une association) sera visible par les communes voisines partenaires. Décoche pour le garder uniquement dans ta commune.</small>
       </span>
     </label>
   `;
@@ -612,7 +630,7 @@ function ouvrirEditionEvent(event) {
       ${htmlChampsDateHeure('edition-event-modale', valeurs)}
       ${htmlChampPosition('edition-event-modale', event.lat, event.lng)}
       ${estGestionnaireAgenda ? htmlChampTypeAction('edition-event-modale', event.type_action) : ''}
-      ${estGestionnaireAgenda ? htmlChampPartageAutour('edition-event-modale', event.partage_autour) : ''}
+      ${estGestionnaireAgenda || event.association ? htmlChampPartageAutour('edition-event-modale', event.partage_autour) : ''}
 
       <button type="submit" style="margin-top:12px;">✓ Enregistrer</button>
     </form>
@@ -652,7 +670,8 @@ function ouvrirEditionEvent(event) {
         titre, description, lieu, date_debut, date_fin,
         ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
         ...(r2Key ? { r2_key: r2Key } : {}),
-        ...(estGestionnaireAgenda ? { type_action: typeAction ?? '', partage_autour: lireChampPartageAutour(corps, 'edition-event-modale') } : {}),
+        ...(estGestionnaireAgenda ? { type_action: typeAction ?? '' } : {}),
+        ...(estGestionnaireAgenda || event.association ? { partage_autour: lireChampPartageAutour(corps, 'edition-event-modale') } : {}),
       }),
     });
     if (res.ok) { fermerModaleFormulaire(overlay); chargerAgenda(); }
@@ -666,10 +685,13 @@ function initFormulaireAgenda() {
   btn.addEventListener('click', () => ouvrirModaleCreationAgenda());
 }
 
-function ouvrirModaleCreationAgenda() {
+// options.ficheId : ouverte depuis la vitrine d'une association (annuaire.js), présélectionnée.
+function ouvrirModaleCreationAgenda(options = {}) {
   const estGestionnaireAgenda = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
+  const peutPublierPourAsso = (window.ASSOS_PUBLICATION || []).length > 0;
   const html = `
     <form id="form-modale-agenda">
+      ${htmlChampPublierPour('agenda-modale', estGestionnaireAgenda ? '🏛️ La mairie' : '👤 Moi (habitant)', options.ficheId || '')}
       <input type="text" id="titre-agenda-modale" placeholder="Titre" maxlength="150" required>
       <textarea id="description-agenda-modale" placeholder="Description"></textarea>
       <input type="text" id="lieu-agenda-modale" placeholder="Lieu (texte)">
@@ -677,7 +699,7 @@ function ouvrirModaleCreationAgenda() {
       ${htmlChampsDateHeure('agenda-modale')}
       ${htmlChampPosition('agenda-modale')}
       ${estGestionnaireAgenda ? htmlChampTypeAction('agenda-modale') : ''}
-      ${estGestionnaireAgenda ? htmlChampPartageAutour('agenda-modale') : ''}
+      ${estGestionnaireAgenda || peutPublierPourAsso ? htmlChampPartageAutour('agenda-modale') : ''}
       <button type="submit" style="margin-top:12px;">Créer</button>
     </form>
   `;
@@ -685,6 +707,17 @@ function ouvrirModaleCreationAgenda() {
   const corps = overlay.querySelector('.corps-modale-formulaire');
   initToggleOptionsAvancees(corps, 'agenda-modale');
   initBoutonPosition(corps, 'agenda-modale');
+
+  // Habitant responsable : « Autour de moi » ne concerne que ses événements d'association (ceux
+  // publiés en son nom propre ne sont jamais partagés) — la case suit le menu « Publier pour ».
+  const selectPublierPour = corps.querySelector('#publier-pour-agenda-modale');
+  const blocPartage = corps.querySelector('.bloc-partage-autour');
+  if (!estGestionnaireAgenda && selectPublierPour && blocPartage) {
+    // style.display plutôt que hidden : la classe .bloc-partage-autour impose son propre display.
+    const synchroniser = () => { blocPartage.style.display = selectPublierPour.value ? '' : 'none'; };
+    selectPublierPour.addEventListener('change', synchroniser);
+    synchroniser();
+  }
 
   corps.querySelector('#form-modale-agenda').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -696,7 +729,8 @@ function ouvrirModaleCreationAgenda() {
     const lat = corps.querySelector('#lat-agenda-modale').value;
     const lng = corps.querySelector('#lng-agenda-modale').value;
     const typeAction = estGestionnaireAgenda ? lireChampTypeAction(corps, 'agenda-modale') : undefined;
-    const partageAutour = estGestionnaireAgenda ? lireChampPartageAutour(corps, 'agenda-modale') : undefined;
+    const partageAutour = lireChampPartageAutour(corps, 'agenda-modale');
+    const ficheId = lireChampPublierPour(corps, 'agenda-modale');
 
     let r2Key;
     const fichier = corps.querySelector('#image-agenda-modale').files[0];
@@ -710,17 +744,17 @@ function ouvrirModaleCreationAgenda() {
       } catch { console.warn('Upload image échoué, événement publié sans image.'); }
     }
 
-    const res = await creerEvent(titre, description, lieu, date_debut, date_fin, r2Key, lat, lng, typeAction, partageAutour);
+    const res = await creerEvent(titre, description, lieu, date_debut, date_fin, r2Key, lat, lng, typeAction, partageAutour, ficheId);
     if (res.ok) {
       fermerModaleFormulaire(overlay);
     } else {
       const data = await res.json();
-      afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de création', 'erreur');
+      afficherToastMessage(typeof data.erreur === 'string' ? data.erreur : (data.erreur ? JSON.stringify(data.erreur) : 'Erreur de création'), 'erreur');
     }
   });
 }
 
-async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, lat, lng, typeAction, partageAutour) {
+async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, lat, lng, typeAction, partageAutour, ficheId) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -729,6 +763,7 @@ async function creerEvent(titre, description, lieu, dateDebut, dateFin, r2Key, l
       ...(lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : {}),
       ...(typeAction ? { type_action: typeAction } : {}),
       ...(partageAutour !== undefined ? { partage_autour: partageAutour } : {}),
+      ...(ficheId ? { fiche_id: ficheId } : {}),
     }),
   });
   if (res.ok) chargerAgenda();

@@ -15,6 +15,19 @@ import {
   attribuerPointsParticipation, romprePresenceCitoyenne,
   SEUIL_GEOFENCE_METRES,
 } from '../lib/points-citoyens';
+import { photoSuspecte } from '../lib/moderation-image';
+import {
+  peutPublierPourFiche, plafondPublicationsAssoAtteint, idsFichesGerees, fichesAffichage,
+  signalerPublication, MAX_PUBLICATIONS_ASSO_24H,
+} from '../lib/associations';
+
+// Gérer un événement (modifier, supprimer) : son auteur, la mairie, ou — pour un événement
+// publié au nom d'une association (migration 102) — un responsable actif de cette association.
+async function peutGererEvenement(c: any, event: any): Promise<boolean> {
+  if (event.user_id === c.get('user_id') || estGestionnaire(c.get('role'))) return true;
+  if (!event.fiche_id) return false;
+  return peutPublierPourFiche(c.env, c.get('commune_id'), event.fiche_id, c.get('user_id'), c.get('role'));
+}
 
 // Nombre de participants à partir duquel un événement est considéré "réussi"
 // (récompense l'organisateur, une seule fois par événement).
@@ -58,8 +71,11 @@ const creationSchema = z.object({
   r2_key: z.string().optional(),
   type_action: z.enum(TYPES_ACTION_VALIDES).optional(),
   // Partage dans "Autour de moi" (communes voisines) — n'a d'effet que sur un événement
-  // officiel (créé par un gestionnaire) ; sans effet pour un événement citoyen, jamais partagé.
+  // officiel (créé par un gestionnaire) ou d'association ; sans effet pour un événement citoyen,
+  // jamais partagé.
   partage_autour: z.boolean().optional(),
+  // Publier au nom d'une association (création uniquement, jamais modifiable ensuite).
+  fiche_id: z.string().uuid().optional(),
 });
 
 app.get('/', async (c) => {
@@ -68,12 +84,18 @@ app.get('/', async (c) => {
   const historique = c.req.query('historique') === 'true';
   const user_id = c.get('user_id');
 
+  const gestionnaire = estGestionnaire(c.get('role'));
   const filtres: Record<string, string> = {
-    select: 'id,user_id,titre,description,lieu,lat,lng,photo_url,officiel,partage_autour,date_debut,date_fin,type_action,necessite_validation_presence,created_at',
+    select: 'id,user_id,titre,description,lieu,lat,lng,photo_url,officiel,partage_autour,date_debut,date_fin,type_action,necessite_validation_presence,created_at,fiche_id,statut',
     commune_id: `eq.${commune_id}`,
     order: historique ? 'date_debut.desc' : 'date_debut.asc',
     limit: '20',
   };
+  // Événements masqués après signalement : visibles de la seule mairie, qui tranche.
+  if (!gestionnaire) filtres.statut = 'eq.visible';
+  // Vitrine d'une association (annuaire) : ses seuls événements.
+  const ficheFiltre = z.string().uuid().safeParse(c.req.query('fiche'));
+  if (ficheFiltre.success) filtres.fiche_id = `eq.${ficheFiltre.data}`;
   if (historique) {
     filtres.date_fin = `lt.${new Date().toISOString()}`;
   } else {
@@ -110,12 +132,21 @@ app.get('/', async (c) => {
     select: 'event_id,statut', commune_id: `eq.${commune_id}`, event_id: `in.(${idsEventsCiviques.join(',')})`, user_id: `eq.${user_id}`,
   }) : [];
 
+  const idsFiches = events.map((e: any) => e.fiche_id).filter(Boolean);
+  const [fiches, mesFiches] = idsFiches.length
+    ? await Promise.all([fichesAffichage(c.env, commune_id, idsFiches), gestionnaire ? [] : idsFichesGerees(c.env, commune_id, user_id)])
+    : [new Map(), []];
+
   const result = events.map((e: any) => {
     const auteur = auteurs.find((a: any) => a.id === e.user_id);
     const participantsEvent = participants.filter((p: any) => p.event_id === e.id);
     return {
       ...e,
       ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
+      association: e.fiche_id ? (fiches.get(e.fiche_id) ?? null) : null,
+      peut_gerer: e.user_id === user_id || gestionnaire || (!!e.fiche_id && (mesFiches as string[]).includes(e.fiche_id)),
+      // Règle n°4 : tout événement qui n'est pas une communication de la mairie se signale.
+      signalable: !e.officiel,
       est_moi: e.user_id === user_id,
       total_participants: participantsEvent.length,
       je_participe: participantsEvent.some((p: any) => p.user_id === user_id),
@@ -140,6 +171,11 @@ app.post('/upload', async (c) => {
   if (donnees.byteLength > 8 * 1024 * 1024) {
     return c.json({ erreur: 'Image trop lourde (max 8 Mo)' }, 400);
   }
+  // Affiche ou photo d'un habitant / d'une association : filtre automatique (communes en offre
+  // payante, voir lib/moderation-image.ts), comme les autres envois habitants.
+  if (!estGestionnaire(c.get('role')) && await photoSuspecte(c.env, commune_id, donnees, contentType)) {
+    return c.json({ erreur: 'Cette photo ne respecte pas nos règles de contenu et n\'a pas été acceptée.' }, 422);
+  }
   const extension = contentType.split('/')[1];
   const key = `${commune_id}/agenda/${crypto.randomUUID()}.${extension}`;
   const url = await uploaderFichier(c.env, key, donnees, contentType);
@@ -157,6 +193,15 @@ app.post('/', async (c) => {
 
   if (new Date(data.date_fin) <= new Date(data.date_debut)) {
     return c.json({ erreur: 'La date de fin doit être après la date de début' }, 400);
+  }
+
+  if (data.fiche_id) {
+    if (!(await peutPublierPourFiche(c.env, commune_id, data.fiche_id, user_id, c.get('role')))) {
+      return c.json({ erreur: 'Vous ne pouvez pas publier au nom de cette association' }, 403);
+    }
+    if (!estGestionnaire(c.get('role')) && await plafondPublicationsAssoAtteint(c.env, commune_id, data.fiche_id)) {
+      return c.json({ erreur: `Limite atteinte : ${MAX_PUBLICATIONS_ASSO_24H} publications par association sur 24 heures.` }, 429);
+    }
   }
 
   // Un événement "action civique" (points de participation, QR + validation) ne peut être
@@ -186,6 +231,7 @@ app.post('/', async (c) => {
     date_debut: data.date_debut, date_fin: data.date_fin,
     type_action: typeAction ?? null,
     necessite_validation_presence: !!typeAction,
+    fiche_id: data.fiche_id ?? null,
   });
 
   await incrementerCompteurUtilisateur(c.env, commune_id, user_id, 'evenements_crees');
@@ -214,10 +260,10 @@ app.patch('/:id', async (c) => {
   const event_id = c.req.param('id');
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,user_id,type_action,r2_key', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
+    select: 'id,user_id,type_action,r2_key,fiche_id', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
-  if (event.user_id !== user_id && !estGestionnaire(role)) {
+  if (!(await peutGererEvenement(c, event))) {
     return c.json({ erreur: 'Non autorisé' }, 403);
   }
 
@@ -275,10 +321,10 @@ app.delete('/:id', async (c) => {
   const event_id = c.req.param('id');
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,user_id,r2_key', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
+    select: 'id,user_id,r2_key,fiche_id', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
-  if (event.user_id !== user_id && !estGestionnaire(role)) {
+  if (!(await peutGererEvenement(c, event))) {
     return c.json({ erreur: 'Non autorisé' }, 403);
   }
 
@@ -675,6 +721,29 @@ app.get('/:id/qr-page', async (c) => {
   <p class="token">${event.qr_token}</p>
 </body>
 </html>`);
+});
+
+// POST /:id/signaler — règle n°4 : tout événement qui n'est pas de la mairie (habitant ou
+// association) est signalable ; un seul signalement le masque aussitôt, la mairie tranche.
+app.post('/:id/signaler', async (c) => {
+  const commune_id = c.get('commune_id');
+  const [event] = await supabaseSelect(c.env, 'events', {
+    select: 'id,officiel', commune_id: `eq.${commune_id}`, id: `eq.${c.req.param('id')}`,
+  });
+  if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
+  if (event.officiel) return c.json({ erreur: 'Les événements de la mairie ne se signalent pas ici' }, 400);
+  await signalerPublication(c.env, commune_id, c.get('user_id'), { event_id: event.id });
+  return c.json({ ok: true });
+});
+
+// PATCH /:id/restaurer — la mairie rétablit un événement masqué après revue.
+app.patch('/:id/restaurer', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  await supabaseUpdate(c.env, 'events', { statut: 'visible' }, {
+    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+  });
+  return c.json({ ok: true });
 });
 
 export default app;

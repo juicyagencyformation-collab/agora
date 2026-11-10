@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
-import { statutResponsable } from '../lib/associations';
+import { statutResponsable, fichesPublicationPossible } from '../lib/associations';
 import { envoyerNotificationAUtilisateurs } from '../lib/push';
 
 const app = new Hono();
@@ -245,9 +245,20 @@ app.delete('/:id', async (c) => {
   const documents = await supabaseSelect(c.env, 'annuaire_documents', {
     select: 'r2_key', commune_id: `eq.${commune_id}`, fiche_id: `eq.${fiche_id}`,
   });
+  // Publications de l'association (migration 102) : supprimées en cascade avec la fiche, mais
+  // leurs photos/affiches sont dans R2 — on les efface ici, sinon elles resteraient orphelines.
+  const [articlesAsso, eventsAsso] = await Promise.all([
+    supabaseSelect(c.env, 'articles', { select: 'id', commune_id: `eq.${commune_id}`, fiche_id: `eq.${fiche_id}` }),
+    supabaseSelect(c.env, 'events', { select: 'r2_key', commune_id: `eq.${commune_id}`, fiche_id: `eq.${fiche_id}` }),
+  ]);
+  const imagesArticles = articlesAsso.length ? await supabaseSelect(c.env, 'article_images', {
+    select: 'r2_key', commune_id: `eq.${commune_id}`, article_id: `in.(${articlesAsso.map((a: any) => a.id).join(',')})`,
+  }) : [];
+  const clesPublications = [...imagesArticles, ...eventsAsso].map((x: any) => x.r2_key).filter(Boolean);
   await Promise.all([
     ...(fiche.logo_r2_key ? [deleteObject(c.env, fiche.logo_r2_key)] : []),
     ...documents.map((d: any) => deleteObject(c.env, d.r2_key)),
+    ...clesPublications.map((cle: string) => deleteObject(c.env, cle)),
   ]);
 
   await supabaseDelete(c.env, 'annuaire', { id: `eq.${fiche_id}`, commune_id: `eq.${commune_id}` });
@@ -285,6 +296,13 @@ app.delete('/:id/documents/:doc_id', async (c) => {
 // Seule une fiche « association » a des responsables. La mairie (gestionnaires) valide les
 // demandes, désigne directement un habitant déjà inscrit (par son email, sans exposer la liste
 // des habitants), et retire un responsable ; un responsable peut aussi se retirer lui-même.
+
+// GET /publier-pour — associations au nom desquelles l'appelant peut publier (menu « Publier
+// pour » des formulaires Actualités / Agenda) : toutes pour la mairie, ses fiches gérées sinon.
+app.get('/publier-pour', async (c) => {
+  const fiches = await fichesPublicationPossible(c.env, c.get('commune_id'), c.get('user_id'), c.get('role'));
+  return c.json({ associations: fiches });
+});
 
 async function chargerFicheAssociation(env: any, commune_id: string, fiche_id: string) {
   const [fiche] = await supabaseSelect(env, 'annuaire', {
