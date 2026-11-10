@@ -25,6 +25,7 @@ import { versCsv } from '../lib/csv';
 import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
 import { chargerBareme, CLES_OFFRES_TEXTE, chargerOffresTexte, enregistrerOffreTexte } from './tarification';
 import { CLES_CONTENU_TEXTE, chargerContenuTexte, enregistrerContenuTexte } from './contenu-texte';
+import { detacherFichesAssociations } from '../lib/associations';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -1500,6 +1501,7 @@ app.delete('/communes/:id/utilisateurs/:userId', async (c) => {
 
   await supabaseDelete(c.env, 'push_subscriptions', { user_id: `eq.${userId}` });
   await supabaseDelete(c.env, 'refresh_tokens', { user_id: `eq.${userId}` });
+  await detacherFichesAssociations(c.env, id, [userId]);
   await supabaseDelete(c.env, 'annuaire', { user_id: `eq.${userId}`, commune_id: `eq.${id}` });
   await supabaseUpdate(c.env, 'event_attendees', { contact_telephone: null, contact_email: null }, {
     user_id: `eq.${userId}`, commune_id: `eq.${id}`,

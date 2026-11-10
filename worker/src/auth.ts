@@ -12,6 +12,7 @@ import { OPTIONS_COOKIE, connexionVerrouillee, enregistrerEchecConnexion, efface
 import { declencherBienvenuePremiereInscription } from './backoffice/onboarding';
 import { jetonTurnstileValide, saisieTropRapide, plafondInscriptionsAtteint, PLAFOND_INSCRIPTIONS_HEURE, PLAFOND_INSCRIPTIONS_HEURE_EXPLORATEURS } from './lib/anti-robots';
 import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
+import { detacherFichesAssociations } from './lib/associations';
 
 // Compte bloqué depuis le backoffice (migration 082) — même message partout.
 const MESSAGE_COMPTE_BLOQUE = 'Ce compte est suspendu. Contactez votre mairie.';
@@ -552,6 +553,7 @@ export async function anonymiserComptes(env: any, commune_id: string, user_ids: 
   const ids = `in.(${user_ids.join(',')})`;
   await supabaseDelete(env, 'push_subscriptions', { user_id: ids });
   await supabaseDelete(env, 'refresh_tokens', { user_id: ids });
+  await detacherFichesAssociations(env, commune_id, user_ids);
   await supabaseDelete(env, 'annuaire', { user_id: ids, commune_id: `eq.${commune_id}` });
 
   // Coordonnées laissées lors d'inscriptions à des événements : effacées, la ligne de
@@ -636,6 +638,7 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
     badges, articles, posts, comments, alertes, coupsDeMain, chassesCreees,
     progressionsChasse, enigmesCreees, enigmesTrouvees, photosDuJour,
     events, participationsEvents, votesDeliberation, votesSondage, bulletins, ficheAnnuaire,
+    associationsGerees,
   ] = await Promise.all([
     requete('badges_obtenus', 'cle_badge,obtenu_at'),
     requete('articles', 'id,titre,categorie,created_at'),
@@ -654,6 +657,7 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
     requete('votes', 'sondage_id,choix_id,created_at'),
     requete('bulletin_municipal', 'id,titre,statut,created_at'),
     requete('annuaire', 'id,nom,categorie,created_at'),
+    requete('annuaire_responsables', 'fiche_id,statut,created_at'),
   ]);
 
   return c.json({
@@ -664,6 +668,7 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
       articles, posts, comments, alertes,
       coups_de_main: coupsDeMain, chasses_creees: chassesCreees,
       enigmes_creees: enigmesCreees, bulletins, fiche_annuaire: ficheAnnuaire,
+      associations_gerees: associationsGerees,
     },
     participation: {
       progressions_chasse: progressionsChasse, enigmes_trouvees: enigmesTrouvees,

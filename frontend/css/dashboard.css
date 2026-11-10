@@ -1055,6 +1055,31 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
   background: none; border: none; padding: 2px 4px; font-size: 14px; cursor: pointer; flex-shrink: 0;
 }
 
+/* ─── Annuaire — responsables d'association (migration 101) ─── */
+.badge-tenue-association { margin-left: 4px; color: var(--prairie); background: #EEF3EA; }
+.bloc-bureau-association { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--eauXL); font-size: 13px; }
+.bloc-bureau-association p { margin: 0 0 6px; color: var(--boue); }
+.bouton-bureau-association {
+  padding: 8px 14px; border-radius: 100px; border: 1.5px solid var(--eauL);
+  background: #fff; color: var(--eau); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.lien-discret {
+  background: none; border: none; padding: 0; color: var(--roseau);
+  font-size: 12.5px; text-decoration: underline; cursor: pointer;
+}
+.demandes-associations {
+  background: var(--calc); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px;
+}
+.demandes-associations summary { font-weight: 700; color: var(--eau); cursor: pointer; }
+.ligne-responsable-association {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--eauXL);
+}
+.actions-ligne-responsable { display: flex; gap: 6px; }
+.actions-ligne-responsable button { padding: 5px 10px; font-size: 12.5px; }
+.texte-aide-responsables { font-size: 12.5px; color: var(--roseau); margin: 0 0 8px; }
+#form-ajout-responsable { margin-top: 14px; }
+
 /* ─── Agenda ─── */
 .zone-contacts-event .commentaire { font-size: 12.5px; }
 .liens-calendrier { display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap; }
