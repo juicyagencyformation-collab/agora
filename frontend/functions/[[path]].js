@@ -282,6 +282,19 @@ export async function onRequest(context) {
             src: icone.src.startsWith('/') ? icone.src : `/${icone.src.replace(/^\.?\//, '')}`,
           }));
         }
+        // Offre complète ou fondatrice avec logo : nom et icône de la commune sur l'écran
+        // d'accueil (voir worker/src/lib/marque-commune.ts). Le moindre souci → manifest Agora.
+        try {
+          const reponse = await fetch(new URL(`/${premier}/commune`, WORKER_ORIGIN));
+          const { commune } = reponse.ok ? await reponse.json() : {};
+          if (commune?.marque) {
+            manifestJson.name = commune.nom;
+            manifestJson.short_name = commune.nom;
+            if (commune.marque.icone_url) {
+              manifestJson.icons = [{ src: commune.marque.icone_url, sizes: '512x512', type: 'image/png', purpose: 'any' }];
+            }
+          }
+        } catch { /* manifest Agora par défaut */ }
         return new Response(JSON.stringify(manifestJson), {
           status: 200,
           headers: { 'Content-Type': 'application/manifest+json' },

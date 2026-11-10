@@ -7,17 +7,20 @@ import { supabaseSelect, supabaseUpdate } from '../db';
 import { uploaderFichier, urlLogoVersionnee } from '../storage';
 import { genererQrSvgUrl } from '../lib/qr-url';
 import { deduireDepartement } from '../lib/geo';
+import { marqueCommune, dimensionsPng } from '../lib/marque-commune';
 
 const app = new Hono();
 
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id_resolue') ?? c.get('commune_id');
   const [commune] = await supabaseSelect(c.env, 'communes', {
-    select: 'id,slug,nom,population,departement,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date,horaires_ouverture,permanences,telephone_mairie,email_mairie,acces_libre,espace_officiel',
+    select: 'id,slug,nom,population,departement,couleur_theme,couleur_accent,logo_url,lat,lng,photo_jour_seuil_validations,photo_jour_max_par_jour,photo_jour_duree,rayon_validation_enigme,enigme_duree,mur_duree,contact_email,partage_regional,prochain_conseil_date,horaires_ouverture,permanences,telephone_mairie,email_mairie,acces_libre,espace_officiel,forfait,statut_client',
     id: `eq.${commune_id}`,
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
-  return c.json({ commune });
+  // Le forfait et le statut client restent côté serveur : seul le résultat (marque ou non) sort.
+  const { forfait, statut_client, ...publique } = commune;
+  return c.json({ commune: { ...publique, marque: marqueCommune(commune) } });
 });
 
 // GET /qr — QR code de l'URL publique de la commune, pour qu'un citoyen le montre à un voisin
@@ -131,6 +134,23 @@ app.post('/logo', jwtMiddleware, async (c) => {
   const url = urlLogoVersionnee(await uploaderFichier(c.env, key, donnees, contentType));
   await supabaseUpdate(c.env, 'communes', { logo_url: url }, { id: `eq.${commune_id}` });
   return c.json({ ok: true, logo_url: url });
+});
+
+// POST /logo/icone — icône carrée de l'appli installée (voir lib/marque-commune.ts), envoyée par
+// le navigateur juste AVANT le logo : PNG carré, 192 à 1024 px, mêmes droits que le logo.
+app.post('/logo/icone', jwtMiddleware, async (c) => {
+  if (!peutGererRoles(c.get('role'))) {
+    return c.json({ erreur: 'Réservé aux élus, au maire et au superadmin' }, 403);
+  }
+  const commune_id = c.get('commune_id');
+  if ((c.req.header('Content-Type') || '') !== 'image/png') return c.json({ erreur: 'PNG uniquement' }, 400);
+  const donnees = await c.req.arrayBuffer();
+  const taille = dimensionsPng(new Uint8Array(donnees));
+  if (donnees.byteLength > 1024 * 1024 || !taille || taille.largeur !== taille.hauteur || taille.largeur < 192 || taille.largeur > 1024) {
+    return c.json({ erreur: 'Icône invalide (PNG carré de 192 à 1024 px, 1 Mo maximum)' }, 400);
+  }
+  await uploaderFichier(c.env, `${commune_id}/icone.png`, donnees, 'image/png');
+  return c.json({ ok: true });
 });
 
 export default app;

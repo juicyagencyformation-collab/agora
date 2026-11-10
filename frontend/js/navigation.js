@@ -152,8 +152,23 @@ async function initCommune() {
     // = officiel par prudence (jamais de bandeau à tort sur une vraie commune cliente).
     if (commune.espace_officiel === false && !commune.acces_libre && !window.EST_EXPLORATEUR) afficherBandeauEspaceCitoyen(commune.nom);
     if (commune.nom) document.getElementById('nom-commune').textContent = commune.nom;
+    if (commune.marque) appliquerMarqueCommune(commune.nom, commune.marque);
     appliquerTheme(commune);
   } catch {}
+}
+
+// Offre complète ou fondatrice avec logo (worker/src/lib/marque-commune.ts) : logo dans
+// l'en-tête, et nom + icône de la commune quand on ajoute l'appli à l'écran d'accueil. iPhone :
+// lus dans la page au moment de l'ajout ; Android : dans le manifest (functions/[[path]].js).
+function appliquerMarqueCommune(nom, marque) {
+  const logo = document.getElementById('logo-entete');
+  if (logo) { logo.src = marque.logo_url; logo.alt = `Logo de ${nom}`; logo.hidden = false; }
+  document.title = nom;
+  if (marque.icone_url) document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', marque.icone_url);
+  const meta = document.createElement('meta');
+  meta.name = 'apple-mobile-web-app-title';
+  meta.content = nom;
+  document.head.appendChild(meta);
 }
 
 // Espace ouvert par les habitants, pas (encore) géré par la mairie : à dire clairement, pour que

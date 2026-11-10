@@ -35,6 +35,8 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
 }
 .entete-app h1 { color: #fff; font-size: 19px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entete-app h1 em { font-style: italic; font-weight: 400; color: var(--aube); }
+/* Logo de la commune (offre complète ou fondatrice) : pastille blanche, lisible sur le dégradé */
+.logo-entete { height: 36px; width: auto; max-width: 72px; object-fit: contain; margin-right: 10px; padding: 2px; border-radius: 7px; background: #fff; flex-shrink: 0; }
 
 /* ─── Sidebar desktop ─── */
 .sidebar-nav {

@@ -453,6 +453,18 @@ function initVoletLogo() {
     // Pas de compresserImage() ici : elle convertit systématiquement en JPEG, ce qui
     // détruirait la transparence d'un logo/blason en PNG. Les logos restent de toute façon
     // des fichiers légers, la compression n'apporte rien ici.
+    // Icône carrée de l'appli installée (logo centré sur fond blanc), envoyée AVANT le logo :
+    // son adresse se déduit de celle du logo (worker/src/lib/marque-commune.ts).
+    try {
+      const icone = await genererIconeCarree(fichier);
+      const resIcone = await appelApi(`/${window.COMMUNE_SLUG}/commune/logo/icone`, {
+        method: 'POST', headers: { 'Content-Type': 'image/png' }, body: icone,
+      });
+      if (!resIcone.ok) throw new Error();
+    } catch {
+      afficherToastMessage('Impossible de préparer l\'icône de l\'application, réessayez.', 'erreur');
+      return;
+    }
     const res = await appelApi(`/${window.COMMUNE_SLUG}/commune/logo`, {
       method: 'POST', headers: { 'Content-Type': fichier.type }, body: fichier,
     });
@@ -464,6 +476,20 @@ function initVoletLogo() {
       afficherToastMessage(data.erreur || 'Erreur lors de l\'upload', 'erreur');
     }
   });
+}
+
+// Carré 512×512 blanc, logo centré avec une marge (les lanceurs Android/iOS rognent les bords).
+async function genererIconeCarree(fichier) {
+  const image = await createImageBitmap(fichier);
+  const toile = document.createElement('canvas');
+  toile.width = toile.height = 512;
+  const ctx = toile.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 512, 512);
+  const echelle = Math.min(400 / image.width, 400 / image.height);
+  const largeur = image.width * echelle, hauteur = image.height * echelle;
+  ctx.drawImage(image, (512 - largeur) / 2, (512 - hauteur) / 2, largeur, hauteur);
+  return new Promise((resoudre, rejeter) => toile.toBlob((b) => (b ? resoudre(b) : rejeter()), 'image/png'));
 }
 
 async function chargerReglageCouleurs() {
