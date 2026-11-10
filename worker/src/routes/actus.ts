@@ -161,6 +161,8 @@ app.get('/', async (c) => {
 
   const result = articles.map((a: any) => ({
     ...a,
+    // Re-nettoyé à la lecture : couvre le HTML enregistré avant le durcissement du 2026-11-10.
+    contenu_html: sanitizeHtml(a.contenu_html ?? ''),
     images: images.filter((i: any) => i.article_id === a.id),
     sondage: sondagesComplets.find((s: any) => s.article_id === a.id) ?? null,
     deja_lu: idsArticlesLus.has(a.id),

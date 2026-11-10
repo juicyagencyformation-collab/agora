@@ -5,6 +5,37 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-10 — Nettoyeur HTML des articles : attributs d'événement non retirés
+
+**Gravité :** haute (injection de script stockée, élargie par l'espace associations)
+**Fichiers :** `worker/src/lib/sanitize.ts`, `worker/src/routes/actus.ts`, `worker/src/routes/decouverte.ts`
+
+### Symptôme
+Aucun incident constaté. Repéré en relisant le code avant d'exposer le HTML des articles sur la
+page publique `/lire/<id>`.
+
+### Cause
+`sanitizeHtml` supprimait les balises interdites mais gardait les balises autorisées telles
+quelles : `<b onmouseover=…>`, `<p onclick=…>`, `<span/onclick=…>` (sans espace) passaient, et un
+`<img … onerror=…` sans « > » final restait dans le texte. Avant le lot 2 des associations, seule
+la mairie écrivait des articles ; depuis, un responsable d'association le peut aussi.
+
+### Correction
+- Chaque balise est reconstruite depuis une liste blanche (b, i, u, s, br, p sans attribut ; a avec
+  `href` http(s) seulement ; span avec quatre propriétés de style) ; tout « < » orphelin est échappé.
+- Le HTML est re-nettoyé à la lecture (`GET /actus`, `GET /decouverte/articles/:id`) pour couvrir
+  ce qui a été enregistré avant le correctif.
+- La page publique `/lire/<id>` n'exécute aucun script (CSP `default-src 'none'`).
+
+### Vérification
+`worker/test/article-public.test.ts` (attributs collés au nom de balise, `javascript:`, « < »
+orphelin, mise en forme de l'éditeur conservée, dont `color: rgb(…)`) ; suite complète verte.
+
+### À retenir
+Un nettoyeur ne « laisse passer » jamais une balise : il la reconstruit.
+
+---
+
 ## 2026-11-06 — Pages légales inaccessibles depuis l'accueil, éditeur erroné des espaces citoyens
 
 **Gravité :** haute (conformité légale : LCEN et RGPD)

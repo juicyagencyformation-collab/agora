@@ -174,6 +174,21 @@ function remplirContenuDeplie(zone, article) {
 
   const estGestionnaireActu = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 
+  // Commune éditoriale uniquement : lien public /lire/<id> à coller sur Facebook/Instagram
+  // (lisible sans compte, renvoie vers /rejoindre — jamais vers l'appli d'une commune précise).
+  if (window.COMMUNE_SLUG === 'plateforme-agora' && estGestionnaireActu && article.statut !== 'masquee') {
+    const btnLienPublic = document.createElement('button');
+    btnLienPublic.type = 'button';
+    btnLienPublic.className = 'lien-discret';
+    btnLienPublic.textContent = '🔗 Copier le lien public (Facebook, Instagram)';
+    btnLienPublic.addEventListener('click', async () => {
+      const lien = `${window.location.origin}/lire/${article.id}`;
+      try { await navigator.clipboard.writeText(lien); afficherToastMessage('Lien public copié.', 'succes'); }
+      catch { afficherToastMessage(lien, 'info'); }
+    });
+    zone.appendChild(btnLienPublic);
+  }
+
   // Règle n°4 : une actualité d'association se signale (masquée aussitôt, revue par la mairie).
   if (article.signalable && !article.peut_gerer && article.statut !== 'masquee') {
     const btnSignaler = document.createElement('button');

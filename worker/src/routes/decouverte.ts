@@ -20,6 +20,7 @@ import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from '../backoffice/administration';
 import { emailConfirmationActivationHtml } from '../backoffice/email-commune';
 import { envoyerEmail } from '../lib/email';
+import { sanitizeHtml } from '../lib/sanitize';
 import { jetonTurnstileValide, saisieTropRapide, plafondDemandesRejoindreAtteint } from '../lib/anti-robots';
 
 const DUREE_TOKEN_ACTIVATION_MS = 48 * 3600 * 1000;
@@ -395,6 +396,40 @@ const demandeManquanteSchema = z.object({
 
 // POST /decouverte/communes/demande-manquante — village introuvable dans la recherche : envoie
 // une demande par email, remplace l'ancien lien mailto brut de accueil.html.
+// GET /decouverte/articles/:id — article lisible SANS compte, pour la page publique
+// plateforme-agora.fr/lire/<id> (décision de Léandre du 2026-11-10) : lien à partager sur
+// Facebook/Instagram à la place d'un lien vers l'appli d'une commune, qui ferait s'inscrire des
+// lecteurs dans la mauvaise commune. UNIQUEMENT les articles de la commune éditoriale
+// 'plateforme-agora', jamais ceux d'un village (et ces articles n'apparaissent jamais dans le fil
+// des communes — décision du même jour). Visibles seulement, colonnes listées, HTML re-nettoyé.
+export const SLUG_COMMUNE_EDITORIALE = 'plateforme-agora';
+
+app.get('/articles/:id', async (c) => {
+  const id = z.string().uuid().safeParse(c.req.param('id'));
+  if (!id.success) return c.json({ erreur: 'Article introuvable' }, 404);
+  try {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'id', slug: `eq.${SLUG_COMMUNE_EDITORIALE}` });
+    if (!commune) return c.json({ erreur: 'Article introuvable' }, 404);
+    const [article] = await supabaseSelect(c.env, 'articles', {
+      select: 'id,titre,contenu_html,created_at',
+      commune_id: `eq.${commune.id}`, id: `eq.${id.data}`, section: 'eq.actualites', statut: 'eq.visible',
+    });
+    if (!article) return c.json({ erreur: 'Article introuvable' }, 404);
+    const images = await supabaseSelect(c.env, 'article_images', {
+      select: 'url', commune_id: `eq.${commune.id}`, article_id: `eq.${article.id}`, order: 'ordre.asc',
+    });
+    return c.json({
+      article: {
+        id: article.id, titre: article.titre, created_at: article.created_at,
+        contenu_html: sanitizeHtml(article.contenu_html ?? ''), images: images.map((i: any) => i.url),
+      },
+    }, 200, { 'Cache-Control': 'public, max-age=300' });
+  } catch (err) {
+    console.error('Erreur /decouverte/articles :', err);
+    return c.json({ erreur: 'Article indisponible pour le moment' }, 500);
+  }
+});
+
 app.post('/communes/demande-manquante', async (c) => {
   const body = demandeManquanteSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
