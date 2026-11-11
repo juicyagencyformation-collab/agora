@@ -409,7 +409,7 @@
         <div class="offre">
           <div class="nom">Gratuit</div><h3>Informer</h3>
           <div class="montant">0 €<small> / mois</small></div>
-          <ul><li>Actualités</li><li>Agenda</li><li>Signalements</li><li>Chasse au trésor et énigme photo</li><li>Météo et vigilances automatiques</li></ul>
+          <ul><li>Actualités, avec aide à la rédaction</li><li>Agenda</li><li>Signalements</li><li>Chasse au trésor et énigme photo</li><li>Météo et vigilances automatiques</li></ul>
           <a class="btn btn--contour" href="#demande" data-demande="gratuit">Activer gratuitement</a>
         </div>
         <div class="offre">
@@ -456,6 +456,7 @@
         <details><summary>L'application porte-t-elle le nom de notre commune ?</summary><p>Oui, dans toutes les versions : les habitants voient le nom de votre commune en haut de l'application. Avec la version complète, elle prend aussi votre <b>logo ou votre blason</b>, en haut de l'écran et en icône sur le téléphone des habitants, où elle s'installe sous le nom de votre commune plutôt que sous celui d'Agora.</p></details>
         <details><summary>Des habitants utilisent déjà l'espace de notre commune ?</summary><p>C'est possible : chaque commune de France a un espace, et ses habitants peuvent s'y inscrire. Tant que la mairie ne l'a pas adopté, c'est un <b>espace citoyen</b> : un bandeau indique qu'il n'est pas géré par la mairie, et c'est Léandre Sallé, l'éditeur de la plateforme, qui en est responsable (contenus et données personnelles). La mairie n'engage donc pas sa responsabilité. Dès que la mairie active son compte, l'espace devient officiel : elle en reprend la main, les habitants déjà inscrits restent inscrits.</p></details>
         <details><summary>Les associations peuvent-elles publier elles-mêmes ?</summary><p>Oui, dans la version complète. Vous validez les membres du bureau de chaque association. Ils tiennent ensuite leur fiche à jour et publient leurs actualités, leurs sondages et leurs affiches d'événements, que les villages voisins voient aussi. La mairie n'a plus à relayer chaque affiche. Tout contenu signalé est masqué aussitôt, et vous gardez le dernier mot.</p></details>
+        <details><summary>Nos élus n'ont pas l'habitude d'écrire des articles…</summary><p>L'aide à la rédaction est là pour ça, gratuitement. L'élu note l'essentiel en quelques mots (quoi, quand, où), et un assistant d'intelligence artificielle gratuit, au choix ChatGPT, Le Chat de Mistral ou Claude, rédige l'article selon la déontologie des journalistes : rien d'inventé, informer sans faire l'éloge de la municipalité, des phrases simples faites pour le téléphone. L'article revient tout seul dans le formulaire : il ne reste qu'à relire et publier. S'il manque une information, l'assistant la signale au lieu de l'inventer, et l'article ne peut pas partir tant qu'elle n'est pas complétée.</p></details>
         <details><summary>Faut-il des compétences techniques ?</summary><p>Non. Un maire ou un secrétariat de mairie la pilote seul, au quotidien.</p></details>
         <details><summary>Et le RGPD ?</summary><p>Une fois l'espace adopté par la mairie, la commune est responsable du traitement et Plateforme-Agora agit comme son sous-traitant : un contrat de sous-traitance (article 28 du RGPD) encadre le traitement des données de chaque commune, et vos données vous sont restituées sur simple demande. Avant l'adoption, c'est Léandre Sallé qui est responsable. Base de données et fichiers hébergés dans l'Union européenne.</p></details>
         <details><summary>Comment régler la facture ?</summary><p>Par virement ou mandat administratif, sur facture annuelle déposée sur Chorus Pro, comme pour n'importe quel prestataire communal.</p></details>
@@ -664,7 +665,7 @@
   // ── Modules par famille
   var MODULES = {
     mairie: [
-      ['📰', 'Actualités', 'Publier une fois, être lu partout', 1, 'var(--green-light)'], ['📅', 'Agenda', 'Le calendrier vivant de la commune', 1, 'var(--orange-light)'],
+      ['📰', 'Actualités', 'Publier une fois, être lu partout, avec une aide à la rédaction', 1, 'var(--green-light)'], ['📅', 'Agenda', 'Le calendrier vivant de la commune', 1, 'var(--orange-light)'],
       ['🚨', 'Alertes et signalements', 'Mairie et habitants, dans les deux sens', 1, 'var(--coral-light)'], ['🏛️', 'Conseil municipal', 'PV, délibérations, trombinoscope', 0, 'var(--green-light)'],
       ['⚖️', 'Lois', 'Les textes votés en France et en Europe', 0, '#eef0fb'],
       ['🌡️', 'Thermomètre du village', 'Sondage rapide avant une décision', 0, 'var(--coral-light)'], ['🗑️', 'Calendrier des déchets', 'Le bon jour, au bon moment', 0, 'var(--green-light)'],

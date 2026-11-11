@@ -288,6 +288,7 @@ function htmlFormulaireArticle(ficheIdPreselection = '') {
   return `
     <form id="form-modale-article">
       ${htmlChampPublierPour('article-modale', estGestionnaireActu ? '🏛️ La mairie' : null, ficheIdPreselection)}
+      ${htmlVoletAideRedaction()}
       <input type="text" id="titre-article-modale" placeholder="Titre de l'article" maxlength="200" required>
       <select id="categorie-article-modale">
         ${Object.entries(LABELS_CATEGORIE_ARTICLE).map(([cle, label]) => `<option value="${cle}">${label}</option>`).join('')}
@@ -311,6 +312,13 @@ function ouvrirModaleCreationArticle(options = {}) {
   const corps = overlay.querySelector('.corps-modale-formulaire');
   editeurArticleActuel = creerEditeurRiche('editeur-article-modale');
   choixSondageCompteur = 0;
+  initVoletAideRedaction(corps, {
+    editeur: editeurArticleActuel,
+    zoneEditeur: corps.querySelector('#editeur-article-modale .zone-edition'),
+    inputTitre: corps.querySelector('#titre-article-modale'),
+    selectCategorie: corps.querySelector('#categorie-article-modale'),
+    selectPublierPour: corps.querySelector('#publier-pour-article-modale'),
+  });
 
   const inputImages = corps.querySelector('#image-article-modale');
   const apercu = corps.querySelector('#apercu-images-article-modale');
@@ -445,8 +453,14 @@ async function uploaderPdfArticle(fichier) {
 async function soumettreArticleModale(corps, overlay) {
   const titre = corps.querySelector('#titre-article-modale').value.trim();
   const categorie = corps.querySelector('#categorie-article-modale').value;
-  const contenuHtml = editeurArticleActuel.getHtml();
+  const contenuHtml = nettoyerHtmlAideRedaction(editeurArticleActuel.getHtml());
   if (!titre || !contenuHtml) return;
+  if (articleContientACompleter(titre, contenuHtml)) {
+    const alerte = corps.querySelector('#alerte-a-completer');
+    alerte.hidden = false;
+    alerte.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
 
   const boutonSubmit = corps.querySelector('button[type="submit"]');
   boutonSubmit.disabled = true;
@@ -478,6 +492,7 @@ async function soumettreArticleModale(corps, overlay) {
   boutonSubmit.disabled = false;
 
   if (res.ok) {
+    effacerBrouillonAideRedaction();
     fermerModaleFormulaire(overlay);
     chargerArticles();
   } else {
@@ -585,6 +600,10 @@ function ouvrirModaleEditionArticle(article) {
     const categorie = corps.querySelector('#categorie-edition-article-modale').value;
     const contenu_html = editeur.getHtml();
     if (!titre || !contenu_html) return;
+    if (articleContientACompleter(titre, contenu_html)) {
+      afficherToastMessage('Complétez les passages [À COMPLÉTER] avant d\'enregistrer.', 'erreur');
+      return;
+    }
 
     const boutonSubmit = corps.querySelector('button[type="submit"]');
     boutonSubmit.disabled = true;
