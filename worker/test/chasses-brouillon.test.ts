@@ -191,6 +191,18 @@ describe('brouillon de parcours', () => {
     expect(res.status).toBe(400);
     expect(db.chasses_tresor.find((c) => c.id === id)).toMatchObject({ actif: false, brouillon: true });
   });
+
+  it('indice facultatif en balade, obligatoire en chasse', async () => {
+    const sansIndice = PARCOURS.etapes.map(({ indice, ...e }) => e);
+    expect((await envoyer('POST', '/', { ...PARCOURS, etapes: sansIndice })).status).toBe(201);
+    expect(db.etapes_chasse.every((e) => e.indice === '')).toBe(true); // colonne NOT NULL
+    expect((await envoyer('POST', '/', { ...PARCOURS, mode: 'chasse', etapes: sansIndice })).status).toBe(400);
+
+    // Correction d'une étape d'une chasse déjà publiée : l'indice reste exigé.
+    db.etapes_chasse.push({ id: 'et-pub', commune_id: 'c-1', chasse_id: 'ch-publiee', ordre: 0, photo_r2_key: null });
+    const res = await envoyer('PATCH', '/ch-publiee/etapes/et-pub', { titre: 'Lavoir', lat: LAT, lng: 1.88, type_contenu: 'aucun' });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('verifierAvantPublication', () => {

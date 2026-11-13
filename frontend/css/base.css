@@ -227,7 +227,32 @@ body.est-admin .form-admin-only { display: block; margin-bottom: 20px; padding-b
 body.est-gestionnaire-roles .roles-gestionnaire-only { display: block; }
 .superadmin-only { display: none; }
 body.est-superadmin .superadmin-only { display: block; }
-.ligne-etape-chasse input, .ligne-etape-chasse textarea { margin-bottom: 6px; }
-.ligne-etape-chasse .btn-position-etape, .ligne-etape-chasse .btn-supprimer-etape {
-  padding: 6px 10px; border: 1.5px solid var(--eauL); background: #fff; border-radius: 8px; font-size: 12px; color: var(--roseau);
+/* Fiche d'étape du formulaire de parcours (2026-11-13) : tient dans la largeur d'un téléphone
+   (avant, la ligne latitude/longitude/« Ma position » débordait et poussait ↑↓ hors de l'écran). */
+.ligne-etape-chasse {
+  background: #fff; border: 1.5px solid var(--eauL); border-radius: 12px;
+  padding: 12px; margin-bottom: 12px; min-width: 0;
 }
+.ligne-etape-chasse input, .ligne-etape-chasse textarea { margin-bottom: 8px; min-width: 0; }
+.entete-etape { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.entete-etape .pastille-numero-etape { flex-shrink: 0; border: none; box-shadow: none; }
+.entete-etape .numero-etape { flex: 1; color: var(--eau); font-size: 14px; }
+.outils-etape { display: flex; gap: 4px; }
+.ligne-etape-chasse .outils-etape button {
+  width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  background: var(--eauXL); color: var(--eau); font-size: 14px; line-height: 1;
+}
+.ligne-etape-chasse .outils-etape button:hover { background: var(--eauL); }
+.ligne-etape-chasse .outils-etape .btn-supprimer-etape { background: #fff; border: 1.5px solid var(--eauL); font-size: 13px; }
+.ligne-etape-chasse .outils-etape .btn-supprimer-etape:hover { border-color: var(--rouge); background: #fff; }
+.position-etape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.etat-position { font-size: 12.5px; color: var(--roseau); }
+.etat-position.placee { color: var(--prairie); font-weight: 600; }
+.ligne-etape-chasse .btn-position-etape {
+  flex-shrink: 0; padding: 6px 12px; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--eau); font-size: 12px; font-weight: 600;
+}
+.ligne-etape-chasse .btn-position-etape:hover { background: var(--eauXL); }
+.coordonnees-etape summary { font-size: 12px; color: var(--roseau); cursor: pointer; margin-bottom: 6px; }
+.grille-coordonnees { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.libelle-etape { display: block; margin: 6px 0 4px; font-size: 13px; color: var(--roseau); }

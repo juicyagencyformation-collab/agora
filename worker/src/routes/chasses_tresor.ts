@@ -28,7 +28,9 @@ export function normaliserReponse(texte: string): string {
 
 const champsEtape = {
   titre: z.string().min(1).max(150),
-  indice: z.string().min(1).max(500),
+  // Facultatif en balade (les points sont sur la carte), obligatoire en chasse : voir
+  // indiceExigeEnChasse. Colonne NOT NULL : une absence est enregistrée comme '' (2026-11-13).
+  indice: z.string().trim().max(500).default(''),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   type_contenu: z.enum(TYPES_CONTENU_ETAPE).default('aucun'),
@@ -53,8 +55,12 @@ const champsChasse = {
   mode: z.enum(['chasse', 'balade']).default('chasse'),
   rayon_metres: z.number().int().min(20).max(500).default(50),
 };
-const creationChasseSchema = z.object({ ...champsChasse, etapes: z.array(etapeSchema).min(1).max(20) });
-const brouillonChasseSchema = z.object({ ...champsChasse, etapes: z.array(etapeBrouillonSchema).min(1).max(20) });
+const MESSAGE_INDICE_CHASSE = 'Chasse au trésor : chaque étape a besoin d’un indice pour trouver le lieu.';
+function indiceExigeEnChasse(ch: { mode: string; etapes: { indice: string }[] }, ctx: z.RefinementCtx) {
+  if (ch.mode === 'chasse' && ch.etapes.some((e) => !e.indice)) ctx.addIssue({ code: 'custom', message: MESSAGE_INDICE_CHASSE });
+}
+const creationChasseSchema = z.object({ ...champsChasse, etapes: z.array(etapeSchema).min(1).max(20) }).superRefine(indiceExigeEnChasse);
+const brouillonChasseSchema = z.object({ ...champsChasse, etapes: z.array(etapeBrouillonSchema).min(1).max(20) }).superRefine(indiceExigeEnChasse);
 
 // Ligne etapes_chasse à écrire (création, ou modification d'un brouillon), hors qr_token.
 function ligneEtape(env: any, commune_id: string, chasse_id: string, e: z.infer<typeof etapeSchema>, ordre: number) {
@@ -418,6 +424,12 @@ app.patch('/:id/etapes/:etapeId', async (c) => {
     select: 'photo_r2_key', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`, id: `eq.${etape_id}`,
   });
   if (!etapeActuelle) return c.json({ erreur: 'Étape introuvable' }, 404);
+  if (!data.indice) {
+    const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
+      select: 'mode', id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
+    });
+    if (chasse?.mode !== 'balade') return c.json({ erreur: MESSAGE_INDICE_CHASSE }, 400);
+  }
 
   // La photo est remplacée par une autre (ou retirée) : celle qui était en place devient
   // orpheline en R2 si on ne l'efface pas explicitement (même piège que la suppression de chasse).

@@ -447,7 +447,9 @@ function renderDetailChasse(chasse) {
     <h3>${escapeAttr(chasse.titre)}</h3>
     ${chasse.description ? `<p>${texteAvecLiensCliquables(chasse.description)}</p>` : ''}
     ${pointsProgression(chasse)}
-    ${!termine && chasse.etape_suivante ? `<p class="indice-etape">${estBalade ? 'Prochaine étape' : 'Indice'} : ${escapeAttr(chasse.etape_suivante.indice)}</p>` : ''}
+    ${!termine && chasse.etape_suivante ? (estBalade
+      ? `<p class="indice-etape">Prochaine étape : <strong>${escapeAttr(chasse.etape_suivante.titre || '')}</strong>${chasse.etape_suivante.indice ? `<br>${escapeAttr(chasse.etape_suivante.indice)}` : ''}</p>`
+      : `<p class="indice-etape">Indice : ${escapeAttr(chasse.etape_suivante.indice)}</p>`) : ''}
     ${termine ? `<div class="fin-parcours">🏁 <strong>Parcours terminé !</strong> Vous avez découvert ${chasse.total_etapes > 1 ? `les ${chasse.total_etapes} étapes` : 'l’étape'} de « ${escapeAttr(chasse.titre)} ».</div>` : ''}
     ${estBalade ? controlesBalade : controlesChasse}
     ${carnetDecouvertes(chasse)}
@@ -1210,9 +1212,12 @@ async function ouvrirModaleCreationChasse(brouillon = null) {
   const overlay = ouvrirModaleFormulaire(brouillon ? 'Modifier le brouillon' : 'Créer une chasse au trésor', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   compteurEtapes = 0;
+  corps.dataset.mode = estBalade ? 'balade' : 'chasse';
 
   corps.querySelector('#mode-chasse-modale').addEventListener('change', (e) => {
     corps.querySelector('#ligne-rayon-balade').style.display = e.target.value === 'balade' ? 'block' : 'none';
+    corps.dataset.mode = e.target.value;
+    appliquerModeAuxEtapes(corps);
   });
 
   initCarteCreationChasse(corps);
@@ -1238,6 +1243,7 @@ function renumeroterEtapes(corps) {
   corps.querySelectorAll('.ligne-etape-chasse').forEach((ligne, i) => {
     ligne.dataset.numero = i + 1;
     ligne.querySelector('.numero-etape').textContent = `Étape ${i + 1}`;
+    ligne.querySelector('.entete-etape .pastille-numero-etape').textContent = i + 1;
     marqueursEtapesChasse.get(ligne.dataset.etapeId)?.setIcon(L.divIcon({
       className: 'pastille-numero-etape', html: String(i + 1), iconSize: [26, 26], iconAnchor: [13, 13],
     }));
@@ -1299,6 +1305,7 @@ function definirPositionEtape(ligne, lat, lng) {
     });
     marqueursEtapesChasse.set(id, marqueur);
   }
+  majEtatPosition(ligne);
 }
 
 // etapeExistante (optionnel) : pré-remplit la ligne (modification) et garde l'id réel de l'étape
@@ -1314,23 +1321,30 @@ function ajouterLigneEtape(corps, etapeExistante = null, modifiable = !etapeExis
   ligne.dataset.numero = etapeExistante ? etapeExistante.ordre + 1 : n;
   if (etapeExistante) ligne.dataset.dbId = etapeExistante.id;
   if (etapeExistante?.photo_r2_key) ligne.dataset.photoActuelle = etapeExistante.photo_r2_key;
-  ligne.style.cssText = 'border:1.5px solid var(--eauL);border-radius:10px;padding:10px;margin-bottom:10px;';
   ligne.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
-      <strong class="numero-etape">Étape ${etapeExistante ? etapeExistante.ordre + 1 : n}</strong>
-      ${modifiable ? `<span style="display:flex;gap:4px;">
-        <button type="button" class="btn-monter-etape" title="Monter" aria-label="Monter l'étape" style="width:auto;padding:2px 10px;margin:0;">↑</button>
-        <button type="button" class="btn-descendre-etape" title="Descendre" aria-label="Descendre l'étape" style="width:auto;padding:2px 10px;margin:0;">↓</button>
+    <div class="entete-etape">
+      <span class="pastille-numero-etape"></span>
+      <strong class="numero-etape"></strong>
+      ${modifiable ? `<span class="outils-etape">
+        <button type="button" class="btn-monter-etape" title="Monter" aria-label="Monter l'étape">↑</button>
+        <button type="button" class="btn-descendre-etape" title="Descendre" aria-label="Descendre l'étape">↓</button>
+        <button type="button" class="btn-supprimer-etape" title="Retirer" aria-label="Retirer l'étape">🗑️</button>
       </span>` : ''}
     </div>
     <input type="text" class="etape-titre" placeholder="Titre de l'étape" maxlength="150" value="${etapeExistante ? escapeAttr(etapeExistante.titre) : ''}">
-    <textarea class="etape-indice" placeholder="Indice pour trouver le lieu" maxlength="500">${etapeExistante ? escapeAttr(etapeExistante.indice) : ''}</textarea>
-    <div style="display:flex;gap:6px;">
-      <input type="number" step="any" class="etape-lat" placeholder="Latitude" value="${etapeExistante ? etapeExistante.lat : ''}">
-      <input type="number" step="any" class="etape-lng" placeholder="Longitude" value="${etapeExistante ? etapeExistante.lng : ''}">
+    <textarea class="etape-indice" rows="2" maxlength="500">${etapeExistante ? escapeAttr(etapeExistante.indice) : ''}</textarea>
+    <div class="position-etape">
+      <span class="etat-position"></span>
       <button type="button" class="btn-position-etape">📍 Ma position</button>
     </div>
-    <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Au scan sur place, déclencher :</label>
+    <details class="coordonnees-etape">
+      <summary>Saisir les coordonnées GPS</summary>
+      <div class="grille-coordonnees">
+        <input type="number" step="any" class="etape-lat" placeholder="Latitude" value="${etapeExistante ? etapeExistante.lat : ''}">
+        <input type="number" step="any" class="etape-lng" placeholder="Longitude" value="${etapeExistante ? etapeExistante.lng : ''}">
+      </div>
+    </details>
+    <label class="libelle-etape">À l'arrivée sur place :</label>
     <select class="etape-type">
       <option value="aucun">🚩 Point de passage (balisage, direction)</option>
       <option value="texte">Une découverte (texte + photo)</option>
@@ -1338,7 +1352,6 @@ function ajouterLigneEtape(corps, etapeExistante = null, modifiable = !etapeExis
       <option value="enigme">Une énigme (réponse à saisir)</option>
     </select>
     <div class="etape-champs-contenu"></div>
-    ${modifiable ? '<button type="button" class="btn-supprimer-etape">Retirer cette étape</button>' : ''}
   `;
   ligne.querySelector('.btn-position-etape').addEventListener('click', (e) => {
     if (!navigator.geolocation) return;
@@ -1408,8 +1421,28 @@ function ajouterLigneEtape(corps, etapeExistante = null, modifiable = !etapeExis
     if (ligne.nextElementSibling) { ligne.nextElementSibling.after(ligne); renumeroterEtapes(corps); }
   });
   conteneur.appendChild(ligne);
+  majEtatPosition(ligne);
   renumeroterEtapes(corps);
+  appliquerModeAuxEtapes(corps);
   return ligne;
+}
+
+// L'indice n'a de sens qu'en chasse (lieu à deviner) : en balade, les points sont déjà sur la carte,
+// il devient une indication facultative (2026-11-13). corps.dataset.mode = 'chasse' | 'balade'.
+function appliquerModeAuxEtapes(corps) {
+  const balade = corps.dataset.mode === 'balade';
+  corps.querySelectorAll('.etape-indice').forEach((t) => {
+    t.placeholder = balade
+      ? 'Indication pour s’y rendre (facultatif) : le point est déjà sur la carte'
+      : 'Indice pour trouver le lieu';
+  });
+}
+
+function majEtatPosition(ligne) {
+  const placee = ligne.querySelector('.etape-lat').value && ligne.querySelector('.etape-lng').value;
+  const etat = ligne.querySelector('.etat-position');
+  etat.classList.toggle('placee', !!placee);
+  etat.textContent = placee ? '✓ Placée sur la carte' : 'À placer : cliquez sur la carte';
 }
 
 // Étapes incomplètes : signalées une par une (cadre rouge + liste au-dessus du bouton) au lieu
@@ -1428,7 +1461,7 @@ function verifierEtapesChasse(corps, creation) {
     const manque = [];
     if (!ligne.dataset.vide) {
       if (!val('.etape-titre')) manque.push('le titre');
-      if (!val('.etape-indice')) manque.push('l’indice');
+      if (!val('.etape-indice') && corps.dataset.mode !== 'balade') manque.push('l’indice');
       if (isNaN(parseFloat(val('.etape-lat'))) || isNaN(parseFloat(val('.etape-lng')))) manque.push('la position sur la carte');
       if (type === 'texte' && !val('.etape-contenu')) manque.push('le texte descriptif');
       if (type === 'enigme' && !val('.etape-contenu')) manque.push('la question');
@@ -1516,7 +1549,7 @@ async function soumettreChasse(corps, overlay, brouillonId = null) {
   }
 
   if (!etapes.length) {
-    afficherToastMessage('Ajoute au moins une étape complète (titre, indice, position).', 'erreur');
+    afficherToastMessage('Ajoute au moins une étape complète (titre, position).', 'erreur');
     return;
   }
 
@@ -1569,6 +1602,7 @@ async function ouvrirModaleEditionChasse(chasse) {
   const overlay = ouvrirModaleFormulaire('Modifier la chasse', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   compteurEtapes = 0;
+  corps.dataset.mode = estBalade ? 'balade' : 'chasse';
   initCarteCreationChasse(corps);
   etapes.forEach((e) => ajouterLigneEtape(corps, e));
   // Après l'invalidateSize (voir initCarteCreationChasse) : le conteneur doit avoir sa taille
