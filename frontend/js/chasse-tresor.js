@@ -78,23 +78,17 @@ function renderListeChasses(chasses) {
   const conteneur = document.getElementById('liste-chasses');
   conteneur.innerHTML = '';
   const avecBrouillons = !modeArchivesChasses && !villageVisite && brouillonsCache.length > 0;
-  if (!chasses.length) {
-    conteneur.innerHTML = modeArchivesChasses
-      ? '<p class="dechets-vide">Aucune chasse archivée.</p>'
-      : avecBrouillons ? '<p class="dechets-vide">Aucun parcours publié pour l’instant.</p>' : messageAucunParcours();
+  if (!chasses.length && !avecBrouillons) {
+    conteneur.innerHTML = modeArchivesChasses ? '<p class="dechets-vide">Aucune chasse archivée.</p>' : messageAucunParcours();
   }
   conteneur.querySelector('.btn-vide-creer')?.addEventListener('click', () => ouvrirModaleCreationChasse());
   conteneur.querySelector('.btn-vide-ailleurs')?.addEventListener('click', () => ouvrirRechercheVillage());
+  // Brouillons en tête du carrousel, comme des cartes à part entière (un bloc englobant y était
+  // traité comme une seule carte étroite et écrasait tout, 2026-11-13).
+  if (avecBrouillons) brouillonsCache.forEach((b) => conteneur.appendChild(renderCarteBrouillon(b)));
   chasses.forEach((ch) => conteneur.appendChild(
     modeArchivesChasses ? renderCarteChasseArchivee(ch) : renderCarteChasseCompacte(ch),
   ));
-  if (avecBrouillons) {
-    const bloc = document.createElement('div');
-    bloc.style.cssText = 'margin-bottom:12px;';
-    bloc.innerHTML = '<p style="font-size:13px;color:var(--roseau);margin:0 0 6px;">📝 Brouillons : visibles seulement par la mairie</p>';
-    brouillonsCache.forEach((b) => bloc.appendChild(renderCarteBrouillon(b)));
-    conteneur.prepend(bloc);
-  }
 }
 
 // ── Brouillons (2026-11-13) : créer → tester → publier. Rien n'est visible ni notifié aux
@@ -103,12 +97,11 @@ function renderListeChasses(chasses) {
 function renderCarteBrouillon(brouillon) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'carte-chasse-compacte';
-  el.style.borderStyle = 'dashed';
+  el.className = 'carte-chasse-compacte carte-brouillon';
   el.innerHTML = `
     <span class="type-parcours type-${brouillon.mode === 'balade' ? 'balade' : 'chasse'}">${brouillon.mode === 'balade' ? '🚶 Balade' : '🔎 Chasse'}</span>
-    <h3>📝 ${escapeAttr(brouillon.titre)}</h3>
-    <p>Brouillon : à tester puis publier</p>
+    <h3>${escapeAttr(brouillon.titre)}</h3>
+    <p class="etat-brouillon">📝 Brouillon · visible par la mairie seulement</p>
   `;
   el.addEventListener('click', () => { idChasseDetailOuverte = brouillon.id; renderDetailBrouillon(brouillon); });
   return el;

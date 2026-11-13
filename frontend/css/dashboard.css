@@ -1507,6 +1507,9 @@ body.est-admin .admin-en-ligne { display: inline-flex; align-items: center; }
 .liste-parcours { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }
 .liste-parcours > .carte-chasse-compacte { flex: 0 0 72%; max-width: 260px; margin: 0; scroll-snap-align: start; display: flex; flex-direction: column; gap: 6px; }
 .liste-parcours > p, .liste-parcours > .vide-exploration { flex: 1 1 100%; }
+/* Brouillon (mairie seulement) : même carte, bordure en pointillés, mention en bas. */
+.carte-chasse-compacte.carte-brouillon { border: 1.5px dashed var(--eauM); background: var(--blanc); }
+.carte-chasse-compacte .etat-brouillon { margin-top: auto; font-style: italic; }
 .type-parcours {
   align-self: flex-start; display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; padding: 3px 8px; border-radius: 100px; background: var(--eauXL); color: var(--eau);
