@@ -1,6 +1,8 @@
 // frontend/js/chasse-tresor.js
 let compteurEtapes = 0;
 let chassesCache = [];
+// Brouillons de parcours (gestionnaires, 2026-11-13) : invisibles des habitants jusqu'à « Publier ».
+let brouillonsCache = [];
 let idChasseDetailOuverte = null;
 let carteBalade = null;
 let modeArchivesChasses = false;
@@ -52,9 +54,10 @@ async function chargerChasses() {
       : `/${window.COMMUNE_SLUG}/chasses-tresor`;
   const res = await appelApi(url);
   if (!res.ok) return;
-  const { chasses } = await res.json();
+  const { chasses, brouillons } = await res.json();
   appliquerValidationsEnAttente(chasses);
   chassesCache = chasses;
+  brouillonsCache = brouillons || [];
   envoyerValidationsEnAttente();
   const compte = document.getElementById('compte-chasses');
   if (compte && !modeArchivesChasses) compte.textContent = chasses.length;
@@ -62,6 +65,8 @@ async function chargerChasses() {
   if (!modeArchivesChasses && idChasseDetailOuverte) {
     const chasse = chasses.find((c) => c.id === idChasseDetailOuverte);
     if (chasse) { renderDetailChasse(chasse); return; }
+    const brouillon = brouillonsCache.find((b) => b.id === idChasseDetailOuverte);
+    if (brouillon) { renderDetailBrouillon(brouillon); return; }
     idChasseDetailOuverte = null; // supprimée entre-temps
   }
   renderListeChasses(chasses);
@@ -72,12 +77,193 @@ function renderListeChasses(chasses) {
   document.getElementById('vue-detail-chasse').hidden = true;
   const conteneur = document.getElementById('liste-chasses');
   conteneur.innerHTML = '';
-  if (!chasses.length) conteneur.innerHTML = modeArchivesChasses ? '<p class="dechets-vide">Aucune chasse archivée.</p>' : messageAucunParcours();
+  const avecBrouillons = !modeArchivesChasses && !villageVisite && brouillonsCache.length > 0;
+  if (!chasses.length) {
+    conteneur.innerHTML = modeArchivesChasses
+      ? '<p class="dechets-vide">Aucune chasse archivée.</p>'
+      : avecBrouillons ? '<p class="dechets-vide">Aucun parcours publié pour l’instant.</p>' : messageAucunParcours();
+  }
   conteneur.querySelector('.btn-vide-creer')?.addEventListener('click', () => ouvrirModaleCreationChasse());
   conteneur.querySelector('.btn-vide-ailleurs')?.addEventListener('click', () => ouvrirRechercheVillage());
   chasses.forEach((ch) => conteneur.appendChild(
     modeArchivesChasses ? renderCarteChasseArchivee(ch) : renderCarteChasseCompacte(ch),
   ));
+  if (avecBrouillons) {
+    const bloc = document.createElement('div');
+    bloc.style.cssText = 'margin-bottom:12px;';
+    bloc.innerHTML = '<p style="font-size:13px;color:var(--roseau);margin:0 0 6px;">📝 Brouillons : visibles seulement par la mairie</p>';
+    brouillonsCache.forEach((b) => bloc.appendChild(renderCarteBrouillon(b)));
+    conteneur.prepend(bloc);
+  }
+}
+
+// ── Brouillons (2026-11-13) : créer → tester → publier. Rien n'est visible ni notifié aux
+// habitants avant « Publier » (confirmation obligatoire, voir publierBrouillon). ──
+
+function renderCarteBrouillon(brouillon) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'carte-chasse-compacte';
+  el.style.borderStyle = 'dashed';
+  el.innerHTML = `
+    <span class="type-parcours type-${brouillon.mode === 'balade' ? 'balade' : 'chasse'}">${brouillon.mode === 'balade' ? '🚶 Balade' : '🔎 Chasse'}</span>
+    <h3>📝 ${escapeAttr(brouillon.titre)}</h3>
+    <p>Brouillon : à tester puis publier</p>
+  `;
+  el.addEventListener('click', () => { idChasseDetailOuverte = brouillon.id; renderDetailBrouillon(brouillon); });
+  return el;
+}
+
+function renderDetailBrouillon(brouillon) {
+  document.getElementById('vue-liste-chasses').hidden = true;
+  const zone = document.getElementById('vue-detail-chasse');
+  zone.hidden = false;
+  arreterSuiviBalade();
+  if (carteBalade) { carteBalade.remove(); carteBalade = null; }
+  document.body.classList.remove('carte-balade-plein-ecran');
+  const estBalade = brouillon.mode === 'balade';
+
+  zone.innerHTML = `
+    <button type="button" class="btn-retour-detail">← Retour aux parcours</button>
+    <span class="type-parcours type-${estBalade ? 'balade' : 'chasse'}">${estBalade ? '🚶 Balade guidée' : '🔎 Chasse au trésor'}</span>
+    <h3>📝 ${escapeAttr(brouillon.titre)}</h3>
+    ${brouillon.description ? `<p>${texteAvecLiensCliquables(brouillon.description)}</p>` : ''}
+    <p class="indice-etape">Brouillon : visible seulement par la mairie. Testez chaque étape (depuis chez vous ou sur place), puis publiez : les habitants le verront alors, avec une notification.</p>
+    <div class="actions-admin" style="margin-top:12px;">
+      <button class="btn-modifier-brouillon">✏️ Modifier</button>
+      <button class="btn-tester-brouillon">🧪 Tester</button>
+      ${estBalade ? '' : '<button class="btn-voir-qr">Voir les QR codes</button>'}
+      <button class="btn-publier-brouillon">🚀 Publier</button>
+      <button class="btn-supprimer-brouillon">Supprimer le brouillon</button>
+    </div>
+    <div class="liste-qr-etapes"></div>
+    <div class="zone-test-brouillon"></div>
+  `;
+
+  zone.querySelector('.btn-retour-detail').addEventListener('click', () => fermerDetailChasse());
+  zone.querySelector('.btn-modifier-brouillon').addEventListener('click', () => ouvrirModaleCreationChasse(brouillon));
+  zone.querySelector('.btn-tester-brouillon').addEventListener('click', () => afficherTestBrouillon(brouillon, zone));
+  zone.querySelector('.btn-voir-qr')?.addEventListener('click', () => afficherQrEtapes(brouillon.id, zone));
+  zone.querySelector('.btn-publier-brouillon').addEventListener('click', () => publierBrouillon(brouillon));
+  zone.querySelector('.btn-supprimer-brouillon').addEventListener('click', async () => {
+    if (!confirm('Supprimer ce brouillon et toutes ses étapes ?')) return;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${brouillon.id}`, { method: 'DELETE' });
+    if (!res.ok) { afficherToastMessage('Échec de la suppression.', 'erreur'); return; }
+    idChasseDetailOuverte = null;
+    chargerChasses();
+  });
+}
+
+// Mode test : chaque étape se rejoue à la demande, dans n'importe quel ordre, sans rien enregistrer
+// (ni progression, ni points). « Distance d'ici » mesure l'écart réel au point sur le terrain.
+async function afficherTestBrouillon(brouillon, zone) {
+  const zoneTest = zone.querySelector('.zone-test-brouillon');
+  if (zoneTest.innerHTML.trim()) { zoneTest.innerHTML = ''; return; } // second clic : on replie
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${brouillon.id}/etapes`);
+  if (!res.ok) { zoneTest.innerHTML = '<p class="dechets-vide">Impossible de charger les étapes.</p>'; return; }
+  const { etapes } = await res.json();
+  const libelles = { aucun: '🚩 point de passage', texte: '📜 découverte', photo: '📸 photo', enigme: '🧩 énigme' };
+  zoneTest.innerHTML = `
+    <p style="font-size:13px;color:var(--roseau);margin:12px 0 6px;">🧪 Mode test : rien n'est enregistré (ni progression, ni points). « Simuler l'arrivée » fonctionne depuis chez vous ; « Distance d'ici » mesure l'écart réel sur le terrain.</p>
+    ${etapes.map((e) => `
+      <div class="ligne-toggle-onglet" data-etape="${e.id}" style="flex-wrap:wrap;gap:6px;">
+        <span>Étape ${e.ordre + 1} · ${escapeAttr(e.titre)} <small>(${libelles[e.type_contenu] || e.type_contenu})</small></span>
+        <span style="display:flex;gap:6px;">
+          <button type="button" class="btn-simuler-etape" style="width:auto;">▶ Simuler l'arrivée</button>
+          <button type="button" class="btn-distance-etape" style="width:auto;">📍 Distance d'ici</button>
+        </span>
+        <small class="resultat-test-etape" style="flex-basis:100%;"></small>
+      </div>
+    `).join('')}
+  `;
+  zoneTest.querySelectorAll('[data-etape]').forEach((ligne) => {
+    const etapeId = ligne.dataset.etape;
+    const resultat = ligne.querySelector('.resultat-test-etape');
+    ligne.querySelector('.btn-simuler-etape').addEventListener('click', () => testerEtapeBrouillon(brouillon.id, etapeId, resultat));
+    ligne.querySelector('.btn-distance-etape').addEventListener('click', (ev) => {
+      const bouton = ev.currentTarget;
+      const texteInitial = bouton.textContent;
+      bouton.disabled = true;
+      obtenirPositionPrecise((precision) => { bouton.textContent = `±${Math.round(precision)} m…`; })
+        .then(async (pos) => {
+          const resTest = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${brouillon.id}/tester`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ etape_id: etapeId, lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          });
+          const data = await resTest.json().catch(() => ({}));
+          if (data.distance_metres == null) { afficherToastMessage(data.erreur || 'Mesure impossible.', 'erreur'); return; }
+          resultat.textContent = `📍 ${formaterDistance(data.distance_metres)} du point : ${data.dans_la_zone ? 'dans la zone de validation ✅' : `hors zone (rayon ${data.rayon_metres} m)`}`;
+        })
+        .catch(() => afficherToastMessage('Localisation refusée ou indisponible.', 'erreur'))
+        .finally(() => { bouton.disabled = false; bouton.textContent = texteInitial; });
+    });
+  });
+  zoneTest.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Rejoue une étape en test. Énigme : la question s'ouvre comme pour un joueur, et la réponse est
+// vérifiée par le serveur (même normalisation que le vrai jeu). Renvoie true si l'étape passe.
+async function testerEtapeBrouillon(chasseId, etapeId, resultat, reponse = null) {
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/tester`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ etape_id: etapeId, ...(reponse != null ? { reponse } : {}) }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok && data.etape_enigme) {
+    const overlay = ouvrirModaleFormulaire('🧩 Énigme (test)', `
+      <form class="form-enigme-test">
+        <p class="indice-etape">${escapeAttr(data.question)}</p>
+        <input type="text" placeholder="Réponse à essayer" maxlength="200" required>
+        <button type="submit" style="margin-top:10px;">Vérifier</button>
+      </form>
+    `);
+    overlay.querySelector('.form-enigme-test').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const essai = overlay.querySelector('input').value.trim();
+      if (essai && await testerEtapeBrouillon(chasseId, etapeId, resultat, essai)) fermerModaleFormulaire(overlay);
+    });
+    return false;
+  }
+  if (!res.ok) {
+    afficherToastMessage(data.erreur || 'Échec du test.', 'erreur');
+    if (reponse != null) resultat.textContent = `❌ « ${reponse} » refusée`;
+    return false;
+  }
+  resultat.textContent = reponse != null ? `✅ Réponse « ${reponse} » acceptée` : '✅ Étape testée';
+  if (data.contenu_revele?.type === 'consigne') afficherToastMessage(`🚩 ${data.contenu_revele.texte}`, 'succes');
+  else if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
+  else if (data.point_de_passage) afficherToastMessage('🚩 Point de passage (sans consigne).', 'info');
+  return true;
+}
+
+// Publication : contrôle automatique, puis confirmation explicite (pas de publication sur un clic
+// accidentel). Les erreurs bloquent ; les avertissements s'affichent, la mairie décide.
+async function publierBrouillon(brouillon) {
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${brouillon.id}/verification`);
+  if (!res.ok) { afficherToastMessage('Impossible de vérifier le parcours.', 'erreur'); return; }
+  const { erreurs, avertissements } = await res.json();
+  const lignes = (items, prefixe) => items.map((t) => `<p style="margin:4px 0;">${prefixe} ${escapeAttr(t)}</p>`).join('');
+  const html = erreurs.length
+    ? `${lignes(erreurs, '❌')}<p style="margin-top:10px;">Corrigez ces points avec « Modifier » avant de publier.</p>`
+    : `${avertissements.length ? `<p><strong>À vérifier avant de publier :</strong></p>${lignes(avertissements, '⚠️')}` : '<p>✅ Aucun problème détecté.</p>'}
+      <p style="margin-top:10px;">Une fois publié, « ${escapeAttr(brouillon.titre)} » sera visible par tous les habitants et <strong>une notification sera envoyée aux abonnés</strong>. Ses étapes ne pourront plus être ajoutées, retirées ni réordonnées.</p>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button type="button" class="btn-annuler-publication" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">Annuler</button>
+        <button type="button" class="btn-confirmer-publication">🚀 Oui, publier</button>
+      </div>`;
+  const overlay = ouvrirModaleFormulaire(erreurs.length ? 'Pas encore prêt à publier' : 'Publier le parcours ?', html);
+  overlay.querySelector('.btn-annuler-publication')?.addEventListener('click', () => fermerModaleFormulaire(overlay));
+  overlay.querySelector('.btn-confirmer-publication')?.addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    const resPub = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${brouillon.id}/publier`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+    const data = await resPub.json().catch(() => ({}));
+    fermerModaleFormulaire(overlay);
+    if (!resPub.ok) afficherToastMessage(data.erreur || 'Échec de la publication.', 'erreur');
+    else afficherToastMessage('Parcours publié ! Les habitants abonnés sont prévenus. 🎉', 'succes');
+    chargerChasses(); // l'écran reste sur ce parcours (idChasseDetailOuverte), désormais publié
+  });
 }
 
 // Écran vide utile (2026-11-05) : la mairie est invitée à créer son premier parcours, un habitant à
@@ -988,29 +1174,40 @@ function initFormulaireChasse() {
   btn.addEventListener('click', () => ouvrirModaleCreationChasse());
 }
 
-function ouvrirModaleCreationChasse() {
+// Création, ou modification d'un brouillon (brouillon = { id, titre, description, mode,
+// rayon_metres }) : tant que rien n'est publié, tout se modifie, y compris le type et l'ordre des
+// étapes. Le parcours est toujours enregistré en brouillon (voir publierBrouillon).
+async function ouvrirModaleCreationChasse(brouillon = null) {
+  let etapesBrouillon = [];
+  if (brouillon) {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${brouillon.id}/etapes`);
+    if (!res.ok) { afficherToastMessage('Impossible de charger les étapes du brouillon.', 'erreur'); return; }
+    etapesBrouillon = (await res.json()).etapes;
+  }
+  const estBalade = brouillon?.mode === 'balade';
   const html = `
     <form id="form-modale-chasse">
-      <input type="text" id="titre-chasse-modale" placeholder="Titre de la chasse" maxlength="150" required>
-      <textarea id="description-chasse-modale" placeholder="Description"></textarea>
+      <input type="text" id="titre-chasse-modale" placeholder="Titre de la chasse" maxlength="150" required value="${brouillon ? escapeAttr(brouillon.titre) : ''}">
+      <textarea id="description-chasse-modale" placeholder="Description">${brouillon?.description ? escapeAttr(brouillon.description) : ''}</textarea>
       <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Type</label>
       <select id="mode-chasse-modale">
         <option value="chasse">Chasse au trésor (QR à scanner sur place)</option>
-        <option value="balade">Balade guidée (carte + validation GPS)</option>
+        <option value="balade" ${estBalade ? 'selected' : ''}>Balade guidée (carte + validation GPS)</option>
       </select>
-      <div id="ligne-rayon-balade" style="display:none;margin-top:8px;">
+      <div id="ligne-rayon-balade" style="display:${estBalade ? 'block' : 'none'};margin-top:8px;">
         <label style="display:block;margin-bottom:4px;font-size:13px;color:var(--roseau);">Rayon de validation autour de chaque point (mètres)</label>
-        <input type="number" id="rayon-chasse-modale" value="50" min="20" max="500">
+        <input type="number" id="rayon-chasse-modale" value="${brouillon?.rayon_metres || 50}" min="20" max="500">
       </div>
       <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">📍 Emplacement des étapes</label>
       <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Clique sur la carte pour placer chaque étape — pas besoin d'être sur place. Fais glisser un repère pour l'ajuster.</p>
       <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
       <button type="button" id="btn-ajouter-etape-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter une étape</button>
-      <button type="submit" style="margin-top:12px;">Créer la chasse</button>
+      <p style="font-size:12px;color:var(--roseau);margin:10px 0 0;">📝 Enregistré en brouillon : rien n'est visible des habitants avant « Publier ».</p>
+      <button type="submit" style="margin-top:12px;">Enregistrer le brouillon</button>
     </form>
   `;
-  const overlay = ouvrirModaleFormulaire('Créer une chasse au trésor', html);
+  const overlay = ouvrirModaleFormulaire(brouillon ? 'Modifier le brouillon' : 'Créer une chasse au trésor', html);
   const corps = overlay.querySelector('.corps-modale-formulaire');
   compteurEtapes = 0;
 
@@ -1020,11 +1217,30 @@ function ouvrirModaleCreationChasse() {
 
   initCarteCreationChasse(corps);
   corps.querySelector('#btn-ajouter-etape-modale').addEventListener('click', () => ajouterLigneEtape(corps));
-  ajouterLigneEtape(corps);
+  if (etapesBrouillon.length) {
+    etapesBrouillon.forEach((e) => ajouterLigneEtape(corps, e, true));
+    setTimeout(() => {
+      carteCreationChasse.fitBounds(L.featureGroup([...marqueursEtapesChasse.values()]).getBounds().pad(0.25));
+    }, 120);
+  } else {
+    ajouterLigneEtape(corps);
+  }
 
   corps.querySelector('#form-modale-chasse').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await soumettreChasse(corps, overlay);
+    await soumettreChasse(corps, overlay, brouillon?.id ?? null);
+  });
+}
+
+// Numérotation des étapes (titres et repères de la carte) d'après leur ordre réel dans la liste,
+// après un ajout, un retrait ou un déplacement ↑↓.
+function renumeroterEtapes(corps) {
+  corps.querySelectorAll('.ligne-etape-chasse').forEach((ligne, i) => {
+    ligne.dataset.numero = i + 1;
+    ligne.querySelector('.numero-etape').textContent = `Étape ${i + 1}`;
+    marqueursEtapesChasse.get(ligne.dataset.etapeId)?.setIcon(L.divIcon({
+      className: 'pastille-numero-etape', html: String(i + 1), iconSize: [26, 26], iconAnchor: [13, 13],
+    }));
   });
 }
 
@@ -1085,11 +1301,10 @@ function definirPositionEtape(ligne, lat, lng) {
   }
 }
 
-// etapeExistante (optionnel) : pré-remplit la ligne pour la modale d'édition plutôt que de
-// création — voir ouvrirModaleEditionChasse. Dans ce cas la ligne garde l'id réel de l'étape
-// (dataset.dbId) et perd le bouton "Retirer" : l'édition corrige une étape, elle ne restructure
-// pas la chasse (ajout/retrait/réordre nécessitent toujours de la recréer).
-function ajouterLigneEtape(corps, etapeExistante = null) {
+// etapeExistante (optionnel) : pré-remplit la ligne (modification) et garde l'id réel de l'étape
+// (dataset.dbId). modifiable : boutons « Retirer » et ↑↓ — création et brouillon ; pas pour un
+// parcours publié (ouvrirModaleEditionChasse), qui ne se restructure plus une fois joué.
+function ajouterLigneEtape(corps, etapeExistante = null, modifiable = !etapeExistante) {
   compteurEtapes++;
   const n = compteurEtapes;
   const conteneur = corps.querySelector('#liste-etapes-chasse-modale');
@@ -1101,7 +1316,13 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
   if (etapeExistante?.photo_r2_key) ligne.dataset.photoActuelle = etapeExistante.photo_r2_key;
   ligne.style.cssText = 'border:1.5px solid var(--eauL);border-radius:10px;padding:10px;margin-bottom:10px;';
   ligne.innerHTML = `
-    <strong>Étape ${etapeExistante ? etapeExistante.ordre + 1 : n}</strong>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+      <strong class="numero-etape">Étape ${etapeExistante ? etapeExistante.ordre + 1 : n}</strong>
+      ${modifiable ? `<span style="display:flex;gap:4px;">
+        <button type="button" class="btn-monter-etape" title="Monter" aria-label="Monter l'étape" style="width:auto;padding:2px 10px;margin:0;">↑</button>
+        <button type="button" class="btn-descendre-etape" title="Descendre" aria-label="Descendre l'étape" style="width:auto;padding:2px 10px;margin:0;">↓</button>
+      </span>` : ''}
+    </div>
     <input type="text" class="etape-titre" placeholder="Titre de l'étape" maxlength="150" value="${etapeExistante ? escapeAttr(etapeExistante.titre) : ''}">
     <textarea class="etape-indice" placeholder="Indice pour trouver le lieu" maxlength="500">${etapeExistante ? escapeAttr(etapeExistante.indice) : ''}</textarea>
     <div style="display:flex;gap:6px;">
@@ -1117,7 +1338,7 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
       <option value="enigme">Une énigme (réponse à saisir)</option>
     </select>
     <div class="etape-champs-contenu"></div>
-    ${etapeExistante ? '' : '<button type="button" class="btn-supprimer-etape">Retirer cette étape</button>'}
+    ${modifiable ? '<button type="button" class="btn-supprimer-etape">Retirer cette étape</button>' : ''}
   `;
   ligne.querySelector('.btn-position-etape').addEventListener('click', (e) => {
     if (!navigator.geolocation) return;
@@ -1178,8 +1399,16 @@ function ajouterLigneEtape(corps, etapeExistante = null) {
     marqueursEtapesChasse.get(ligne.dataset.etapeId)?.remove();
     marqueursEtapesChasse.delete(ligne.dataset.etapeId);
     ligne.remove();
+    renumeroterEtapes(corps);
+  });
+  ligne.querySelector('.btn-monter-etape')?.addEventListener('click', () => {
+    if (ligne.previousElementSibling) { ligne.previousElementSibling.before(ligne); renumeroterEtapes(corps); }
+  });
+  ligne.querySelector('.btn-descendre-etape')?.addEventListener('click', () => {
+    if (ligne.nextElementSibling) { ligne.nextElementSibling.after(ligne); renumeroterEtapes(corps); }
   });
   conteneur.appendChild(ligne);
+  renumeroterEtapes(corps);
   return ligne;
 }
 
@@ -1248,7 +1477,7 @@ async function photoDeLEtape(ligne) {
   return ligne.dataset.photoActuelle || null;
 }
 
-async function soumettreChasse(corps, overlay) {
+async function soumettreChasse(corps, overlay, brouillonId = null) {
   const titre = corps.querySelector('#titre-chasse-modale').value.trim();
   const description = corps.querySelector('#description-chasse-modale').value.trim();
   const mode = corps.querySelector('#mode-chasse-modale').value;
@@ -1266,6 +1495,8 @@ async function soumettreChasse(corps, overlay) {
 
     const type_contenu = ligne.querySelector('.etape-type').value;
     const etape = { titre, indice, lat, lng, type_contenu };
+    // Brouillon : l'étape déjà enregistrée garde son id (et son QR code déjà imprimé).
+    if (brouillonId && ligne.dataset.dbId) etape.id = ligne.dataset.dbId;
     if (type_contenu === 'texte' || type_contenu === 'photo') {
       if (type_contenu === 'texte') etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
       const photo = await photoDeLEtape(ligne);
@@ -1280,9 +1511,6 @@ async function soumettreChasse(corps, overlay) {
     } else if (type_contenu === 'aucun') {
       const consigne = ligne.querySelector('.etape-contenu')?.value.trim();
       if (consigne) etape.contenu = consigne;
-    } else if (type_contenu === 'aucun') {
-      const consigne = ligne.querySelector('.etape-contenu')?.value.trim();
-      if (consigne) etape.contenu = consigne;
     }
     etapes.push(etape);
   }
@@ -1292,16 +1520,20 @@ async function soumettreChasse(corps, overlay) {
     return;
   }
 
-  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor`, {
-    method: 'POST',
+  const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor${brouillonId ? `/${brouillonId}` : ''}`, {
+    method: brouillonId ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ titre, description, mode, rayon_metres, etapes }),
   });
 
   if (res.ok) {
     fermerModaleFormulaire(overlay);
+    // Nouveau brouillon : on l'ouvre directement, prêt à être testé.
+    if (!brouillonId) idChasseDetailOuverte = (await res.json()).chasse_id;
     chargerChasses();
-    afficherToastMessage('Chasse créée ! Les QR codes sont accessibles depuis chaque étape.', 'succes');
+    afficherToastMessage(brouillonId
+      ? 'Brouillon mis à jour.'
+      : 'Brouillon enregistré : testez-le, puis publiez-le quand il est prêt.', 'succes');
   } else {
     const data = await res.json();
     afficherToastMessage(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de création', 'erreur');
@@ -1389,6 +1621,10 @@ async function soumettreEditionChasse(corps, overlay, chasseId, estBalade) {
     } else if (type_contenu === 'enigme') {
       etape.contenu = ligne.querySelector('.etape-contenu').value.trim();
       etape.enigme_reponse = ligne.querySelector('.etape-reponse').value.trim();
+    } else if (type_contenu === 'aucun') {
+      // Sans cet envoi, chaque « Modifier » effaçait la consigne du point de passage (corrigé 2026-11-13).
+      const consigne = ligne.querySelector('.etape-contenu')?.value.trim();
+      if (consigne) etape.contenu = consigne;
     }
 
     const resEtape = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/etapes/${etapeId}`, {

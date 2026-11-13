@@ -16,12 +16,17 @@ app.use('*', jwtMiddleware);
 
 const TYPES_CONTENU_ETAPE = ['aucun', 'texte', 'photo', 'enigme'] as const;
 
-// Normalisation souple des réponses d'énigme : casse, accents et espaces multiples ignorés.
-function normaliserReponse(texte: string): string {
-  return texte.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+// Normalisation souple des réponses d'énigme, appliquée des deux côtés (saisie et réponse attendue) :
+// casse et accents ignorés, œ/æ = oe/ae, et tout ce qui n'est ni lettre ni chiffre (tirets, apostrophes
+// droites ou typographiques, guillemets, points…) compte comme un espace — « pont-levis » = « Pont levis »,
+// « l’église » = « l'eglise » (2026-11-13).
+export function normaliserReponse(texte: string): string {
+  return texte.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+    .replace(/œ/g, 'oe').replace(/æ/g, 'ae')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
-const etapeSchema = z.object({
+const champsEtape = {
   titre: z.string().min(1).max(150),
   indice: z.string().min(1).max(500),
   lat: z.number().min(-90).max(90),
@@ -30,19 +35,70 @@ const etapeSchema = z.object({
   contenu: z.string().max(2000).optional(),
   photo_r2_key: z.string().max(300).optional(),
   enigme_reponse: z.string().max(200).optional(),
-})
-  .refine((e) => e.type_contenu !== 'texte' || !!e.contenu?.trim(), { message: 'Le texte descriptif est requis.' })
-  .refine((e) => e.type_contenu !== 'photo' || !!e.photo_r2_key, { message: 'La photo est requise.' })
-  .refine((e) => e.type_contenu !== 'enigme' || (!!e.contenu?.trim() && !!e.enigme_reponse?.trim()), {
-    message: 'Une énigme requiert une question et une réponse.',
-  });
-const creationChasseSchema = z.object({
+};
+function controlerContenuEtape(e: { type_contenu: string; contenu?: string; photo_r2_key?: string; enigme_reponse?: string }, ctx: z.RefinementCtx) {
+  if (e.type_contenu === 'texte' && !e.contenu?.trim()) ctx.addIssue({ code: 'custom', message: 'Le texte descriptif est requis.' });
+  if (e.type_contenu === 'photo' && !e.photo_r2_key) ctx.addIssue({ code: 'custom', message: 'La photo est requise.' });
+  if (e.type_contenu === 'enigme' && (!e.contenu?.trim() || !e.enigme_reponse?.trim())) {
+    ctx.addIssue({ code: 'custom', message: 'Une énigme requiert une question et une réponse.' });
+  }
+}
+const etapeSchema = z.object(champsEtape).superRefine(controlerContenuEtape);
+// Brouillon : une étape déjà enregistrée garde son id (donc son qr_token : les QR déjà imprimés
+// restent valides) ; une étape sans id est nouvelle.
+const etapeBrouillonSchema = z.object({ ...champsEtape, id: z.string().uuid().optional() }).superRefine(controlerContenuEtape);
+const champsChasse = {
   titre: z.string().min(1).max(150),
   description: z.string().max(1000).optional(),
   mode: z.enum(['chasse', 'balade']).default('chasse'),
   rayon_metres: z.number().int().min(20).max(500).default(50),
-  etapes: z.array(etapeSchema).min(1).max(20),
-});
+};
+const creationChasseSchema = z.object({ ...champsChasse, etapes: z.array(etapeSchema).min(1).max(20) });
+const brouillonChasseSchema = z.object({ ...champsChasse, etapes: z.array(etapeBrouillonSchema).min(1).max(20) });
+
+// Ligne etapes_chasse à écrire (création, ou modification d'un brouillon), hors qr_token.
+function ligneEtape(env: any, commune_id: string, chasse_id: string, e: z.infer<typeof etapeSchema>, ordre: number) {
+  return {
+    commune_id, chasse_id, ordre, titre: e.titre, indice: e.indice, lat: e.lat, lng: e.lng,
+    type_contenu: e.type_contenu,
+    contenu: e.contenu?.trim() || null,
+    photo_url: e.photo_r2_key ? `${env.R2_PUBLIC_BASE}/${e.photo_r2_key}` : null,
+    photo_r2_key: e.photo_r2_key || null,
+    enigme_reponse: e.type_contenu === 'enigme' ? (e.enigme_reponse?.trim() || null) : null,
+  };
+}
+
+// Contrôle avant publication d'un brouillon (2026-11-13). Erreurs = publication refusée ;
+// avertissements = affichés dans la confirmation, la mairie décide.
+export function verifierAvantPublication(
+  chasse: { mode: string; rayon_metres: number | null; description?: string | null },
+  etapes: { ordre: number; lat: number; lng: number; type_contenu: string; contenu?: string | null; enigme_reponse?: string | null }[],
+) {
+  const erreurs: string[] = [];
+  const avertissements: string[] = [];
+  const triees = [...etapes].sort((a, b) => a.ordre - b.ordre);
+  if (!triees.length) erreurs.push('Le parcours n’a aucune étape.');
+  triees.forEach((e, i) => {
+    const n = i + 1;
+    if (e.type_contenu === 'enigme' && (!e.contenu?.trim() || !e.enigme_reponse?.trim())) erreurs.push(`Étape ${n} : l’énigme n’a pas de question ou pas de réponse.`);
+    if (e.type_contenu === 'texte' && !e.contenu?.trim()) erreurs.push(`Étape ${n} : la découverte n’a pas de texte.`);
+    if (e.lat === 0 && e.lng === 0) erreurs.push(`Étape ${n} : la position n’est pas placée sur la carte.`);
+  });
+  const rayon = chasse.rayon_metres ?? 50;
+  if (chasse.mode === 'balade') {
+    for (let i = 1; i < triees.length; i++) {
+      const d = distanceMetres(triees[i - 1].lat, triees[i - 1].lng, triees[i].lat, triees[i].lng);
+      if (d < rayon) avertissements.push(`Étapes ${i} et ${i + 1} : ${Math.round(d)} m d’écart, moins que le rayon de validation (${rayon} m). Elles risquent de se valider presque en même temps.`);
+    }
+  } else if (triees.length) {
+    avertissements.push(`Chasse au trésor : les ${triees.length} QR codes doivent être imprimés et posés avant de publier (bouton « Voir les QR codes »).`);
+  }
+  if (!chasse.description?.trim()) avertissements.push('Pas de description : les joueurs ne savent pas à quoi s’attendre avant de commencer.');
+  if (triees.length && triees.every((e) => e.type_contenu === 'aucun')) {
+    avertissements.push('Uniquement des points de passage : rien à découvrir, et les points ne sont gagnés qu’à l’arrivée.');
+  }
+  return { erreurs, avertissements };
+}
 
 app.get('/', async (c) => {
   const commune_id = c.get('commune_id');
@@ -57,12 +113,22 @@ app.get('/', async (c) => {
       select: 'id,titre,description,actif,mode,rayon_metres,created_at',
       commune_id: `eq.${commune_id}`,
       actif: 'eq.false',
+      brouillon: 'eq.false', // un brouillon n'est pas une archive : il ne doit pas être « réactivable »
       order: 'created_at.desc',
     });
     return c.json({ chasses: chassesArchivees });
   }
 
-  return c.json({ chasses: await listerChassesJouables(c.env, commune_id, user_id) });
+  const chasses = await listerChassesJouables(c.env, commune_id, user_id);
+  if (!estGestionnaire(role)) return c.json({ chasses });
+  // Brouillons : gestionnaires uniquement, sans progression (personne ne peut y jouer).
+  const brouillons = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'id,titre,description,mode,rayon_metres,created_at',
+    commune_id: `eq.${commune_id}`,
+    brouillon: 'eq.true',
+    order: 'created_at.desc',
+  });
+  return c.json({ chasses, brouillons });
 });
 
 // Chasses actives d'une commune, avec la progression du joueur. Partagé avec
@@ -143,30 +209,161 @@ app.post('/', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   const data = body.data;
 
+  // Toujours créée en brouillon (2026-11-13) : invisible, injouable, sans notification — la mairie
+  // la teste puis la publie (POST /:id/publier), qui seul envoie le push.
   const [chasse] = await supabaseInsert(c.env, 'chasses_tresor', {
-    commune_id, user_id, titre: data.titre, description: data.description ?? null, actif: true,
-    mode: data.mode, rayon_metres: data.rayon_metres,
+    commune_id, user_id, titre: data.titre, description: data.description ?? null,
+    actif: false, brouillon: true, mode: data.mode, rayon_metres: data.rayon_metres,
   });
 
   await supabaseInsert(c.env, 'etapes_chasse', data.etapes.map((e, i) => ({
-    commune_id, chasse_id: chasse.id, ordre: i, titre: e.titre, indice: e.indice,
-    lat: e.lat, lng: e.lng, qr_token: crypto.randomUUID(),
-    type_contenu: e.type_contenu,
-    contenu: e.contenu?.trim() || null,
-    photo_url: e.photo_r2_key ? `${c.env.R2_PUBLIC_BASE}/${e.photo_r2_key}` : null,
-    photo_r2_key: e.photo_r2_key || null,
-    enigme_reponse: e.type_contenu === 'enigme' ? (e.enigme_reponse?.trim() || null) : null,
+    ...ligneEtape(c.env, commune_id, chasse.id, e, i), qr_token: crypto.randomUUID(),
   })));
+
+  return c.json({ chasse_id: chasse.id, brouillon: true }, 201);
+});
+
+// PUT /:id — remplace un BROUILLON en entier : titre, description, mode, rayon et étapes (ajout,
+// retrait, réordre). Possible uniquement tant que personne ne peut y jouer. Les étapes gardées
+// conservent leur id et leur qr_token ; les photos des étapes retirées sont effacées de R2.
+app.put('/:id', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const chasse_id = c.req.param('id');
+
+  const body = brouillonChasseSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+
+  const [brouillon] = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'id', id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`, brouillon: 'eq.true',
+  });
+  if (!brouillon) return c.json({ erreur: 'Brouillon introuvable (déjà publié ?)' }, 404);
+
+  const existantes = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'id,photo_r2_key', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`,
+  });
+  const idsExistants = new Set(existantes.map((e: any) => e.id));
+  if (data.etapes.some((e) => e.id && !idsExistants.has(e.id))) return c.json({ erreur: 'Étape inconnue dans ce brouillon' }, 400);
+
+  await supabaseUpdate(c.env, 'chasses_tresor', {
+    titre: data.titre, description: data.description?.trim() || null, mode: data.mode, rayon_metres: data.rayon_metres,
+  }, { id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}` });
+
+  const gardees = new Set(data.etapes.map((e) => e.id).filter(Boolean));
+  const retirees = existantes.filter((e: any) => !gardees.has(e.id));
+  if (retirees.length) {
+    await supabaseDelete(c.env, 'etapes_chasse', {
+      id: `in.(${retirees.map((e: any) => e.id).join(',')})`, commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`,
+    });
+  }
+  const nouvelles: any[] = [];
+  for (const [i, e] of data.etapes.entries()) {
+    const ligne = ligneEtape(c.env, commune_id, chasse_id, e, i);
+    if (e.id) await supabaseUpdate(c.env, 'etapes_chasse', ligne, { id: `eq.${e.id}`, commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}` });
+    else nouvelles.push({ ...ligne, qr_token: crypto.randomUUID() });
+  }
+  if (nouvelles.length) await supabaseInsert(c.env, 'etapes_chasse', nouvelles);
+
+  // Photos qui ne servent plus (étape retirée ou photo remplacée) : orphelines en R2 sinon.
+  const clesGardees = new Set(data.etapes.map((e) => e.photo_r2_key).filter(Boolean));
+  for (const e of existantes) {
+    if (e.photo_r2_key && !clesGardees.has(e.photo_r2_key)) await deleteObject(c.env, e.photo_r2_key);
+  }
+  return c.json({ ok: true });
+});
+
+// GET /:id/verification — contrôle avant publication, affiché dans la confirmation.
+app.get('/:id/verification', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const chasse_id = c.req.param('id');
+  const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'id,description,mode,rayon_metres', id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!chasse) return c.json({ erreur: 'Parcours introuvable' }, 404);
+  const etapes = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'ordre,lat,lng,type_contenu,contenu,enigme_reponse', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`,
+  });
+  return c.json(verifierAvantPublication(chasse, etapes));
+});
+
+// POST /:id/publier — rend le brouillon visible et jouable, puis notifie les abonnés. La
+// confirmation est demandée côté client ; ici, le contrôle est refait (erreurs = refus) et la
+// mise à jour filtrée sur brouillon=true : un double clic ne publie (et ne notifie) qu'une fois.
+app.post('/:id/publier', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const chasse_id = c.req.param('id');
+
+  const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'id,titre,description,mode,rayon_metres', id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`, brouillon: 'eq.true',
+  });
+  if (!chasse) return c.json({ erreur: 'Brouillon introuvable (déjà publié ?)' }, 404);
+  const etapes = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'ordre,lat,lng,type_contenu,contenu,enigme_reponse', commune_id: `eq.${commune_id}`, chasse_id: `eq.${chasse_id}`,
+  });
+  const controle = verifierAvantPublication(chasse, etapes);
+  if (controle.erreurs.length) return c.json({ erreur: 'Le parcours n’est pas prêt à être publié.', ...controle }, 400);
+
+  const publiees = await supabaseUpdate(c.env, 'chasses_tresor', { actif: true, brouillon: false }, {
+    id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`, brouillon: 'eq.true',
+  });
+  if (!publiees.length) return c.json({ erreur: 'Ce parcours est déjà publié.' }, 409);
 
   c.executionCtx.waitUntil((async () => {
     const abonnes = await utilisateursAbonnesA(c.env, commune_id, 'notif_chasses');
     await envoyerNotificationAUtilisateurs(
       c.env, commune_id, abonnes.filter((id: string) => id !== user_id),
-      '🗺️ Nouvelle chasse au trésor', data.titre, `/index.html?onglet=chasse-tresor&type=chasse&id=${chasse.id}`,
+      '🗺️ Nouvelle chasse au trésor', chasse.titre, `/index.html?onglet=chasse-tresor&type=chasse&id=${chasse.id}`,
     );
   })());
+  return c.json({ ok: true });
+});
 
-  return c.json({ chasse_id: chasse.id }, 201);
+// POST /:id/tester — mode test (gestionnaires) : rejoue une étape SANS RIEN ENREGISTRER (ni
+// progression, ni XP, ni badge — aucun intérêt à s'en servir pour farmer, règle n°6). Ni ordre ni
+// GPS imposés (« Simuler l'arrivée » depuis le bureau) ; si une position est envoyée, la distance
+// et la zone de validation sont renvoyées pour régler le rayon sur le terrain.
+const testEtapeSchema = z.object({
+  etape_id: z.string().uuid(),
+  reponse: z.string().max(200).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+});
+
+app.post('/:id/tester', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const commune_id = c.get('commune_id');
+  const chasse_id = c.req.param('id');
+  const body = testEtapeSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const data = body.data;
+
+  const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
+    select: 'mode,rayon_metres', id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
+  });
+  const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'type_contenu,lat,lng,contenu,photo_url,enigme_reponse',
+    id: `eq.${data.etape_id}`, chasse_id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
+  });
+  if (!chasse || !etape) return c.json({ erreur: 'Étape introuvable' }, 404);
+
+  let position = {};
+  if (data.lat !== undefined && data.lng !== undefined) {
+    const rayon = chasse.mode === 'balade' ? (chasse.rayon_metres ?? 50) : Math.max(chasse.rayon_metres ?? 0, RAYON_SCAN_QR_METRES);
+    const distance = distanceMetres(data.lat, data.lng, etape.lat, etape.lng);
+    position = { distance_metres: Math.round(distance), dans_la_zone: distance <= rayon, rayon_metres: rayon };
+  }
+
+  if (etape.type_contenu === 'enigme') {
+    if (!data.reponse?.trim()) return c.json({ ok: true, test: true, etape_enigme: true, question: etape.contenu, ...position });
+    if (normaliserReponse(data.reponse) !== normaliserReponse(etape.enigme_reponse ?? '')) {
+      return c.json({ erreur: 'Mauvaise réponse (test : rien n’est enregistré).', ...position }, 400);
+    }
+  }
+  return c.json({ ok: true, test: true, point_de_passage: etape.type_contenu === 'aucun', contenu_revele: contenuRevele(etape), ...position });
 });
 
 // GET /:id/etapes — liste des étapes avec leurs identifiants (gestionnaire, pour générer/imprimer les QR)
@@ -335,16 +532,19 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
   const xp = (estPassage ? 0 : XP_ACTIONS.valider_etape_chasse) + (parcoursTermine ? XP_ACTIONS.terminer_parcours : 0);
   const resultatXp = xp ? await attribuerXp(c.env, commune_joueur, user_id, xp) : {};
 
-  // Contenu à révéler côté joueur une fois l'étape validée.
-  let contenu_revele: { type: string; texte?: string; photo_url?: string } | null = null;
+  return c.json({ ok: true, ...resultatXp, contenu_revele: contenuRevele(etape), point_de_passage: estPassage, passages_rattrapes: passagesARattraper.length, parcours_termine: parcoursTermine, ...extra });
+}
+
+// Contenu à révéler côté joueur une fois l'étape validée — partagé avec le mode test, pour que la
+// mairie voie exactement ce que verra un joueur.
+function contenuRevele(etape: { type_contenu: string; contenu?: string | null; photo_url?: string | null }): { type: string; texte?: string; photo_url?: string } | null {
   // Découverte : texte, avec sa photo s'il y en a une (fusion texte + photo du 2026-11-05).
-  if (etape.type_contenu === 'texte') contenu_revele = { type: 'texte', texte: etape.contenu, ...(etape.photo_url ? { photo_url: etape.photo_url } : {}) };
-  else if (etape.type_contenu === 'photo') contenu_revele = { type: 'photo', photo_url: etape.photo_url };
+  if (etape.type_contenu === 'texte') return { type: 'texte', texte: etape.contenu ?? '', ...(etape.photo_url ? { photo_url: etape.photo_url } : {}) };
+  if (etape.type_contenu === 'photo') return { type: 'photo', photo_url: etape.photo_url ?? undefined };
   // Consigne d'orientation d'un point de passage (« Prenez à gauche après le calvaire ») : affichée
   // à l'arrivée, jamais rangée dans le carnet de découvertes.
-  else if (estPassage && etape.contenu) contenu_revele = { type: 'consigne', texte: etape.contenu };
-
-  return c.json({ ok: true, ...resultatXp, contenu_revele, point_de_passage: estPassage, passages_rattrapes: passagesARattraper.length, parcours_termine: parcoursTermine, ...extra });
+  if (etape.type_contenu === 'aucun' && etape.contenu) return { type: 'consigne', texte: etape.contenu };
+  return null;
 }
 
 // Validation par scan de QR (mode chasse au trésor). Depuis le 2026-11-05, la position du joueur
@@ -522,6 +722,15 @@ app.patch('/:id', async (c) => {
   const commune_id = c.get('commune_id');
   const body = editionChasseSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  // Un brouillon ne s'active jamais par ici : seul POST /:id/publier le rend visible (contrôle +
+  // notification). Sinon « Réactiver » contournerait la publication.
+  if (body.data.actif !== undefined) {
+    const [brouillon] = await supabaseSelect(c.env, 'chasses_tresor', {
+      select: 'id', id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`, brouillon: 'eq.true',
+    });
+    if (brouillon) return c.json({ erreur: 'Ce parcours est un brouillon : utilisez « Publier ».' }, 400);
+  }
 
   const patch: Record<string, unknown> = { titre: body.data.titre, description: body.data.description?.trim() || null };
   if (body.data.rayon_metres !== undefined) patch.rayon_metres = body.data.rayon_metres;

@@ -62,7 +62,7 @@ export const TABLES: Record<string, string> = {
   badges_citoyens: 'id,cle,nom,description,type,declencheur,valeur_seuil,visuel_url,actif,ordre,cree_par,created_at',
   user_badges_citoyens: 'id,user_id,badge_id,debloque_le',
   badges_obtenus: 'id,user_id,cle_badge,obtenu_at',
-  chasses_tresor: 'id,user_id,titre,description,actif,mode,rayon_metres,created_at',
+  chasses_tresor: 'id,user_id,titre,description,actif,brouillon,mode,rayon_metres,created_at',
   etapes_chasse: 'id,chasse_id,ordre,titre,indice,lat,lng,type_contenu,contenu,photo_url,enigme_reponse,created_at',
   progressions_chasse: 'id,chasse_id,etape_id,user_id,validee_at',
   photos_enigmes: 'id,user_id,url,lat,lng,indice,statut,created_at',

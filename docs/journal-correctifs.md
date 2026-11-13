@@ -5,6 +5,58 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-13 — Parcours : la consigne d'un point de passage effacée à chaque « Modifier »
+
+**Gravité :** faible (perte silencieuse de contenu saisi par la mairie)
+**Fichiers :** `frontend/js/chasse-tresor.js` (`soumettreEditionChasse`)
+
+### Symptôme
+Aucun signalement. Repéré en relisant le formulaire pendant le chantier « brouillon de parcours ».
+
+### Cause
+La modification d'un parcours publié renvoie chaque étape au serveur, mais la branche du type
+« point de passage » manquait : le champ `contenu` (la consigne « Prenez à gauche… ») n'était pas
+envoyé, et le serveur l'enregistrait vide. La création, elle, l'envoyait (en double, branche copiée).
+
+### Correction
+Branche ajoutée à la modification, doublon retiré à la création.
+
+### Vérification
+Relecture du code (pas de test automatisé côté front dans le projet).
+
+### À retenir
+Un formulaire qui renvoie l'objet entier doit renvoyer chaque champ de chaque type, sinon le
+serveur l'efface.
+
+---
+
+## 2026-11-13 — Énigmes de chasse/balade : « pont-levis » refusé si la réponse attendue est « pont levis »
+
+**Gravité :** faible (frustration des joueurs, aucune donnée en jeu)
+**Fichiers :** `worker/src/routes/chasses_tresor.ts` (`normaliserReponse`)
+
+### Symptôme
+Repéré en préparant les parcours d'Eaucourt : une réponse juste, mais saisie avec un tiret, une
+apostrophe courbe (clavier iPhone : « l’église ») ou un point final, était refusée.
+
+### Cause
+La comparaison ignorait la casse, les accents et les espaces, mais pas la ponctuation.
+
+### Correction
+Tout ce qui n'est ni lettre ni chiffre compte comme un espace, des deux côtés (saisie et réponse
+attendue) ; « œ »/« æ » valent « oe »/« ae ». S'applique aussi aux jeux joués depuis une autre
+commune (`jeux_ailleurs.ts` réutilise la même validation).
+
+### Vérification
+`worker/test/reponse-enigme.test.ts` (tirets, apostrophes droites/courbes, guillemets, ligatures,
+et cas qui doivent rester refusés) ; suite complète verte (418 tests).
+
+### À retenir
+Une réponse saisie au clavier de téléphone contient des apostrophes typographiques : toujours
+normaliser la ponctuation, pas seulement les accents.
+
+---
+
 ## 2026-11-10 — Nettoyeur HTML des articles : attributs d'événement non retirés
 
 **Gravité :** haute (injection de script stockée, élargie par l'espace associations)
