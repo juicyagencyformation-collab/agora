@@ -78,17 +78,20 @@ async function chargerProfil() {
 
   zone.innerHTML = `
     <div class="banniere-profil" style="${data.banniere_url ? `background-image:url('${data.banniere_url}');` : ''}">
-      <button type="button" id="btn-changer-banniere" class="bouton-changer-media bouton-changer-banniere" title="Changer la bannière">📷</button>
+      <label for="input-banniere-profil" id="btn-changer-banniere" class="bouton-changer-media bouton-changer-banniere" title="Changer la bannière" role="button">📷</label>
       <div class="badge-xp-commune badge-xp-profil-hero" style="--pct: ${pct};">
         <div class="interieur-badge-xp">
           ${photoOuLogo ? `<img src="${photoOuLogo}" alt="">` : '<span class="logo-defaut-badge-xp">🏛️</span>'}
         </div>
         <div class="niveau-overlay-badge-xp">${data.niveau}</div>
-        <button type="button" id="btn-changer-photo" class="bouton-changer-media bouton-changer-photo" title="Changer la photo">📷</button>
+        <label for="input-photo-profil" id="btn-changer-photo" class="bouton-changer-media bouton-changer-photo" title="Changer la photo" role="button">📷</label>
       </div>
     </div>
-    <input type="file" id="input-photo-profil" accept="image/jpeg,image/png,image/webp" hidden>
-    <input type="file" id="input-banniere-profil" accept="image/jpeg,image/png,image/webp" hidden>
+    <!-- Ouverts par les <label for> ci-dessus (geste natif) et non par input.click() : l'appli
+         installée sur iPhone n'ouvrait pas le sélecteur de photos (2026-11-14). Champs invisibles
+         mais pas display:none, pour la même raison. -->
+    <input type="file" id="input-photo-profil" accept="image/jpeg,image/png,image/webp" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
+    <input type="file" id="input-banniere-profil" accept="image/jpeg,image/png,image/webp" style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;">
 
     <div class="identite-profil-hero">
       <strong>${escapeAttr(data.prenom)} ${escapeAttr(data.nom)} <button type="button" id="btn-editer-identite" title="Modifier mon nom" style="background:none;border:none;cursor:pointer;font-size:14px;padding:0 0 0 4px;">✏️</button></strong>
@@ -268,9 +271,6 @@ function initNoterApplication(monAvis) {
 function initUploadsMediaProfil() {
   const inputPhoto = document.getElementById('input-photo-profil');
   const inputBanniere = document.getElementById('input-banniere-profil');
-
-  document.getElementById('btn-changer-photo')?.addEventListener('click', () => inputPhoto.click());
-  document.getElementById('btn-changer-banniere')?.addEventListener('click', () => inputBanniere.click());
 
   inputPhoto?.addEventListener('change', (e) => {
     if (e.target.files[0]) envoyerMediaProfil('photo', e.target.files[0]);

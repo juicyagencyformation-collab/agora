@@ -293,53 +293,29 @@ document.getElementById('fond-feuille-plus')?.addEventListener('click', () => {
   await initUtilisateur();
   await initCommune();
   await initVisibiliteOnglets();
-  initFormulaireArticle();
-  initFormulaireAlerte();
-  initToggleCarteAlertes();
-  initToggleArchivesAlerte();
-  initFormulaireAgenda();
-  initToggleHistoriqueAgenda();
-  initToggleCarteAgenda();
-  initToggleCarteAutourDeMoi();
-  initSousOngletsAgenda();
-  initFormulaireMur();
-  initFormulaireChasse();
-  initToggleArchivesChasses();
-  initFormulaireCoupDeMain();
-  initFormulaireDechets();
-  initFormulaireDechetsException();
-  initFormulaireSondage();
-  initFormulairePv();
-  initFormulaireMembreConseil();
-  initFormulaireProchainConseil();
-  initFormulaireAnnuaire();
-  initFormulaireBulletin();
-  initFormulaireRubrique();
-  initFormulairePhotoDuJour();
-  initFormulaireMemoire();
-  initFormulaireEnigme();
-  initSousOngletsChasse();
-  initVoletSeuilPhoto();
-  initVoletLogo();
-  initVoletCouleurs();
-  initVoletEnigme();
-  initVoletMur();
-  initVoletRgpd();
-  initFormulaireMessageMairie();
-  initVoletRegional();
-  initVoletSyncLois();
-  initVoletVigilanceMeteo();
-  initVoletsGeneriquesModeration();
-  initFormulaireInfosMairie();
-  initFormulaireBadgeCitoyen();
-  initBoutonDeconnexionProfil();
-  initTogglesCategoriesProfil();
-  initBadgeEntete();
-  await initServiceWorker();
-  // Pas pour un Explorateur : de passage, il joue dans le navigateur et ne reçoit aucune notification.
-  if (!window.EST_EXPLORATEUR) initOnboardingPwa();
-  initLiensDirectsNotification();
-  initFormulaireLoi();
+  // Chaque étape isolée : une seule qui plante sur un téléphone (ex. iPhone sans notifications
+  // web, 2026-11-14) ne doit plus empêcher les suivantes ni l'ouverture de l'accueil.
+  const etapes = [
+    initFormulaireArticle, initFormulaireAlerte, initToggleCarteAlertes, initToggleArchivesAlerte,
+    initFormulaireAgenda, initToggleHistoriqueAgenda, initToggleCarteAgenda, initToggleCarteAutourDeMoi,
+    initSousOngletsAgenda, initFormulaireMur, initFormulaireChasse, initToggleArchivesChasses,
+    initFormulaireCoupDeMain, initFormulaireDechets, initFormulaireDechetsException, initFormulaireSondage,
+    initFormulairePv, initFormulaireMembreConseil, initFormulaireProchainConseil, initFormulaireAnnuaire,
+    initFormulaireBulletin, initFormulaireRubrique, initFormulairePhotoDuJour, initFormulaireMemoire,
+    initFormulaireEnigme, initSousOngletsChasse, initVoletSeuilPhoto, initVoletLogo, initVoletCouleurs,
+    initVoletEnigme, initVoletMur, initVoletRgpd, initFormulaireMessageMairie, initVoletRegional,
+    initVoletSyncLois, initVoletVigilanceMeteo, initVoletsGeneriquesModeration, initFormulaireInfosMairie,
+    initFormulaireBadgeCitoyen, initBoutonDeconnexionProfil, initTogglesCategoriesProfil, initBadgeEntete,
+    // Pas d'onboarding pour un Explorateur : de passage, il joue dans le navigateur et ne reçoit aucune notification.
+    () => { if (!window.EST_EXPLORATEUR) initOnboardingPwa(); },
+    initLiensDirectsNotification, initFormulaireLoi,
+  ];
+  for (const etape of etapes) {
+    try { etape(); } catch (err) { console.error('Démarrage :', etape.name || 'étape', err); }
+  }
+  // Sans attendre : sur iPhone, l'enregistrement du service worker peut tarder, et rien ici n'en
+  // dépend (les notifications le relancent elles-mêmes si besoin, voir notifications.js).
+  initServiceWorker();
   // ?village=<slug> : arrivée depuis l'affiche QR d'un village (jouer.html) — on ouvre ses jeux,
   // en visite si ce n'est pas sa propre commune. Paramètre retiré ensuite (pas de ré-entrée au
   // rechargement de la page).

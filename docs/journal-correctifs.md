@@ -5,6 +5,45 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-14 — iPhone : accueil vide au démarrage, photos de profil, notifications
+
+**Gravité :** haute (accueil vide pour tout iPhone dont l'appli installée n'a pas les notifications)
+**Fichiers :** `frontend/js/notifications.js`, `frontend/js/navigation.js`, `frontend/js/profil.js`
+
+### Symptôme
+Signalé par Léandre sur iPhone :
+- à l'ouverture de l'appli installée, l'accueil est vide jusqu'au premier appui sur un onglet ;
+- le 📷 du profil n'ouvre pas le choix de photo ;
+- le menu « Mon nom sur mes publications » ne se déroule pas ;
+- « Activer les notifications » affiche une erreur.
+
+### Cause
+`initOnboardingPwa` testait `Notification?.permission`. Sur un iPhone où l'appli installée
+n'a pas les notifications web (iOS < 16.4), `Notification` n'existe pas du tout : le `?.` ne
+protège pas d'une variable inexistante, d'où une ReferenceError. Elle interrompait `initApp()`
+avant `activerOnglet('accueil')`, et toutes les étapes suivantes. Reproduit dans WebKit
+(Playwright, iPhone 13, appli « installée » sans `Notification`). Le 📷 passait par
+`input.click()` sur un champ `hidden`, réputé ignoré par l'appli installée sur iPhone.
+
+### Correction
+- `typeof Notification !== 'undefined'` à la place de `Notification?.`.
+- `initApp()` : chaque étape dans un try/catch, `initServiceWorker()` lancé sans être attendu,
+  l'accueil s'ouvre quoi qu'il arrive.
+- Profil : 📷 devenus des `<label for>` (geste natif), champs fichier invisibles mais pas `display:none`.
+- Notifications : sur iPhone installé sans support, message « iOS 16.4 ou plus récent » au
+  lieu de « non supportées ».
+
+### Vérification
+Même simulation WebKit : plus d'erreur, accueil chargé, sélecteur de photo ouvert, menu visible,
+message iOS affiché. À confirmer sur le vrai iPhone de Léandre (le menu déroulant n'a pas pu
+être reproduit en simulation).
+
+### À retenir
+Jamais `Notification?.`, `PushManager?.` ou toute API absente sur certains navigateurs sans
+`typeof`. Le démarrage de l'appli ne doit jamais dépendre d'une seule étape.
+
+---
+
 ## 2026-11-14 — Conseil : comptes rendus inconsultables (erreur 401)
 
 **Gravité :** moyenne (documents publics officiels inaccessibles aux habitants)

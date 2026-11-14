@@ -177,7 +177,10 @@ function initOnboardingPwa() {
   }
   if (estDejaInstallee()) {
     // Déjà installée : plus besoin de rappel d'installation, jamais.
-    if (Notification?.permission === 'default') afficherBanniereOnboarding();
+    // typeof, jamais `Notification?.` : sur un iPhone sans notifications web (iOS < 16.4),
+    // Notification n'existe pas du tout et `Notification?.` plantait tout le démarrage de
+    // l'appli (accueil vide, 2026-11-14).
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') afficherBanniereOnboarding();
     return;
   }
 
@@ -277,6 +280,9 @@ async function activerNotifications() {
       afficherToastMessage('Installe d\'abord l\'application sur ton écran d\'accueil pour activer les notifications 👇', 'info');
       activerOnglet('profil');
       document.getElementById('section-installation-profil')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (estIOS()) {
+      // Appli installée mais sans notifications : iPhone trop ancien (iOS < 16.4).
+      afficherToastMessage('Pour recevoir les notifications, ton iPhone doit être en iOS 16.4 ou plus récent (Réglages → Général → Mise à jour logicielle).', 'info');
     } else {
       afficherToastMessage('Les notifications ne sont pas supportées sur ce navigateur.', 'erreur');
     }
