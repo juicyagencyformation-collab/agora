@@ -9,6 +9,7 @@ import { sanitizeHtml } from '../lib/sanitize';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur } from '../lib/gamification';
 import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/push';
 import { photoSuspecte } from '../lib/moderation-image';
+import { CLES_THEMES_ACTUS } from '../lib/themes-actus';
 import {
   peutPublierPourFiche, plafondPublicationsAssoAtteint, fichesPublicationPossible,
   idsFichesGerees, fichesAffichage, signalerPublication, MAX_PUBLICATIONS_ASSO_24H,
@@ -50,7 +51,7 @@ const sondageSchema = z.object({
   choix: z.array(choixSchema).min(2).max(10),
   closes_at: z.string().datetime().nullable().optional(),
 });
-const CATEGORIES_VALIDES = ['vie_village', 'projets_travaux', 'environnement', 'agenda', 'info_pratique'] as const;
+const CATEGORIES_VALIDES = CLES_THEMES_ACTUS;
 
 const articleSchema = z.object({
   section: z.enum(['actualites', 'conseil']).default('actualites'),

@@ -1,0 +1,10 @@
+Polices du journal papier (worker/src/lib/journal-gabarit.ts), hébergées chez nous en woff2,
+jamais chargées depuis Google Fonts à l'exécution. Téléchargées le 2026-11-14 depuis les paquets
+npm @fontsource (jsdelivr), sous-ensemble « latin » (français, €, œ compris) :
+- Kaushan Script 400 (@fontsource/kaushan-script 5.3.0)
+- Source Sans 3 400/600/700 (@fontsource/source-sans-3 5.3.1)
+- Source Serif 4 400, 400 italique, 600 (@fontsource/source-serif-4 5.3.1)
+Licence : SIL Open Font License 1.1 (https://openfontlicense.org) — redistribution libre avec
+les fichiers, interdiction de vendre les polices seules.
+Le Worker les lit à l'adresse FRONTEND_URL/css/polices/journal/<nom>.woff2 et les intègre au
+PDF : ne pas renommer ces fichiers sans mettre à jour routes/journal.ts (fonction polices).

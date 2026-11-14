@@ -31,6 +31,7 @@ import jeuxAilleurs from './routes/jeux_ailleurs';
 import conseilMembres from './routes/conseil_membres';
 import annuaire from './routes/annuaire';
 import bulletin from './routes/bulletin';
+import journal from './routes/journal';
 import photoDuJour from './routes/photo_du_jour';
 import memoire from './routes/memoire';
 import decouverte from './routes/decouverte';
@@ -157,6 +158,9 @@ app.route('/:slug/annuaire', annuaire);
 // Bulletin municipal
 app.use('/:slug/bulletin/*', jwtMiddleware, requireOngletActif('bulletin'));
 app.route('/:slug/bulletin', bulletin);
+
+// Journal papier — ESSAI réservé au superadmin (contrôle dans la route), rien n'est écrit en base.
+app.route('/:slug/journal', journal);
 
 // Photo du jour
 app.use('/:slug/photo-du-jour/*', jwtMiddleware, requireOngletActif('photo_du_jour'));

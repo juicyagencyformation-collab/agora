@@ -12,10 +12,12 @@
 # directement dans photoSuspecte(), jamais résolu depuis l'environnement du pool).
 #
 # Toute nouvelle entrée ajoutée à wrangler.toml (var, binding...) doit être répercutée ici aussi,
-# SAUF le binding ai lui-même.
+# SAUF le binding ai et le binding browser (navigateur Chrome distant, même problème que l'IA :
+# routes/journal.ts répond 503 s'il est absent, ce que vérifie test/journal.test.ts).
 name = "agora-worker"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 R2_PUBLIC_BASE = "https://cdn.plateforme-agora.fr"

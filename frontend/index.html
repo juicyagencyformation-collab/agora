@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261113-2">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261005-6">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261113-3">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261114-2">
 </head>
 <body>
 
@@ -39,6 +39,7 @@
     <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
     <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
     <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
+    <button data-onglet="journal" style="display:none"><span class="ic">🗞️</span><span>Journal (essai)</span></button>
     <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo du jour</span></button>
     <button data-onglet="memoire"><span class="ic">📖</span><span>Mémoire du village</span></button>
     <button data-onglet="profil"><span class="ic">⭐</span><span>Mon profil</span></button>
@@ -280,6 +281,20 @@
         <button type="button" id="btn-ouvrir-creation-annuaire" class="bouton-ouvrir-modale">+ Créer ma fiche</button>
       </div>
       <div id="liste-annuaire"></div>
+    </section>
+
+    <!-- Journal papier : ESSAI réservé au superadmin (navigation.js), rien n'est enregistré. -->
+    <section id="onglet-journal" class="onglet-contenu" hidden>
+      <div class="bandeau-onglet">
+        <h3>Journal papier (essai)</h3>
+        <p>Mode essai, visible de vous seul : rien n'est enregistré et aucun article n'est marqué comme paru. Vous pouvez recommencer autant de fois que vous voulez.</p>
+      </div>
+      <div id="journal-etapes" class="jr-etapes">
+        <button type="button" data-etape="couverture">1 · Couverture et édito</button>
+        <button type="button" data-etape="contenus">2 · Contenus</button>
+        <button type="button" data-etape="apercu">3 · Aperçu et PDF</button>
+      </div>
+      <div id="journal-ecran"></div>
     </section>
 
     <section id="onglet-bulletin" class="onglet-contenu" hidden>
@@ -742,6 +757,7 @@
         <button data-onglet="lois"><span class="ic">⚖️</span><span>Lois</span></button>
         <button data-onglet="annuaire"><span class="ic">📇</span><span>Annuaire</span></button>
         <button data-onglet="bulletin"><span class="ic">📋</span><span>Bulletin</span></button>
+        <button data-onglet="journal" style="display:none"><span class="ic">🗞️</span><span>Journal (essai)</span></button>
         <button data-onglet="photo-du-jour"><span class="ic">📸</span><span>Photo du jour</span></button>
         <button data-onglet="memoire"><span class="ic">📖</span><span>Mémoire</span></button>
         <button data-onglet="profil"><span class="ic">⭐</span><span>Mon profil</span></button>
@@ -772,6 +788,7 @@
   <script src="/js/conseil.js?v=20261005-6"></script>
   <script src="/js/annuaire.js?v=20261110-2"></script>
   <script src="/js/bulletin.js?v=20261005-6"></script>
+  <script src="/js/journal.js?v=20261114-2"></script>
   <script src="/js/photo-du-jour.js?v=20261024-1"></script>
   <script src="/js/memoire.js?v=20261007-2"></script>
   <script src="/js/enigmes.js?v=20261105-9"></script>
@@ -780,6 +797,6 @@
   <script src="/js/lois.js?v=20261109-1"></script>
   <script src="/js/moderation.js?v=20261110-6"></script>
   <script src="/js/participation-citoyenne.js?v=20261005-6"></script>
-  <script src="/js/navigation.js?v=20261114-1"></script>
+  <script src="/js/navigation.js?v=20261114-2"></script>
 </body>
 </html>

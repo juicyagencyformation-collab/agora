@@ -1,6 +1,8 @@
 name = "agora-worker"
 main = "src/index.ts"
 compatibility_date = "2026-01-01"
+# nodejs_compat : exigé par @cloudflare/puppeteer (journal papier, routes/journal.ts).
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 R2_PUBLIC_BASE = "https://cdn.plateforme-agora.fr"
@@ -24,6 +26,11 @@ jurisdiction = "eu"
 
 [ai]
 binding = "AI"
+
+# Navigateur Chrome de Cloudflare (Browser Run) : fabrique le PDF du journal papier
+# (routes/journal.ts). Absent de wrangler.test.toml, comme [ai].
+[browser]
+binding = "BROWSER"
 
 # Limite de tentatives (connexion, formulaires) — voir src/lib/securite.ts. Inactive tant que le
 # secret RELAIS_SECRET n'est pas configuré (Worker ET Pages). period : 10 ou 60 s uniquement.

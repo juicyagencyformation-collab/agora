@@ -84,6 +84,10 @@ async function initUtilisateur() {
     document.querySelectorAll('[data-onglet="bulletin"]').forEach((btn) => {
       btn.style.display = peutVoirModeration ? '' : 'none';
     });
+    // Journal papier : ESSAI réservé au superadmin (le Worker refuse aussi tout autre rôle).
+    document.querySelectorAll('[data-onglet="journal"]').forEach((btn) => {
+      btn.style.display = data.role === 'superadmin' ? '' : 'none';
+    });
 
     // Associations au nom desquelles publier (annuaire.js) — sans attendre : rien d'autre n'en
     // dépend au démarrage, seuls les formulaires de publication s'en servent.
@@ -202,6 +206,7 @@ const CHARGEURS = {
   conseil: () => chargerConseil(),
   annuaire: () => chargerAnnuaire(),
   bulletin: () => chargerBulletin(),
+  journal: () => chargerJournal(),
   'photo-du-jour': () => chargerPhotoDuJour(),
   memoire: () => chargerMemoire(),
   profil: () => { chargerProfil(); initReglagesNotificationsProfil(); initSectionInstallationProfil(); chargerComptesLies(); },

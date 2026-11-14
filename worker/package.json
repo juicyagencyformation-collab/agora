@@ -8,6 +8,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "1.4.0",
     "@pushforge/builder": "^2.0.5",
     "@tsndr/cloudflare-worker-jwt": "^2.4.0",
     "fast-xml-parser": "^5.10.1",
