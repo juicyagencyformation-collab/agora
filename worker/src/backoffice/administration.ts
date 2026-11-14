@@ -932,6 +932,9 @@ const TABLES_URLS_R2: { table: string; colonnes: string[]; idColonneCommune?: st
   { table: 'users', colonnes: ['photo_profil_url', 'banniere_url'] },
   { table: 'communes', colonnes: ['logo_url'], idColonneCommune: 'id' },
   { table: 'badges_citoyens', colonnes: ['visuel_url'] },
+  // Ajouté le 2026-11-14 : comptes rendus du conseil (PDF/image, actus.ts) oubliés jusque-là,
+  // signalés en 401 sur l'ancienne URL .r2.dev désactivée.
+  { table: 'articles', colonnes: ['fichier_pv_url'] },
 ];
 
 // Détecte, sans rien modifier, les lignes qui référencent encore l'ancienne URL — sert au

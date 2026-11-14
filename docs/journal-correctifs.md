@@ -5,6 +5,36 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-14 — Conseil : comptes rendus inconsultables (erreur 401)
+
+**Gravité :** moyenne (documents publics officiels inaccessibles aux habitants)
+**Fichiers :** `worker/src/backoffice/administration.ts` (`TABLES_URLS_R2`)
+
+### Symptôme
+Signalé par Léandre : certains comptes rendus de l'onglet Conseil renvoient une erreur 401 à
+l'ouverture.
+
+### Cause
+L'URL du fichier (`articles.fichier_pv_url`) est figée à l'upload. Les comptes rendus envoyés
+entre le 30 juillet et le 27 août 2026 pointent encore vers l'ancienne adresse `.r2.dev`,
+désactivée après la migration de bucket du 2026-10-10. Le script de rattrapage
+`reparer-anciennes-urls-r2` ne listait pas cette colonne : elle avait échappé aux deux
+recensements (10/10 et 12/10).
+
+### Correction
+`{ table: 'articles', colonnes: ['fichier_pv_url'] }` ajouté à `TABLES_URLS_R2`, puis exécution
+de `GET compter-anciennes-urls-r2` → `POST reparer-anciennes-urls-r2` → recomptage à 0.
+
+### Vérification
+Ouvrir un compte rendu qui était cassé après la réparation.
+
+### À retenir
+Toute colonne qui stocke une URL R2 doit figurer dans `TABLES_URLS_R2`. Pour les recenser, il
+faut chercher toutes les colonnes `*_url` écrites après un `uploaderFichier()`, pas seulement
+les fichiers qui mentionnent `R2_PUBLIC_BASE`.
+
+---
+
 ## 2026-11-13 — Parcours : la consigne d'un point de passage effacée à chaque « Modifier »
 
 **Gravité :** faible (perte silencieuse de contenu saisi par la mairie)
