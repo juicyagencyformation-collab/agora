@@ -470,6 +470,7 @@ function initReglagesRgpdProfil(data) {
       </form>
     `;
     const overlay = ouvrirModaleFormulaire('Changer mon mot de passe', html);
+    window.ajouterBoutonsMotDePasse?.(overlay);
     overlay.querySelector('#form-changer-mdp').addEventListener('submit', async (e) => {
       e.preventDefault();
       const actuel = overlay.querySelector('#mdp-actuel').value;
