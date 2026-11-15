@@ -9,6 +9,7 @@ import { uploaderFichier, deleteObject } from '../storage';
 import { xpRequisPourNiveau } from '../lib/gamification';
 import { calculerPalierCourant } from '../lib/points-citoyens';
 import { photoSuspecte } from '../lib/moderation-image';
+import { collectionParcours } from '../lib/badges-parcours';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -38,7 +39,7 @@ app.get('/', async (c) => {
   });
   if (!user) return c.json({ erreur: 'Utilisateur introuvable' }, 404);
 
-  const [badges, contributions_total, avis] = await Promise.all([
+  const [badges, contributions_total, avis, parcours] = await Promise.all([
     supabaseSelect(c.env, 'badges_obtenus', {
       select: 'cle_badge,obtenu_at',
       commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
@@ -50,6 +51,11 @@ app.get('/', async (c) => {
     supabaseSelect(c.env, 'avis_application', {
       select: 'note,commentaire', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
     }).catch(() => []),
+    // Collection des badges de parcours (migration 104) : jamais bloquante pour le profil.
+    collectionParcours(c.env, commune_id, user_id).catch((err) => {
+      console.warn('Profil : collection de parcours indisponible', err);
+      return null;
+    }),
   ]);
 
   const xpNiveauActuel = xpRequisPourNiveau(Math.max(0, user.niveau - 1));
@@ -62,6 +68,7 @@ app.get('/', async (c) => {
     xp_niveau_actuel: xpNiveauActuel,
     xp_niveau_suivant: xpNiveauSuivant,
     badges,
+    parcours,
     contributions_total,
     participation,
     mon_avis: avis[0] ?? null,

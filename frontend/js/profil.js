@@ -75,6 +75,9 @@ async function chargerProfil() {
   const pct = xpPourNiveau > 0 ? Math.round((xpDansNiveau / xpPourNiveau) * 100) : 100;
   // La photo perso remplace le logo de la commune (repli sur le logo, puis sur l'icône par défaut).
   const photoOuLogo = data.photo_profil_url || window.COMMUNE_LOGO_URL;
+  // Collection des badges de parcours (badges-parcours.js) : catégorie affichée seulement s'il y a
+  // quelque chose à montrer (badge gagné, parcours à badge à faire ou grand badge du village).
+  const htmlParcours = data.parcours && typeof htmlCollectionParcours === 'function' ? htmlCollectionParcours(data.parcours) : '';
 
   zone.innerHTML = `
     <div class="banniere-profil" style="${data.banniere_url ? `background-image:url('${data.banniere_url}');` : ''}">
@@ -126,6 +129,12 @@ async function chargerProfil() {
       </div>
     </div>
 
+    ${htmlParcours ? `
+    <div class="carte-categorie-profil" id="categorie-parcours-profil">
+      <button type="button" class="entete-categorie-profil"><span>🗺️ Mes parcours</span><span class="chevron">▾</span></button>
+      <div class="corps-categorie-profil" hidden>${htmlParcours}</div>
+    </div>` : ''}
+
     <div class="carte-categorie-profil">
       <button type="button" class="entete-categorie-profil"><span>🌍 Participation citoyenne</span><span class="chevron">▾</span></button>
       <div class="corps-categorie-profil" hidden>
@@ -156,6 +165,17 @@ async function chargerProfil() {
     </div>
   `;
 
+  const categorieParcours = document.getElementById('categorie-parcours-profil');
+  if (categorieParcours) {
+    initCollectionParcours(categorieParcours, data.parcours, data.prenom);
+    // Arrivée depuis « Voir ma collection » de l'animation de déblocage : catégorie dépliée.
+    if (window.OUVRIR_COLLECTION_PARCOURS) {
+      window.OUVRIR_COLLECTION_PARCOURS = false;
+      categorieParcours.querySelector('.corps-categorie-profil').hidden = false;
+      categorieParcours.querySelector('.chevron').textContent = '▲';
+      setTimeout(() => categorieParcours.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
+    }
+  }
   initUploadsMediaProfil();
   initNoterApplication(data.mon_avis);
   initReglagesRgpdProfil(data);

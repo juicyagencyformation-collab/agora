@@ -184,6 +184,8 @@ function traiterRecompense(data) {
   if (data.nouveaux_badges && data.nouveaux_badges.length) {
     data.nouveaux_badges.forEach((cle) => mettreEnFileBadge(cle));
   }
+  // Badges de parcours (fin d'une chasse ou d'une balade) : voir badges-parcours.js.
+  if (data.badges_parcours?.length && typeof celebrerBadgesParcours === 'function') celebrerBadgesParcours(data.badges_parcours);
 }
 
 function afficherToastXp(montant) {

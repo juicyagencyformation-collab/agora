@@ -120,7 +120,7 @@ function renderDetailBrouillon(brouillon) {
     <button type="button" class="btn-retour-detail">← Retour aux parcours</button>
     <span class="type-parcours type-${estBalade ? 'balade' : 'chasse'}">${estBalade ? '🚶 Balade guidée' : '🔎 Chasse au trésor'}</span>
     <h3>📝 ${escapeAttr(brouillon.titre)}</h3>
-    ${brouillon.description ? `<p>${texteAvecLiensCliquables(brouillon.description)}</p>` : ''}
+    ${brouillon.description ? `<p class="texte-multiligne">${texteAvecLiensCliquables(brouillon.description)}</p>` : ''}
     <p class="indice-etape">Brouillon : visible seulement par la mairie. Testez chaque étape (depuis chez vous ou sur place), puis publiez : les habitants le verront alors, avec une notification.</p>
     <div class="actions-admin" style="margin-top:12px;">
       <button class="btn-modifier-brouillon">✏️ Modifier</button>
@@ -226,6 +226,8 @@ async function testerEtapeBrouillon(chasseId, etapeId, resultat, reponse = null)
   if (data.contenu_revele?.type === 'consigne') afficherToastMessage(`🚩 ${data.contenu_revele.texte}`, 'succes');
   else if (data.contenu_revele) afficherContenuRevele(data.contenu_revele);
   else if (data.point_de_passage) afficherToastMessage('🚩 Point de passage (sans consigne).', 'info');
+  // Dernière étape d'un parcours avec badge : l'animation que verra le joueur, marquée « aperçu ».
+  if (data.badges_parcours?.length) celebrerBadgesParcours(data.badges_parcours, { test: true });
   return true;
 }
 
@@ -438,8 +440,9 @@ function renderDetailChasse(chasse) {
     <button type="button" class="btn-retour-detail">← Retour aux parcours</button>
     <span class="type-parcours type-${estBalade ? 'balade' : 'chasse'}">${estBalade ? '🚶 Balade guidée' : '🔎 Chasse au trésor'}</span>
     <h3>${escapeAttr(chasse.titre)}</h3>
-    ${chasse.description ? `<p>${texteAvecLiensCliquables(chasse.description)}</p>` : ''}
+    ${chasse.description ? `<p class="texte-multiligne">${texteAvecLiensCliquables(chasse.description)}</p>` : ''}
     ${pointsProgression(chasse)}
+    ${chasse.badge_nom && !termine ? `<div class="teaser-badge-parcours"><div>${svgMedaille({ nom: chasse.badge_nom, icone: chasse.badge_icone, metal: chasse.badge_metal, village_nom: villageVisite?.nom || window.COMMUNE_NOM || '' })}</div><span>Terminez ce parcours pour gagner le badge <strong>« ${escapeAttr(chasse.badge_nom)} »</strong>.</span></div>` : ''}
     ${!termine && chasse.etape_suivante ? (estBalade
       ? `<p class="indice-etape">Prochaine étape : <strong>${escapeAttr(chasse.etape_suivante.titre || '')}</strong>${chasse.etape_suivante.indice ? `<br>${escapeAttr(chasse.etape_suivante.indice)}` : ''}</p>`
       : `<p class="indice-etape">Indice : ${escapeAttr(chasse.etape_suivante.indice)}</p>`) : ''}
@@ -892,7 +895,7 @@ function afficherEnigmeEtape(qr_token, question, url) {
 // Révèle le contenu d'une étape validée (texte descriptif ou photo).
 function afficherContenuRevele(contenu) {
   const photo = contenu.photo_url ? `<img src="${contenu.photo_url}" alt="" style="width:100%;border-radius:12px;margin-bottom:10px;display:block;">` : '';
-  const texte = contenu.texte ? `<p>${texteAvecLiensCliquables(contenu.texte)}</p>` : '';
+  const texte = contenu.texte ? `<p class="texte-multiligne">${texteAvecLiensCliquables(contenu.texte)}</p>` : '';
   if (!photo && !texte) return;
   ouvrirModaleFormulaire(contenu.titre ? `📖 ${escapeAttr(contenu.titre)}` : '📖 Découverte', photo + texte);
 }
@@ -1198,6 +1201,7 @@ async function ouvrirModaleCreationChasse(brouillon = null) {
       <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
       <button type="button" id="btn-ajouter-etape-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter une étape</button>
+      ${htmlVoletBadge(brouillon)}
       <p style="font-size:12px;color:var(--roseau);margin:10px 0 0;">📝 Enregistré en brouillon : rien n'est visible des habitants avant « Publier ».</p>
       <button type="submit" style="margin-top:12px;">Enregistrer le brouillon</button>
     </form>
@@ -1214,6 +1218,7 @@ async function ouvrirModaleCreationChasse(brouillon = null) {
   });
 
   initCarteCreationChasse(corps);
+  initVoletBadge(corps);
   corps.querySelector('#btn-ajouter-etape-modale').addEventListener('click', () => ajouterLigneEtape(corps));
   if (etapesBrouillon.length) {
     etapesBrouillon.forEach((e) => ajouterLigneEtape(corps, e, true));
@@ -1510,6 +1515,8 @@ async function soumettreChasse(corps, overlay, brouillonId = null) {
   const rayon_metres = parseInt(corps.querySelector('#rayon-chasse-modale').value, 10) || 50;
   if (!titre) return;
   if (!verifierEtapesChasse(corps, true)) return;
+  const badge = valeurVoletBadge(corps);
+  if (badge === false) return;
 
   const etapes = [];
   for (const ligne of corps.querySelectorAll('.ligne-etape-chasse')) {
@@ -1549,7 +1556,7 @@ async function soumettreChasse(corps, overlay, brouillonId = null) {
   const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor${brouillonId ? `/${brouillonId}` : ''}`, {
     method: brouillonId ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ titre, description, mode, rayon_metres, etapes }),
+    body: JSON.stringify({ titre, description, mode, rayon_metres, etapes, badge }),
   });
 
   if (res.ok) {
@@ -1589,6 +1596,8 @@ async function ouvrirModaleEditionChasse(chasse) {
       <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Fais glisser un repère pour corriger sa position, sans avoir à te rendre sur place.</p>
       <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
+      ${htmlVoletBadge(chasse)}
+      <p style="font-size:12px;color:var(--roseau);margin:6px 0 0;">Les badges déjà gagnés ne changent pas si vous modifiez celui-ci.</p>
       <button type="submit" style="margin-top:12px;">Enregistrer les modifications</button>
     </form>
   `;
@@ -1597,6 +1606,7 @@ async function ouvrirModaleEditionChasse(chasse) {
   compteurEtapes = 0;
   corps.dataset.mode = estBalade ? 'balade' : 'chasse';
   initCarteCreationChasse(corps);
+  initVoletBadge(corps);
   etapes.forEach((e) => ajouterLigneEtape(corps, e));
   // Après l'invalidateSize (voir initCarteCreationChasse) : le conteneur doit avoir sa taille
   // réelle pour que fitBounds calcule un zoom correct, pas celle d'une modale encore réduite.
@@ -1617,8 +1627,10 @@ async function soumettreEditionChasse(corps, overlay, chasseId, estBalade) {
   const description = corps.querySelector('#description-chasse-modale').value.trim();
   if (!titre) return;
   if (!verifierEtapesChasse(corps, false)) return;
+  const badge = valeurVoletBadge(corps);
+  if (badge === false) return;
 
-  const patchChasse = { titre, description };
+  const patchChasse = { titre, description, badge };
   if (estBalade) patchChasse.rayon_metres = parseInt(corps.querySelector('#rayon-chasse-modale').value, 10) || 50;
 
   const resChasse = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}`, {

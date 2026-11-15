@@ -151,6 +151,7 @@ async function initCommune() {
     window.COMMUNE_LNG = commune.lng ?? 1.4442;
     window.COMMUNE_COORDS_MANQUANTES = commune.lat === null;
     window.COMMUNE_LOGO_URL = commune.logo_url ?? null;
+    window.COMMUNE_NOM = commune.nom ?? ''; // gravé sur les médailles des badges de parcours
     window.COMMUNE_ACCES_LIBRE = !!commune.acces_libre;
     // Espace citoyen (non adopté par la mairie, migration 100) : bandeau d'information. Absent
     // = officiel par prudence (jamais de bandeau à tort sur une vraie commune cliente).

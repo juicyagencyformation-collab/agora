@@ -10,6 +10,7 @@ import { genererQrSvg } from '../lib/qrcode';
 import { distanceMetres } from '../lib/geo';
 import { attribuerXp, XP_ACTIONS, incrementerCompteurUtilisateur, gererStreakExploration } from '../lib/gamification';
 import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/push';
+import { badgeSchema, colonnesBadge, COLONNES_BADGE_CHASSE, attribuerBadgesFinParcours, apercuBadgeParcours } from '../lib/badges-parcours';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -54,6 +55,8 @@ const champsChasse = {
   description: z.string().max(1000).optional(),
   mode: z.enum(['chasse', 'balade']).default('chasse'),
   rayon_metres: z.number().int().min(20).max(500).default(50),
+  // Badge offert à ceux qui terminent (2026-11-15) : absent = inchangé, null = pas de badge.
+  badge: badgeSchema.nullable().optional(),
 };
 const MESSAGE_INDICE_CHASSE = 'Chasse au trésor : chaque étape a besoin d’un indice pour trouver le lieu.';
 function indiceExigeEnChasse(ch: { mode: string; etapes: { indice: string }[] }, ctx: z.RefinementCtx) {
@@ -116,7 +119,7 @@ app.get('/', async (c) => {
   // PATCH /:id. Une chasse archivée n'est jamais jouable ni visible des citoyens.
   if (c.req.query('archivees') === 'true' && estGestionnaire(role)) {
     const chassesArchivees = await supabaseSelect(c.env, 'chasses_tresor', {
-      select: 'id,titre,description,actif,mode,rayon_metres,created_at',
+      select: `id,titre,description,actif,mode,rayon_metres,created_at,${COLONNES_BADGE_CHASSE}`,
       commune_id: `eq.${commune_id}`,
       actif: 'eq.false',
       brouillon: 'eq.false', // un brouillon n'est pas une archive : il ne doit pas être « réactivable »
@@ -129,7 +132,7 @@ app.get('/', async (c) => {
   if (!estGestionnaire(role)) return c.json({ chasses });
   // Brouillons : gestionnaires uniquement, sans progression (personne ne peut y jouer).
   const brouillons = await supabaseSelect(c.env, 'chasses_tresor', {
-    select: 'id,titre,description,mode,rayon_metres,created_at',
+    select: `id,titre,description,mode,rayon_metres,created_at,${COLONNES_BADGE_CHASSE}`,
     commune_id: `eq.${commune_id}`,
     brouillon: 'eq.true',
     order: 'created_at.desc',
@@ -142,7 +145,8 @@ app.get('/', async (c) => {
 // donc un seul endroit où vérifier que rien de secret (qr_token, réponses) ne sort.
 export async function listerChassesJouables(env: any, commune_id: string, user_id: string) {
   const chasses = await supabaseSelect(env, 'chasses_tresor', {
-    select: 'id,titre,description,actif,mode,rayon_metres,created_at',
+    // Le badge offert est montré avant de jouer (« Terminez pour gagner… ») : rien de secret.
+    select: `id,titre,description,actif,mode,rayon_metres,created_at,${COLONNES_BADGE_CHASSE}`,
     commune_id: `eq.${commune_id}`,
     actif: 'eq.true',
     order: 'created_at.desc',
@@ -220,6 +224,7 @@ app.post('/', async (c) => {
   const [chasse] = await supabaseInsert(c.env, 'chasses_tresor', {
     commune_id, user_id, titre: data.titre, description: data.description ?? null,
     actif: false, brouillon: true, mode: data.mode, rayon_metres: data.rayon_metres,
+    ...colonnesBadge(data.badge),
   });
 
   await supabaseInsert(c.env, 'etapes_chasse', data.etapes.map((e, i) => ({
@@ -254,6 +259,7 @@ app.put('/:id', async (c) => {
 
   await supabaseUpdate(c.env, 'chasses_tresor', {
     titre: data.titre, description: data.description?.trim() || null, mode: data.mode, rayon_metres: data.rayon_metres,
+    ...colonnesBadge(data.badge),
   }, { id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}` });
 
   const gardees = new Set(data.etapes.map((e) => e.id).filter(Boolean));
@@ -348,10 +354,10 @@ app.post('/:id/tester', async (c) => {
   const data = body.data;
 
   const [chasse] = await supabaseSelect(c.env, 'chasses_tresor', {
-    select: 'mode,rayon_metres', id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
+    select: `titre,mode,rayon_metres,${COLONNES_BADGE_CHASSE}`, id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
   });
   const [etape] = await supabaseSelect(c.env, 'etapes_chasse', {
-    select: 'type_contenu,lat,lng,contenu,photo_url,enigme_reponse',
+    select: 'ordre,type_contenu,lat,lng,contenu,photo_url,enigme_reponse',
     id: `eq.${data.etape_id}`, chasse_id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`,
   });
   if (!chasse || !etape) return c.json({ erreur: 'Étape introuvable' }, 404);
@@ -369,7 +375,12 @@ app.post('/:id/tester', async (c) => {
       return c.json({ erreur: 'Mauvaise réponse (test : rien n’est enregistré).', ...position }, 400);
     }
   }
-  return c.json({ ok: true, test: true, point_de_passage: etape.type_contenu === 'aucun', contenu_revele: contenuRevele(etape), ...position });
+  // Dernière étape : la mairie voit aussi l'animation du badge, sans que rien ne soit enregistré.
+  const autres = await supabaseSelect(c.env, 'etapes_chasse', {
+    select: 'ordre', chasse_id: `eq.${chasse_id}`, commune_id: `eq.${commune_id}`, ordre: `gt.${etape.ordre}`,
+  });
+  const badges_parcours = autres.length ? [] : await apercuBadgeParcours(c.env, commune_id, chasse);
+  return c.json({ ok: true, test: true, point_de_passage: etape.type_contenu === 'aucun', contenu_revele: contenuRevele(etape), badges_parcours, ...position });
 });
 
 // GET /:id/etapes — liste des étapes avec leurs identifiants (gestionnaire, pour générer/imprimer les QR)
@@ -544,7 +555,18 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
   const xp = (estPassage ? 0 : XP_ACTIONS.valider_etape_chasse) + (parcoursTermine ? XP_ACTIONS.terminer_parcours : 0);
   const resultatXp = xp ? await attribuerXp(c.env, commune_joueur, user_id, xp) : {};
 
-  return c.json({ ok: true, ...resultatXp, contenu_revele: contenuRevele(etape), point_de_passage: estPassage, passages_rattrapes: passagesARattraper.length, parcours_termine: parcoursTermine, ...extra });
+  // Badges de parcours (migration 104) : jamais bloquant — l'étape est déjà validée, une panne ici
+  // ne doit pas transformer la fin du parcours en message d'erreur.
+  let badges_parcours: unknown[] = [];
+  if (parcoursTermine) {
+    try {
+      badges_parcours = await attribuerBadgesFinParcours(c.env, commune_joueur, commune_id, user_id, etape.chasse_id);
+    } catch (err) {
+      console.error('Badges de parcours : attribution échouée', err);
+    }
+  }
+
+  return c.json({ ok: true, ...resultatXp, contenu_revele: contenuRevele(etape), point_de_passage: estPassage, passages_rattrapes: passagesARattraper.length, parcours_termine: parcoursTermine, badges_parcours, ...extra });
 }
 
 // Contenu à révéler côté joueur une fois l'étape validée — partagé avec le mode test, pour que la
@@ -724,6 +746,8 @@ const editionChasseSchema = z.object({
   description: z.string().max(1000).optional(),
   rayon_metres: z.number().int().min(20).max(500).optional(),
   actif: z.boolean().optional(),
+  // Modifiable même publié : les badges déjà gagnés sont des copies, ils ne changent pas.
+  badge: badgeSchema.nullable().optional(),
 });
 
 app.patch('/:id', async (c) => {
@@ -747,6 +771,7 @@ app.patch('/:id', async (c) => {
   const patch: Record<string, unknown> = { titre: body.data.titre, description: body.data.description?.trim() || null };
   if (body.data.rayon_metres !== undefined) patch.rayon_metres = body.data.rayon_metres;
   if (body.data.actif !== undefined) patch.actif = body.data.actif;
+  Object.assign(patch, colonnesBadge(body.data.badge));
 
   await supabaseUpdate(c.env, 'chasses_tresor', patch, {
     id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,

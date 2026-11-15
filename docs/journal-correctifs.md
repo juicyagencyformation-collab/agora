@@ -5,6 +5,32 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-15 — Parcours : les sauts de ligne de la fiche Découverte disparaissaient
+
+**Gravité :** faible (lisibilité)
+**Fichiers :** `frontend/js/chasse-tresor.js`, `frontend/css/dashboard.css`
+
+### Symptôme
+Signalé par Léandre (capture sur téléphone) : à la validation d'une étape, le texte de la fiche
+« Découverte » s'affiche d'un seul bloc, alors que des lignes avaient été sautées à la création.
+
+### Cause
+Le texte (enregistré tel quel, sauts de ligne compris) était inséré dans un simple `<p>` : le
+HTML ignore les retours à la ligne. Même défaut sur la description du parcours.
+
+### Correction
+Classe `.texte-multiligne` (`white-space: pre-line`) sur le texte de la découverte, la
+description du parcours et celle du brouillon.
+
+### Vérification
+Code relu ; serveur vérifié (Zod garde la chaîne brute, aucun nettoyage des `
+`). À confirmer
+sur téléphone après déploiement.
+
+### À retenir
+Tout texte saisi dans un `<textarea>` et réaffiché hors de l'éditeur riche doit porter
+`.texte-multiligne`.
+
 ## 2026-11-14 — iPhone : accueil vide au démarrage, photos de profil, notifications
 
 **Gravité :** haute (accueil vide pour tout iPhone dont l'appli installée n'a pas les notifications)

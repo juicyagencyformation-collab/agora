@@ -638,7 +638,7 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
     badges, articles, posts, comments, alertes, coupsDeMain, chassesCreees,
     progressionsChasse, enigmesCreees, enigmesTrouvees, photosDuJour,
     events, participationsEvents, votesDeliberation, votesSondage, bulletins, ficheAnnuaire,
-    associationsGerees,
+    associationsGerees, badgesParcours,
   ] = await Promise.all([
     requete('badges_obtenus', 'cle_badge,obtenu_at'),
     requete('articles', 'id,titre,categorie,created_at'),
@@ -658,12 +658,14 @@ app.get('/mes-donnees', jwtMiddleware, async (c) => {
     requete('bulletin_municipal', 'id,titre,statut,created_at'),
     requete('annuaire', 'id,nom,categorie,created_at'),
     requete('annuaire_responsables', 'fiche_id,statut,created_at'),
+    requete('badges_parcours', 'type,nom,village_nom,parcours_titre,rang,niveau,created_at'),
   ]);
 
   return c.json({
     export_genere_le: new Date().toISOString(),
     profil,
     badges,
+    badges_parcours: badgesParcours,
     contenu_publie: {
       articles, posts, comments, alertes,
       coups_de_main: coupsDeMain, chasses_creees: chassesCreees,
