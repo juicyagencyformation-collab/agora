@@ -200,10 +200,15 @@ function afficherBanniereDemo() {
   if (!zone) return;
   zone.innerHTML = `
     🔍 Vous visitez une commune de démonstration — naviguez librement, rien n'est enregistré.
+    <a href="/rejoindre.html" target="_top" style="color:inherit;font-weight:700;">Trouver ma commune →</a>
     <button type="button" id="btn-fermer-bandeau-demo">✕</button>
   `;
   zone.hidden = false;
   zone.querySelector('#btn-fermer-bandeau-demo').addEventListener('click', () => { zone.hidden = true; });
+  // Des visiteurs installaient la démo et s'y inscrivaient en la prenant pour leur commune
+  // (2026-11-16) : ni installation ni déconnexion (qui mène au formulaire d'inscription) ici.
+  document.getElementById('section-installation-profil')?.closest('.carte-categorie-profil')?.remove();
+  document.getElementById('btn-deconnexion')?.remove();
 }
 
 function afficherBanniereOnboarding() {

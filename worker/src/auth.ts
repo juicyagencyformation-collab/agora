@@ -54,6 +54,15 @@ app.post('/register', async (c) => {
   if (data.site_web || saisieTropRapide(brut?.duree_saisie_ms)) return c.json({ ok: true }, 201);
 
   const commune_id = c.get('commune_id_resolue');
+  // Commune de démonstration (acces_libre, ex. Bonvivre) : jamais de vrai compte. Des visiteurs
+  // s'y inscrivaient en la prenant pour leur commune (2026-11-16) — on les oriente vers la leur.
+  const [commune] = await supabaseSelect(c.env, 'communes', { select: 'acces_libre', id: `eq.${commune_id}` });
+  if (commune?.acces_libre) {
+    return c.json({
+      erreur: 'Cette commune est une démonstration : on ne peut pas s’y inscrire. Retrouvez votre commune ici :',
+      lien: '/rejoindre.html',
+    }, 403);
+  }
   if (!(await jetonTurnstileValide(c, brut?.turnstile, 'inscription'))) {
     return c.json({ erreur: 'La vérification anti-robot a échoué : rechargez la page et réessayez.' }, 403);
   }

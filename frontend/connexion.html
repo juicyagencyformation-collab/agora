@@ -183,6 +183,12 @@
         const data = await res.json();
         if (!res.ok) {
           zoneErreur.textContent = data.erreur ? (typeof data.erreur === 'string' ? data.erreur : 'Vérifie les champs saisis') : 'Inscription impossible';
+          // Commune de démonstration : le serveur indique où trouver sa vraie commune.
+          if (data.lien) {
+            const lien = document.createElement('a');
+            lien.href = data.lien; lien.textContent = ' Trouver ma commune →';
+            zoneErreur.appendChild(lien);
+          }
           protectionInscription.reinitialiser(); // un jeton anti-robot ne sert qu'une fois
           return;
         }

@@ -5,6 +5,36 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-16 — Démo Bonvivre : de vrais visiteurs s'y inscrivaient
+
+**Gravité :** moyenne (vrais comptes créés dans une commune fictive)
+**Fichiers :** `worker/src/auth.ts`, `frontend/connexion.html`, `frontend/js/notifications.js`,
+`worker/test/demo-inscription.test.ts`
+
+### Symptôme
+Constaté par Léandre : des personnes réelles avaient un compte sur Bonvivre, la commune de
+démonstration (`acces_libre`).
+
+### Cause
+`POST /:slug/auth/register` ne vérifiait pas `acces_libre`. Dans la démo, « Se déconnecter »
+(Mon profil) mène à `connexion.html` → « Créer un compte » ; la rubrique « Installer
+l'application » restait aussi proposée, de quoi prendre Bonvivre pour l'appli de son village.
+
+### Correction
+Serveur : inscription refusée (403) sur toute commune `acces_libre`, avec un lien vers
+`/rejoindre.html`, affiché cliquable par `connexion.html`. Démo : rubrique « Installer
+l'application » et bouton « Se déconnecter » retirés, lien « Trouver ma commune → » dans le
+bandeau de démonstration.
+
+### Vérification
+`worker/test/demo-inscription.test.ts` (refus + aucun compte créé ; commune normale non
+bloquée) ; suite complète verte (451 tests).
+
+### À retenir
+Les comptes déjà inscrits restent en place : Léandre les contacte pour les orienter vers
+`rejoindre.html` (aucune donnée de localisation n'est stockée à l'inscription : impossible de
+déduire leur commune).
+
 ## 2026-11-15 — Parcours : les sauts de ligne de la fiche Découverte disparaissaient
 
 **Gravité :** faible (lisibilité)
