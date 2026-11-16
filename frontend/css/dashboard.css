@@ -38,6 +38,14 @@ h1, h2, h3, h4, p, span, a, button {
 .ligne-dechet-today { background: rgba(226,201,126,.2); }
 .dechets-vide, .dechets-rien { font-size: 12.5px; color: var(--roseau); margin: 4px 2px; }
 
+#carte-derniere-actu .photo-derniere-actu {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 12px; margin-bottom: 10px; background: var(--eauXL);
+}
+#carte-derniere-actu .extrait-derniere-actu {
+  margin: 0; display: -webkit-box; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+}
 #carte-derniere-actu button {
   padding: 7px 14px; border-radius: 100px; border: 1.5px solid var(--eauL);
   background: #fff; color: var(--eau); font-size: 12.5px; font-family: 'DM Sans', sans-serif;

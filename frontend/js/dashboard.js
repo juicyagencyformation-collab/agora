@@ -623,14 +623,12 @@ async function chargerDerniereActu() {
   const extrait = extraitBrut.slice(0, 140);
   const miniature = a.images?.[0]?.url;
 
+  // Photo en haut, pleine largeur (16:9) : une vignette latérale s'étirait sur la hauteur du
+  // texte et devenait une bande verticale illisible quand la police du téléphone est grande.
   zone.innerHTML = `
-    <div class="entete-article-compact" style="padding:0;cursor:default;">
-      ${miniature ? `<img src="${miniature}" class="miniature-liste-article">` : ''}
-      <div class="texte-entete-article">
-        <h4 class="titre-article-compact" style="margin:2px 0 3px;">${escapeAttr(a.titre)}</h4>
-        <p class="extrait-article-compact">${escapeAttr(extrait)}${extraitBrut.length > 140 ? '…' : ''}</p>
-      </div>
-    </div>
+    ${miniature ? `<img src="${escapeAttr(miniature)}" class="photo-derniere-actu" alt="" loading="lazy">` : ''}
+    <h4 class="titre-article-compact" style="margin:2px 0 3px;">${escapeAttr(a.titre)}</h4>
+    <p class="extrait-derniere-actu">${escapeAttr(extrait)}${extraitBrut.length > 140 ? '…' : ''}</p>
     <button id="btn-voir-actu" style="margin-top:10px;">Voir toutes les actualités</button>
   `;
   zone.querySelector('#btn-voir-actu').addEventListener('click', () => activerOnglet('actualites'));
