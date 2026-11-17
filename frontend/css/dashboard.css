@@ -334,6 +334,7 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 }
 .etoile-note.active { color: var(--aube); }
 .etoile-note:hover { transform: scale(1.12); }
+#commentaire-avis-app { margin-bottom: 12px; }
 .bouton-deconnexion-profil {
   display: block; width: 100%; margin-top: 4px; padding: 12px; border-radius: 100px;
   background: transparent; color: var(--rouge); border: 1.5px solid var(--rouge);
@@ -1034,6 +1035,25 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
   padding: 9px 18px; border-radius: 100px; border: none; background: var(--eau); color: #fff;
   font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
 }
+
+/* Boutons restés au style natif du navigateur (cadre gris, coins carrés — capture de Léandre,
+   2026-11-17) : action principale en pilule pleine, actions secondaires en pilule à contour. */
+.btn-participer, .btn-interet-coup-de-main, .btn-envoyer-interet-coup-de-main, .btn-confirmer-publication {
+  padding: 9px 18px; border-radius: 100px; border: 1.5px solid var(--eau); background: var(--eau);
+  color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.btn-participer { margin: 6px 0 4px; }
+.btn-participer.active { background: #fff; color: var(--roseau); border-color: var(--eauL); }
+.btn-interet-coup-de-main { margin-top: 10px; }
+.btn-envoyer-interet-coup-de-main { margin-top: 6px; }
+.btn-envoyer-interet-coup-de-main:disabled { opacity: .6; cursor: default; }
+.actions-ligne-responsable button, .actions-vitrine-association button, .actions-badge-citoyen button:not(.btn-reordonner-badge),
+#btn-toggle-historique-agenda, #btn-toggle-carte-agenda, #btn-toggle-carte-autour,
+#btn-enregistrer-regional, #btn-ouvrir-creation-badge-citoyen, #btn-sync-lois-manuel {
+  padding: 8px 14px; border-radius: 100px; border: 1.5px solid var(--eauL); background: #fff;
+  color: var(--eau); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+#btn-toggle-historique-agenda { color: var(--roseau); }
 
 /* ─── Mur des voisins ─── */
 .entete-post { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }

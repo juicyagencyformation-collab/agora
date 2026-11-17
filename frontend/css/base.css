@@ -201,6 +201,18 @@ h1, h2, h3 { font-family: 'Playfair Display', serif; font-weight: 700; margin: 0
   font-family: 'DM Sans', sans-serif; font-size: 14px;
 }
 
+/* Socle : les navigateurs ne transmettent pas la police aux boutons et champs (Arial, voire
+   police à chasse fixe pour les textarea). Cases de texte et menus hors <form> : même aspect que
+   les champs de formulaire. :where() = priorité nulle, toute règle existante l'emporte. */
+button, input, textarea, select { font-family: inherit; }
+:where(textarea, select) {
+  padding: 10px 12px; border: 1.5px solid var(--eauL); border-radius: 10px;
+  background: #fff; color: var(--boue); font-size: 15px;
+}
+:where(textarea) { display: block; width: 100%; min-height: 80px; resize: vertical; line-height: 1.45; }
+:where(textarea, select):focus { outline: none; border-color: var(--eau); }
+::placeholder { color: var(--roseau); opacity: .8; }
+
 form input, form textarea, form select {
   display: block; width: 100%; margin-bottom: 10px; padding: 10px;
   border: 1.5px solid var(--eauL); border-radius: 10px;
@@ -239,7 +251,7 @@ body.est-superadmin .superadmin-only { display: block; }
 .entete-etape .numero-etape { flex: 1; color: var(--eau); font-size: 14px; }
 .outils-etape { display: flex; gap: 4px; }
 .ligne-etape-chasse .outils-etape button {
-  width: 30px; height: 30px; padding: 0; border-radius: 50%;
+  width: 30px; height: 30px; padding: 0; border-radius: 50%; border: 0;
   background: var(--eauXL); color: var(--eau); font-size: 14px; line-height: 1;
 }
 .ligne-etape-chasse .outils-etape button:hover { background: var(--eauL); }

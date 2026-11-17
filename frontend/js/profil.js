@@ -154,11 +154,11 @@ async function chargerProfil() {
     <div class="carte-categorie-profil">
       <button type="button" class="entete-categorie-profil"><span>⭐ Noter l'application</span><span class="chevron">▾</span></button>
       <div class="corps-categorie-profil" hidden>
-        <p style="font-size:12.5px;color:var(--roseau);margin:0 0 10px;">Ton avis nous aide à améliorer Agora.</p>
+        <p style="font-size:12.5px;color:var(--roseau);margin:0 0 10px;">Ton avis nous aide à améliorer Plateforme-Agora.</p>
         <div class="etoiles-note" id="etoiles-note-app">
           ${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="etoile-note" data-note="${n}" aria-label="${n} étoile(s)">★</button>`).join('')}
         </div>
-        <textarea id="commentaire-avis-app" placeholder="Un petit commentaire (optionnel)" maxlength="1000">${escapeAttr(data.mon_avis?.commentaire || '')}</textarea>
+        <textarea id="commentaire-avis-app" placeholder="Ce qui te plaît, ce qui te manque… (facultatif)" maxlength="1000">${escapeAttr(data.mon_avis?.commentaire || '')}</textarea>
         <button type="button" id="btn-envoyer-avis" class="bouton-pilule-profil" style="color:var(--eau);border-color:var(--eauL);">Envoyer mon avis</button>
         <p id="msg-avis-app" style="font-size:12px;margin-top:6px;"></p>
       </div>
