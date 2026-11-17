@@ -10,3 +10,25 @@
   text-shadow: 0 1px 4px rgba(0,0,0,.7);
 }
 .miniature-article { max-width: 200px; max-height: 200px; cursor: zoom-in; border-radius: 4px; margin: 4px; display: block; }
+
+/* Galerie (actus, souvenirs, publications d'associations, signalements) : grille de vignettes
+   carrées au lieu d'une colonne étroite de miniatures empilées (2026-11-17). Une photo seule :
+   pleine largeur ; nombre impair : la dernière en bandeau. Appui = photo entière (lightbox). */
+.images-article, .images-alerte-liste { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 12px; }
+.images-article:empty, .images-alerte-liste:empty { display: none; }
+.images-article .miniature-article, .images-alerte-liste .miniature-article {
+  width: 100%; height: auto; max-width: none; max-height: none; margin: 0;
+  aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: var(--eauXL);
+}
+.images-article .miniature-article:only-child, .images-alerte-liste .miniature-article:only-child {
+  grid-column: 1 / -1; aspect-ratio: auto; max-height: 460px;
+}
+.images-article .miniature-article:last-child:nth-child(odd):not(:only-child),
+.images-alerte-liste .miniature-article:last-child:nth-child(odd):not(:only-child) {
+  grid-column: 1 / -1; aspect-ratio: 16 / 9;
+}
+@media (min-width: 700px) {
+  .images-article, .images-alerte-liste { grid-template-columns: repeat(3, 1fr); }
+  .images-article .miniature-article:last-child:nth-child(odd):not(:only-child),
+  .images-alerte-liste .miniature-article:last-child:nth-child(odd):not(:only-child) { grid-column: auto; aspect-ratio: 1; }
+}
