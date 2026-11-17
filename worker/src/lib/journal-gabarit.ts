@@ -19,6 +19,7 @@
 export interface ArticleJournal {
   id: string; surtitre: string; titre: string; paragraphes: string[];
   photo: string | null; photoGrande: boolean; sansPhotoChoisi: boolean;
+  entier: boolean; // « Imprimer en entier » : jamais coupé avec renvoi vers l'appli
 }
 export interface EvenementJournal { jour: string; num: string; mois: string; titre: string; detail: string }
 export interface SondageJournal { question: string; participants: number; cloture: string; choix: { label: string; pct: number }[] }
@@ -34,7 +35,9 @@ export interface DonneesJournal {
   commune: { nom: string; departement: string; c1: string; c2: string; logoUrl: string | null; qrSvg: string };
   mairie: { horaires: string; permanences: string; telephone: string; email: string };
   couverture: { image: string | null; credit: string };
-  edito: { paragraphes: string[]; signataire: string } | null;
+  une: { id: string; titre: string; photo: string | null }[]; // « À la une » de la couverture (3 au plus)
+  edito: { paragraphes: string[]; signataire: string | null; photo: string | null } | null; // signataire null : pas de signature
+  directeur: string; // « Directeur de la publication : … » (mentions légales)
   rubriques: RubriqueJournal[];
   opposition: { choix: 'aucun_bloc' | 'texte' | 'non_transmis' | 'aucun_elu'; liste: string; paragraphes: string[] };
   numerosUtilesInclus: boolean;
@@ -44,6 +47,18 @@ export const esc = (t: unknown) => String(t ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 const couleurSure = (c: string | null | undefined, defaut: string) => (/^#[0-9a-f]{6}$/i.test(String(c ?? '')) ? String(c) : defaut);
 export { couleurSure };
+
+// Contraste WCAG entre deux couleurs #rrggbb (1 à 21). Sous 3, le titre du journal (couleur
+// secondaire sur le bandeau en couleur principale) devient illisible : il passe alors en blanc.
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+export function contraste(a: string, b: string): number {
+  const [l1, l2] = [luminance(a), luminance(b)];
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
 
 const PICTOS: Record<string, string> = {
   plume: 'M4 20l4-1 11-11-3-3L5 16z M14 7l3 3',
@@ -67,9 +82,9 @@ function blocsArticle(a: ArticleJournal, couleur: string): string {
     ? `<figure class="photo${a.photoGrande ? ' grande' : ''}"><img src="${esc(a.photo)}" alt=""></figure>`
     : '';
   const tete = `<div class="b col tete keep" style="--r:${couleur}" data-article="${esc(a.id)}" data-titre="${esc(a.titre)}"`
-    + ` data-sans-photo="${a.photo || a.sansPhotoChoisi ? '0' : '1'}" data-grande="${a.photoGrande ? '1' : '0'}">`
+    + ` data-sans-photo="${a.photo || a.sansPhotoChoisi ? '0' : '1'}" data-grande="${a.photoGrande ? '1' : '0'}" data-entier="${a.entier ? '1' : '0'}">`
     + `${a.surtitre ? `<span class="surtitre">${esc(a.surtitre)}</span>` : ''}<h3>${esc(a.titre)}</h3>${photo}</div>`;
-  return tete + a.paragraphes.map((p) => `<p class="b col para">${esc(p)}</p>`).join('');
+  return tete + a.paragraphes.map((p) => `<p class="b col para" data-article="${esc(a.id)}">${esc(p)}</p>`).join('');
 }
 
 function blocsRubrique(r: RubriqueJournal): string {
@@ -108,16 +123,22 @@ const BLASON_DEFAUT = (c1: string, c2: string) => `<svg viewBox="0 0 40 48" aria
 export function genererJournalHtml(d: DonneesJournal): string {
   const c1 = couleurSure(d.commune.c1, '#2C5F6E');
   const c2 = couleurSure(d.commune.c2, '#E2C97E');
+  const couleurTitre = contraste(c2, c1) >= 3 ? c2 : '#FFFFFF';
   const logo = d.commune.logoUrl ? `<img class="logo" src="${esc(d.commune.logoUrl)}" alt="">` : BLASON_DEFAUT(c1, c2);
   const lignePied = `${d.titre} · N° ${d.numero} · ${d.saison}`;
 
-  // Ordre : édito, rubriques, opposition juste après le Conseil (sinon à la fin), dos.
+  // Édito : seul sur la page 2 (verso de la couverture), en 2 colonnes, photo facultative.
+  const edito = d.edito && d.edito.paragraphes.length
+    ? `<div id="edito-page" class="edito-page" style="--r:${c1}" data-photo="${d.edito.photo ? '1' : '0'}">`
+      + `<div class="rub"><span class="picto">${picto('plume')}</span><h2>Édito</h2></div>`
+      + (d.edito.photo ? `<figure class="edito-photo"><img src="${esc(d.edito.photo)}" alt=""></figure>` : '')
+      + `<div class="edito-texte">${d.edito.paragraphes.map((p) => `<p>${esc(p)}</p>`).join('')}</div>`
+      + (d.edito.signataire ? `<div class="signature">${esc(d.edito.signataire)}</div>` : '')
+      + '</div>'
+    : '';
+
+  // Ordre : rubriques, opposition juste après le Conseil (sinon à la fin), dos.
   const source: string[] = [];
-  if (d.edito && d.edito.paragraphes.length) {
-    source.push(enteteRubrique('Édito', c1, 'plume'));
-    d.edito.paragraphes.forEach((p, i) => source.push(`<p class="b col para${i === 0 ? ' premier' : ''}" style="--r:${c1}">${esc(p)}</p>`));
-    source.push(`<div class="b col signature" style="--r:${c1}">${esc(d.edito.signataire)}</div>`);
-  }
   let oppositionPlacee = false;
   d.rubriques.forEach((r) => {
     source.push(blocsRubrique(r));
@@ -132,7 +153,7 @@ export function genererJournalHtml(d: DonneesJournal): string {
   ].filter(Boolean).join('');
   const dos = `<div id="dos" class="dos"><div><b>La mairie</b>${mairie ? `<div class="mairie">${mairie}</div>` : ''}`
     + `<div class="mentions"><b>${esc(d.titre)}</b>, bulletin municipal d'information de la commune de ${esc(d.commune.nom)}. `
-    + `Directeur de la publication : le maire. Rédaction : la mairie. Impression : la mairie.${d.tirage ? ` Tirage : ${esc(d.tirage)}.` : ''} `
+    + `Directeur de la publication : ${esc(d.directeur || 'le maire')}. Rédaction : la mairie. Impression : la mairie.${d.tirage ? ` Tirage : ${esc(d.tirage)}.` : ''} `
     + 'Dépôt légal : à parution. Ne pas jeter sur la voie publique. Édité avec Plateforme-Agora.</div></div>'
     + `<div class="qr-bloc"><div class="qr">${d.commune.qrSvg}</div>Toute l'actu du village dans l'appli</div></div>`;
 
@@ -145,25 +166,31 @@ export function genererJournalHtml(d: DonneesJournal): string {
     ${d.couverture.image
     ? `<figure class="photo-couv"><img id="img-couv" src="${esc(d.couverture.image)}" alt="">${d.couverture.credit ? `<span class="credit">Photo : ${esc(d.couverture.credit)}</span>` : ''}</figure>`
     : '<div class="photo-couv absente"></div>'}
-    <div class="bas-couv"><div><div class="sommaire-titre">Dans ce numéro</div><ol class="sommaire" id="sommaire"></ol></div>
-      <div class="qr-bloc"><div class="qr">${d.commune.qrSvg}</div>L'appli de la commune</div></div>
+    <div class="bas-couv">
+      ${d.une.length ? `<div class="une"><div class="sommaire-titre">À la une</div><div class="une-grille" style="--n:${d.une.length}">`
+    + d.une.map((u) => `<div class="une-carte" data-une="${esc(u.id)}">${u.photo ? `<div class="une-photo"><img src="${esc(u.photo)}" alt=""></div>` : ''}`
+      + `<b>${esc(u.titre)}</b><span class="une-page"></span></div>`).join('')
+    + '</div></div>' : ''}
+      <div class="tuiles-ligne"><div><div class="sommaire-titre">Dans ce numéro</div><div class="tuiles" id="sommaire"></div></div>
+        <div class="qr-bloc"><div class="qr">${d.commune.qrSvg}</div>L'appli de la commune</div></div>
+    </div>
   </section>`;
 
   const config = JSON.stringify({ mode: d.mode, pied: lignePied, numerosUtiles: d.numerosUtilesInclus, couverture: !!d.couverture.image })
     .replace(/</g, '\\u003c');
 
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(lignePied)}</title><style>${d.polices}${css(c1, c2)}</style></head>
+<title>${esc(lignePied)}</title><style>${d.polices}${css(c1, c2, couleurTitre)}</style></head>
 <body class="mode-${d.mode}">
 <div id="journal">${couverture}</div>
-<div id="source">${source.join('')}${dos}</div>
+<div id="source">${edito}${source.join('')}${dos}</div>
 <div id="mesure-col" class="mesure colonne"></div><div id="mesure-plein" class="mesure plein-largeur"></div>
 <script type="application/json" id="config">${config}</script>
 <script>${SCRIPT_PAGINATION}</script>
 </body></html>`;
 }
 
-function css(c1: string, c2: string): string {
+function css(c1: string, c2: string, couleurTitre: string): string {
   return `
 :root{--c1:${c1};--c2:${c2};--encre:#1F2A2E;--gris:#5F6B6F}
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -234,21 +261,40 @@ p{margin:0}
 .ligne-haut{display:flex;justify-content:space-between;font-family:'Source Sans 3',Arial,sans-serif;font-size:8.5pt;letter-spacing:.12em;text-transform:uppercase;font-weight:600;border-bottom:1px solid rgba(255,255,255,.35);padding-bottom:1.5mm}
 .titre-bloc{display:flex;align-items:center;gap:6mm;margin-top:6mm}
 .blason{width:28mm;height:34mm;flex:none;display:grid;place-items:center}
-.blason svg,.blason .logo{max-width:100%;max-height:100%;object-fit:contain}
-.titre-journal{font-family:'Kaushan Script',cursive;font-weight:400;color:var(--c2);font-size:40pt;line-height:1.05;margin:0}
+.blason svg{max-width:100%;max-height:100%}
+.blason .logo{max-width:100%;max-height:100%;object-fit:contain;background:#fff;border-radius:3mm;padding:2mm;box-shadow:0 .5mm 2mm rgba(0,0,0,.18)}
+.titre-journal{font-family:'Kaushan Script',cursive;font-weight:400;color:${couleurTitre};font-size:40pt;line-height:1.05;margin:0}
 .sous-titre{font-family:'Source Sans 3',Arial,sans-serif;font-size:11pt;margin:3mm 0 0}
 .vague{position:absolute;left:0;right:0;bottom:-1px;width:100%;height:9mm;display:block}
-.photo-couv{height:122mm;margin:0;position:relative;overflow:hidden}
+.couverture{display:flex;flex-direction:column}
+.photo-couv{height:108mm;flex:none;margin:0;position:relative;overflow:hidden}
 .photo-couv img{width:100%;height:100%;object-fit:cover;display:block}
 .photo-couv.absente{height:40mm}
 .credit{position:absolute;right:3mm;bottom:2mm;font-family:'Source Sans 3',Arial,sans-serif;font-size:7pt;color:#fff;text-shadow:0 0 3px rgba(0,0,0,.6)}
-.bas-couv{display:grid;grid-template-columns:1fr 32mm;gap:10mm;padding:6mm 12mm 0}
+.bas-couv{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;gap:5mm;padding:4mm 12mm 7mm}
 .sommaire-titre{font-family:'Source Sans 3',Arial,sans-serif;font-weight:700;font-size:9.5pt;letter-spacing:.14em;text-transform:uppercase;color:var(--c1);margin-bottom:1.5mm}
-.sommaire{list-style:none;margin:0;padding:0;font-family:'Source Sans 3',Arial,sans-serif;font-size:11pt;line-height:1.55;column-count:2;column-gap:8mm}
-.sommaire li{display:flex;align-items:baseline;gap:1mm;break-inside:avoid}
-.sommaire .pts{flex:1;border-bottom:1px dotted #8A979B;transform:translateY(-.25em)}
-.sommaire b{color:var(--c1)}
-.bas-couv .qr{width:28mm;margin:0 auto 1mm}
+.une-grille{display:grid;grid-template-columns:repeat(var(--n),1fr);gap:6mm}
+.une-photo{height:32mm;overflow:hidden;border-radius:1mm;margin-bottom:2mm;background:#EEF1F2}
+.une-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.une-carte b{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;font-family:'Source Sans 3',Arial,sans-serif;font-weight:700;font-size:10.5pt;line-height:1.22}
+.une-page{display:block;margin-top:1mm;font-family:'Source Sans 3',Arial,sans-serif;font-weight:700;font-size:9pt;color:var(--c1)}
+.tuiles-ligne{display:grid;grid-template-columns:1fr 30mm;gap:8mm;align-items:end}
+.tuiles{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5mm 5mm}
+.tuile{display:flex;align-items:center;gap:2mm;font-family:'Source Sans 3',Arial,sans-serif;font-weight:600;font-size:10pt;line-height:1.15;border-bottom:1px solid #E1E6E8;padding-bottom:1.5mm}
+.tuile .pastille{width:7mm;height:7mm;border-radius:50%;background:var(--r);display:grid;place-items:center;flex:none}
+.tuile .pastille svg{width:60%;height:60%;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tuile .nom{flex:1;min-width:0}
+.tuile b{color:var(--r);font-size:11pt}
+/* Édito : seul sur la page 2 */
+.edito-page .rub{margin-top:0}
+.edito-photo{height:70mm;margin:0 0 5mm;overflow:hidden;border-radius:1mm}
+.edito-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.edito-texte{column-count:2;column-gap:8mm;font-size:11.5pt;line-height:1.5}
+.edito-texte p{margin:0 0 2mm}
+.edito-texte p:first-child::first-letter{font-family:'Kaushan Script',cursive;float:left;font-size:3.1em;line-height:.9;color:var(--r);padding-right:.08em}
+.edito-page .signature{font-size:16pt;margin-top:5mm}
+.suite-appli{font-family:'Source Sans 3',Arial,sans-serif;font-style:italic;font-size:9pt;color:var(--r);margin:0 0 3mm;padding-top:1mm;border-top:1px dotted var(--r)}
+.bas-couv .qr{width:26mm;margin:0 auto 1mm}
 @media print{body.mode-apercu{background:#fff}}
 `;
 }
@@ -364,6 +410,10 @@ const SCRIPT_PAGINATION = String.raw`
     page.contenu.appendChild(rendu(a));
     y += h(a);
   }
+  function noterRubrique(el, titre) {
+    var p = el.querySelector('.picto');
+    sommaire.push({ titre: titre, page: page.numero, couleur: el.style.getPropertyValue('--r'), picto: p ? p.innerHTML : '' });
+  }
   function poserBande(r, haut) {
     var bande = document.createElement('div');
     bande.className = 'bande';
@@ -372,7 +422,7 @@ const SCRIPT_PAGINATION = String.raw`
       var d = document.createElement('div');
       col.forEach(function (a) {
         var el = rendu(a);
-        if (el.classList.contains('rub')) sommaire.push({ titre: el.dataset.rubrique, page: page.numero });
+        if (el.classList.contains('rub')) noterRubrique(el, el.dataset.rubrique);
         d.appendChild(el);
       });
       bande.appendChild(d);
@@ -407,8 +457,55 @@ const SCRIPT_PAGINATION = String.raw`
     }
   }
 
-  function paginer() {
+  // Article de plus de deux colonnes : coupé à la fin d'un paragraphe, avec renvoi vers l'appli (sauf
+  // « Imprimer en entier »). Ses liens, inutiles sur papier, restent cliquables dans l'appli.
+  var compteurAtomes = 100000;
+  function couperArticlesLongs() {
+    var LIMITE = 2 * H; // plus de deux colonnes pleines
+    var k = 0;
+    while (k < atomes.length) {
+      var t = atomes[k];
+      if (!t.el.classList.contains('tete')) { k++; continue; }
+      var id = t.el.dataset.article, fin = k + 1;
+      while (fin < atomes.length && atomes[fin].para && atomes[fin].el.dataset.article === id) fin++;
+      var total = 0;
+      for (var m = k; m < fin; m++) total += h(atomes[m]);
+      if (t.el.dataset.entier !== '1' && total > LIMITE && fin - k > 2) {
+        var el = document.createElement('p');
+        el.className = 'b col suite-appli';
+        el.style.setProperty('--r', t.el.style.getPropertyValue('--r'));
+        el.textContent = "La suite, avec les liens, dans l'appli de la commune.";
+        var suite = { el: el, i: compteurAtomes++, plein: false, para: false, keep: false, debut: 0, fin: 0, mots: null };
+        var cumul = h(t) + h(suite), garde = k + 1;
+        while (garde < fin - 1 && cumul + h(atomes[garde]) <= LIMITE) { cumul += h(atomes[garde]); garde++; }
+        if (garde === k + 1) garde = k + 2;
+        atomes.splice(garde, fin - garde, suite);
+        alertes.push({ type: 'article_coupe', id: id, titre: t.el.dataset.titre });
+        fin = garde + 1;
+      }
+      k = fin;
+    }
+  }
+
+  // Édito : seul sur la page 2. Trop long : l'outil le dit (jamais coupé en silence). Court : la
+  // place restante est signalée, avec la photo de l'édito comme seule proposition.
+  function poserEdito() {
+    var ed = document.getElementById('edito-page');
+    if (!ed) return;
     nouvellePage();
+    page.contenu.appendChild(ed);
+    noterRubrique(ed.querySelector('.rub'), 'Édito');
+    sommaire[sommaire.length - 1].couleur = ed.style.getPropertyValue('--r');
+    var he = ed.getBoundingClientRect().height;
+    if (he > H + 1) alertes.push({ type: 'edito_trop_long', depassement_mm: Math.round((he - H) / MM) });
+    else if (H - he > 40 * MM) places.push({ page: page.numero, hauteur_mm: Math.round((H - he) / MM), ou: 'bas', edito: true, propositions: ed.dataset.photo === '1' ? [] : [{ action: 'photo_edito' }] });
+    y = H; // les rubriques commencent sur la page suivante
+  }
+
+  function paginer() {
+    couperArticlesLongs();
+    poserEdito();
+    if (!page || y > 0) nouvellePage();
     var i = 0;
     while (i < atomes.length) {
       var a = atomes[i];
@@ -463,6 +560,7 @@ const SCRIPT_PAGINATION = String.raw`
     if ((pages.length + 1) % 2 === 1) alertes.push({ type: 'pages_impaires', pages: pages.length + 1 });
 
     places.forEach(function (pl) {
+      if (pl.edito) return;
       var props = [];
       tetes.filter(function (t) { return pageDe(t) === pl.page; }).forEach(function (t) {
         var img = t.querySelector('img');
@@ -484,14 +582,20 @@ const SCRIPT_PAGINATION = String.raw`
 
   function remplirSommaire() {
     var vus = {};
-    var ol = document.getElementById('sommaire');
-    sommaire.forEach(function (s) {
-      if (vus[s.titre]) return; vus[s.titre] = true;
-      var li = document.createElement('li');
-      li.innerHTML = '<span></span><span class="pts"></span><b></b>';
-      li.firstChild.textContent = s.titre;
-      li.lastChild.textContent = String(s.page);
-      ol.appendChild(li);
+    var boite = document.getElementById('sommaire');
+    sommaire.forEach(function (e) {
+      if (vus[e.titre]) return; vus[e.titre] = true;
+      var t = document.createElement('div');
+      t.className = 'tuile';
+      t.style.setProperty('--r', e.couleur || 'var(--c1)');
+      t.innerHTML = '<span class="pastille">' + e.picto + '</span><span class="nom"></span><b></b>';
+      t.querySelector('.nom').textContent = e.titre;
+      t.querySelector('b').textContent = String(e.page);
+      boite.appendChild(t);
+    });
+    Array.prototype.slice.call(document.querySelectorAll('.une-carte')).forEach(function (c) {
+      var t = journal.querySelector('.tete[data-article="' + c.dataset.une + '"]');
+      c.querySelector('.une-page').textContent = t ? 'page ' + pageDe(t) : '';
     });
   }
 

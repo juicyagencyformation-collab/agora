@@ -10,7 +10,9 @@ const JR = {
   etape: 'couverture',
   reglages: null,
   couverture: null, // { image, credit, largeur }
-  edito: { texte: '', signataire: 'Le maire' },
+  edito: { texte: '', signataire: 'Le maire', photo: null },
+  une: null, // null = choix automatique ; sinon liste d'ids (3 au plus)
+  coupes: new Set(), // articles coupés pour le papier au dernier aperçu
   opposition: { choix: 'aucun_bloc', liste: '', texte: '' },
   contenus: null,
   cleContenus: '',
@@ -33,8 +35,8 @@ function jrSaison(jour) {
 const JR_CLE_STOCKAGE = () => `agora_journal_essai_${window.COMMUNE_SLUG}`;
 function jrSauverReglages() {
   try {
-    const { titre, sous_titre, numero, tirage } = JR.reglages;
-    localStorage.setItem(JR_CLE_STOCKAGE(), JSON.stringify({ titre, sous_titre, numero, tirage, signataire: JR.edito.signataire }));
+    const { titre, sous_titre, numero, tirage, directeur } = JR.reglages;
+    localStorage.setItem(JR_CLE_STOCKAGE(), JSON.stringify({ titre, sous_titre, numero, tirage, directeur, signataire: JR.edito.signataire }));
   } catch {}
 }
 
@@ -47,10 +49,11 @@ async function chargerJournal() {
     try { memo = JSON.parse(localStorage.getItem(JR_CLE_STOCKAGE()) || '{}'); } catch {}
     JR.reglages = {
       titre: memo.titre || '', sous_titre: memo.sous_titre || '', numero: memo.numero || 1, tirage: memo.tirage || '',
+      directeur: memo.directeur || 'le maire',
       distribution: aujourdhui, debut: jrDecaler(aujourdhui, -3), fin: aujourdhui, agenda_fin: jrDecaler(aujourdhui, 3),
       saison: jrSaison(aujourdhui),
     };
-    if (memo.signataire) JR.edito.signataire = memo.signataire;
+    if (memo.signataire !== undefined) JR.edito.signataire = memo.signataire;
     document.querySelectorAll('#journal-etapes [data-etape]').forEach((b) => b.addEventListener('click', () => jrAller(b.dataset.etape)));
     window.addEventListener('message', jrRecevoirApercu);
     JR.initialise = true;
@@ -84,7 +87,8 @@ async function jrChargerContenus() {
     const ids = rub.articles.map((a) => a.id);
     const anciens = (JR.ordre[rub.cle] || []).filter((id) => ids.includes(id));
     JR.ordre[rub.cle] = [...anciens, ...ids.filter((id) => !anciens.includes(id))];
-    ids.forEach((id) => { if (!JR.articles.has(id)) JR.articles.set(id, { inclus: true, sans_photo: false, photo_grande: false }); });
+    // Annonces du thème Agenda : décochées par défaut (l'événement est souvent passé à la distribution).
+    ids.forEach((id) => { if (!JR.articles.has(id)) JR.articles.set(id, { inclus: rub.cle !== 'agenda', sans_photo: false, photo_grande: false, entier: false }); });
   });
   if (premiereFois) {
     JR.contenus.evenements.forEach((e) => JR.evenements.add(e.id));
@@ -160,6 +164,7 @@ function jrEcranCouverture(ecran) {
         <label class="jr-champ">Agenda jusqu'au<input id="jr-agenda-fin" type="date" value="${r.agenda_fin}"></label>
       </div>
       <label class="jr-champ">Tirage (facultatif)<input id="jr-tirage" maxlength="40" placeholder="ex. 250 exemplaires" value="${jrEsc(r.tirage)}"></label>
+      <label class="jr-champ">Directeur de la publication (mentions légales)<input id="jr-directeur" maxlength="80" value="${jrEsc(r.directeur)}"></label>
     </div></details>
     <details class="jr-volet" open><summary>📷 Photo de couverture</summary><div class="jr-corps">
       ${JR.couverture ? `<img class="jr-apercu-couv" src="${JR.couverture.image}" alt="">` : ''}
@@ -169,8 +174,13 @@ function jrEcranCouverture(ecran) {
       <label class="jr-champ">Crédit photo<input id="jr-credit" maxlength="80" placeholder="ex. Martine D., habitante" value="${jrEsc(JR.couverture?.credit || '')}"></label>
     </div></details>
     <details class="jr-volet" open><summary>🖊️ Édito</summary><div class="jr-corps">
+      <p class="jr-msg info">L'édito occupe seul la page 2, sur deux colonnes.</p>
       <label class="jr-champ">Texte (une ligne = un paragraphe)<textarea id="jr-edito" rows="8" maxlength="5000">${jrEsc(JR.edito.texte)}</textarea></label>
-      <label class="jr-champ">Signé<input id="jr-signataire" maxlength="80" value="${jrEsc(JR.edito.signataire)}"></label>
+      <p class="jr-compteur" id="jr-edito-place"></p>
+      <label class="jr-champ">Signé<input id="jr-signataire" maxlength="80" placeholder="Vide : pas de signature" value="${jrEsc(JR.edito.signataire)}"></label>
+      ${JR.edito.photo ? `<img class="jr-apercu-couv" src="${JR.edito.photo}" alt="">` : ''}
+      <button type="button" class="jr-btn second" id="jr-btn-photo-edito">${JR.edito.photo ? 'Changer la photo de l\'édito' : 'Ajouter une photo à l\'édito (facultatif)'}</button>
+      ${JR.edito.photo ? '<button type="button" class="jr-btn second" id="jr-btn-photo-edito-retirer">Retirer la photo de l\'édito</button>' : ''}
     </div></details>
     <details class="jr-volet"${JR.opposition.choix !== 'aucun_bloc' ? ' open' : ''}><summary>🗳️ Expression de l'opposition</summary><div class="jr-corps">
       <p class="jr-msg info">${pop >= 1000 ? 'Obligatoire dans une commune de 1 000 habitants ou plus.' : 'Facultatif sous 1 000 habitants.'} Le cadre a toujours la même taille dans le journal.</p>
@@ -190,11 +200,12 @@ function jrEcranCouverture(ecran) {
   lier('#jr-numero', (v) => { r.numero = Math.max(1, Math.min(999, parseInt(v, 10) || 1)); });
   lier('#jr-saison', (v) => { r.saison = v; });
   lier('#jr-tirage', (v) => { r.tirage = v; });
+  lier('#jr-directeur', (v) => { r.directeur = v; });
   lier('#jr-debut', (v) => { if (v) r.debut = v; });
   lier('#jr-fin', (v) => { if (v) r.fin = v; });
   lier('#jr-distribution', (v) => { if (v) { r.distribution = v; r.saison = jrSaison(v); ecran.querySelector('#jr-saison').value = r.saison; } });
   lier('#jr-agenda-fin', (v) => { if (v) r.agenda_fin = v; });
-  lier('#jr-edito', (v) => { JR.edito.texte = v; });
+  lier('#jr-edito', (v) => { JR.edito.texte = v; jrPlaceEdito(ecran); });
   lier('#jr-signataire', (v) => { JR.edito.signataire = v; });
   lier('#jr-credit', (v) => { if (JR.couverture) JR.couverture.credit = v; });
   lier('#jr-opp-liste', (v) => { JR.opposition.liste = v; });
@@ -211,7 +222,26 @@ function jrEcranCouverture(ecran) {
     } catch { afficherToastMessage('Cette image ne peut pas être lue.', 'erreur'); }
   }));
   ecran.querySelector('#jr-btn-couv-retirer')?.addEventListener('click', () => { JR.couverture = null; jrEcranCouverture(ecran); });
+  ecran.querySelector('#jr-btn-photo-edito').addEventListener('click', () => jrChoisirFichier(async (f) => {
+    try { JR.edito.photo = (await jrReduireImage(f, 1800)).image; jrEcranCouverture(ecran); } catch { afficherToastMessage('Cette image ne peut pas être lue.', 'erreur'); }
+  }));
+  ecran.querySelector('#jr-btn-photo-edito-retirer')?.addEventListener('click', () => { JR.edito.photo = null; jrEcranCouverture(ecran); });
+  jrPlaceEdito(ecran);
   ecran.querySelector('#jr-suivant-1').addEventListener('click', () => jrAller('contenus'));
+}
+
+// Estimation : environ 3 300 caractères tiennent sur la page sans photo, 2 400 avec. La
+// vérification exacte se fait à l'aperçu (alerte « l'édito dépasse la page »).
+function jrPlaceEdito(ecran) {
+  const zone = ecran.querySelector('#jr-edito-place');
+  if (!zone) return;
+  const capacite = JR.edito.photo ? 2400 : 3300;
+  const n = JR.edito.texte.trim().length;
+  const pct = Math.round((n / capacite) * 100);
+  zone.textContent = !n ? 'Sans édito, les rubriques commencent directement en page 2.'
+    : pct <= 100 ? `Environ ${pct} % de la page.`
+      : `Trop long d'environ ${n - capacite} caractères pour tenir sur la page : raccourcissez-le${JR.edito.photo ? ' ou retirez la photo' : ''}.`;
+  zone.style.color = pct > 100 ? '#B23A48' : '';
 }
 
 // ── Écran 2 : contenus ──
@@ -229,7 +259,10 @@ function jrEcranContenus(ecran) {
         ${photo ? '' : ' · <em>sans photo</em>'}
         · <a data-photo="${a.id}">${photo ? 'Changer la photo' : 'Ajouter une photo'}</a>
         ${photo ? ` · <a data-retirer="${a.id}">Retirer la photo</a> · <a data-grande="${a.id}">${etat.photo_grande ? 'Photo en petit' : 'Photo en grand'}</a>` : ''}
-        · <a data-retoucher="${a.id}">Retoucher</a></small></span>
+        · <a data-retoucher="${a.id}">Retoucher</a>
+        · <a data-une="${a.id}">${jrEstALaUne(a.id) ? '★ À la une' : '☆ Mettre à la une'}</a>
+        ${rub === 'agenda' ? '<br><em>Annonce d\'événement : souvent déjà passé à la distribution, cochez-la si elle est encore d\'actualité.</em>' : ''}
+        ${JR.coupes.has(a.id) ? `<br><em>Coupé pour le papier (suite dans l'appli)</em> · <a data-entier="${a.id}">${etat.entier ? 'Revenir à la coupe' : 'Imprimer en entier'}</a>` : ''}</small></span>
       <span class="jr-ordre"><button type="button" data-monter="${rub}|${a.id}"${i === 0 ? ' disabled' : ''} aria-label="Monter">↑</button><button type="button" data-descendre="${rub}|${a.id}"${i === n - 1 ? ' disabled' : ''} aria-label="Descendre">↓</button></span>
     </div>`;
   };
@@ -278,8 +311,30 @@ function jrEcranContenus(ecran) {
   })));
   ecran.querySelectorAll('[data-retirer]').forEach((a) => a.addEventListener('click', () => { const etat = JR.articles.get(a.dataset.retirer); etat.photo = undefined; etat.sans_photo = true; redessiner(); }));
   ecran.querySelectorAll('[data-grande]').forEach((a) => a.addEventListener('click', () => { const etat = JR.articles.get(a.dataset.grande); etat.photo_grande = !etat.photo_grande; redessiner(); }));
+  ecran.querySelectorAll('[data-une]').forEach((a) => a.addEventListener('click', () => { jrBasculerUne(a.dataset.une); redessiner(); }));
+  ecran.querySelectorAll('[data-entier]').forEach((a) => a.addEventListener('click', () => { const etat = JR.articles.get(a.dataset.entier); etat.entier = !etat.entier; redessiner(); }));
   ecran.querySelectorAll('[data-retoucher]').forEach((a) => a.addEventListener('click', () => jrRetoucher(a.dataset.retoucher, redessiner)));
   ecran.querySelector('#jr-suivant-2').addEventListener('click', () => jrAller('apercu'));
+}
+
+// « À la une » : tant que rien n'est choisi, ce sont les 3 premiers articles imprimés qui ont une
+// photo (même règle que le Worker).
+function jrUneAuto() {
+  const ids = [];
+  JR.contenus.rubriques.forEach((rub) => (JR.ordre[rub.cle] || []).forEach((id) => {
+    const e = JR.articles.get(id); const a = rub.articles.find((x) => x.id === id);
+    if (e && e.inclus && !e.sans_photo && (e.photo || a?.photo_url)) ids.push(id);
+  }));
+  return ids.slice(0, 3);
+}
+function jrEstALaUne(id) { return (JR.une ?? jrUneAuto()).includes(id); }
+function jrBasculerUne(id) {
+  const liste = [...(JR.une ?? jrUneAuto())];
+  const i = liste.indexOf(id);
+  if (i >= 0) liste.splice(i, 1);
+  else if (liste.length >= 3) { afficherToastMessage('3 articles à la une au maximum : retirez-en un d\'abord.', 'erreur'); return; }
+  else liste.push(id);
+  JR.une = liste;
 }
 
 function jrRetoucher(id, apres) {
@@ -312,7 +367,7 @@ function jrDemande() {
   JR.contenus.rubriques.forEach((rub) => (JR.ordre[rub.cle] || []).forEach((id) => {
     const e = JR.articles.get(id);
     if (!e || !e.inclus) return;
-    const a = { id, sans_photo: !!e.sans_photo, photo_grande: !!e.photo_grande };
+    const a = { id, sans_photo: !!e.sans_photo, photo_grande: !!e.photo_grande, entier: !!e.entier };
     if (e.titre) a.titre = e.titre;
     if (e.texte !== undefined) a.texte = e.texte;
     if (e.photo) a.photo = e.photo;
@@ -320,10 +375,11 @@ function jrDemande() {
   }));
   return {
     titre: r.titre.trim() || `Le journal de ${JR.contenus.commune.nom}`, sous_titre: r.sous_titre.trim(), numero: r.numero,
-    saison: r.saison.trim() || jrSaison(r.distribution), tirage: r.tirage.trim(),
+    saison: r.saison.trim() || jrSaison(r.distribution), tirage: r.tirage.trim(), directeur: r.directeur.trim() || 'le maire',
     periode: { debut: r.debut, fin: r.fin, agenda_debut: r.distribution, agenda_fin: r.agenda_fin },
     couverture: JR.couverture ? { image: JR.couverture.image, credit: JR.couverture.credit || '' } : null,
-    edito: { texte: JR.edito.texte, signataire: JR.edito.signataire.trim() || 'Le maire' },
+    edito: { texte: JR.edito.texte, signataire: JR.edito.signataire.trim(), ...(JR.edito.photo ? { photo: JR.edito.photo } : {}) },
+    ...(JR.une ? { une: JR.une.filter((id) => JR.articles.get(id)?.inclus) } : {}),
     opposition: { choix: JR.opposition.choix, liste: JR.opposition.liste.trim(), texte: JR.opposition.texte },
     articles, evenements: [...JR.evenements], sondages: [...JR.sondages], encarts: { ...JR.encarts },
   };
@@ -357,6 +413,7 @@ function jrRecevoirApercu(e) {
   const iframe = document.getElementById('jr-iframe');
   if (!iframe || e.source !== iframe.contentWindow || !e.data || !e.data.journal) return;
   const r = e.data.journal;
+  JR.coupes = new Set(r.alertes.filter((a) => a.type === 'article_coupe').map((a) => a.id));
   const titreArticle = (id) => JR.contenus.rubriques.flatMap((x) => x.articles).find((a) => a.id === id);
   const alertes = r.alertes.map((a) => {
     if (a.type === 'photo_floue') return `<li>⚠️ Page ${a.page} : la photo de « ${jrEsc(a.titre)} » sera floue à cette taille (${a.ppp} ppp, il en faudrait 150). <a data-act="retirer" data-id="${jrEsc(a.id)}">Retirer la photo</a>${JR.articles.get(a.id)?.photo_grande ? ` · <a data-act="petite" data-id="${jrEsc(a.id)}">La mettre en petit</a>` : ''}</li>`;
@@ -364,6 +421,8 @@ function jrRecevoirApercu(e) {
     if (a.type === 'sans_couverture') return '<li>⚠️ Pas de photo de couverture.</li>';
     if (a.type === 'pages_impaires') return `<li>ℹ️ Le journal fait ${a.pages} pages : la dernière feuille aura un verso blanc.</li>`;
     if (a.type === 'bloc_trop_grand') return `<li>⚠️ « ${jrEsc(a.titre)} » est plus haut qu'une colonne entière : raccourcissez-le.</li>`;
+    if (a.type === 'article_coupe') return `<li>✂️ « ${jrEsc(a.titre)} » est très long (plus de deux colonnes) : il est coupé pour le papier, avec « La suite dans l'appli ». <a data-act="entier" data-id="${jrEsc(a.id)}">Imprimer en entier</a> · <a data-act="retoucher" data-id="${jrEsc(a.id)}">Retoucher</a></li>`;
+    if (a.type === 'edito_trop_long') return `<li>⚠️ L'édito dépasse la page d'environ ${a.depassement_mm} mm : raccourcissez-le${JR.edito.photo ? ' ou retirez sa photo' : ''}.</li>`;
     if (a.type === 'erreur') return `<li>⚠️ Erreur de mise en page : ${jrEsc(a.message)}</li>`;
     return '';
   }).join('');
@@ -372,6 +431,7 @@ function jrRecevoirApercu(e) {
     const props = (p.propositions || []).map((pr) => {
       if (pr.action === 'photo') return `<li><a data-act="photo" data-id="${jrEsc(pr.id)}">📷 Ajouter une photo à « ${jrEsc(pr.titre)} »</a> (l'article n'en a pas)</li>`;
       if (pr.action === 'agrandir') return `<li><a data-act="agrandir" data-id="${jrEsc(pr.id)}">🔍 Agrandir la photo de « ${jrEsc(pr.titre)} »</a> (elle est assez nette pour ça)</li>`;
+      if (pr.action === 'photo_edito') return '<li><a data-act="photo_edito">📷 Ajouter une photo à l\'édito</a></li>';
       if (pr.action === 'numeros_utiles') return '<li><a data-act="numeros">☎️ Ajouter l\'encart « Numéros utiles »</a></li>';
       return '';
     }).join('');
@@ -386,6 +446,9 @@ function jrRecevoirApercu(e) {
     const id = lien.dataset.id; const etat = id ? JR.articles.get(id) : null;
     const refaire = () => jrEcranApercu(document.getElementById('journal-ecran'));
     if (lien.dataset.act === 'photo') return jrChoisirFichier(async (f) => { try { etat.photo = (await jrReduireImage(f, 1600)).image; etat.sans_photo = false; refaire(); } catch { afficherToastMessage('Cette image ne peut pas être lue.', 'erreur'); } });
+    if (lien.dataset.act === 'photo_edito') return jrChoisirFichier(async (f) => { try { JR.edito.photo = (await jrReduireImage(f, 1800)).image; refaire(); } catch { afficherToastMessage('Cette image ne peut pas être lue.', 'erreur'); } });
+    if (lien.dataset.act === 'retoucher') return jrRetoucher(id, refaire);
+    if (lien.dataset.act === 'entier') etat.entier = true;
     if (lien.dataset.act === 'agrandir') etat.photo_grande = true;
     if (lien.dataset.act === 'petite') etat.photo_grande = false;
     if (lien.dataset.act === 'retirer') { etat.photo = undefined; etat.sans_photo = true; }

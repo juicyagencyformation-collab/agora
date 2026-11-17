@@ -14,7 +14,7 @@ import { jwtMiddleware } from '../middleware/jwt';
 import { genererQrSvgUrl } from '../lib/qr-url';
 import {
   ordreRubriques, chargerCommuneJournal, articlesDeLaPeriode, articlesParIds, evenementsAgenda,
-  sondagesClos, bilanSignalements, collecteDechets, texteEnParagraphes, type PeriodeJournal,
+  sondagesClos, bilanSignalements, collecteDechets, texteEnParagraphes, sansEmojis, type PeriodeJournal,
 } from '../lib/journal-contenus';
 import { genererJournalHtml, esc, couleurSure, type DonneesJournal, type RubriqueJournal, type ArticleJournal } from '../lib/journal-gabarit';
 
@@ -40,9 +40,12 @@ const journalSchema = z.object({
   numero: z.number().int().min(1).max(999),
   saison: z.string().trim().min(1).max(40),
   tirage: z.string().trim().max(40).default(''),
+  directeur: z.string().trim().max(80).default('le maire'),
   periode: periodeSchema,
   couverture: z.object({ image: imageIntegree, credit: z.string().trim().max(80).default('') }).nullable().default(null),
-  edito: z.object({ texte: z.string().max(5000).default(''), signataire: z.string().trim().max(80).default('Le maire') }),
+  // Signataire vide : aucune signature imprimée (l'édito se termine souvent déjà par une signature).
+  edito: z.object({ texte: z.string().max(5000).default(''), signataire: z.string().trim().max(80).default(''), photo: imageIntegree.optional() }),
+  une: z.array(uuid).max(3).optional(), // « À la une » choisis ; absent = choix automatique
   opposition: z.object({
     choix: z.enum(['aucun_bloc', 'texte', 'non_transmis', 'aucun_elu']),
     liste: z.string().trim().max(80).default(''),
@@ -55,6 +58,7 @@ const journalSchema = z.object({
     photo: imageIntegree.optional(),
     sans_photo: z.boolean().default(false),
     photo_grande: z.boolean().default(false),
+    entier: z.boolean().default(false),
   })).max(80),
   evenements: z.array(uuid).max(60),
   sondages: z.array(uuid).max(10),
@@ -179,22 +183,23 @@ async function assembler(env: any, commune_id: string, d: DemandeJournal, mode: 
     const article: ArticleJournal = {
       id: a.id,
       surtitre: a.association ?? (a.rubrique === 'conseil' ? 'Compte rendu' : ''),
-      titre: choix.titre ?? a.titre,
+      titre: choix.titre !== undefined ? sansEmojis(choix.titre) : a.titre,
       paragraphes: choix.texte !== undefined ? texteEnParagraphes(choix.texte) : a.paragraphes,
       photo: choix.sans_photo ? null : (choix.photo ?? a.photo_url),
       photoGrande: choix.photo_grande,
       sansPhotoChoisi: choix.sans_photo,
+      entier: choix.entier,
     };
     rubrique(a.rubrique).articles.push(article);
   });
 
   rubrique('agenda').evenements = evenements.map((e: any) => {
     const t = partiesDate(e.date_debut);
-    return { jour: t.jour, num: t.num, mois: t.mois, titre: e.titre, detail: [e.lieu, t.heure].filter(Boolean).join(' · ') };
+    return { jour: t.jour, num: t.num, mois: t.mois, titre: sansEmojis(e.titre), detail: [sansEmojis(e.lieu ?? ''), t.heure].filter(Boolean).join(' · ') };
   });
   rubrique('thermometre').sondages = sondages.map((s: any) => ({
-    question: s.question, participants: s.participants, cloture: partiesDate(s.closes_at).jourMois,
-    choix: s.choix.map((ch: any) => ({ label: ch.label, pct: ch.pct })),
+    question: sansEmojis(s.question), participants: s.participants, cloture: partiesDate(s.closes_at).jourMois,
+    choix: s.choix.map((ch: any) => ({ label: sansEmojis(ch.label), pct: ch.pct })),
   }));
 
   if (signalements && signalements.recus > 0) {
@@ -215,6 +220,11 @@ async function assembler(env: any, commune_id: string, d: DemandeJournal, mode: 
       + '<li>Urgences pour personnes sourdes ou malentendantes : 114 (SMS)</li></ul>');
   }
 
+  const imprimes = rubriques.flatMap((r) => r.articles);
+  const choisis = (d.une ?? []).map((id) => imprimes.find((a) => a.id === id)).filter(Boolean) as ArticleJournal[];
+  const une = (d.une ? choisis : imprimes.filter((a) => a.photo).slice(0, 3))
+    .map((a) => ({ id: a.id, titre: a.titre, photo: a.photo }));
+
   const logo = typeof commune.logo_url === 'string' && /^https:\/\//.test(commune.logo_url) ? commune.logo_url : null;
   return {
     mode, polices: policesCss,
@@ -226,7 +236,11 @@ async function assembler(env: any, commune_id: string, d: DemandeJournal, mode: 
     },
     mairie: { horaires: commune.horaires_ouverture ?? '', permanences: commune.permanences ?? '', telephone: commune.telephone_mairie ?? '', email: commune.email_mairie ?? '' },
     couverture: { image: d.couverture?.image ?? null, credit: d.couverture?.credit ?? '' },
-    edito: d.edito.texte.trim() ? { paragraphes: texteEnParagraphes(d.edito.texte), signataire: d.edito.signataire || 'Le maire' } : null,
+    une,
+    edito: d.edito.texte.trim()
+      ? { paragraphes: texteEnParagraphes(d.edito.texte), signataire: sansEmojis(d.edito.signataire) || null, photo: d.edito.photo ?? null }
+      : null,
+    directeur: d.directeur || 'le maire',
     rubriques: rubriques.filter((r) => r.articles.length || r.evenements?.length || r.sondages?.length || r.encartsHtml?.length),
     opposition: { choix: d.opposition.choix, liste: d.opposition.liste, paragraphes: texteEnParagraphes(d.opposition.texte) },
     numerosUtilesInclus: d.encarts.numeros_utiles,

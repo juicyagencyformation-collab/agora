@@ -40,20 +40,47 @@ export function lendemain(jour: string): string {
 }
 const entre = (col: string, debut: string, finIncluse: string) => `(${col}.gte.${debut}T00:00:00Z,${col}.lt.${lendemain(finIncluse)}T00:00:00Z)`;
 
+// Émojis : retirés du papier (décision de Léandre, 2026-11-16 : pas leur place dans un journal de
+// commune, impression inégale). Ceux qui servent de puce en début de ligne (👉, ✅, 📞…)
+// deviennent une puce sobre pour garder la structure des listes. ©, ® et ™ sont conservés.
+const EMOJI = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|‍|[\u{1F3FB}-\u{1F3FF}]|\p{Extended_Pictographic}|\p{Regional_Indicator})*️?/gu;
+const GARDES = new Set(['©', '®', '™']);
+export function sansEmojis(texte: string, puce = false): string {
+  const t = String(texte ?? '');
+  const debutEmoji = puce && /^\s*(?:\p{Extended_Pictographic}|\p{Regional_Indicator})/u.test(t) && !GARDES.has(t.trim()[0]);
+  const propre = t.replace(EMOJI, (m) => (GARDES.has(m.replace(/️/g, '')) ? m : ' ')).replace(/\s+/g, ' ').trim();
+  return debutEmoji && propre ? `• ${propre}` : propre;
+}
+
 // HTML de l'éditeur riche (déjà nettoyé à l'écriture par sanitizeHtml) → paragraphes de texte
-// brut. Le papier a sa propre typographie : gras, couleurs et liens ne sont pas repris.
+// brut. Le papier a sa propre typographie : gras et couleurs ne sont pas repris ; un lien garde
+// son texte suivi du nom du site entre parenthèses (« (service-public.fr) »), sinon il ne
+// mène plus nulle part une fois imprimé.
 export function htmlEnParagraphes(html: string): string[] {
   const texte = String(html ?? '')
+    .replace(/<a\b[^>]*href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href: string, contenu: string) => {
+      const lisible = contenu.replace(/<[^>]*>/g, '').trim();
+      let site = '';
+      try { site = new URL(href.replace(/&amp;/g, '&')).hostname.replace(/^www\./, ''); } catch { return lisible; }
+      if (!lisible) return site;
+      return lisible.toLowerCase().includes(site.toLowerCase()) ? lisible : `${lisible} (${site})`;
+    })
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&amp;/g, '&');
-  return texte.split('\n').map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return texte.split('\n').map((p) => sansEmojis(p, true)).filter(Boolean);
 }
-// Texte libre (retouche « pour le papier ») → paragraphes : une ligne = un paragraphe.
+// Texte libre (retouche « pour le papier », édito) → paragraphes : une ligne = un paragraphe.
 export function texteEnParagraphes(texte: string): string[] {
-  return String(texte ?? '').split('\n').map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  return String(texte ?? '').split('\n').map((p) => sansEmojis(p, true)).filter(Boolean);
+}
+
+// Beaucoup d'actus recopient leur titre en première ligne : inutile de l'imprimer deux fois.
+const normaliser = (t: string) => sansEmojis(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+export function sansTitreRepete(paragraphes: string[], titre: string): string[] {
+  return paragraphes.length > 1 && normaliser(paragraphes[0]) === normaliser(titre) ? paragraphes.slice(1) : paragraphes;
 }
 
 export function rubriqueArticle(a: { section: string; fiche_id: string | null; categorie: string }): string {
@@ -113,11 +140,14 @@ async function completerArticles(env: any, commune_id: string, articles: any[]) 
     premieresImages(env, commune_id, articles.map((a: any) => a.id)),
     nomsAssociations(env, commune_id, articles.map((a: any) => a.fiche_id).filter(Boolean)),
   ]);
-  return articles.map((a: any) => ({
-    id: a.id, titre: a.titre, date: a.created_at, rubrique: rubriqueArticle(a), categorie: a.categorie,
-    association: a.fiche_id ? (assos.get(a.fiche_id) ?? 'Association') : null,
-    paragraphes: htmlEnParagraphes(a.contenu_html), photo_url: images.get(a.id) ?? null,
-  }));
+  return articles.map((a: any) => {
+    const titre = sansEmojis(a.titre);
+    return {
+      id: a.id, titre, date: a.created_at, rubrique: rubriqueArticle(a), categorie: a.categorie,
+      association: a.fiche_id ? (assos.get(a.fiche_id) ?? 'Association') : null,
+      paragraphes: sansTitreRepete(htmlEnParagraphes(a.contenu_html), titre), photo_url: images.get(a.id) ?? null,
+    };
+  });
 }
 
 // Événements visibles qui commencent entre la distribution et la date de fin de l'agenda.

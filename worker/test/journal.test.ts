@@ -6,7 +6,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import journal, { partiesDate } from '../src/routes/journal';
-import { htmlEnParagraphes, ordreRubriques } from '../src/lib/journal-contenus';
+import { htmlEnParagraphes, ordreRubriques, sansEmojis, sansTitreRepete } from '../src/lib/journal-contenus';
+import { contraste } from '../src/lib/journal-gabarit';
 import { CLES_THEMES_ACTUS } from '../src/lib/themes-actus';
 
 type Ligne = Record<string, any>;
@@ -135,6 +136,25 @@ describe('Journal papier en essai : contenus', () => {
     expect((await poster('/apercu', 'superadmin', d)).status).toBe(400);
   });
 
+  it('n\'imprime une signature d\'édito que si elle est renseignée, et le directeur de la publication choisi', async () => {
+    const sans: any = { ...demande([A1]), edito: { texte: 'Bonjour', signataire: '' } };
+    let html = ((await (await poster('/apercu', 'superadmin', sans)).json()) as any).html;
+    expect(html).toContain('id="edito-page"');
+    expect(html).not.toContain('class="signature"');
+    expect(html).toContain('Directeur de la publication : le maire.');
+    const avec: any = { ...demande([A1]), directeur: 'la maire', edito: { texte: 'Bonjour', signataire: 'Votre maire' } };
+    html = ((await (await poster('/apercu', 'superadmin', avec)).json()) as any).html;
+    expect(html).toContain('<div class="signature">Votre maire</div>');
+    expect(html).toContain('Directeur de la publication : la maire.');
+  });
+
+  it('passe le titre du journal en blanc quand les couleurs de la commune sont trop proches', async () => {
+    db.communes[0].couleur_theme = '#2E6130';
+    db.communes[0].couleur_accent = '#4C9A4F';
+    const { html } = await (await poster('/apercu', 'superadmin', demande([A1]))).json() as any;
+    expect(html).toMatch(/\.titre-journal\{[^}]*color:#FFFFFF/);
+  });
+
   it('répond 503 pour le PDF quand le navigateur Cloudflare n\'est pas disponible', async () => {
     expect((await poster('/pdf', 'superadmin', demande([A1]))).status).toBe(503);
   });
@@ -149,6 +169,25 @@ describe('Journal papier : outils', () => {
   });
   it('transforme le HTML des actus en paragraphes de texte', () => {
     expect(htmlEnParagraphes('<p>Un <b>deux</b></p><p>Trois&nbsp;&amp; quatre<br>cinq</p>')).toEqual(['Un deux', 'Trois & quatre', 'cinq']);
+  });
+  it('retire les émojis du papier, et remplace ceux qui servent de puce par une puce sobre', () => {
+    expect(sansEmojis('👉 Faire une demande', true)).toBe('• Faire une demande');
+    expect(sansEmojis('Bravo 🎉 à tous 👏🏽 !')).toBe('Bravo à tous !');
+    expect(sansEmojis('❤️Vous êtes un proche aidant ?', true)).toBe('• Vous êtes un proche aidant ?');
+    expect(sansEmojis('© Mairie de Bonvivre')).toBe('© Mairie de Bonvivre');
+  });
+  it('garde le nom du site d\'un lien, qui ne mène plus nulle part une fois imprimé', () => {
+    expect(htmlEnParagraphes('<p><a href="https://www.service-public.fr/particuliers" target="_blank" rel="noopener noreferrer">👉 Faire une demande</a></p>'))
+      .toEqual(['• Faire une demande (service-public.fr)']);
+    expect(htmlEnParagraphes('<p>Voir <a href="https://monasso.fr">monasso.fr</a></p>')).toEqual(['Voir monasso.fr']);
+  });
+  it('n\'imprime pas deux fois un titre recopié en première ligne', () => {
+    expect(sansTitreRepete(['👵 Personnes âgées : vos aides ?', 'Vous avez 60 ans ?'], 'Personnes âgées : vos aides ?')).toEqual(['Vous avez 60 ans ?']);
+    expect(sansTitreRepete(['Autre chose', 'Suite'], 'Titre')).toEqual(['Autre chose', 'Suite']);
+  });
+  it('mesure le contraste entre deux couleurs', () => {
+    expect(Math.round(contraste('#FFFFFF', '#000000'))).toBe(21);
+    expect(contraste('#2C5F6E', '#E2C97E')).toBeGreaterThan(3);
   });
   it('fait de chaque thème d\'actualité une rubrique du journal', () => {
     const cles = ordreRubriques().map((r) => r.cle);
