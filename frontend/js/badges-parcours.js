@@ -181,7 +181,7 @@ function jouerProchainBadgeParcours() {
       <span class="surtitre-badge-parcours">${surtitre}</span>
       <p class="nom-badge-parcours">${escapeAttr(b.nom)}</p>
       <p class="phrase-badge-parcours" ${b.phrase ? '' : 'hidden'}>${escapeAttr(b.phrase || '')}</p>
-      <span class="puce-badge-parcours" ${b.test ? 'hidden' : ''}>🏅 ${b.ameliore ? 'Tous les parcours terminés' : `${rangBadge(b) || 'Nouveau badge'} · ajouté à ta collection`}</span>
+      <span class="puce-badge-parcours" ${b.test ? 'hidden' : ''}>🏅 ${b.ameliore ? 'Tous les parcours terminés' : `${rangBadge(b) || 'Nouveau badge'} · ajouté à votre collection`}</span>
     </div>
     <div class="actions-badge-parcours">
       ${b.test ? '' : '<button type="button" class="btn-partager-badge-parcours">📤 Partager mon badge</button><button type="button" class="btn-collection-badge-parcours">Voir ma collection</button>'}

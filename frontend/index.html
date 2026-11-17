@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261117-3">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261117-4">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261117-3">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261117-5">
 </head>
 <body>
 
@@ -193,7 +193,7 @@
     </section>
 
     <section id="onglet-chasse-tresor" class="onglet-contenu" hidden>
-      <div class="bandeau-onglet">
+      <div class="bandeau-onglet bandeau-compact">
         <h3>Explorer</h3>
         <p>Chasses au trésor, balades guidées et énigmes photo : découvrez le village et son patrimoine en vous amusant.</p>
       </div>
@@ -204,7 +204,6 @@
       <div class="pastilles-exploration">
         <button type="button" id="btn-jouer-ailleurs" class="filtre-categorie-btn">🧳 Autres villages</button>
         <button type="button" id="btn-classement-exploration" class="filtre-categorie-btn">🏆 Classement</button>
-        <button type="button" id="btn-toggle-archives-chasses" class="filtre-categorie-btn admin-en-ligne">🗄️ Archives</button>
       </div>
       <div id="zone-classement-exploration" hidden></div>
 
@@ -213,6 +212,8 @@
         <span>Parcours</span>
         <span class="chasse-jump-compte" id="compte-chasses">–</span>
         <span class="sous-titre-chasse-trait"></span>
+        <!-- Archives : réservé à la mairie, donc rangé à côté de « + Créer » (2026-11-17). -->
+        <button type="button" id="btn-toggle-archives-chasses" class="btn-archives-mini admin-en-ligne">🗄️ Archives</button>
         <button type="button" id="btn-ouvrir-creation-chasse" class="btn-creer-mini admin-en-ligne">+ Créer</button>
       </h4>
       <div id="sous-contenu-chasses">
@@ -223,14 +224,14 @@
       </div>
 
       <h4 class="sous-titre-chasse" id="section-trouve-la-photo">
-        <span class="sous-titre-chasse-icone">🧭</span>
+        <span class="sous-titre-chasse-icone">📸</span>
         <span>Énigmes photo</span>
         <span class="chasse-jump-compte" id="compte-enigmes">–</span>
         <span class="sous-titre-chasse-trait"></span>
       </h4>
       <div id="sous-contenu-enigmes">
         <div id="vue-liste-enigmes">
-          <p id="aide-creation-enigme" style="font-size:12.5px;color:var(--roseau);">Prends une photo à un endroit précis du village. Les autres doivent deviner où, en s'y rendant physiquement !</p>
+          <p id="aide-creation-enigme" style="font-size:12.5px;color:var(--roseau);">Prenez une photo d’un endroit précis du village&nbsp;: les autres habitants doivent deviner où, en s’y rendant.</p>
           <button type="button" id="btn-ouvrir-creation-enigme" class="bouton-ouvrir-modale">+ Publier une énigme</button>
           <div id="liste-enigmes" class="grille-enigmes"></div>
         </div>
@@ -784,15 +785,15 @@
   <script src="/js/agenda.js?v=20261110-2"></script>
   <script src="/js/coups-de-main.js?v=20261109-1"></script>
   <script src="/js/coups-de-main-form.js?v=20261018-1"></script>
-  <script src="/js/badges-parcours.js?v=20261115-2"></script>
-  <script src="/js/chasse-tresor.js?v=20261115-2"></script>
+  <script src="/js/badges-parcours.js?v=20261117-5"></script>
+  <script src="/js/chasse-tresor.js?v=20261117-5"></script>
   <script src="/js/conseil.js?v=20261005-6"></script>
   <script src="/js/annuaire.js?v=20261110-2"></script>
   <script src="/js/bulletin.js?v=20261005-6"></script>
   <script src="/js/journal.js?v=20261116-4"></script>
   <script src="/js/photo-du-jour.js?v=20261024-1"></script>
   <script src="/js/memoire.js?v=20261007-2"></script>
-  <script src="/js/enigmes.js?v=20261105-9"></script>
+  <script src="/js/enigmes.js?v=20261117-5"></script>
   <script src="/js/mot-de-passe.js?v=20261115-1"></script>
   <script src="/js/profil.js?v=20261117-3"></script>
   <script src="/js/notifications.js?v=20261116-3"></script>

@@ -145,7 +145,7 @@ function tenterEnigme(enigmeId, bouton) {
     if (data.reussi) {
       traiterRecompense(data);
       if (typeof chargerProgressionExploration === 'function') chargerProgressionExploration();
-      afficherToastMessage(`Bravo, trouvé ! Tu étais à ${data.distance_metres} m du bon endroit.`, 'succes');
+      afficherToastMessage(`Bravo, trouvé ! Vous étiez à ${data.distance_metres} m du bon endroit.`, 'succes');
       chargerEnigmes(); // l'écran de détail reste ouvert, juste rafraîchi avec le nouvel état
     } else {
       // Thermomètre ludique plutôt qu'un simple message d'erreur (rayon par défaut : 40 m).
@@ -161,7 +161,7 @@ function tenterEnigme(enigmeId, bouton) {
       bouton.textContent = '📍 Je suis ici !';
     }
   }).catch(() => {
-    afficherToastMessage('Impossible de récupérer ta position. Vérifie que la géolocalisation est autorisée.', 'erreur');
+    afficherToastMessage('Impossible de récupérer votre position. Vérifiez que la géolocalisation est autorisée.', 'erreur');
     bouton.disabled = false;
     bouton.textContent = '📍 Je suis ici !';
   });
@@ -232,7 +232,7 @@ function ouvrirModaleCreationEnigme() {
         boutonSubmit.textContent = 'Publier mon énigme';
       }
     }).catch(() => {
-      afficherToastMessage('Impossible de récupérer ta position. Vérifie que la géolocalisation est autorisée.', 'erreur');
+      afficherToastMessage('Impossible de récupérer votre position. Vérifiez que la géolocalisation est autorisée.', 'erreur');
       boutonSubmit.disabled = false;
       boutonSubmit.textContent = 'Publier mon énigme';
     });

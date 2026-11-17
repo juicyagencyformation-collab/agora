@@ -31,10 +31,22 @@ async function chargerProgressionExploration() {
   const user = await res.json();
   const etapes = user.etapes_chasse_validees ?? 0;
   const enigmes = user.enigmes_trouvees ?? 0;
+  const badges = user.parcours?.badges?.length ?? 0;
   carte.hidden = false;
-  carte.innerHTML = etapes + enigmes
-    ? `🧭 <span>Vos découvertes</span> <strong>${etapes}</strong> étape${etapes > 1 ? 's' : ''} · <strong>${enigmes}</strong> énigme${enigmes > 1 ? 's' : ''}${user.niveau ? ` · niveau <strong>${user.niveau}</strong>` : ''}`
-    : '🧭 <span>Vos découvertes</span> Votre première découverte vous attend : choisissez un parcours ou une énigme !';
+  // Trois cases côte à côte (2026-11-17) : la phrase d'avant se coupait mal sur téléphone, et le
+  // niveau faisait doublon avec celui de l'avatar. La case « badges » ouvre la collection du profil.
+  const cas = (n, sing, plur) => `<strong>${n}</strong><span>${n > 1 ? plur : sing}</span>`;
+  carte.innerHTML = etapes + enigmes + badges
+    ? `<div>${cas(etapes, 'étape', 'étapes')}</div><div>${cas(enigmes, 'énigme', 'énigmes')}</div>
+       <button type="button" class="case-badges-exploration">${cas(badges, 'badge', 'badges')}</button>`
+    : '<p>Votre première découverte vous attend&nbsp;: choisissez un parcours ou une énigme.</p>';
+  carte.querySelector('.case-badges-exploration')?.addEventListener('click', () => {
+    window.OUVRIR_COLLECTION_PARCOURS = true;
+    activerOnglet('profil');
+  });
+  // La phrase d'accueil ne sert qu'aux nouveaux venus ; l'Explorateur garde la sienne (choix du village).
+  const intro = document.querySelector('#onglet-chasse-tresor > .bandeau-onglet p');
+  if (intro && !window.EST_EXPLORATEUR) intro.hidden = etapes + enigmes + badges > 0;
 }
 
 async function chargerChasses() {
@@ -94,11 +106,20 @@ function renderListeChasses(chasses) {
 // ── Brouillons (2026-11-13) : créer → tester → publier. Rien n'est visible ni notifié aux
 // habitants avant « Publier » (confirmation obligatoire, voir publierBrouillon). ──
 
+// Mini-médaille en coin de carte quand le parcours offre un badge (donne envie de l'ouvrir).
+function medailleCarteParcours(ch) {
+  if (!ch.badge_nom) return '';
+  return `<span class="medaille-carte-parcours" title="Badge à gagner : ${escapeAttr(ch.badge_nom)}">${svgMedaille({
+    nom: ch.badge_nom, icone: ch.badge_icone, metal: ch.badge_metal, village_nom: villageVisite?.nom || window.COMMUNE_NOM || '',
+  })}</span>`;
+}
+
 function renderCarteBrouillon(brouillon) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'carte-chasse-compacte carte-brouillon';
+  el.className = `carte-chasse-compacte carte-brouillon${brouillon.badge_nom ? ' avec-medaille' : ''}`;
   el.innerHTML = `
+    ${medailleCarteParcours(brouillon)}
     <span class="type-parcours type-${brouillon.mode === 'balade' ? 'balade' : 'chasse'}">${brouillon.mode === 'balade' ? '🚶 Balade' : '🔎 Chasse'}</span>
     <h3>${escapeAttr(brouillon.titre)}</h3>
     <p class="etat-brouillon">📝 Brouillon · visible par la mairie seulement</p>
@@ -281,14 +302,15 @@ function messageAucunParcours() {
 function renderCarteChasseCompacte(chasse) {
   const el = document.createElement('button');
   el.type = 'button';
-  el.className = 'carte-chasse-compacte';
+  el.className = `carte-chasse-compacte${chasse.badge_nom ? ' avec-medaille' : ''}`;
   const termine = chasse.etapes_validees >= chasse.total_etapes;
   const pct = chasse.total_etapes ? Math.round((chasse.etapes_validees / chasse.total_etapes) * 100) : 0;
   el.innerHTML = `
+    ${medailleCarteParcours(chasse)}
     <span class="type-parcours type-${chasse.mode === 'balade' ? 'balade' : 'chasse'}">${chasse.mode === 'balade' ? '🚶 Balade' : '🔎 Chasse'}</span>
     <h3>${escapeAttr(chasse.titre)}</h3>
     <div class="barre-progression-parcours"><span style="width:${pct}%"></span></div>
-    <p>${chasse.etapes_validees} / ${chasse.total_etapes} étapes${termine ? ' · Terminé 🏁' : ''}</p>
+    <p>${chasse.etapes_validees} / ${chasse.total_etapes} étape${chasse.total_etapes > 1 ? 's' : ''}${termine ? ' · Terminé 🏁' : ''}</p>
   `;
   el.addEventListener('click', () => ouvrirDetailChasse(chasse.id));
   return el;
@@ -325,7 +347,7 @@ function initToggleArchivesChasses() {
   if (!btn) return;
   btn.addEventListener('click', () => {
     modeArchivesChasses = !modeArchivesChasses;
-    btn.textContent = modeArchivesChasses ? '← Parcours actifs' : '🗄️ Archives';
+    btn.textContent = modeArchivesChasses ? '← Actifs' : '🗄️ Archives';
     idChasseDetailOuverte = null;
     chargerChasses();
   });
@@ -474,7 +496,7 @@ function renderDetailChasse(chasse) {
   zone.querySelector('.btn-voir-qr')?.addEventListener('click', () => afficherQrEtapes(chasse.id, zone));
   zone.querySelector('.btn-modifier-chasse')?.addEventListener('click', () => ouvrirModaleEditionChasse(chasse));
   zone.querySelector('.btn-archiver-chasse')?.addEventListener('click', async () => {
-    if (!confirm('Retirer cette chasse de la liste ? Son historique et son classement restent conservés, tu pourras la réactiver depuis "Voir les chasses archivées".')) return;
+    if (!confirm('Retirer cette chasse de la liste ? Son historique et son classement restent conservés, vous pourrez la réactiver depuis « Archives ».')) return;
     const res = await appelApi(`/${window.COMMUNE_SLUG}/chasses-tresor/${chasse.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -778,7 +800,7 @@ function afficherEnigmeEtapePosition(etape_id, question) {
   const html = `
     <form id="form-enigme-balade">
       <p class="indice-etape">${escapeAttr(question)}</p>
-      <input type="text" id="reponse-enigme-balade" placeholder="Ta réponse" maxlength="200" required>
+      <input type="text" id="reponse-enigme-balade" placeholder="Votre réponse" maxlength="200" required>
       <button type="submit" style="margin-top:10px;">Valider ma réponse</button>
     </form>
   `;
@@ -866,7 +888,7 @@ function afficherEnigmeEtape(qr_token, question, url) {
   const html = `
     <form id="form-enigme-etape">
       <p class="indice-etape">${escapeAttr(question)}</p>
-      <input type="text" id="reponse-enigme-etape" placeholder="Ta réponse" maxlength="200" required>
+      <input type="text" id="reponse-enigme-etape" placeholder="Votre réponse" maxlength="200" required>
       <button type="submit" style="margin-top:10px;">Valider ma réponse</button>
     </form>
   `;
@@ -1197,7 +1219,7 @@ async function ouvrirModaleCreationChasse(brouillon = null) {
         <input type="number" id="rayon-chasse-modale" value="${brouillon?.rayon_metres || 50}" min="20" max="500">
       </div>
       <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">📍 Emplacement des étapes</label>
-      <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Clique sur la carte pour placer chaque étape — pas besoin d'être sur place. Fais glisser un repère pour l'ajuster.</p>
+      <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Cliquez sur la carte pour placer chaque étape, pas besoin d'être sur place. Faites glisser un repère pour l'ajuster.</p>
       <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
       <button type="button" id="btn-ajouter-etape-modale" style="background:transparent;color:var(--eau);border:1.5px solid var(--eauL);">+ Ajouter une étape</button>
@@ -1270,7 +1292,7 @@ function initCarteCreationChasse(corps) {
     const ligneAPlacer = [...corps.querySelectorAll('.ligne-etape-chasse')]
       .find((l) => !l.querySelector('.etape-lat').value || !l.querySelector('.etape-lng').value);
     if (!ligneAPlacer) {
-      afficherToastMessage('Ajoute une étape pour placer un point supplémentaire, ou fais glisser un repère existant.', 'info');
+      afficherToastMessage('Ajoutez une étape pour placer un point supplémentaire, ou faites glisser un repère existant.', 'info');
       return;
     }
     definirPositionEtape(ligneAPlacer, e.latlng.lat, e.latlng.lng);
@@ -1549,7 +1571,7 @@ async function soumettreChasse(corps, overlay, brouillonId = null) {
   }
 
   if (!etapes.length) {
-    afficherToastMessage('Ajoute au moins une étape complète (titre, position).', 'erreur');
+    afficherToastMessage('Ajoutez au moins une étape complète (titre, position).', 'erreur');
     return;
   }
 
@@ -1591,9 +1613,9 @@ async function ouvrirModaleEditionChasse(chasse) {
         <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">Rayon de validation autour de chaque point (mètres)</label>
         <input type="number" id="rayon-chasse-modale" value="${chasse.rayon_metres || 50}" min="20" max="500">
       ` : ''}
-      <p style="font-size:12px;color:var(--roseau);margin:10px 0 4px;">Corrige les étapes ci-dessous. Ajouter, retirer ou réordonner une étape n'est pas possible ici — il faut recréer la chasse pour ça.</p>
+      <p style="font-size:12px;color:var(--roseau);margin:10px 0 4px;">Corrigez les étapes ci-dessous. Ajouter, retirer ou réordonner une étape n'est pas possible ici — il faut recréer la chasse pour ça.</p>
       <label style="display:block;margin:8px 0 4px;font-size:13px;color:var(--roseau);">📍 Emplacement des étapes</label>
-      <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Fais glisser un repère pour corriger sa position, sans avoir à te rendre sur place.</p>
+      <p style="font-size:12px;color:var(--roseau);margin-bottom:4px;">Faites glisser un repère pour corriger sa position, sans avoir à vous rendre sur place.</p>
       <div id="carte-creation-chasse" class="mini-carte-position"></div>
       <div id="liste-etapes-chasse-modale"></div>
       ${htmlVoletBadge(chasse)}

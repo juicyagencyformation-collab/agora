@@ -816,6 +816,8 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
   display: inline-flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, var(--aube), var(--or));
   color: var(--boue); font-size: 10.5px; font-weight: 700;
+  /* Police droite : les chiffres de Playfair (hérités du titre) descendaient sous la ligne. */
+  font-family: 'DM Sans', sans-serif; font-variant-numeric: lining-nums tabular-nums; border-radius: 100px;
 }
 
 .sous-titre-chasse {
@@ -1523,13 +1525,31 @@ body.est-admin .admin-en-ligne { display: inline-flex; align-items: center; }
   flex-shrink: 0; border: none; border-radius: 100px; padding: 6px 12px; cursor: pointer;
   background: var(--eau); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 700;
 }
-.carte-progression-exploration {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0 0 10px; padding: 10px 14px;
-  border-radius: var(--r); background: var(--eauXL); color: var(--boue); font-size: 13px;
-}
+/* Bandeau Explorer resserré (2026-11-17) : les parcours doivent apparaître sans faire défiler. */
+.bandeau-onglet.bandeau-compact { padding: 10px 14px; margin-bottom: 10px; }
+.bandeau-onglet.bandeau-compact h3 { font-size: 20px; margin: 0; }
+.bandeau-onglet.bandeau-compact p { margin: 4px 0 0; }
+.bandeau-onglet.bandeau-compact p[hidden] { display: none; }
+/* « Vos découvertes » : trois cases (étapes, énigmes, badges). */
+.carte-progression-exploration { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 10px; }
 .carte-progression-exploration[hidden] { display: none; }
-.carte-progression-exploration span { font-weight: 700; color: var(--eau); margin-right: 4px; }
-.carte-progression-exploration strong { color: var(--eau); }
+.carte-progression-exploration > div, .carte-progression-exploration > button {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; margin: 0; padding: 7px 6px;
+  border-radius: 12px; background: var(--eauXL); border: none; color: var(--boue); font-family: 'DM Sans', sans-serif;
+}
+.carte-progression-exploration > button { cursor: pointer; background: #FFF8E1; box-shadow: inset 0 0 0 1px var(--aube); }
+.carte-progression-exploration strong { font-family: 'DM Sans', sans-serif; font-variant-numeric: lining-nums tabular-nums; font-size: 18px; color: var(--eau); line-height: 1.2; }
+.carte-progression-exploration span { font-size: 11.5px; color: var(--roseau); }
+.carte-progression-exploration > p { grid-column: 1 / -1; margin: 0; padding: 10px 14px; border-radius: var(--r); background: var(--eauXL); font-size: 13px; color: var(--boue); }
+.btn-archives-mini {
+  flex-shrink: 0; border: 1.5px solid var(--eauL); border-radius: 100px; padding: 5px 10px; cursor: pointer; margin: 0;
+  background: #fff; color: var(--eau); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+}
+/* Mini-médaille du badge à gagner, en coin de carte de parcours. */
+.carte-chasse-compacte.avec-medaille { position: relative; }
+.carte-chasse-compacte.avec-medaille h3 { padding-right: 30px; }
+.medaille-carte-parcours { position: absolute; top: 8px; right: 8px; width: 30px; pointer-events: none; }
+.medaille-carte-parcours svg { display: block; width: 100%; height: auto; }
 
 /* Parcours : cartes défilantes horizontalement. */
 .liste-parcours { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }

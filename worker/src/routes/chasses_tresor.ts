@@ -524,7 +524,7 @@ export async function finaliserValidationEtape(c: any, commune_id: string, commu
       return c.json({ ok: true, etape_enigme: true, question: etape.contenu, ...extra });
     }
     if (normaliserReponse(reponseSaisie) !== normaliserReponse(etape.enigme_reponse ?? '')) {
-      return c.json({ erreur: 'Mauvaise réponse, réessaie.' }, 400);
+      return c.json({ erreur: 'Mauvaise réponse, réessayez.' }, 400);
     }
   }
 
