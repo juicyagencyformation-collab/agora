@@ -32,6 +32,12 @@ app.get('/qr', async (c) => {
   return c.json({ url, svg });
 });
 
+// Photo du jour, Énigme photo, Mur des voisins, Découverte régionale.
+export const CHAMPS_REGLAGES_SUPERADMIN = [
+  'photo_jour_seuil_validations', 'photo_jour_max_par_jour', 'photo_jour_duree',
+  'rayon_validation_enigme', 'enigme_duree', 'mur_duree', 'partage_regional',
+] as const;
+
 app.patch('/', jwtMiddleware, async (c) => {
   const role = c.get('role');
   if (!estGestionnaire(role)) {
@@ -61,6 +67,12 @@ app.patch('/', jwtMiddleware, async (c) => {
   const body = schema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
+
+  // Réglages techniques des modules : superadmin uniquement, comme leurs volets dans « Ma commune »
+  // (masqués aux autres rôles). Sans ce contrôle, le masquage n'était qu'à l'écran (2026-11-17).
+  if (role !== 'superadmin' && CHAMPS_REGLAGES_SUPERADMIN.some((champ) => body.data[champ] !== undefined)) {
+    return c.json({ erreur: 'Réglage réservé à l’équipe Plateforme-Agora' }, 403);
+  }
 
   const patch: Record<string, unknown> = { ...body.data };
 
