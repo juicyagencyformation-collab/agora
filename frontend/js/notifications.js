@@ -205,10 +205,9 @@ function afficherBanniereDemo() {
   `;
   zone.hidden = false;
   zone.querySelector('#btn-fermer-bandeau-demo').addEventListener('click', () => { zone.hidden = true; });
-  // Des visiteurs installaient la démo et s'y inscrivaient en la prenant pour leur commune
-  // (2026-11-16) : ni installation ni déconnexion (qui mène au formulaire d'inscription) ici.
+  // Démo : pas d'invitation à installer l'appli. « Se déconnecter » reste (le staff s'en sert pour
+  // quitter le compte visiteur) : l'inscription, elle, est refusée par le serveur (auth.ts).
   document.getElementById('section-installation-profil')?.closest('.carte-categorie-profil')?.remove();
-  document.getElementById('btn-deconnexion')?.remove();
 }
 
 function afficherBanniereOnboarding() {

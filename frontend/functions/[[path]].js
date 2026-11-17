@@ -287,6 +287,9 @@ export async function onRequest(context) {
         try {
           const reponse = await fetch(new URL(`/${premier}/commune`, WORKER_ORIGIN));
           const { commune } = reponse.ok ? await reponse.json() : {};
+          // Commune de démonstration (acces_libre, ex. Bonvivre) = vitrine : pas de manifest,
+          // donc rien à installer comme une appli (2026-11-17, demande de Léandre).
+          if (commune?.acces_libre) return new Response('Not found', { status: 404 });
           if (commune?.marque) {
             manifestJson.name = commune.nom;
             manifestJson.short_name = commune.nom;

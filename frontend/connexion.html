@@ -20,6 +20,8 @@
     .bascule-mode a { color: var(--eau); font-weight: 600; cursor: pointer; }
     .case-rgpd { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--roseau); margin: 10px 0; line-height: 1.4; }
     .case-rgpd input { width: auto; margin: 2px 0 0; }
+    /* Commune de démonstration (vitrine) : connexion seule, jamais d'inscription. */
+    body.commune-demo #vers-inscription, body.commune-demo #form-inscription, body.commune-demo #vers-connexion { display: none !important; }
     .lien-confidentialite { display: block; text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.85); text-decoration: underline; }
   </style>
 </head>
@@ -130,6 +132,21 @@
     if (new URLSearchParams(window.location.search).has('inscription')) {
       document.getElementById('vers-inscription').click();
     }
+
+    // Commune de démonstration (acces_libre, ex. Bonvivre) = vitrine : on peut s'y connecter
+    // (staff), jamais s'y inscrire — le serveur le refuse de toute façon (auth.ts, /register).
+    fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.commune?.acces_libre) return;
+        if (!formInscription.hidden) document.getElementById('vers-connexion').click();
+        document.body.classList.add('commune-demo');
+        const info = document.createElement('p');
+        info.className = 'bascule-mode';
+        info.innerHTML = 'Commune de démonstration : les inscriptions sont fermées.<br><a href="/rejoindre.html">Trouver ma commune →</a>';
+        document.getElementById('vers-inscription').after(info);
+      })
+      .catch(() => {});
 
     formConnexion.addEventListener('submit', async (e) => {
       e.preventDefault();
