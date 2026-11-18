@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/css/base.css?v=20261117-3">
   <link rel="stylesheet" href="/css/lightbox.css?v=20261117-4">
   <link rel="stylesheet" href="/css/thermometre.css?v=20261005-6">
-  <link rel="stylesheet" href="/css/dashboard.css?v=20261117-5">
+  <link rel="stylesheet" href="/css/dashboard.css?v=20261118-1">
 </head>
 <body>
 
@@ -567,13 +567,20 @@
         </div>
       </div>
 
-      <div class="volet-reglage">
+      <!-- « Votre formule » (2026-11-18, frontend/js/formule.js) remplace « Onglets actifs » : ce qui est
+           inclus, ce que les formules payantes ajoutent, leur prix et la demande en un bouton. Les
+           interrupteurs des onglets restent, pour le superadmin seulement. -->
+      <div class="volet-reglage" id="volet-formule">
         <button type="button" class="volet-entete-generique">
-          <span>🗂️ Onglets actifs</span>
+          <span>⭐ Votre formule</span>
           <span class="chevron">▼</span>
         </button>
         <div class="volet-contenu">
-          <div id="panneau-onglets"></div>
+          <div id="panneau-formule"><p class="dechets-vide">Chargement…</p></div>
+          <div class="superadmin-only" style="margin-top:16px;">
+            <p class="groupe-formule">Interrupteurs des onglets (superadmin)</p>
+            <div id="panneau-onglets"></div>
+          </div>
         </div>
       </div>
 
@@ -798,8 +805,9 @@
   <script src="/js/profil.js?v=20261117-3"></script>
   <script src="/js/notifications.js?v=20261116-3"></script>
   <script src="/js/lois.js?v=20261109-1"></script>
-  <script src="/js/moderation.js?v=20261110-6"></script>
+  <script src="/js/formule.js?v=20261118-1"></script>
+  <script src="/js/moderation.js?v=20261118-1"></script>
   <script src="/js/participation-citoyenne.js?v=20261005-6"></script>
-  <script src="/js/navigation.js?v=20261115-2"></script>
+  <script src="/js/navigation.js?v=20261118-1"></script>
 </body>
 </html>

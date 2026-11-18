@@ -259,10 +259,9 @@ function activerOnglet(cle) {
 // l'événement d'activation côté serveur (best-effort, ne bloque jamais l'affichage de la modale).
 const REPLI_POPUP_VERROUILLE_TITRE = 'Ce module fait partie de l\'offre complète';
 const REPLI_POPUP_VERROUILLE_CORPS = `
-  <p>Le module <strong>{{module}}</strong> s'active avec les formules Essentiel, Pro ou Premium.</p>
-  <p>Vous voulez voir ce que ça donnerait concrètement pour votre commune&nbsp;? Répondez à
-  l'email de bienvenue ou appelez Léandre au <a href="tel:0648061097">06 48 06 10 97</a> —
-  pas de formulaire à remplir, juste une conversation.</p>
+  <p>Le module <strong>{{module}}</strong> s'active avec les formules Autonomie et Accompagné.</p>
+  <p>Vous voulez voir ce que ça donnerait concrètement pour votre commune&nbsp;? Contactez-nous à
+  contact@plateforme-agora.fr.</p>
 `;
 
 async function ouvrirModaleModuleVerrouille(cleHtml) {
@@ -271,7 +270,9 @@ async function ouvrirModaleModuleVerrouille(cleHtml) {
   const textes = await chargerContenuTexteCitoyen();
   const titre = textes.popup_verrouille_titre || REPLI_POPUP_VERROUILLE_TITRE;
   const corps = (textes.popup_verrouille_corps || REPLI_POPUP_VERROUILLE_CORPS).replace(/\{\{module\}\}/g, libelle);
-  ouvrirModaleFormulaire(titre, corps);
+  const overlay = ouvrirModaleFormulaire(titre, corps);
+  // Prix de la commune et bouton « Demander à changer de formule » (formule.js, 2026-11-18).
+  if (cleApi && typeof completerPopupModuleVerrouille === 'function') completerPopupModuleVerrouille(overlay, cleApi);
   if (cleApi) {
     appelApi(`/${window.COMMUNE_SLUG}/moderation/onglets/${cleApi}/verrouille-clique`, { method: 'POST' }).catch(() => {});
   }

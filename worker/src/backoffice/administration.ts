@@ -1858,8 +1858,18 @@ app.patch('/communes/:id/abonnement', async (c) => {
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
 
   await supabaseUpdate(c.env, 'communes', body.data, { id: `eq.${id}` });
+  if (body.data.formule) await clorerDemandesFormule(c.env, id);
   return c.json({ ok: true });
 });
+
+// Demande de changement de formule faite depuis l'app (volet « Votre formule », migration 105) :
+// close dès que la formule ou le palier de la commune change ici — elle quitte alors la page
+// Aujourd'hui et la mairie retrouve son bouton. Jamais bloquant (table absente = rien à clore).
+export async function clorerDemandesFormule(env: any, commune_id: string) {
+  await supabaseUpdate(env, 'demandes_formule', { statut: 'traitee', traitee_le: new Date().toISOString() }, {
+    commune_id: `eq.${commune_id}`, statut: 'eq.en_attente',
+  }).catch(() => {});
+}
 
 // POST /communes/:id/abonnement/marquer-paye — encaisse l'échéance en cours : avance la
 // prochaine échéance de la durée d'engagement, et réarme le rappel automatique pour le
@@ -2004,6 +2014,7 @@ app.post('/communes/:id/onglets/preset', async (c) => {
 
   const ongletsActifs = preset === 'gratuit' ? await chargerOngletsGratuits(c.env) : [...TOUS_LES_ONGLETS];
   await appliquerOngletsSurCommune(c.env, id, ongletsActifs);
+  if (preset !== 'gratuit') await clorerDemandesFormule(c.env, id);
 
   const forfait = LIBELLES_FORFAIT_PRESET[preset];
   const donnees: Record<string, unknown> = { forfait };

@@ -1903,3 +1903,64 @@ form button.btn-contour-aide-redaction:hover { background: #fff; }
   body.impression-diplome .texte-diplome-parcours p { font-size: 14pt; }
   body.impression-diplome .pied-diplome { font-size: 11pt; }
 }
+
+/* ─── Volet « Votre formule » de Ma commune (2026-11-18, voir frontend/js/formule.js) ─── */
+#volet-formule .volet-contenu.ouvert { max-height: 2600px; }
+#panneau-formule { display: flex; flex-direction: column; gap: 12px; }
+.formule-actuelle { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--calc); border-radius: 12px; padding: 9px 12px; }
+.formule-actuelle span { display: block; font-size: 12px; color: var(--roseau); }
+.formule-actuelle strong { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--boue); }
+.groupe-formule { font-family: 'DM Mono', monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--roseau); margin: 0 0 6px; }
+.pastilles-inclus-formule { display: flex; flex-wrap: wrap; gap: 6px; }
+.pastilles-inclus-formule span { font-size: 12px; padding: 4px 9px; border-radius: 100px; background: #E7F1E3; color: var(--prairie); font-weight: 600; }
+.en-plus-formule { border: 1px solid #E4DDD0; border-radius: 12px; background: #fff; }
+.en-plus-formule summary { cursor: pointer; padding: 9px 12px; font-size: 13px; font-weight: 600; color: var(--boue); }
+.en-plus-formule ul { list-style: none; margin: 0; padding: 0 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.en-plus-formule li { display: grid; grid-template-columns: 22px 1fr; gap: 4px; font-size: 12.5px; color: var(--roseau); line-height: 1.35; }
+.en-plus-formule li b { display: block; color: var(--boue); font-size: 13px; }
+.beta-formule { font-family: 'DM Mono', monospace; font-size: 9.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 100px; background: var(--aube); color: var(--boue); vertical-align: 1px; }
+.cartes-offres-formule { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+.carte-offre-formule { position: relative; border: 1.5px solid #E4DDD0; border-radius: 12px; padding: 10px 11px; display: flex; flex-direction: column; gap: 2px; background: #fff; }
+.carte-offre-formule.mise-en-avant { border-color: var(--aube); background: #FFFBF0; }
+.etiquette-offre-formule { position: absolute; top: -9px; right: 8px; font-size: 10px; font-weight: 700; background: var(--aube); color: var(--boue); padding: 2px 7px; border-radius: 100px; }
+.nom-offre-formule { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--prairie); }
+.titre-offre-formule { font-family: 'Playfair Display', serif; font-size: 13px; line-height: 1.2; color: var(--eau); }
+.montant-offre-formule { font-family: 'Playfair Display', serif; font-size: 25px; line-height: 1.15; color: var(--boue); font-variant-numeric: lining-nums tabular-nums; }
+.montant-offre-formule small { font-family: 'DM Sans', sans-serif; font-size: 11px; color: var(--roseau); font-weight: 500; }
+.mois-offre-formule { font-size: 13px; font-weight: 600; color: var(--boue); font-variant-numeric: lining-nums tabular-nums; }
+.hab-offre-formule { font-size: 11px; font-weight: 600; color: var(--prairie); line-height: 1.3; }
+.detail-offre-formule summary { cursor: pointer; font-size: 11.5px; color: var(--eau); font-weight: 600; margin-top: 4px; }
+.detail-offre-formule ul { margin: 4px 0 0; padding-left: 15px; font-size: 11.5px; color: var(--roseau); line-height: 1.4; }
+.note-formule { font-size: 11.5px; color: var(--roseau); margin: 0; }
+.option-patrimoine-formule { display: grid; grid-template-columns: 22px 1fr; gap: 6px; border: 1px dashed var(--aube); background: #FFFBF0; border-radius: 12px; padding: 8px 10px; font-size: 12px; color: var(--roseau); line-height: 1.35; }
+.option-patrimoine-formule b { display: block; color: var(--boue); font-size: 13px; }
+.demande-en-cours-formule { background: #FFF8E1; border: 1px solid var(--aube); border-radius: 12px; padding: 9px 11px; font-size: 12.5px; color: var(--boue); margin: 0; }
+.btn-demander-formule, .btn-voir-formules {
+  width: 100%; margin: 0; padding: 12px; border-radius: 100px; cursor: pointer;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  border: 1.5px solid var(--eau); background: var(--eau); color: #fff;
+}
+.btn-voir-formules { background: #fff; color: var(--eau); border-color: var(--eauL); font-size: 13px; padding: 10px; }
+/* Formulaire de demande */
+.choix-formules { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.choix-formule { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid #E4DDD0; border-radius: 12px; padding: 9px 11px; font-size: 13px; cursor: pointer; }
+.choix-formule:has(input:checked) { border-color: var(--eau); background: var(--eauXL); }
+form .choix-formule input { width: auto; margin: 3px 0 0; display: inline; accent-color: var(--eau); }
+.choix-formule b { display: block; font-size: 13.5px; color: var(--boue); }
+.choix-formule small { color: var(--roseau); font-size: 11.5px; }
+.label-formule { display: block; font-size: 12.5px; font-weight: 600; color: var(--roseau); margin: 0 0 4px; }
+/* Confirmation */
+.confirmation-formule { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.coche-formule { width: 60px; height: 60px; border-radius: 50%; background: #E7F1E3; color: var(--prairie); display: grid; place-items: center; font-size: 28px; font-weight: 700; }
+.confirmation-formule > p { margin: 0; font-size: 13.5px; color: var(--roseau); }
+.etapes-formule { list-style: none; margin: 8px 0 0; padding: 0; width: 100%; text-align: left; }
+.etapes-formule li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; position: relative; padding-bottom: 14px; }
+.etapes-formule li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 28px; bottom: 0; width: 2px; background: var(--eauL); }
+.etapes-formule li > span:first-child { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; background: var(--eauXL); color: var(--eau); border: 2px solid var(--eauL); z-index: 1; }
+.etapes-formule li.fait > span:first-child { background: var(--prairie); color: #fff; border-color: var(--prairie); }
+.etapes-formule b { display: block; font-size: 13.5px; color: var(--boue); }
+.etapes-formule small { font-size: 12px; color: var(--roseau); line-height: 1.35; }
+/* Complément de la fenêtre des onglets grisés */
+.complement-popup-formule { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.complement-popup-formule p { margin: 0; font-size: 13px; color: var(--roseau); }
+.apport-module-formule { background: var(--eauXL); border-radius: 12px; padding: 9px 11px; color: var(--boue) !important; }

@@ -116,6 +116,7 @@ function initVoletsGeneriquesModeration() {
 // fois au démarrage (initVolet*, voir navigation.js) ; ici on ne fait que charger les valeurs.
 async function chargerPanneauCommune() {
   chargerListeMessagesMairie();
+  chargerPanneauFormule();
   chargerPanneauOngletsActifs();
   chargerListeDechetsModeration();
   chargerApercuLogoCommune();

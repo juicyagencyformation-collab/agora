@@ -3,11 +3,13 @@ import { estGestionnaire, peutGererRoles } from '../lib/permissions';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
-import { supabaseSelect, supabaseUpdate } from '../db';
+import { supabaseSelect, supabaseUpdate, supabaseInsert } from '../db';
 import { uploaderFichier, urlLogoVersionnee } from '../storage';
 import { genererQrSvgUrl } from '../lib/qr-url';
 import { deduireDepartement } from '../lib/geo';
 import { marqueCommune, dimensionsPng } from '../lib/marque-commune';
+import { infosFormule, demandeFormuleSchema, emailDemandeFormule, ROLES_DEMANDE_FORMULE } from '../lib/formule-commune';
+import { envoyerEmail } from '../lib/email';
 
 const app = new Hono();
 
@@ -163,6 +165,55 @@ app.post('/logo/icone', jwtMiddleware, async (c) => {
   }
   await uploaderFichier(c.env, `${commune_id}/icone.png`, donnees, 'image/png');
   return c.json({ ok: true });
+});
+
+// ── Volet « Votre formule » (2026-11-18, migration 105, logique dans lib/formule-commune.ts) ──
+
+// GET /formule — formule actuelle, onglets inclus/verrouillés, prix de la commune, demande en cours.
+// Gestionnaires uniquement (l'onglet Ma commune leur est réservé) ; seuls maire/élus peuvent demander.
+app.get('/formule', jwtMiddleware, async (c) => {
+  const role = c.get('role');
+  if (!estGestionnaire(role)) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  return c.json(await infosFormule(c.env, c.get('commune_id'), role));
+});
+
+// POST /demande-formule — le maire ou un élu demande à changer de formule. Rien ne s'active :
+// une ligne en base (visible dans le backoffice) et un email à l'équipe, qui rappelle.
+app.post('/demande-formule', jwtMiddleware, async (c) => {
+  const role = c.get('role');
+  if (!ROLES_DEMANDE_FORMULE.includes(role)) return c.json({ erreur: 'Seuls le maire et les élus peuvent faire cette demande.' }, 403);
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const body = demandeFormuleSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Merci de vérifier le téléphone et la formule choisie.' }, 400);
+
+  const infos = await infosFormule(c.env, commune_id, role);
+  if (infos.demande_en_cours) return c.json({ erreur: 'Une demande est déjà en cours : nous vous rappelons très vite.' }, 409);
+  if (!infos.peut_demander) return c.json({ erreur: 'Votre commune a déjà accès à toutes les fonctionnalités.' }, 400);
+
+  // Ancienne demande restée en attente au-delà de sa validité : close, sinon l'index unique
+  // (une seule demande en attente par commune) refuserait la nouvelle.
+  await supabaseUpdate(c.env, 'demandes_formule', { statut: 'traitee', traitee_le: new Date().toISOString() }, {
+    commune_id: `eq.${commune_id}`, statut: 'eq.en_attente',
+  });
+  const [demande] = await supabaseInsert(c.env, 'demandes_formule', {
+    commune_id, user_id, formule_souhaitee: body.data.formule_souhaitee,
+    telephone: body.data.telephone, message: body.data.message || null,
+  });
+
+  const [[commune], [demandeur]] = await Promise.all([
+    supabaseSelect(c.env, 'communes', { select: 'nom,population', id: `eq.${commune_id}` }),
+    supabaseSelect(c.env, 'users', { select: 'prenom,nom,email', id: `eq.${user_id}`, commune_id: `eq.${commune_id}` }),
+  ]);
+  const { sujet, html } = emailDemandeFormule({
+    commune: commune?.nom ?? '', population: commune?.population ?? null, formule_actuelle: infos.formule,
+    formule_souhaitee: body.data.formule_souhaitee, demandeur: `${demandeur?.prenom ?? ''} ${demandeur?.nom ?? ''}`.trim(),
+    role, email: demandeur?.email ?? '', telephone: body.data.telephone, message: body.data.message,
+  });
+  // L'email ne bloque jamais : la demande est enregistrée et visible dans le backoffice.
+  c.executionCtx.waitUntil(envoyerEmail(c.env, c.env.EMAIL_CONTACT || 'contact@plateforme-agora.fr', sujet, html, undefined, demandeur?.email || undefined));
+
+  return c.json({ ok: true, demande: { formule_souhaitee: demande.formule_souhaitee, created_at: demande.created_at } }, 201);
 });
 
 export default app;

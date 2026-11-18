@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseSelectTout, supabaseCount, supabaseUpsert, journaliser } from '../db';
 import { infosContratDpa } from './facturation';
 import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
+import { FORMULES_SOUHAITEES, JOURS_VALIDITE_DEMANDE } from '../lib/formule-commune';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -146,10 +147,36 @@ export function calculerParcours(commune: any, etapes: Etape[], maintenant = Dat
   return parcours('active', 'Active', premiereManquante(ORDRE_GRATUITE) ?? { cle: 'offre-payante', action: 'Proposer une offre payante', onglet: 'dossier' });
 }
 
+// Demandes de changement de formule envoyées depuis l'app (volet « Votre formule », migration 105) :
+// en tête de la page Aujourd'hui, à rappeler sous 48 h. Elles se closent d'elles-mêmes quand la
+// formule ou le palier de la commune change (voir clorerDemandesFormule, administration.ts).
+async function anomaliesDemandesFormule(env: any): Promise<Anomalie[]> {
+  const demandes = await supabaseSelect(env, 'demandes_formule', {
+    select: 'commune_id,formule_souhaitee,telephone,created_at,user_id', statut: 'eq.en_attente',
+    created_at: `gte.${new Date(Date.now() - JOURS_VALIDITE_DEMANDE * 86400000).toISOString()}`, order: 'created_at.asc',
+  }).catch(() => [] as any[]);
+  if (!demandes.length) return [];
+  const [communes, demandeurs] = await Promise.all([
+    supabaseSelect(env, 'communes', { select: 'id,nom,slug', id: `in.(${demandes.map((d: any) => d.commune_id).join(',')})` }),
+    supabaseSelect(env, 'users', { select: 'id,prenom,nom,role', id: `in.(${demandes.map((d: any) => d.user_id).filter(Boolean).join(',') || '00000000-0000-0000-0000-000000000000'})` }),
+  ]);
+  return demandes.map((d: any) => {
+    const cm = communes.find((x: any) => x.id === d.commune_id);
+    const u = demandeurs.find((x: any) => x.id === d.user_id);
+    const quand = new Date(d.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' });
+    return {
+      code: 'demande_formule', gravite: 'haute' as const, commune_id: d.commune_id, commune_nom: cm?.nom ?? null, commune_slug: cm?.slug ?? null,
+      message: `📞 Demande de formule « ${FORMULES_SOUHAITEES[d.formule_souhaitee as keyof typeof FORMULES_SOUHAITEES] ?? d.formule_souhaitee} » le ${quand}`
+        + `${u ? ` par ${u.prenom} ${u.nom} (${u.role})` : ''}, téléphone ${d.telephone ?? 'non donné'} : à rappeler sous 48 h ouvrées.`,
+    };
+  });
+}
+
 app.get('/anomalies', async (c) => {
+  const demandesFormule = await anomaliesDemandesFormule(c.env);
   const communes = await communesSuivies(c.env);
   const ids = communes.map((cm: any) => cm.id);
-  if (!ids.length) return c.json({ anomalies: [] });
+  if (!ids.length) return c.json({ anomalies: demandesFormule });
   const [conventions, dpas] = await Promise.all([
     supabaseSelect(c.env, 'conventions', { select: 'commune_id,statut,created_at', commune_id: `in.(${ids.join(',')})` }),
     Promise.all(ids.map((id: string) => infosContratDpa(c.env, id))),
@@ -166,7 +193,7 @@ app.get('/anomalies', async (c) => {
     code: 'plafond_inscriptions', gravite: 'haute', commune_id: null, commune_nom: null, commune_slug: null,
     message: `Plafond d'inscriptions atteint (${p.details}) le ${new Date(p.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })} : robots ou vrai lancement ? Les inscriptions reprennent seules après une heure.`,
   }));
-  return c.json({ anomalies: [...alertesInscriptions, ...detecterAnomalies(communes, conventions, dpaManquants)] });
+  return c.json({ anomalies: [...demandesFormule, ...alertesInscriptions, ...detecterAnomalies(communes, conventions, dpaManquants)] });
 });
 
 // Liste de démarrage d'une commune (chaque étape se coche d'elle-même dès qu'elle est faite) et son
