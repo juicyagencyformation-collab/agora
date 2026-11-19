@@ -219,7 +219,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
       obligations (article 28.4 du RGPD).</p>
 
       <h2>Article 8 — Localisation et transferts hors de l'Union européenne</h2>
-      <p>8.1. La base de données de la Plateforme est hébergée dans l'Union européenne (Francfort, Allemagne). Les
+      <p>8.1. La base de données de la Plateforme est hébergée dans l'Union européenne (France, Paris). Les
       fichiers déposés (photos, documents) sont stockés dans un espace de stockage Cloudflare R2 soumis à une
       restriction de juridiction « Union européenne ».</p>
       <p>8.2. Certains traitements impliquent ou peuvent impliquer un accès ou un traitement transitoire depuis un
@@ -390,7 +390,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
 
       <h2>Annexe 2 — Mesures techniques et organisationnelles de sécurité</h2>
       <p><strong>Hébergement et localisation</strong> — Base de données PostgreSQL managée hébergée dans l'Union
-      européenne (région Francfort). Stockage des fichiers (Cloudflare R2) soumis à une restriction de juridiction
+      européenne (région Paris, France). Stockage des fichiers (Cloudflare R2) soumis à une restriction de juridiction
       « Union européenne ». Chiffrement des données au repos assuré par les hébergeurs.</p>
       <p><strong>Cloisonnement entre communes</strong> — Architecture mutualisée à cloisonnement applicatif :
       l'identifiant de la commune est imposé par le serveur applicatif sur chaque requête et n'est jamais déterminé
@@ -418,7 +418,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
       <table class="grille">
         <thead><tr><th>Sous-traitant ultérieur</th><th>Prestation</th><th>Localisation des données</th><th>Garanties pour les transferts</th></tr></thead><tbody>
         <tr><td>Cloudflare, Inc. (États-Unis)</td><td>Hébergement et distribution de l'application (Pages), serveur applicatif (Workers), stockage des fichiers (R2)</td><td>Fichiers : Union européenne (bucket R2 en juridiction « UE ») ; traitement applicatif sur le réseau mondial</td><td>Certification Data Privacy Framework ; clauses contractuelles types</td></tr>
-        <tr><td>Supabase, Inc. (États-Unis)</td><td>Base de données PostgreSQL managée</td><td>Union européenne (Francfort, Allemagne)</td><td>DPA Supabase ; hébergement fixé en UE</td></tr>
+        <tr><td>Supabase, Inc. (États-Unis)</td><td>Base de données PostgreSQL managée</td><td>Union européenne (France, Paris)</td><td>DPA Supabase ; hébergement fixé en UE</td></tr>
         <tr><td>Resend, Inc. (États-Unis)</td><td>Envoi des courriels transactionnels</td><td>États-Unis</td><td>Certification Data Privacy Framework ; clauses contractuelles types</td></tr>
         <tr><td>Cloudflare, Inc. — Workers AI (si la Commune active l'option)</td><td>Modération automatique des photos par IA</td><td>Réseau mondial ; aucune conservation après analyse, aucun entraînement de modèle</td><td>Mêmes garanties que Cloudflare ci-dessus</td></tr>
       </tbody></table>

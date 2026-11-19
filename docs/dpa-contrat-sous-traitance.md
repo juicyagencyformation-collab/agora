@@ -167,8 +167,8 @@ sous-traitant ultérieur, de ses obligations (article 28.4 du RGPD).
 
 ## Article 8 — Localisation et transferts hors de l'Union européenne
 
-8.1. La base de données de la Plateforme est hébergée dans l'Union européenne (Francfort,
-Allemagne). Les fichiers déposés (photos, documents) sont stockés dans un espace de stockage
+8.1. La base de données de la Plateforme est hébergée dans l'Union européenne (France,
+Paris). Les fichiers déposés (photos, documents) sont stockés dans un espace de stockage
 Cloudflare R2 soumis à une restriction de juridiction « Union européenne » (migration effectuée
 le 10 octobre 2026).
 
@@ -396,7 +396,7 @@ demander à les adapter.
 ## Annexe 2 — Mesures techniques et organisationnelles de sécurité
 
 **Hébergement et localisation**
-- Base de données PostgreSQL managée hébergée dans l'Union européenne (région Francfort).
+- Base de données PostgreSQL managée hébergée dans l'Union européenne (région Paris, France).
 - Stockage des fichiers (Cloudflare R2) soumis à une restriction de juridiction « Union
   européenne ».
 - Chiffrement des données au repos assuré par les hébergeurs.
@@ -447,7 +447,7 @@ demander à les adapter.
 | Sous-traitant ultérieur | Prestation | Localisation des données | Garanties pour les transferts |
 |---|---|---|---|
 | **Cloudflare, Inc.** (États-Unis) | Hébergement et distribution de l'application (Cloudflare Pages), exécution du serveur applicatif (Workers), stockage des fichiers (R2) | Fichiers : Union européenne (bucket R2 en juridiction « UE ») ; traitement applicatif sur le réseau mondial, au plus près de l'Utilisateur | Certification *Data Privacy Framework* ; clauses contractuelles types (DPA Cloudflare) |
-| **Supabase, Inc.** (États-Unis) | Base de données PostgreSQL managée | Union européenne (Francfort, Allemagne) | DPA Supabase incluant les clauses contractuelles types ; hébergement fixé en UE |
+| **Supabase, Inc.** (États-Unis) | Base de données PostgreSQL managée | Union européenne (France, Paris) | DPA Supabase incluant les clauses contractuelles types ; hébergement fixé en UE |
 | **Resend, Inc.** (États-Unis) | Envoi des courriels transactionnels (confirmation de compte, réinitialisation de mot de passe, notifications, bilans) | États-Unis | Certification *Data Privacy Framework* ; clauses contractuelles types (DPA Resend) |
 | **Cloudflare, Inc.** — Workers AI *(uniquement si la Commune active l'option)* | Modération automatique des photos par intelligence artificielle | Réseau mondial ; aucune conservation de l'image après analyse, aucune utilisation pour l'entraînement de modèles | Mêmes garanties que Cloudflare ci-dessus |
 

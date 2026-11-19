@@ -5,6 +5,32 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-19 — Contrat de protection des données : base située à Francfort au lieu de Paris
+
+**Gravité :** faible (texte légal inexact, aucune donnée concernée)
+**Fichiers :** `worker/src/backoffice/contrat-dpa.ts`, `docs/dpa-contrat-sous-traitance.md`
+
+### Symptôme
+En préparant le mémo d'appel, deux versions se contredisaient : Claude desktop disait « Paris »,
+le DPA disait « Francfort, Allemagne » (article 8.1, annexe 2, tableau des sous-traitants).
+
+### Cause
+Région Supabase écrite de mémoire à la rédaction du DPA, jamais revérifiée.
+
+### Correction
+Léandre a confirmé la région dans Supabase : West EU (Paris). Les 3 mentions sont passées à
+« France, Paris » dans le modèle du contrat et dans sa version de référence.
+
+### Vérification
+Plus aucune occurrence de « Francfort » dans le code ni dans les docs ; 497 tests verts.
+
+### À retenir
+Les contrats déjà signés et figés (empreinte SHA-256) gardent leur texte d'origine : seuls les
+prochains contrats portent « Paris ». Toute localisation citée dans un texte légal se vérifie
+dans la console de l'hébergeur, jamais de mémoire.
+
+---
+
 ## 2026-11-19 — Vigilances : les espaces créés par la prospection n'en recevaient jamais
 
 **Gravité :** moyenne (4 communes avec des abonnés aux notifications privées d'alertes, dont
