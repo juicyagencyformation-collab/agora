@@ -326,6 +326,23 @@ function backoffice() {
       ['ensemble', 'Vue d’ensemble'], ['echanges', 'Échanges'], ['dossier', 'Dossier'],
       ['utilisateurs', 'Utilisateurs'], ['configuration', 'Configuration'],
     ],
+    // Qualification d'un appel (menus déroulants de la fiche prospect) : les clés sont les seules
+    // valeurs acceptées par le Worker (QUALIFICATION dans worker/src/backoffice/prospection.ts).
+    QUALIFICATION: [
+      ['interlocuteur', 'Interlocuteur', [['secretaire', 'Secrétaire'], ['maire', 'Maire'], ['adjoint', 'Adjoint(e)'], ['autre', 'Autre']]],
+      ['outil_actuel', 'Outil actuel', [['rien', 'Rien de particulier'], ['papier', 'Bulletin, affiches'], ['facebook', 'Facebook'],
+        ['site_web', 'Site internet'], ['panneaupocket', 'PanneauPocket'], ['intramuros', 'IntraMuros'], ['illiwap', 'Illiwap'], ['autre_appli', 'Autre application']]],
+      ['irritant', 'Ce qui lui pèse', [['temps', 'Manque de temps'], ['portee', 'Les infos ne touchent pas tout le monde'],
+        ['appels', 'Trop d’appels des habitants'], ['dechets', 'Calendrier des déchets'], ['cout', 'Coût de l’outil actuel'],
+        ['satisfait', 'Rien, l’outil actuel convient'], ['autre', 'Autre']]],
+      ['decideur', 'Qui décide', [['maire', 'Le maire'], ['conseil', 'Le conseil municipal'], ['interlocuteur', 'Mon interlocuteur'], ['inconnu', 'Je ne sais pas']]],
+      ['nb_communes', 'Communes gérées', [['1', 'Une seule'], ['2', 'Deux'], ['3_ou_plus', 'Trois ou plus']]],
+    ],
+    MODELES_EMAIL_APPEL: [
+      ['suite_appel', 'Suite à l’appel (démo + rappel)'],
+      ['confirmation_demo', 'Confirmation de démo'],
+      ['pour_le_maire', 'Pour convaincre le maire (avec le prix)'],
+    ],
     relanceLotEnCours: false,
     relanceLotMsg: '',
     emailsRecus: [],
@@ -2086,27 +2103,81 @@ function backoffice() {
         const d = await boFetch('/prospection/prospects/' + this.prospect.id);
         this.prospect = { ...this.prospect, ...d.prospect };
         this.interactions = d.interactions;
-        const demandeMail = a.resultat === 'envoyer_mail';
+        const modele = { envoyer_mail: 'suite_appel', demo: 'confirmation_demo' }[a.resultat];
         this.appel = { resultat: '', date: '', heure: '', note: '', enCours: false,
           msg: 'Appel noté — suite prévue le ' + this.formatDate(r.prochaine_relance_le) + (r.prochaine_relance_heure ? ' à ' + r.prochaine_relance_heure : '') + '.' };
-        if (demandeMail) this.preparerEmailApresAppel(r.prochaine_relance_le);
+        if (modele) this.ouvrirModeleEmail(modele);
         this.chargerAppelsDuJour();
       } catch (e) {
         a.msg = e.message || 'Enregistrement impossible';
         a.enCours = false;
       }
     },
-    // Mail de suivi « comme convenu au téléphone » : à relire avant d'envoyer, rien ne part seul.
-    preparerEmailApresAppel(dateRappel) {
+    // Mémo d'appel : sans outil noté, tous les rebonds ; sinon seulement celui qui correspond.
+    rebondVisible(...outils) {
+      const o = this.prospect?.qualification?.outil_actuel;
+      return !o || outils.includes(o);
+    },
+    // Qualification : enregistrée à chaque choix (PATCH), rubriques vides retirées côté serveur.
+    async majQualification(cle, valeur) {
+      this.prospect.qualification = { ...(this.prospect.qualification || {}), [cle]: valeur || null };
+      await this.majProspect({ qualification: this.prospect.qualification });
+    },
+    // Prix et dates lisibles au téléphone et dans les mails : 188,50 € (centimes seulement s'il y
+    // en a, comme sur le site), « jeudi 26 novembre », « 14 h » / « 9 h 30 ».
+    euros(n) {
+      return Number(n).toLocaleString('fr-FR', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }) + ' €';
+    },
+    dateLongue(iso) {
+      return iso ? new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    },
+    heureLisible(h) {
+      if (!h) return '';
+      const [hh, mm] = h.split(':');
+      return Number(hh) + ' h' + (mm && mm !== '00' ? ' ' + mm : '');
+    },
+    // « M. le Maire » / « Mme la Maire » d'après le RNE (maire_civilite = Monsieur/Madame).
+    leMaire() {
+      const civ = this.prospect?.maire_civilite;
+      return civ === 'Madame' ? 'Mme la Maire' : civ === 'Monsieur' ? 'M. le Maire' : 'votre maire';
+    },
+    // Les 3 mails d'après appel (lot 2) : pré-remplis dans « Email libre », à relire et ajuster
+    // avant d'envoyer — rien ne part seul. Prix toujours calculé depuis le barème (prospect.tarif).
+    modeleEmailAppel(cle) {
+      const p = this.prospect;
       const base = window.location.origin;
-      const espace = this.prospect.commune_slug
-        ? `\n👉 L'espace de ${this.prospect.nom}, déjà prêt : ${base}/${this.prospect.commune_slug}/` : '';
-      this.emailLibre = {
-        ouvert: true, inclureFiche: true, enCours: false, msg: '',
+      const demo = `👉 La démo en ligne : ${base}/bonvivre/`;
+      const espace = p.commune_slug ? `👉 L'espace de ${p.nom}, déjà prêt : ${base}/${p.commune_slug}/` : '';
+      const liens = [demo, espace].filter(Boolean).join('\n');
+      const quand = p.prochaine_relance_le
+        ? 'le ' + this.dateLongue(p.prochaine_relance_le) + (p.prochaine_relance_heure ? ' à ' + this.heureLisible(p.prochaine_relance_heure) : '')
+        : '';
+      const signature = '\n\nBelle journée,\nLéandre Sallé\nConseiller municipal à Eaucourt-sur-Somme';
+      const t = p.tarif;
+      const fondateur = t && !t.sur_devis
+        ? `En tant que commune fondatrice, ${p.nom} garde 35 % de réduction à vie sur la version complète : ${this.euros(t.fondateur_autonomie)} par an au lieu de ${this.euros(t.autonomie)}.`
+        : 'En tant que commune fondatrice, la commune garde 35 % de réduction à vie sur la version complète.';
+      if (cle === 'confirmation_demo') {
+        return {
+          objet: 'Notre rendez-vous' + (quand ? ' ' + quand : '') + ' — Plateforme-Agora',
+          message: `Bonjour,\n\nJe vous confirme notre rendez-vous ${quand} : 10 minutes pour vous montrer Plateforme-Agora telle qu'elle serait pour ${p.nom}.\n\nSi vous voulez y jeter un œil avant :\n${liens}\n\nEn cas d'empêchement, il suffit de répondre à ce mail.${signature}`,
+        };
+      }
+      if (cle === 'pour_le_maire') {
+        return {
+          objet: `Plateforme-Agora pour ${p.nom} — de quoi en parler au maire`,
+          message: `Bonjour,\n\nMerci encore pour notre échange. Pour vous faciliter la tâche auprès de ${this.leMaire()}, voici de quoi lui montrer Plateforme-Agora :\n\n${liens}\n\nEn trois points :\n• C'est gratuit pour démarrer : rien à voter pour essayer.\n• Les habitants sont prévenus directement sur leur téléphone.\n• ${fondateur}\n\nJe peux aussi venir le présenter directement, au moment qui vous arrange.${signature}`,
+        };
+      }
+      return {
         objet: 'Suite à notre appel — Plateforme-Agora',
-        message: `Bonjour,\n\nMerci pour votre accueil au téléphone. Comme convenu, voici de quoi découvrir Plateforme-Agora :\n\n👉 La démo en ligne : ${base}/bonvivre/${espace}\n\nLa version gratuite permet de tester sans engagement. Je vous rappelle le ${this.formatDate(dateRappel)} pour en parler.\n\nBelle journée,\nLéandre Sallé\nConseiller municipal à Eaucourt-sur-Somme`,
+        message: `Bonjour,\n\nMerci pour votre accueil au téléphone. Comme convenu, voici de quoi découvrir Plateforme-Agora :\n\n${liens}\n\nLa version gratuite permet de tester sans engagement.${quand ? ` Je vous rappelle ${quand} pour en parler.` : ''}${signature}`,
       };
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    ouvrirModeleEmail(cle) {
+      this.emailLibre = { ouvert: true, inclureFiche: true, enCours: false, msg: '', modele: cle, ...this.modeleEmailAppel(cle) };
+      // Sur téléphone le panneau est loin sous les boutons : on y va directement.
+      this.$nextTick(() => document.getElementById('bloc-email-libre')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     },
 
     async ajouterInteraction() {

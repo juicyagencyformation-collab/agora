@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261119-3" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261119-4" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -2753,8 +2753,13 @@
               </div>
 
               <!-- Email libre : pas de modèle A/B, un mot personnalisé (avec le lien fiche + QR en option) -->
-              <div class="bo-carte" style="padding:14px 18px; margin-bottom:18px" x-show="emailLibre.ouvert">
-                <label style="margin-top:0">Objet</label>
+              <div class="bo-carte" id="bloc-email-libre" style="padding:14px 18px; margin-bottom:18px; scroll-margin-top:70px" x-show="emailLibre.ouvert">
+                <label style="margin-top:0">Modèle (remplace l'objet et le message, à relire avant d'envoyer)</label>
+                <select x-model="emailLibre.modele" @change="emailLibre.modele && Object.assign(emailLibre, modeleEmailAppel(emailLibre.modele))">
+                  <option value="">— Message libre —</option>
+                  <template x-for="m in MODELES_EMAIL_APPEL" :key="m[0]"><option :value="m[0]" x-text="m[1]"></option></template>
+                </select>
+                <label>Objet</label>
                 <input type="text" x-model="emailLibre.objet" placeholder="Objet de l'email" maxlength="200" />
                 <label>Message</label>
                 <textarea x-model="emailLibre.message" placeholder="Votre message…" rows="6"></textarea>
@@ -2837,6 +2842,53 @@
                   <template x-if="prospect.statut !== 'ne_plus_contacter'">
                     <div>
                       <div class="bo-section-titre" id="bloc-appel">Appel</div>
+
+                      <!-- Mémo d'appel (lot 2, 2026-11-19) : méthode travaillée par Léandre le 2026-11-18
+                           (accroche, rebonds selon l'outil, objections). Prix de CETTE commune calculé par le
+                           Worker depuis le barème des Réglages (prospect.tarif), jamais recopié à la main. -->
+                      <div class="bo-tiroir bo-memo">
+                        <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('memo_appel')">
+                          <span>📋 Mémo d'appel</span>
+                          <span class="bo-tiroir__chevron" :class="{ouvert: tiroirsOuverts.memo_appel}">▸</span>
+                        </button>
+                        <div class="bo-tiroir__corps" x-show="tiroirsOuverts.memo_appel">
+                          <div class="bo-memo__titre" style="margin-top:0">Accroche (30 secondes)</div>
+                          <p>« Bonjour, Léandre Sallé, conseiller municipal à Eaucourt-sur-Somme<span x-show="prospect.distance_km > 1" x-text="', à ' + prospect.distance_km + ' km de chez vous'"></span>. Je ne vous prends que deux minutes.</p>
+                          <p>Chez nous, on a lancé une petite appli pour prévenir les habitants directement sur leur téléphone : actus, agenda, calendrier des déchets, alertes. Ça nous fait gagner du temps sur les affiches et les appels.</p>
+                          <p>Je voulais savoir : comment vous faites, vous, aujourd'hui pour informer les habitants ? »</p>
+                          <p class="bo-memo__objectif">🎯 Objectif : une démo de 10 minutes, pas une vente. Finir sur un choix fermé : « plutôt mardi ou jeudi ? »</p>
+
+                          <div class="bo-memo__titre" x-text="prospect.qualification?.outil_actuel ? 'Rebond (outil choisi dans la qualification)' : 'Rebonds selon sa réponse'"></div>
+                          <div class="bo-memo__rebond" x-show="rebondVisible('papier')"><b>Bulletin, affiches</b> — « Je connais bien : imprimer, afficher, et on vous appelle quand même pour demander l'info… Chez nous, on publie en 2 minutes et les habitants reçoivent une notification sur leur téléphone. »</div>
+                          <div class="bo-memo__rebond" x-show="rebondVisible('facebook', 'site_web')"><b>Facebook, site</b> — « Ça dépanne, mais tout le monde n'y est pas et les publications se perdent vite. Avec l'appli, l'agenda, le calendrier des déchets et les alertes restent consultables à tout moment : les habitants trouvent la réponse seuls au lieu d'appeler la mairie. »</div>
+                          <div class="bo-memo__rebond" x-show="rebondVisible('panneaupocket', 'intramuros', 'illiwap', 'autre_appli')"><b>Déjà une appli</b> — « Très bien, vous en êtes contente ? » Écouter ce qui manque ou agace, ne jamais dénigrer. Laisser la porte ouverte (nouveau mandat, fin d'une prise en charge) : la version gratuite permet de comparer sans engagement.</div>
+                          <div class="bo-memo__rebond" x-show="rebondVisible('rien')"><b>Rien, pas le temps</b> — « C'est le cas de la plupart des petites communes. L'idée, c'est justement de ne pas vous ajouter de travail : les alertes météo arrivent toutes seules, une actu se publie en 2 minutes depuis le téléphone. »</div>
+
+                          <div class="bo-memo__titre">Objections</div>
+                          <div class="bo-memo__rebond"><b>« Envoyez-moi un mail »</b> — « Avec plaisir. C'est plutôt pour vous ou pour <span x-text="leMaire()"></span> ? Je vous envoie la démo et je vous rappelle jeudi, ça vous va ? »</div>
+                          <div class="bo-memo__rebond"><b>« Vous vendez une appli ? »</b> — Répondre franchement : « Oui, et je suis aussi élu : je l'ai d'abord faite pour ma commune. »</div>
+                          <div class="bo-memo__rebond"><b>« Je dois en parler au maire »</b> — « Bien sûr. Je vous envoie de quoi lui montrer, et je peux venir le lui présenter. » → mail « Pour convaincre le maire ».</div>
+                          <div class="bo-memo__rebond"><b>« Et les données, le RGPD ? »</b> — « Les données sont hébergées en France, à Paris, et les fichiers (photos, documents) en Europe. Nous signons avec chaque commune un contrat de protection des données qui précise qui y a accès et pour quoi faire. »</div>
+                          <div class="bo-memo__rebond"><b>« Je gère plusieurs communes »</b> — « Un seul compte pour passer d'une commune à l'autre, sans ressaisir de mot de passe. » Chaque commune garde son propre abonnement.</div>
+                          <div class="bo-memo__rebond"><b>« C'est combien ? »</b> — Donner le prix tout de suite, toujours « par commune », puis revenir à la démo.</div>
+
+                          <div class="bo-memo__titre" x-text="'Prix pour ' + prospect.nom + (prospect.tarif ? ' (' + prospect.tarif.habitants.toLocaleString('fr-FR') + ' habitants)' : '')"></div>
+                          <template x-if="!prospect.tarif"><p>Population inconnue : renvoyer vers les tarifs du site.</p></template>
+                          <template x-if="prospect.tarif && prospect.tarif.sur_devis"><p>Au-delà du seuil des Réglages : sur devis. Proposer d'en parler pendant la démo.</p></template>
+                          <template x-if="prospect.tarif && !prospect.tarif.sur_devis">
+                            <ul class="bo-memo__prix">
+                              <li>Gratuit pour démarrer : actualités, agenda, signalements.</li>
+                              <li>Version complète (Autonomie) : <b x-text="euros(prospect.tarif.autonomie)"></b> par an, environ <span x-text="euros(Math.round(prospect.tarif.autonomie / 12))"></span> par mois.</li>
+                              <li>Accompagné (bilan mensuel, support prioritaire) : <b x-text="euros(prospect.tarif.accompagne)"></b> par an.</li>
+                              <li>🏅 Commune fondatrice, −35 % à vie : <b x-text="euros(prospect.tarif.fondateur_autonomie)"></b> par an (environ <span x-text="euros(Math.round(prospect.tarif.fondateur_autonomie / 12))"></span> par mois), Accompagné <span x-text="euros(prospect.tarif.fondateur_accompagne)"></span>.</li>
+                            </ul>
+                          </template>
+
+                          <div class="bo-memo__titre">À garder en tête</div>
+                          <p class="bo-info">Une question à la fois. Parler de son temps à elle, pas de démocratie participative. Ne rien promettre qui n'existe pas encore (journal papier : « en préparation, vous pourriez nous aider à le construire »).</p>
+                        </div>
+                      </div>
+
                       <div class="bo-carte" style="padding:14px 18px">
                         <label style="margin-top:0">Résultat de l'appel</label>
                         <select x-model="appel.resultat" @change="appel.msg = ''">
@@ -2857,12 +2909,28 @@
                           <div>
                             <label x-text="appel.resultat === 'pas_interesse' ? 'Raison du refus (facultatif)' : 'Note (facultatif)'"></label>
                             <textarea x-model="appel.note" rows="2" maxlength="2000"
-                                      :placeholder="appel.resultat === 'pas_interesse' ? 'Déjà IntraMuros, budget, pas le moment…' : 'Interlocuteur, outil actuel, ce qui l\'agace…'"></textarea>
+                                      :placeholder="appel.resultat === 'pas_interesse' ? 'Déjà IntraMuros, budget, pas le moment…' : 'Ce qu\'elle a dit, ses mots si possible…'"></textarea>
                             <button class="bo-btn bo-btn--compact" style="margin-top:8px" @click="enregistrerAppel()" :disabled="appel.enCours"
                                     x-text="appel.enCours ? 'Enregistrement…' : 'Enregistrer l\'appel'"></button>
                           </div>
                         </template>
                         <div class="bo-info" style="margin-top:6px" x-show="appel.msg" x-text="appel.msg"></div>
+                      </div>
+
+                      <!-- Qualification : enregistrée à chaque choix (PATCH qualification). -->
+                      <div class="bo-section-titre">Qualification</div>
+                      <div class="bo-carte bo-qualif">
+                        <template x-for="q in QUALIFICATION" :key="q[0]">
+                          <div>
+                            <label x-text="q[1]"></label>
+                            <select @change="majQualification(q[0], $event.target.value)">
+                              <option value="" :selected="!(prospect.qualification || {})[q[0]]">—</option>
+                              <template x-for="o in q[2]" :key="o[0]">
+                                <option :value="o[0]" :selected="(prospect.qualification || {})[q[0]] === o[0]" x-text="o[1]"></option>
+                              </template>
+                            </select>
+                          </div>
+                        </template>
                       </div>
                     </div>
                   </template>
@@ -4530,7 +4598,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261119-5"></script>
+  <script src="/backoffice/js/app.js?v=20261119-6"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

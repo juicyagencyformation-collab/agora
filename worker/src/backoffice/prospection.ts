@@ -17,6 +17,7 @@ import { versCsv } from '../lib/csv';
 import { envoyerEmail } from '../lib/email';
 import { envoyerEmailSuivi, adresseDesinscrite } from '../lib/desinscription';
 import { distanceMetres } from '../lib/geo';
+import { chargerBareme, calculerPrixAutonomie, calculerPrixAccompagne, calculerPrixFondateur, estSurDevis } from './tarification';
 import {
   type HorairesMairie, parserPlagesOuverture, etatOuverture, resumerHoraires, prochaineOuverture,
   prochainJourOuvre, ajouterJours, maintenantParis, formaterDateCourte, formaterHeure,
@@ -608,14 +609,18 @@ app.get('/prospects-perdus-a-relancer', async (c) => {
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,prochaine_relance_heure,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles,perdu_le,raison_perdu,horaires_ouverture,horaires_verifies_le',
+    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,prochaine_relance_heure,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles,perdu_le,raison_perdu,horaires_ouverture,horaires_verifies_le,qualification,lat,lng',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
   // Horaires d'ouverture : récupérés à la première ouverture de la fiche (prospects enrichis
   // avant le 2026-11-19), puis revérifiés tous les 6 mois — voir completerHoraires.
-  await completerHoraires(c.env, [prospect]);
+  const [, tarif] = await Promise.all([completerHoraires(c.env, [prospect]), tarifProspect(c.env, prospect.population)]);
   prospect.prochaine_relance_heure = prospect.prochaine_relance_heure?.slice(0, 5) ?? null;
+  // Mémo d'appel : « l'élu d'à côté, à 12 km de chez vous ».
+  const distance_km = prospect.lat != null && prospect.lng != null
+    ? Math.round(distanceMetres(POINT_DEPART_APPELS.lat, POINT_DEPART_APPELS.lng, prospect.lat, prospect.lng) / 1000)
+    : null;
 
   // Le slug ne vit que sur communes (créée à l'activation, voir activerCommuneGratuite) : sans
   // lui, impossible de personnaliser un lien vers la fiche de présentation ou son QR pour CE
@@ -640,13 +645,29 @@ app.get('/prospects/:id', async (c) => {
   });
   return c.json({
     prospect: {
-      ...prospect, commune_slug, maire_connecte,
+      ...prospect, commune_slug, maire_connecte, distance_km, tarif,
       ouverture: etatOuverture(prospect.horaires_ouverture),
       horaires_resume: resumerHoraires(prospect.horaires_ouverture),
     },
     interactions,
   });
 });
+
+// Prix de CETTE commune, pour le mémo d'appel et le mail « Pour convaincre le maire » :
+// toujours calculé depuis le barème en base (Réglages du backoffice), jamais un chiffre recopié
+// à la main — les essais de prospection du 2026-11-18 avaient donné trois prix différents.
+// null si la population est inconnue.
+export async function tarifProspect(env: any, population: number | null | undefined) {
+  if (!population) return null;
+  const bareme = await chargerBareme(env);
+  if (estSurDevis(population, bareme)) return { habitants: population, sur_devis: true as const };
+  const autonomie = calculerPrixAutonomie(population, bareme);
+  const accompagne = calculerPrixAccompagne(population, bareme);
+  return {
+    habitants: population, sur_devis: false as const, autonomie, accompagne,
+    fondateur_autonomie: calculerPrixFondateur(autonomie), fondateur_accompagne: calculerPrixFondateur(accompagne),
+  };
+}
 
 // — Enrichissement contact via l'annuaire (une seule commune à la fois : léger) —
 export function premiereValeur(champJson: string | null | undefined): string | null {
@@ -1259,6 +1280,17 @@ app.post('/prospects/corriger-statuts-actives', async (c) => {
   return c.json({ ok: true, corriges: prospects.length });
 });
 
+// Qualification d'un appel (lot 2, 2026-11-19) : ce que la mairie a dit, en menus déroulants
+// pour pouvoir compter plus tard quel outil, quel irritant fait réagir. Les libellés vivent dans
+// frontend/backoffice/js/app.js (QUALIFICATION) : toute valeur ajoutée ici doit l'être là-bas.
+export const QUALIFICATION = {
+  interlocuteur: ['secretaire', 'maire', 'adjoint', 'autre'],
+  outil_actuel: ['rien', 'papier', 'facebook', 'site_web', 'panneaupocket', 'intramuros', 'illiwap', 'autre_appli'],
+  irritant: ['temps', 'portee', 'appels', 'dechets', 'cout', 'satisfait', 'autre'],
+  decideur: ['maire', 'conseil', 'interlocuteur', 'inconnu'],
+  nb_communes: ['1', '2', '3_ou_plus'],
+} as const;
+
 // — Mise à jour (statut, notes, relance, contact). Un changement de statut ou d'email est
 // journalisé dans la timeline (traçabilité : d'où vient une correction faite à la main).
 const patchSchema = z.object({
@@ -1269,6 +1301,13 @@ const patchSchema = z.object({
   contact_email: z.string().email().optional().nullable(),
   etoiles: z.number().int().min(0).max(5).optional(),
   raison_perdu: z.string().max(500).optional().nullable(),
+  qualification: z.object({
+    interlocuteur: z.enum(QUALIFICATION.interlocuteur).nullable().optional(),
+    outil_actuel: z.enum(QUALIFICATION.outil_actuel).nullable().optional(),
+    irritant: z.enum(QUALIFICATION.irritant).nullable().optional(),
+    decideur: z.enum(QUALIFICATION.decideur).nullable().optional(),
+    nb_communes: z.enum(QUALIFICATION.nb_communes).nullable().optional(),
+  }).strict().nullable().optional(),
 });
 
 // Un prospect "perdu" (refus explicite) ne doit pas juste disparaître du radar — voir le
@@ -1312,6 +1351,11 @@ app.patch('/prospects/:id', async (c) => {
   }
   if (body.data.etoiles !== undefined) patch.etoiles = body.data.etoiles;
   if (body.data.raison_perdu !== undefined) patch.raison_perdu = body.data.raison_perdu;
+  // Qualification : seules les rubriques remplies sont gardées ; tout vidé = null.
+  if (body.data.qualification !== undefined) {
+    const remplies = Object.entries(body.data.qualification || {}).filter(([, v]) => v);
+    patch.qualification = remplies.length ? Object.fromEntries(remplies) : null;
+  }
   if (body.data.contact_email !== undefined) {
     patch.contact_email = body.data.contact_email;
     // Une correction manuelle mérite un nouvel essai : sans ça, une adresse pourtant réparée à

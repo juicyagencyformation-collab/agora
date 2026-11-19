@@ -141,6 +141,14 @@ input:focus { outline: none; border-color: var(--bo-accent); }
 .bo-appel__commune { min-width: 0; }
 .bo-appel__tel { white-space: nowrap; text-decoration: none; flex-shrink: 0; }
 .bo-barre-appel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 14px; }
+/* Mémo d'appel et qualification (prospection par téléphone, lot 2) */
+.bo-memo .bo-tiroir__corps p, .bo-memo li { font-size: 14px; line-height: 1.5; margin: 0 0 6px; }
+.bo-memo__titre { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bo-text-faible); margin: 16px 0 6px; }
+.bo-memo__objectif { padding: 8px 10px; background: var(--bo-surface-2); border-radius: 8px; }
+.bo-memo__rebond { font-size: 14px; line-height: 1.5; border-left: 3px solid var(--bo-border); padding: 2px 0 2px 10px; margin: 0 0 8px; }
+.bo-memo__prix { padding-left: 18px; margin: 0; }
+.bo-qualif { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; padding: 2px 18px 14px; }
+.bo-qualif label { margin-top: 10px; }
 .bo-mobile-seul { display: none !important; }
 
 .bo-main { flex: 1; padding: 28px 32px; overflow-x: auto; }

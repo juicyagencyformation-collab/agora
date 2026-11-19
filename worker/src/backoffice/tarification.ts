@@ -81,6 +81,13 @@ export function calculerPrixAccompagne(habitants: number, b: BaremeTarifaire): n
   return calculerPrixAutonomie(habitants, b) + b.supplement_accompagne;
 }
 
+// Commune fondatrice : −35 % à vie sur la grille publique (conventions, et `a * 0.65` dans
+// accueil.html), au centime près, jamais arrondi à l'euro (ex. 188,50 €).
+export const REDUCTION_FONDATEUR = 0.35;
+export function calculerPrixFondateur(prix: number): number {
+  return Math.round(prix * (1 - REDUCTION_FONDATEUR) * 100) / 100;
+}
+
 // Textes des 3 offres affichées sur la landing (label, accroche, badge, liste de fonctionnalités)
 // — demandé par Léandre le 2026-09-03 pour ne plus avoir à toucher au HTML d'accueil.html pour un
 // changement de wording. Même mécanisme que contenu-texte.ts (clé/valeur dans modeles_email,

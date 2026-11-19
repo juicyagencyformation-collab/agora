@@ -66,19 +66,23 @@ Trois vues : **Liste** (tableau), **Carte** (Leaflet, prospects géolocalisés),
 Sur la fiche prospect :
 - **Téléphone** : cliquer sur le numéro lance l'appel.
 - **Mairie** : 🟢 « Ouverte jusqu'à 12 h » ou 🔴 « Fermée · ouvre jeudi à 14 h », avec les horaires de la semaine. Ils viennent de l'annuaire service-public et sont revérifiés tous les 6 mois. Appeler pendant les heures d'ouverture : c'est la secrétaire qui décroche.
-- **Appel → Résultat de l'appel** : après chaque appel, choisir le résultat, ajouter une note si besoin (interlocuteur, outil utilisé, ce qui l'agace) puis cliquer sur **« Enregistrer l'appel »**. L'appel est noté dans l'historique et la suite se programme toute seule :
+- **📋 Mémo d'appel** (tiroir en haut du bloc « Appel », à ouvrir avant de composer le numéro) : l'accroche de 30 secondes, les rebonds selon l'outil de la mairie, les réponses aux objections et **le prix de cette commune** (calculé depuis le barème des Réglages : ne jamais annoncer un autre chiffre).
+- **Appel → Résultat de l'appel** : après chaque appel, choisir le résultat, ajouter une note si besoin (ses mots à elle, si possible) puis cliquer sur **« Enregistrer l'appel »**. L'appel est noté dans l'historique et la suite se programme toute seule :
 
 | Résultat | Suite programmée |
 |---|---|
 | Pas de réponse / répondeur | Rappel au prochain créneau d'ouverture de la mairie (ou au prochain jour ouvré si les horaires ne sont pas connus). Statut inchangé |
-| « Envoyez-moi un mail » | Statut « contacté », rappel à J+3. L'email libre s'ouvre pré-rempli (démo + espace de la commune) : **relire et adapter avant d'envoyer** |
+| « Envoyez-moi un mail » | Statut « contacté », rappel à J+3. L'email libre s'ouvre avec le modèle « Suite à l'appel » (démo + espace de la commune + date du rappel) : **relire et adapter avant d'envoyer** |
 | À rappeler le… | Statut « contacté », rappel à la date et à l'heure convenues |
-| Démo fixée | Statut « RDV » à la date de la démo |
+| Démo fixée | Statut « RDV » à la date de la démo. L'email libre s'ouvre avec le modèle « Confirmation de démo » : relire avant d'envoyer |
 | Pas intéressé | Statut « Perdu » : la note devient la raison du refus, nouvelle tentative dans 10 mois |
 
 ⚠️ Si la mairie demande à ne **plus jamais** être contactée, ne pas choisir « Pas intéressé » : mettre le statut sur **« Ne plus contacter »** (§2.6).
 
 L'heure de rappel peut aussi se régler à la main à côté de la date de prochaine relance. Elle s'efface dès que la date change.
+
+- **Qualification** (sous le bloc « Appel ») : 5 menus déroulants à remplir pendant ou juste après l'appel : interlocuteur, outil actuel, ce qui lui pèse, qui décide, nombre de communes gérées. Chaque choix s'enregistre tout seul. Choisir l'outil actuel ne garde que le bon rebond dans le mémo.
+- **Modèles de mail** (menu « Modèle » en haut de « ✍️ Email libre ») : « Suite à l'appel », « Confirmation de démo », « Pour convaincre le maire » (démo, espace de la commune, trois arguments et le prix fondateur de la commune). Choisir un modèle remplace l'objet et le message. **Rien ne part sans clic sur « Envoyer »** : un envoi individuel, jamais en lot.
 
 ### 2.5 Cycle de vie d'un prospect
 

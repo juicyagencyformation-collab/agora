@@ -7,7 +7,7 @@ import { sign } from '@tsndr/cloudflare-worker-jwt';
 import {
   parserPlagesOuverture, etatOuverture, resumerHoraires, prochaineOuverture, prochainJourOuvre,
 } from '../src/lib/horaires-mairie';
-import app, { suiteAppel, trierFileAppels } from '../src/backoffice/prospection';
+import app, { suiteAppel, trierFileAppels, tarifProspect } from '../src/backoffice/prospection';
 
 // Champs plage_ouverture réels (mairies d'Abbeville et de Favières, relevés le 2026-11-19).
 const ABBEVILLE = '[{"nom_jour_debut": "Lundi", "nom_jour_fin": "Jeudi", "valeur_heure_debut_1": "08:30:00", "valeur_heure_fin_1": "12:00:00", "valeur_heure_debut_2": "13:30:00", "valeur_heure_fin_2": "18:00:00", "commentaire": ""}, {"nom_jour_debut": "Vendredi", "nom_jour_fin": "Vendredi", "valeur_heure_debut_1": "08:30:00", "valeur_heure_fin_1": "12:00:00", "valeur_heure_debut_2": "13:30:00", "valeur_heure_fin_2": "17:30:00", "commentaire": ""}]';
@@ -126,6 +126,8 @@ const sessionStaff = async () => ({
 });
 const poster = async (id: string, corps: any) => app.request(`/prospects/${id}/resultat-appel`,
   { method: 'POST', headers: await sessionStaff(), body: JSON.stringify(corps) }, ENV);
+const patcher = async (id: string, corps: any) => app.request(`/prospects/${id}`,
+  { method: 'PATCH', headers: await sessionStaff(), body: JSON.stringify(corps) }, ENV);
 
 beforeEach(() => {
   db = {
@@ -184,5 +186,34 @@ describe('POST /prospects/:id/resultat-appel', () => {
     await poster('p1', { resultat: 'pas_interesse', note: 'Déjà IntraMuros' });
     expect(db.prospects[0]).toMatchObject({ statut: 'perdu', raison_perdu: 'Déjà IntraMuros', prochaine_relance_heure: null });
     expect(db.prospects[0].perdu_le).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("qualification et fiche prête pour l'appel (lot 2)", () => {
+  it('enregistre la qualification, sans les rubriques vides', async () => {
+    const res = await patcher('p1', { qualification: { interlocuteur: 'secretaire', outil_actuel: 'facebook', irritant: null } });
+    expect(res.status).toBe(200);
+    expect(db.prospects[0].qualification).toEqual({ interlocuteur: 'secretaire', outil_actuel: 'facebook' });
+    await patcher('p1', { qualification: { outil_actuel: null } });
+    expect(db.prospects[0].qualification).toBeNull();
+  });
+  it('refuse une valeur ou une rubrique inconnue', async () => {
+    expect((await patcher('p1', { qualification: { outil_actuel: 'minitel' } })).status).toBe(400);
+    expect((await patcher('p1', { qualification: { humeur: 'bonne' } })).status).toBe(400);
+  });
+  it('donne la distance depuis Eaucourt et le prix de la commune', async () => {
+    Object.assign(db.prospects[0], { nom: 'Pont-Remy', population: 1500, lat: 50.054, lng: 1.910, horaires_verifies_le: new Date().toISOString() });
+    const corps: any = await (await app.request('/prospects/p1', { headers: await sessionStaff() }, ENV)).json();
+    // Barème par défaut : 500 × 0,60 + 1 000 × 0,20 = 500 €, Accompagné + 200 €, fondateur − 35 %.
+    expect(corps.prospect).toMatchObject({
+      distance_km: 3,
+      tarif: { habitants: 1500, sur_devis: false, autonomie: 500, accompagne: 700, fondateur_autonomie: 325, fondateur_accompagne: 455 },
+    });
+  });
+  it('suit le barème en base : plancher, centimes, sur devis, population inconnue', async () => {
+    db.parametres_facturation = [{ cle: 'bareme_prix_plancher', valeur: '290' }];
+    expect(await tarifProspect(ENV, 200)).toMatchObject({ autonomie: 290, fondateur_autonomie: 188.5 });
+    expect(await tarifProspect(ENV, 8000)).toEqual({ habitants: 8000, sur_devis: true });
+    expect(await tarifProspect(ENV, null)).toBeNull();
   });
 });
