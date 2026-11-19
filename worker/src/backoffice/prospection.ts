@@ -16,8 +16,21 @@ import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
 import { envoyerEmail } from '../lib/email';
 import { envoyerEmailSuivi, adresseDesinscrite } from '../lib/desinscription';
+import { distanceMetres } from '../lib/geo';
+import {
+  type HorairesMairie, parserPlagesOuverture, etatOuverture, resumerHoraires, prochaineOuverture,
+  prochainJourOuvre, ajouterJours, maintenantParis, formaterDateCourte, formaterHeure,
+} from '../lib/horaires-mairie';
 
 const app = new Hono();
+
+// Prospection par téléphone (2026-11-19) : « l'élu d'à côté » d'abord — la file d'appels du
+// tableau « Aujourd'hui » est triée par distance depuis Eaucourt-sur-Somme (centre de la commune,
+// INSEE 80262, d'après geo.api.gouv.fr).
+const POINT_DEPART_APPELS = { lat: 50.0708, lng: 1.8848 };
+// Les mairies changent parfois d'horaires : on revérifie l'annuaire au-delà de ce délai.
+const VALIDITE_HORAIRES_MS = 180 * 24 * 3600 * 1000;
+const HEURE_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 app.use('*', backofficeMiddleware);
 
 // ne_plus_contacter (2026-09-08) : distinct de "perdu" — un refus explicite de type "ne nous
@@ -493,17 +506,44 @@ app.get('/apercu', async (c) => {
 // les autres briques : échéances, onboarding bloqué, emails rejetés). Un filtre `lte` sur une
 // colonne nullable exclut naturellement les NULL (NULL <= X est indéterminé en SQL), donc pas
 // besoin d'un `not.is.null` séparé sur prochaine_relance_le.
+// Depuis le 2026-11-19, c'est aussi la file d'appels du jour : téléphone, état d'ouverture de la
+// mairie, signal 🔑 et distance depuis Eaucourt — voir trierFileAppels.
 app.get('/prospects-a-relancer', async (c) => {
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,departement,statut,prochaine_relance_le',
-    prochaine_relance_le: `lte.${aujourdhui}`,
-    statut: 'in.(a_contacter,contacte,relance,rdv)',
-    order: 'prochaine_relance_le.asc',
-    limit: '200',
-  });
-  return c.json({ prospects, aujourdhui });
+  const [prospects, communesConnectees] = await Promise.all([
+    supabaseSelect(c.env, 'prospects', {
+      select: 'id,code_insee,nom,departement,statut,prochaine_relance_le,prochaine_relance_heure,contact_telephone,horaires_ouverture,horaires_verifies_le,lat,lng,commune_id',
+      prochaine_relance_le: `lte.${aujourdhui}`,
+      statut: 'in.(a_contacter,contacte,relance,rdv)',
+      order: 'prochaine_relance_le.asc',
+      limit: '200',
+    }),
+    chargerCommunesConnectees(c.env),
+  ]);
+  await completerHoraires(c.env, prospects);
+  const maintenant = new Date();
+  const file = prospects.map((p: any) => ({
+    id: p.id, nom: p.nom, departement: p.departement, statut: p.statut,
+    prochaine_relance_le: p.prochaine_relance_le,
+    prochaine_relance_heure: p.prochaine_relance_heure?.slice(0, 5) ?? null,
+    contact_telephone: p.contact_telephone,
+    ouverture: etatOuverture(p.horaires_ouverture, maintenant),
+    maire_connecte: !!(p.commune_id && communesConnectees.has(p.commune_id)),
+    distance_km: Number.isFinite(p.lat) && Number.isFinite(p.lng)
+      ? Math.round(distanceMetres(POINT_DEPART_APPELS.lat, POINT_DEPART_APPELS.lng, p.lat, p.lng) / 1000) : null,
+  })).sort(trierFileAppels);
+  return c.json({ prospects: file, aujourdhui });
 });
+
+// Ordre de la file d'appels : joignable (téléphone connu) → mairie ouverte maintenant → 🔑
+// quelqu'un s'est déjà connecté → la plus proche d'Eaucourt → la relance la plus ancienne.
+export function trierFileAppels(a: any, b: any): number {
+  return (Number(!!b.contact_telephone) - Number(!!a.contact_telephone))
+    || (Number(!!b.ouverture?.ouvert) - Number(!!a.ouverture?.ouvert))
+    || (Number(b.maire_connecte) - Number(a.maire_connecte))
+    || ((a.distance_km ?? Infinity) - (b.distance_km ?? Infinity))
+    || String(a.prochaine_relance_le).localeCompare(String(b.prochaine_relance_le));
+}
 
 // GET /prospects-perdus — pipeline de relance des refus ("tièdes"), demandé par Léandre le
 // 2026-09-03 : un prospect passé en "Perdu" ne doit pas sortir purement et simplement du radar,
@@ -544,10 +584,14 @@ app.get('/prospects-perdus-a-relancer', async (c) => {
 app.get('/prospects/:id', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles,perdu_le,raison_perdu',
+    select: 'id,code_insee,nom,code_postal,departement,population,statut,contact_email,contact_telephone,site_web,adresse,notes,prochaine_relance_le,prochaine_relance_heure,enrichi_le,commune_id,created_at,nom_maire,prenom_maire,maire_civilite,etoiles,perdu_le,raison_perdu,horaires_ouverture,horaires_verifies_le',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+  // Horaires d'ouverture : récupérés à la première ouverture de la fiche (prospects enrichis
+  // avant le 2026-11-19), puis revérifiés tous les 6 mois — voir completerHoraires.
+  await completerHoraires(c.env, [prospect]);
+  prospect.prochaine_relance_heure = prospect.prochaine_relance_heure?.slice(0, 5) ?? null;
 
   // Le slug ne vit que sur communes (créée à l'activation, voir activerCommuneGratuite) : sans
   // lui, impossible de personnaliser un lien vers la fiche de présentation ou son QR pour CE
@@ -570,7 +614,14 @@ app.get('/prospects/:id', async (c) => {
   const interactions = await supabaseSelect(c.env, 'prospect_interactions', {
     select: 'type,contenu,created_at', prospect_id: `eq.${id}`, order: 'created_at.desc',
   });
-  return c.json({ prospect: { ...prospect, commune_slug, maire_connecte }, interactions });
+  return c.json({
+    prospect: {
+      ...prospect, commune_slug, maire_connecte,
+      ouverture: etatOuverture(prospect.horaires_ouverture),
+      horaires_resume: resumerHoraires(prospect.horaires_ouverture),
+    },
+    interactions,
+  });
 });
 
 // — Enrichissement contact via l'annuaire (une seule commune à la fois : léger) —
@@ -620,7 +671,7 @@ async function enrichirDepuisAnnuaire(
 ): Promise<any | null> {
   const url = `https://api-lannuaire.service-public.fr/api/explore/v2.1/catalog/datasets/api-lannuaire-administration/records`
     + `?where=${encodeURIComponent(`pivot like "mairie" and code_insee_commune="${prospect.code_insee}"`)}`
-    + `&select=nom,adresse_courriel,telephone,adresse,site_internet&limit=1`;
+    + `&select=nom,adresse_courriel,telephone,adresse,site_internet,plage_ouverture&limit=1`;
   const res = await fetch(url);
   if (!res.ok) return null;
   const fiche = ((await res.json()) as any)?.results?.[0];
@@ -633,6 +684,8 @@ async function enrichirDepuisAnnuaire(
     contact_telephone: premiereValeur(fiche.telephone),
     site_web: premiereValeur(fiche.site_internet),
     adresse: formaterAdresse(fiche.adresse),
+    horaires_ouverture: parserPlagesOuverture(fiche.plage_ouverture),
+    horaires_verifies_le: new Date().toISOString(),
     enrichi_le: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -643,6 +696,51 @@ async function enrichirDepuisAnnuaire(
   }
   const [maj] = await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
   return maj;
+}
+
+// Horaires de plusieurs mairies en UNE requête annuaire (filtre `in`, jusqu'à 40 communes) —
+// jamais une requête par commune (plafond de sous-requêtes du Worker). Les codes INSEE viennent
+// de la base mais sont quand même filtrés avant d'entrer dans la clause ODSQL. Une commune
+// absente de la Map = mairie sans horaires publiés (ou sans fiche). Lève en cas d'erreur réseau.
+async function horairesDepuisAnnuaire(codesInsee: string[]): Promise<Map<string, HorairesMairie>> {
+  const codes = [...new Set(codesInsee)].filter((code) => /^[0-9][0-9AB][0-9]{3}$/i.test(code)).slice(0, 40);
+  const horaires = new Map<string, HorairesMairie>();
+  if (!codes.length) return horaires;
+  const where = `pivot like "mairie" and code_insee_commune in (${codes.map((code) => `"${code}"`).join(',')})`;
+  const url = `https://api-lannuaire.service-public.fr/api/explore/v2.1/catalog/datasets/api-lannuaire-administration/records`
+    + `?where=${encodeURIComponent(where)}&select=code_insee_commune,plage_ouverture&limit=100`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`annuaire ${res.status}`);
+  for (const fiche of (((await res.json()) as any)?.results || [])) {
+    const h = parserPlagesOuverture(fiche.plage_ouverture);
+    if (h && !horaires.has(fiche.code_insee_commune)) horaires.set(fiche.code_insee_commune, h);
+  }
+  return horaires;
+}
+
+const horairesAVerifier = (p: any) => !!p.code_insee
+  && (!p.horaires_verifies_le || Date.now() - new Date(p.horaires_verifies_le).getTime() > VALIDITE_HORAIRES_MS);
+
+// Complète en place les horaires manquants ou trop vieux d'une liste de prospects, et les
+// enregistre : une écriture par mairie qui publie des horaires (plafonnée à 15 par appel, le
+// reste suivra au prochain chargement), une seule pour toutes celles qui n'en publient pas.
+// Jamais bloquant : un annuaire indisponible laisse simplement les horaires inconnus.
+async function completerHoraires(env: any, prospects: any[]): Promise<void> {
+  const aVerifier = prospects.filter(horairesAVerifier).slice(0, 40);
+  if (!aVerifier.length) return;
+  try {
+    const horaires = await horairesDepuisAnnuaire(aVerifier.map((p) => p.code_insee));
+    const maintenant = new Date().toISOString();
+    for (const p of aVerifier) p.horaires_ouverture = horaires.get(p.code_insee) ?? null;
+    const avec = aVerifier.filter((p) => p.horaires_ouverture).slice(0, 15);
+    const sans = aVerifier.filter((p) => !p.horaires_ouverture);
+    await Promise.all([
+      ...avec.map((p) => supabaseUpdate(env, 'prospects',
+        { horaires_ouverture: p.horaires_ouverture, horaires_verifies_le: maintenant }, { id: `eq.${p.id}` })),
+      sans.length ? supabaseUpdate(env, 'prospects',
+        { horaires_ouverture: null, horaires_verifies_le: maintenant }, { id: `in.(${sans.map((p) => p.id).join(',')})` }) : null,
+    ]);
+  } catch { /* horaires simplement inconnus cette fois-ci */ }
 }
 
 app.post('/prospects/:id/enrichir', async (c) => {
@@ -906,7 +1004,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   }
 
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance, prochaine_relance_heure: null };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
   await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
 
@@ -963,7 +1061,7 @@ async function relancerCommuneActivee(env: any, staffId: string, prospect: any):
   // prospecterUn (l'envoi de la toute première présentation), pour que la répartition par statut
   // de l'aperçu Prospection ne sous-compte plus les communes réellement déjà contactées (bug
   // constaté sur Talence le 2026-08-31 : relancée avec succès, statut resté bloqué).
-  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance };
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance, prochaine_relance_heure: null };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
   await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
   await supabaseInsert(env, 'prospect_interactions', {
@@ -1140,6 +1238,7 @@ const patchSchema = z.object({
   statut: z.enum(STATUTS).optional(),
   notes: z.string().max(5000).optional().nullable(),
   prochaine_relance_le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  prochaine_relance_heure: z.string().regex(HEURE_REGEX).optional().nullable(),
   contact_email: z.string().email().optional().nullable(),
   etoiles: z.number().int().min(0).max(5).optional(),
   raison_perdu: z.string().max(500).optional().nullable(),
@@ -1171,7 +1270,7 @@ app.patch('/prospects/:id', async (c) => {
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
 
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'statut,contact_email,raison_perdu', id: `eq.${id}`,
+    select: 'statut,contact_email,raison_perdu,prochaine_relance_le', id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
 
@@ -1179,6 +1278,11 @@ app.patch('/prospects/:id', async (c) => {
   if (body.data.statut !== undefined) patch.statut = body.data.statut;
   if (body.data.notes !== undefined) patch.notes = body.data.notes;
   if (body.data.prochaine_relance_le !== undefined) patch.prochaine_relance_le = body.data.prochaine_relance_le;
+  // L'heure de rappel n'a de sens que pour SA date : une date changée sans nouvelle heure l'efface.
+  if (body.data.prochaine_relance_heure !== undefined) patch.prochaine_relance_heure = body.data.prochaine_relance_heure;
+  else if (body.data.prochaine_relance_le !== undefined && body.data.prochaine_relance_le !== prospect.prochaine_relance_le) {
+    patch.prochaine_relance_heure = null;
+  }
   if (body.data.etoiles !== undefined) patch.etoiles = body.data.etoiles;
   if (body.data.raison_perdu !== undefined) patch.raison_perdu = body.data.raison_perdu;
   if (body.data.contact_email !== undefined) {
@@ -1200,6 +1304,7 @@ app.patch('/prospects/:id', async (c) => {
     if (body.data.raison_perdu === undefined) patch.raison_perdu = null;
     if (body.data.prochaine_relance_le === undefined) {
       patch.prochaine_relance_le = ajouterMois(aujourdhui, MOIS_RELANCE_APRES_REFUS);
+      patch.prochaine_relance_heure = null;
     }
   }
   // Passage EN statut "ne_plus_contacter" : l'exact opposé de "perdu" ci-dessus — aucune relance
@@ -1208,6 +1313,7 @@ app.patch('/prospects/:id', async (c) => {
   if (body.data.statut === 'ne_plus_contacter' && prospect.statut !== 'ne_plus_contacter'
       && body.data.prochaine_relance_le === undefined) {
     patch.prochaine_relance_le = null;
+    patch.prochaine_relance_heure = null;
   }
 
   await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
@@ -1282,6 +1388,96 @@ app.post('/prospects/:id/interactions', async (c) => {
   });
   await supabaseUpdate(c.env, 'prospects', { updated_at: new Date().toISOString() }, { id: `eq.${id}` });
   return c.json({ ok: true, interaction });
+});
+
+// — Résultat d'un appel téléphonique (2026-11-19) : un seul geste journalise l'appel ET
+// programme la suite, pour que rien ne repose sur « il faut penser à noter la relance ».
+const RESULTATS_APPEL = ['pas_de_reponse', 'envoyer_mail', 'rappeler', 'demo', 'pas_interesse'] as const;
+const resultatAppelSchema = z.object({
+  resultat: z.enum(RESULTATS_APPEL),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  heure: z.string().regex(HEURE_REGEX).optional(),
+  note: z.string().trim().max(2000).optional(),
+}).refine((d) => !['rappeler', 'demo'].includes(d.resultat) || !!d.date, {
+  message: 'Date obligatoire pour un rappel ou une démo', path: ['date'],
+});
+
+// Suite à donner selon le résultat. Un prospect « gagné » garde son statut (appel de suivi
+// client) ; « à contacter » ou « perdu » repasse en « contacté » dès qu'un échange a vraiment eu
+// lieu ; « pas de réponse » ne change jamais le statut (personne n'a été joint).
+export function suiteAppel(
+  saisie: z.infer<typeof resultatAppelSchema>,
+  prospect: { statut: string; horaires_ouverture?: HorairesMairie | null },
+  maintenant = new Date(),
+): { statut: string; date: string; heure: string | null; contenu: string } {
+  const aujourdhui = maintenantParis(maintenant).dateIso;
+  const echange = ['a_contacter', 'perdu'].includes(prospect.statut) ? 'contacte' : prospect.statut;
+  let statut = prospect.statut;
+  let date: string;
+  let heure: string | null = saisie.heure ?? null;
+  let libelle: string;
+  switch (saisie.resultat) {
+    case 'pas_de_reponse': {
+      const ouverture = prospect.horaires_ouverture ? prochaineOuverture(prospect.horaires_ouverture, maintenant) : null;
+      date = ouverture?.date ?? prochainJourOuvre(aujourdhui);
+      heure = ouverture?.heure ?? null;
+      libelle = 'Pas de réponse';
+      break;
+    }
+    case 'envoyer_mail':
+      date = ajouterJours(aujourdhui, 3); heure = null; statut = echange; libelle = 'Demande un mail';
+      break;
+    case 'rappeler':
+      date = saisie.date!; statut = echange; libelle = 'À rappeler';
+      break;
+    case 'demo':
+      date = saisie.date!; statut = 'rdv'; libelle = 'Démo fixée';
+      break;
+    case 'pas_interesse':
+      date = ajouterMois(aujourdhui, MOIS_RELANCE_APRES_REFUS); heure = null; statut = 'perdu'; libelle = 'Pas intéressé';
+      break;
+  }
+  if (prospect.statut === 'gagne') statut = 'gagne';
+  const quand = formaterDateCourte(date) + (heure ? ` à ${formaterHeure(heure)}` : '');
+  const suite = saisie.resultat === 'demo' ? `démo le ${quand}`
+    : saisie.resultat === 'pas_interesse' ? `nouvelle tentative le ${quand}` : `rappel le ${quand}`;
+  return { statut, date, heure, contenu: `📞 ${libelle} — ${suite}` + (saisie.note ? `\n${saisie.note}` : '') };
+}
+
+app.post('/prospects/:id/resultat-appel', async (c) => {
+  const id = c.req.param('id');
+  const body = resultatAppelSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,statut,horaires_ouverture', id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+  if (prospect.statut === 'ne_plus_contacter') {
+    return c.json({ erreur: 'Ce prospect a demandé à ne plus être contacté.' }, 409);
+  }
+
+  const suite = suiteAppel(body.data, prospect);
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    prochaine_relance_le: suite.date,
+    prochaine_relance_heure: suite.heure,
+  };
+  if (suite.statut !== prospect.statut) patch.statut = suite.statut;
+  // Même logique que le passage en « perdu » de PATCH /prospects/:id : date et raison du refus.
+  if (body.data.resultat === 'pas_interesse' && suite.statut === 'perdu') {
+    patch.perdu_le = maintenantParis().dateIso;
+    patch.raison_perdu = body.data.note || null;
+  }
+  await supabaseUpdate(c.env, 'prospects', patch, { id: `eq.${id}` });
+
+  const staffId = c.get('staff_id');
+  const lignes = [{ prospect_id: id, staff_id: staffId, type: 'appel', contenu: suite.contenu }];
+  if (patch.statut) {
+    lignes.push({ prospect_id: id, staff_id: staffId, type: 'statut', contenu: `Statut : ${prospect.statut} → ${suite.statut}` });
+  }
+  await supabaseInsert(c.env, 'prospect_interactions', lignes);
+  return c.json({ ok: true, statut: suite.statut, prochaine_relance_le: suite.date, prochaine_relance_heure: suite.heure });
 });
 
 function echapper(s: string): string {

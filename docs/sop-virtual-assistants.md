@@ -27,7 +27,7 @@ C'est l'écran par lequel commencer chaque journée. Il regroupe tout ce qui att
 
 | Bloc | Ce que c'est | Comment le traiter |
 |---|---|---|
-| 📞 Prospects à relancer | Prospects dont la relance programmée est due aujourd'hui ou en retard | Bouton **"Tout traiter"** (max 40 par clic — au-delà, reclique) envoie automatiquement le bon email (présentation si jamais activé, relance J+3 si déjà activé) |
+| 📞 Prospects à relancer | Prospects dont la relance programmée est due aujourd'hui ou en retard. C'est aussi **la file d'appels du jour** : téléphone cliquable, mairie ouverte ou fermée, heure du rappel convenu, distance depuis Eaucourt. Ordre : mairie ouverte maintenant, puis 🔑, puis la plus proche | Appeler dans l'ordre et noter chaque appel sur la fiche (§2.4 bis). Le bouton **"Tout traiter"** (max 40 par clic) envoie à la place le bon email (présentation si jamais activé, relance J+3 si déjà activé) |
 | 🕓 Refus à relancer | Prospects "perdus" dont la relance (~10 mois après refus) arrive à échéance | **Jamais en lot.** Ouvre chaque fiche individuellement, retravaille le contact à la main |
 | 📥 Réponses reçues à traiter | Emails entrants des mairies non encore traités | Voir §3 ci-dessous |
 | 💰 Facturation à traiter | Échéances d'abonnement à 60 jours + factures non soldées | Voir §6.4 (Devis & facturation) |
@@ -59,6 +59,25 @@ Trois vues : **Liste** (tableau), **Carte** (Leaflet, prospects géolocalisés),
 - **Unitaire** (fiche prospect) : bouton **"✉ Envoyer la présentation"** — active automatiquement une commune gratuite si elle n'existe pas encore (crée la commune + un compte de connexion provisoire, nom générique "Administration" — **pas** un compte "maire" : en pratique c'est quasi toujours le secrétariat qui lit cet email en premier), envoie l'email avec identifiants, passe le statut en "contacté", programme une relance à +7 jours.
 - **En lot** (sélection multiple dans la liste) : **max 40 par envoi**, traités un par un pour qu'un échec isolé n'interrompe pas les suivants. ⚠️ Aucun renvoi automatique aux prospects déjà contactés — utilise plutôt le bouton unitaire ✉ ou "Activer et renvoyer" (§2.6) pour ceux-là.
 - En cas d'échecs sur un envoi groupé : bouton **"↻ Relancer les échecs"** ne reprend que les échecs.
+
+### 2.4 bis Prospecter par téléphone
+
+Sur la fiche prospect :
+- **Téléphone** : cliquer sur le numéro lance l'appel.
+- **Mairie** : 🟢 « Ouverte jusqu'à 12 h » ou 🔴 « Fermée · ouvre jeudi à 14 h », avec les horaires de la semaine. Ils viennent de l'annuaire service-public et sont revérifiés tous les 6 mois. Appeler pendant les heures d'ouverture : c'est la secrétaire qui décroche.
+- **Appel → Résultat de l'appel** : après chaque appel, choisir le résultat, ajouter une note si besoin (interlocuteur, outil utilisé, ce qui l'agace) puis cliquer sur **« Enregistrer l'appel »**. L'appel est noté dans l'historique et la suite se programme toute seule :
+
+| Résultat | Suite programmée |
+|---|---|
+| Pas de réponse / répondeur | Rappel au prochain créneau d'ouverture de la mairie (ou au prochain jour ouvré si les horaires ne sont pas connus). Statut inchangé |
+| « Envoyez-moi un mail » | Statut « contacté », rappel à J+3. L'email libre s'ouvre pré-rempli (démo + espace de la commune) : **relire et adapter avant d'envoyer** |
+| À rappeler le… | Statut « contacté », rappel à la date et à l'heure convenues |
+| Démo fixée | Statut « RDV » à la date de la démo |
+| Pas intéressé | Statut « Perdu » : la note devient la raison du refus, nouvelle tentative dans 10 mois |
+
+⚠️ Si la mairie demande à ne **plus jamais** être contactée, ne pas choisir « Pas intéressé » : mettre le statut sur **« Ne plus contacter »** (§2.6).
+
+L'heure de rappel peut aussi se régler à la main à côté de la date de prochaine relance. Elle s'efface dès que la date change.
 
 ### 2.5 Cycle de vie d'un prospect
 
