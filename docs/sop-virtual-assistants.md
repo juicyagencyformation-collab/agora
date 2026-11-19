@@ -33,7 +33,7 @@ C'est l'écran par lequel commencer chaque journée. Il regroupe tout ce qui att
 | 📥 Réponses reçues à traiter | Emails entrants des mairies non encore traités | Voir §3 ci-dessous |
 | 💰 Facturation à traiter | Échéances d'abonnement à 60 jours + factures non soldées | Voir §6.4 (Devis & facturation) |
 | ⚠ Onboarding bloqué | Communes actives avec de l'activité mais aucun contact joignable par email | Va dans "Gérer les utilisateurs" de la commune et promeus le bon citoyen en admin/élu (voir §6.5) |
-| ✉ Emails rejetés (bounces) | Adresses ayant rejeté un envoi | Bouton **"Corriger via l'annuaire"** relance l'enrichissement officiel (service-public.fr) pour tenter de réparer l'adresse automatiquement |
+| ✉ Emails rejetés (bounces) | Adresses ayant rejeté un envoi (non compté dans le badge « Aujourd'hui » depuis le 19 novembre 2026 : ce sont surtout les rejets des envois d'août) | Bouton **"Corriger via l'annuaire"** relance l'enrichissement officiel (service-public.fr) pour tenter de réparer l'adresse automatiquement |
 
 ---
 

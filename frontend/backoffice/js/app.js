@@ -1279,10 +1279,12 @@ function backoffice() {
       return this.ajAppelsTous ? this.ajAppels : this.ajAppels.slice(0, 15);
     },
     // Le badge compte ce qui est réellement à faire aujourd'hui : les 15 appels du jour, pas
-    // l'arriéré de relances par email (jusqu'à 200 lignes, laissé par les envois d'août).
+    // l'arriéré de relances par email (jusqu'à 200 lignes, laissé par les envois d'août), ni les
+    // emails rejetés (bounces des mêmes envois, ~200) — prospection par téléphone depuis le
+    // 2026-11-19 ; les deux blocs restent affichés dans « Aujourd'hui », juste hors du compteur.
     totalAujourdhui() {
       return Math.min(this.ajAppels.length, 15) + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
-        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length + this.ajAnomalies.length
+        + this.facturesEnAttente.length + this.onboardingSansContact.length + this.ajAnomalies.length
         + this.tachesVisibles().length;
     },
     // « Tout traiter » : même bascule intelligente que le bouton Relancer d'une fiche
