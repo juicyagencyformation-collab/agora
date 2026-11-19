@@ -41,7 +41,9 @@ Base : 13 894 communes sans département après l'opération (attendu), aucune a
 
 ### À retenir
 Une commune sans département est invisible pour la vigilance. Les espaces de prospection
-restés vides en auront besoin le jour où une mairie s'en sert vraiment.
+restés vides sont complétés au premier vrai usage : inscription, connexion ou lien de connexion
+appellent `completerLocalisationCommune` (`lib/localisation-commune.ts`) en arrière-plan, qui
+recopie la fiche prospect sans jamais écraser un département existant.
 
 ---
 

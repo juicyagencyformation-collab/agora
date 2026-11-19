@@ -13,6 +13,7 @@ import { declencherBienvenuePremiereInscription } from './backoffice/onboarding'
 import { jetonTurnstileValide, saisieTropRapide, plafondInscriptionsAtteint, PLAFOND_INSCRIPTIONS_HEURE, PLAFOND_INSCRIPTIONS_HEURE_EXPLORATEURS } from './lib/anti-robots';
 import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
 import { detacherFichesAssociations } from './lib/associations';
+import { completerLocalisationCommune } from './lib/localisation-commune';
 
 // Compte bloqué depuis le backoffice (migration 082) — même message partout.
 const MESSAGE_COMPTE_BLOQUE = 'Ce compte est suspendu. Contactez votre mairie.';
@@ -106,6 +107,8 @@ app.post('/register', async (c) => {
   // si c'est la toute première inscription de cette commune issue de la prospection, un email
   // de bienvenue personnalisé part côté backoffice (voir declencherBienvenuePremiereInscription).
   c.executionCtx.waitUntil(declencherBienvenuePremiereInscription(c.env, commune_id, user));
+  // Espace de prospection sans département : rattrapé au premier vrai usage (vigilances, météo).
+  c.executionCtx.waitUntil(completerLocalisationCommune(c.env, commune_id));
 
   return c.json({ ok: true, role: 'citoyen' }, 201);
 });
@@ -163,6 +166,7 @@ app.post('/login', async (c) => {
   setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
   setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
 
+  c.executionCtx.waitUntil(completerLocalisationCommune(c.env, commune_id));
   const resultatConnexion = await gererConnexionQuotidienne(c.env, commune_id, user.id);
   // Filet de sécurité (badges non liés à l'XP quotidien) — idempotent, ne re-débloque rien.
   const autresBadges = await verifierBadges(c.env, commune_id, user.id);
@@ -341,6 +345,7 @@ app.post('/lien-connexion/:token/confirmer', async (c) => {
 
   setCookie(c, 'agora_access', accessToken, { ...OPTIONS_COOKIE, maxAge: 900 });
   setCookie(c, 'agora_refresh', refreshToken, { ...OPTIONS_COOKIE, maxAge: 30 * 24 * 3600 });
+  c.executionCtx.waitUntil(completerLocalisationCommune(c.env, commune_id));
 
   return c.redirect(`/${slug}/`, 302);
 });
