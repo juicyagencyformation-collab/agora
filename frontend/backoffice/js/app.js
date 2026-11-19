@@ -24,7 +24,10 @@ const LABELS_ONGLET = {
 
 function backoffice() {
   return {
-    vue: 'communes',      // 'communes' | 'fiche'
+    // Vue de départ : « Aujourd'hui », l'écran par lequel commencer la journée (appels du jour en
+    // tête) — depuis le 2026-11-19, au lieu de « Communes clientes ». Ses données (et celles des
+    // communes) sont chargées par init() de toute façon.
+    vue: 'aujourdhui',
     chargement: true,
     staff: { nom: '' },
     apercu: {},
