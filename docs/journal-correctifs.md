@@ -5,6 +5,46 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-19 — Vigilances : les espaces créés par la prospection n'en recevaient jamais
+
+**Gravité :** moyenne (4 communes avec des abonnés aux notifications privées d'alertes, dont
+Canenx-et-Réaut et Motteville le jour même, sous vigilance orange pluie-inondation)
+**Fichiers :** `worker/src/backoffice/prospection.ts`, `worker/test/prospection-activation.test.ts`,
+`worker/test/vigilance-notifications.test.ts`
+
+### Symptôme
+Constaté en vérifiant que les notifications de vigilance arrivent bien : 13 942 communes sans
+département ni coordonnées, dont des communes réellement utilisées (abonnés aux notifications).
+La synchro Météo-France (`lib/vigilance-meteofrance.ts`) ne traite que les communes qui ont un
+département : ni bandeau, ni notification. La météo y retombait aussi sur une position par défaut.
+
+### Cause
+`activerCommuneGratuite` (espace gratuit préparé à l'envoi d'une présentation) recopiait les
+coordonnées du prospect, nulles à l'époque (août-octobre), mais jamais son département. Le filet
+de la synchro déduit le département depuis les coordonnées : sans coordonnées, il ne sert à rien.
+L'inscription libre (`routes/decouverte.ts`, depuis le 06/11) recopiait déjà le département.
+
+### Correction
+Code : le département du prospect est recopié à la création (et lu dans les 4 requêtes qui
+chargent le prospect). Données : département + coordonnées recopiés depuis la fiche prospect,
+**uniquement pour les 48 communes ayant un compte réellement utilisé** (compte non provisionné,
+déjà connecté, ou abonné aux notifications) — choix de Léandre. Les 13 889 autres sont restées
+sans département (écrites puis remises à vide le même jour). Listes :
+`Claude outputs/sauvegardes/communes-departement-avant-2026-11-19.json` (13 937, valeurs avant
+/ après) et `communes-departement-gardees-2026-11-19.json` (48 gardées).
+
+### Vérification
+Nouveaux tests : envoi aux seuls abonnés du département avec le texte exact du téléphone, une
+seule notification par vigilance, rien en jaune, commune sans département ignorée ; département
+recopié à l'activation (le test échoue sans la correction). Suite complète verte (490 tests).
+Base : 13 894 communes sans département après l'opération (attendu), aucune alerte parasite.
+
+### À retenir
+Une commune sans département est invisible pour la vigilance. Les espaces de prospection
+restés vides en auront besoin le jour où une mairie s'en sert vraiment.
+
+---
+
 ## 2026-11-16 — Démo Bonvivre : les inscriptions y étaient possibles
 
 **Gravité :** faible (préventif : aucune inscription par erreur constatée)

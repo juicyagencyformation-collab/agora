@@ -930,7 +930,7 @@ export async function genererSlugUnique(env: any, nom: string): Promise<string> 
 // rôle/nom de maire était trompeur. 'maire' reste réservé à un vrai maire désigné manuellement
 // via la conversion (voir onboarding.ts). role: 'in.(admin,maire)' ci-dessous pour retrouver
 // sans doublon les comptes déjà créés sous l'ancien comportement (role='maire').
-async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireId: string; maireEmail: string; motDePasse: string }> {
+export async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireId: string; maireEmail: string; motDePasse: string }> {
   let communeId: string = prospect.commune_id || '';
 
   if (!communeId) {
@@ -939,6 +939,9 @@ async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: 
       nom: prospect.nom, slug,
       population: prospect.population ?? null,
       lat: prospect.lat ?? null, lng: prospect.lng ?? null,
+      // Sans département, la synchro Météo-France ignore la commune : aucune vigilance ni
+      // notification (13 937 espaces créés ainsi d'août à octobre, rattrapés le 2026-11-19).
+      departement: prospect.departement ?? null,
       // Sans ça, "Envoyer la présentation" échouait (422) sur la fiche commune pour la quasi-
       // totalité des communes issues de la prospection : contact_email/email_mairie restaient
       // nuls tant que personne ne les renseignait à la main.
@@ -1046,7 +1049,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
 app.post('/prospects/:id/prospecter', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,departement,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -1101,7 +1104,7 @@ async function relancerCommuneActivee(env: any, staffId: string, prospect: any):
 app.post('/prospects/:id/relancer', async (c) => {
   const id = c.req.param('id');
   const [prospect] = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,departement,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `eq.${id}`,
   });
   if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
@@ -1149,7 +1152,7 @@ app.post('/prospecter-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 communes par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,departement,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `in.(${body.data.ids.join(',')})`,
   });
 
@@ -1190,7 +1193,7 @@ app.post('/prospects/relancer-lot', async (c) => {
   if (!body.success) return c.json({ erreur: 'Sélection invalide (1 à 40 prospects par envoi).' }, 400);
 
   const prospects = await supabaseSelect(c.env, 'prospects', {
-    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,commune_id,nom_maire,prenom_maire,maire_civilite',
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,departement,commune_id,nom_maire,prenom_maire,maire_civilite',
     id: `in.(${body.data.ids.join(',')})`,
   });
 
