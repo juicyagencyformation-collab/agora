@@ -175,16 +175,29 @@
               <template x-if="ajProspectsRelance.length === 0">
                 <div class="bo-vide" style="padding:16px 18px">Rien à relancer aujourd'hui.</div>
               </template>
+              <div class="bo-info" style="padding:10px 18px 0; font-size:12.5px" x-show="ajProspectsRelance.length > 0">
+                Ordre d'appel : mairie ouverte maintenant, puis 🔑 quelqu'un s'est déjà connecté, puis les plus proches d'Eaucourt.
+              </div>
               <table x-show="ajProspectsRelance.length > 0">
-                <thead><tr><th>Commune</th><th>Statut</th><th>Relance</th></tr></thead>
+                <thead><tr><th>Commune</th><th>Mairie</th><th>Téléphone</th><th>Relance</th></tr></thead>
                 <tbody>
                   <template x-for="p in ajProspectsRelance" :key="p.id">
                     <tr @click="ouvrirProspect(p.id)">
-                      <td class="bo-nom-commune" x-text="p.nom"></td>
-                      <td x-text="libelleStatut(p.statut)"></td>
+                      <td>
+                        <span class="bo-nom-commune" x-text="p.nom"></span><span x-show="p.maire_connecte" title="Quelqu'un à la mairie s'est déjà connecté"> 🔑</span>
+                        <div class="bo-info" style="font-size:12px" x-text="libelleStatut(p.statut) + (p.distance_km !== null ? ' · ' + p.distance_km + ' km' : '')"></div>
+                      </td>
+                      <td style="font-size:13px" :style="p.ouverture?.ouvert ? 'color:var(--bo-vert); font-weight:600' : ''"
+                          x-text="p.ouverture ? (p.ouverture.ouvert ? '🟢 ' : '🔴 ') + p.ouverture.libelle : '—'"></td>
+                      <td>
+                        <template x-if="p.contact_telephone">
+                          <a :href="lienTel(p.contact_telephone)" @click.stop style="white-space:nowrap" x-text="'📞 ' + p.contact_telephone"></a>
+                        </template>
+                        <template x-if="!p.contact_telephone"><span class="bo-info">—</span></template>
+                      </td>
                       <td>
                         <span :class="p.prochaine_relance_le < ajDateAujourdhui ? 'bo-note--basse' : 'bo-note--moyenne'"
-                              x-text="p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)"></span>
+                              x-text="(p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)) + (p.prochaine_relance_heure ? ' à ' + p.prochaine_relance_heure : '')"></span>
                       </td>
                     </tr>
                   </template>
@@ -624,6 +637,8 @@
               <input type="number" min="0" step="10" x-model="baremeTarifaire.supplement_accompagne" style="width:120px" />
               <label>Premium — patrimoine, prix de départ (€, 1re année uniquement, sur devis au-delà)</label>
               <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_patrimoine_premium" style="width:120px" />
+              <label>Sur devis au-delà de (habitants) — plus de prix affiché sur le site ni dans « Votre formule »</label>
+              <input type="number" min="1" step="500" x-model="baremeTarifaire.seuil_devis" style="width:120px" />
 
               <div class="bo-section-titre">Offre Autonomie</div>
               <label style="margin-top:0">Nom de l'offre</label>
@@ -2748,12 +2763,61 @@
                              @blur="corrigerEmailProspect()" />
                     </div>
                     <div class="bo-info" x-show="prospect.email_invalide" style="margin:-4px 0 8px">⚠ Adresse rejetée (bounce) au dernier envoi — corrige-la ci-dessus pour réessayer.</div>
-                    <div class="bo-contact-ligne"><span>Téléphone</span><span x-text="prospect.contact_telephone || '—'"></span></div>
+                    <div class="bo-contact-ligne">
+                      <span>Téléphone</span>
+                      <template x-if="prospect.contact_telephone">
+                        <a :href="lienTel(prospect.contact_telephone)" style="font-weight:600" x-text="'📞 ' + prospect.contact_telephone"></a>
+                      </template>
+                      <template x-if="!prospect.contact_telephone"><span>—</span></template>
+                    </div>
+                    <div class="bo-contact-ligne">
+                      <span>Mairie</span>
+                      <span>
+                        <span :style="prospect.ouverture?.ouvert ? 'color:var(--bo-vert); font-weight:600' : ''"
+                              x-text="prospect.ouverture ? (prospect.ouverture.ouvert ? '🟢 ' : '🔴 ') + prospect.ouverture.libelle : 'Horaires non publiés dans l\'annuaire'"></span>
+                        <span class="bo-info" style="display:block; font-size:12px" x-show="prospect.horaires_resume" x-text="prospect.horaires_resume"></span>
+                      </span>
+                    </div>
                     <div class="bo-contact-ligne"><span>Site web</span><span x-text="prospect.site_web || '—'"></span></div>
                     <div class="bo-contact-ligne"><span>Adresse</span><span x-text="prospect.adresse || '—'"></span></div>
                     <button class="bo-btn bo-btn--sec bo-btn--compact" style="margin-top:12px" @click="enrichir()" :disabled="enrichEnCours"
                             x-text="enrichEnCours ? 'Récupération…' : (prospect.enrichi_le ? 'Réactualiser le contact' : 'Récupérer le contact')"></button>
                   </div>
+
+                  <!-- Résultat d'un appel : journalise l'appel et programme la suite en un geste
+                       (POST /prospects/:id/resultat-appel). Masqué pour « Ne plus contacter ». -->
+                  <template x-if="prospect.statut !== 'ne_plus_contacter'">
+                    <div>
+                      <div class="bo-section-titre">Appel</div>
+                      <div class="bo-carte" style="padding:14px 18px">
+                        <label style="margin-top:0">Résultat de l'appel</label>
+                        <select x-model="appel.resultat" @change="appel.msg = ''">
+                          <option value="">— Choisir —</option>
+                          <option value="pas_de_reponse">Pas de réponse / répondeur → rappel au prochain créneau d'ouverture</option>
+                          <option value="envoyer_mail">« Envoyez-moi un mail » → mail pré-rempli, rappel à J+3</option>
+                          <option value="rappeler">À rappeler le… (jour et heure convenus)</option>
+                          <option value="demo">Démo fixée</option>
+                          <option value="pas_interesse">Pas intéressé → refus, nouvelle tentative dans 10 mois</option>
+                        </select>
+                        <template x-if="appel.resultat === 'rappeler' || appel.resultat === 'demo'">
+                          <div style="display:flex; gap:8px">
+                            <div style="flex:1"><label>Date</label><input type="date" x-model="appel.date" /></div>
+                            <div style="flex:1"><label>Heure (facultatif)</label><input type="time" x-model="appel.heure" /></div>
+                          </div>
+                        </template>
+                        <template x-if="appel.resultat">
+                          <div>
+                            <label x-text="appel.resultat === 'pas_interesse' ? 'Raison du refus (facultatif)' : 'Note (facultatif)'"></label>
+                            <textarea x-model="appel.note" rows="2" maxlength="2000"
+                                      :placeholder="appel.resultat === 'pas_interesse' ? 'Déjà IntraMuros, budget, pas le moment…' : 'Interlocuteur, outil actuel, ce qui l\'agace…'"></textarea>
+                            <button class="bo-btn bo-btn--compact" style="margin-top:8px" @click="enregistrerAppel()" :disabled="appel.enCours"
+                                    x-text="appel.enCours ? 'Enregistrement…' : 'Enregistrer l\'appel'"></button>
+                          </div>
+                        </template>
+                        <div class="bo-info" style="margin-top:6px" x-show="appel.msg" x-text="appel.msg"></div>
+                      </div>
+                    </div>
+                  </template>
 
                   <div class="bo-section-titre">Pilotage</div>
                   <div class="bo-carte" style="padding:14px 18px">
@@ -2763,7 +2827,10 @@
                     </select>
                     <label>Prochaine relance</label>
                     <div style="display:flex; align-items:center; gap:8px">
-                      <input type="date" x-model="prospect.prochaine_relance_le" @change="majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" style="flex:1" />
+                      <input type="date" x-model="prospect.prochaine_relance_le" @change="prospect.prochaine_relance_heure = null; majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" style="flex:1" />
+                      <input type="time" x-model="prospect.prochaine_relance_heure" title="Heure du rappel convenu (facultatif)" style="width:auto"
+                             :disabled="!prospect.prochaine_relance_le"
+                             @change="majProspect({ prochaine_relance_heure: prospect.prochaine_relance_heure || null })" />
                       <button class="bo-btn bo-btn--compact" style="white-space:nowrap" @click="relancer()"
                               :disabled="prospEnCours || ['gagne', 'perdu', 'ne_plus_contacter'].includes(prospect.statut)"
                               :title="prospect.commune_id ? 'Envoie l\'email de relance (compte déjà activé), remet la relance à +7 jours' : 'Envoie la présentation, remet la relance à +7 jours'"
@@ -4415,7 +4482,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261106-2"></script>
+  <script src="/backoffice/js/app.js?v=20261119-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

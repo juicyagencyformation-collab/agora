@@ -188,6 +188,8 @@
     .offre h3 { font-size: 22px; }
     .offre .montant { font-family: var(--titre); font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
     .offre .montant small { font-family: var(--texte); font-size: 14px; font-weight: 500; opacity: .7; }
+    .offre .montant-mois { font-size: 17px; font-weight: 600; margin-top: -6px; font-variant-numeric: tabular-nums; }
+    .offre .montant-hab { font-size: 13px; opacity: .65; margin-top: -10px; }
     .offre ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 7px; font-size: 14px; }
     .offre li::before { content: "✓  "; color: var(--green); font-weight: 700; }
     .offre .fondateur { font-size: 13px; background: var(--coral-light); color: #a53a17; padding: 8px 10px; border-radius: 10px; }
@@ -402,29 +404,33 @@
       <h2 id="titre-tarifs">Un prix qui s'ajuste à votre commune</h2>
       <div class="reglage">
         <div class="ligne"><label for="c-habitants">Nombre d'habitants</label><b><span id="o-habitants">480</span> hab.</b></div>
-        <input id="c-habitants" type="range" min="50" max="8000" step="1" value="480">
-        <small>Au-delà de 8 000 habitants, nous consulter</small>
+        <input id="c-habitants" type="range" min="50" max="5000" step="1" value="480">
+        <small id="o-seuil-devis">Au-delà de 5 000 habitants : sur devis</small>
       </div>
       <div class="offres" style="text-align:left">
         <div class="offre">
           <div class="nom">Gratuit</div><h3>Informer</h3>
-          <div class="montant">0 €<small> / mois</small></div>
+          <div class="montant">0 €<small> / an</small></div>
           <ul><li>Actualités, avec aide à la rédaction</li><li>Agenda</li><li>Signalements</li><li>Chasse au trésor et énigme photo</li><li>Météo et vigilances automatiques</li></ul>
           <a class="btn btn--contour" href="#demande" data-demande="gratuit">Activer gratuitement</a>
         </div>
         <div class="offre">
           <div class="nom" id="label-autonomie">Autonomie</div><h3 id="titre-autonomie">Faire vivre le village et la mairie</h3>
-          <div class="montant"><span id="prix-autonomie">24 €</span><small> / mois</small></div>
+          <div class="montant"><span id="prix-autonomie">290 €</span><small> / an</small></div>
+          <div class="montant-mois">soit <span id="mois-autonomie">24 €</span> / mois</div>
+          <div class="montant-hab" id="hab-autonomie"></div>
           <ul id="features-autonomie"><li>Tous les onglets de l’application</li><li>L’application à votre nom et à votre logo</li><li>Modération automatique des photos</li><li>Support email</li></ul>
-          <div class="fondateur">Commune fondatrice : <b id="fond-autonomie"></b> / mois, à vie</div>
+          <div class="fondateur">Commune fondatrice : <b id="fond-autonomie"></b> / an, à vie</div>
           <a class="btn btn--marine" href="#demande" data-demande="devis">Recevoir un devis</a>
         </div>
         <div class="offre offre--mise-en-avant">
           <span class="ruban" id="badge-accompagne">Le plus demandé</span>
           <div class="nom" id="label-accompagne">Accompagné</div><h3 id="titre-accompagne">Accompagnement personnalisé</h3>
-          <div class="montant"><span id="prix-accompagne">41 €</span><small> / mois</small></div>
+          <div class="montant"><span id="prix-accompagne">490 €</span><small> / an</small></div>
+          <div class="montant-mois">soit <span id="mois-accompagne">41 €</span> / mois</div>
+          <div class="montant-hab" id="hab-accompagne"></div>
           <ul id="features-accompagne"><li>Tout Autonomie, plus :</li><li>Support prioritaire</li><li>Bilan mensuel de votre commune</li><li>Suivi personnalisé de votre commune</li></ul>
-          <div class="fondateur">Commune fondatrice : <b id="fond-accompagne"></b> / mois, à vie</div>
+          <div class="fondateur">Commune fondatrice : <b id="fond-accompagne"></b> / an, à vie</div>
           <a class="btn btn--vert" href="#demande" data-demande="devis">Recevoir un devis</a>
         </div>
       </div>
@@ -511,20 +517,45 @@
 
   // ── Tarifs : barème public (worker/src/backoffice/tarification.ts). Repli local = valeurs de la
   // migration 050, remplacées par celles du serveur dès qu'elles arrivent.
-  var B = { taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2, prix_plancher: 290, supplement_accompagne: 200 };
+  var B = { taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2, prix_plancher: 290, supplement_accompagne: 200, seuil_devis: 5000 };
+  // Population de la commune cherchée (peut dépasser le curseur) ; null = on suit le curseur.
+  var habCommune = null;
   var autonomie = function (h) { var brut = Math.min(h, B.seuil_degressif) * B.taux_base + Math.max(0, h - B.seuil_degressif) * B.taux_degressif; return Math.max(brut, B.prix_plancher); };
-  var mensuel = function (an) { return Math.round(an / 12).toLocaleString('fr-FR') + ' €'; };
+  var euros = function (n) { return Math.round(n).toLocaleString('fr-FR') + ' €'; };
+  var mensuel = function (an) { return euros(an / 12); };
+  // Même libellé que le volet « Votre formule » (frontend/js/formule.js, parHabitantMois).
+  var parHabitantMois = function (an, h) {
+    var c = Math.round(an / 12 / h * 100);
+    return c < 100 ? c + ' centime' + (c > 1 ? 's' : '') + ' par habitant et par mois'
+      : (c / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' € par habitant et par mois';
+  };
+  // Fondateur : prix exact au centime (ex. 188,50 €), jamais arrondi — voir les conventions.
+  var exact = function (n) { var r = Math.round(n * 100) / 100; return r.toLocaleString('fr-FR', { minimumFractionDigits: r % 1 ? 2 : 0, maximumFractionDigits: 2 }) + ' €'; };
   var curseurHab = document.getElementById('c-habitants');
   function majTarifs() {
-    var h = parseInt(curseurHab.value, 10);
+    curseurHab.max = B.seuil_devis;
+    document.getElementById('o-seuil-devis').textContent = 'Au-delà de ' + B.seuil_devis.toLocaleString('fr-FR') + ' habitants : sur devis';
+    var h = habCommune || parseInt(curseurHab.value, 10);
     document.getElementById('o-habitants').textContent = h.toLocaleString('fr-FR');
+    var devis = h > B.seuil_devis;
+    document.querySelectorAll('.montant-mois, .montant-hab, .offre .fondateur').forEach(function (el) { el.hidden = devis; });
+    document.querySelectorAll('#prix-autonomie + small, #prix-accompagne + small').forEach(function (el) { el.hidden = devis; });
+    if (devis) {
+      document.getElementById('prix-autonomie').textContent = 'Sur devis';
+      document.getElementById('prix-accompagne').textContent = 'Sur devis';
+      return;
+    }
     var a = autonomie(h), acc = a + B.supplement_accompagne;
-    document.getElementById('prix-autonomie').textContent = mensuel(a);
-    document.getElementById('prix-accompagne').textContent = mensuel(acc);
-    document.getElementById('fond-autonomie').textContent = mensuel(a * 0.65);
-    document.getElementById('fond-accompagne').textContent = mensuel(acc * 0.65);
+    document.getElementById('prix-autonomie').textContent = euros(a);
+    document.getElementById('prix-accompagne').textContent = euros(acc);
+    document.getElementById('mois-autonomie').textContent = mensuel(a);
+    document.getElementById('mois-accompagne').textContent = mensuel(acc);
+    document.getElementById('hab-autonomie').textContent = parHabitantMois(a, h);
+    document.getElementById('hab-accompagne').textContent = parHabitantMois(acc, h);
+    document.getElementById('fond-autonomie').textContent = exact(a * 0.65);
+    document.getElementById('fond-accompagne').textContent = exact(acc * 0.65);
   }
-  curseurHab.addEventListener('input', majTarifs); majTarifs();
+  curseurHab.addEventListener('input', function () { habCommune = null; majTarifs(); }); majTarifs();
   // Libellés, accroches, badge et listes des offres édités depuis le backoffice : repli silencieux
   // sur le texte écrit ci-dessus si le réseau échoue ou qu'une clé manque.
   function appliquerTexteOffre(prefixe, offre) {
@@ -590,7 +621,7 @@
 
   function choisir(r) {
     liste.hidden = true; champ.value = r.nom;
-    if (r.population) { curseurHab.value = Math.min(8000, Math.max(50, r.population)); majTarifs(); }
+    if (r.population) { habCommune = r.population; curseurHab.value = Math.min(B.seuil_devis, Math.max(50, r.population)); majTarifs(); }
     zone.innerHTML = '';
     var carte = document.createElement('div'); carte.className = 'resultat';
     var nom = document.createElement('div'); nom.className = 'nom'; nom.textContent = r.nom;
@@ -602,9 +633,10 @@
     var lienHabitant = r.slug ? '/' + r.slug + '/connexion.html?inscription' : '/rejoindre.html';
     var portes = document.createElement('div'); portes.className = 'portes';
     portes.innerHTML = '<div class="porte porte--habitant"><h3>🏠 J’habite ici</h3><p>Créez votre compte gratuit en une minute : actualités, agenda et alertes de votre commune.</p><a class="btn btn--vert">M’inscrire →</a></div>'
-      + '<div class="porte porte--mairie"><h3>🏛️ Je suis la mairie</h3><p>Gratuit pour commencer, version complète dès <b></b> / mois.</p><a class="btn btn--clair" href="#demande"></a></div>';
+      + '<div class="porte porte--mairie"><h3>🏛️ Je suis la mairie</h3><p>Gratuit pour commencer, version complète dès <b></b> / an.</p><a class="btn btn--clair" href="#demande"></a></div>';
     portes.querySelector('.porte--habitant a').href = lienHabitant;
-    portes.querySelector('.porte--mairie b').textContent = mensuel(autonomie(r.population || 0));
+    if (r.population > B.seuil_devis) portes.querySelector('.porte--mairie p').textContent = 'Gratuit pour commencer, version complète sur devis.';
+    else portes.querySelector('.porte--mairie b').textContent = euros(autonomie(r.population || 0));
     var btn = portes.querySelector('.porte--mairie a'); btn.textContent = 'Activer ' + r.nom + ' →';
     btn.addEventListener('click', function () { var d = document.getElementById('f-demande'); if (!d.value) d.value = 'gratuit'; });
     carte.append(nom, etat, portes); zone.appendChild(carte);

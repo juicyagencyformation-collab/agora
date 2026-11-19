@@ -30,6 +30,8 @@ async function chargerInfosFormule(forcer = false) {
 }
 
 const euros = (n) => `${Math.round(n).toLocaleString('fr-FR')} €`;
+// Au-delà du seuil du barème (sur_devis, voir lib/formule-commune.ts) : jamais de prix calculé.
+const prixAn = (infos, cle) => (infos.sur_devis ? 'sur devis' : `${euros(infos.prix_annuels[cle])}/an`);
 // Par habitant et par mois, en centimes tant que c'est moins d'un euro.
 function parHabitantMois(prixAnnuel, population) {
   if (!population) return '';
@@ -53,9 +55,10 @@ function htmlCarteOffre(infos, cle) {
       ${cle === 'accompagne' && offre.badge ? `<span class="etiquette-offre-formule">${escapeAttr(offre.badge)}</span>` : ''}
       <span class="nom-offre-formule">${escapeAttr(offre.label)}</span>
       <span class="titre-offre-formule">${escapeAttr(offre.titre)}</span>
+      ${infos.sur_devis ? '<span class="montant-offre-formule">Sur devis</span>' : `
       <span class="montant-offre-formule">${euros(prix)} <small>/ an</small></span>
       <span class="mois-offre-formule">soit ${euros(prix / 12)} / mois</span>
-      ${infos.population ? `<span class="hab-offre-formule">${parHabitantMois(prix, infos.population)}</span>` : ''}
+      ${infos.population ? `<span class="hab-offre-formule">${parHabitantMois(prix, infos.population)}</span>` : ''}`}
       <details class="detail-offre-formule"><summary>Ce qui est compris</summary><ul>${offre.features.map((f) => `<li>${escapeAttr(f)}</li>`).join('')}</ul></details>
     </div>`;
 }
@@ -99,8 +102,8 @@ function ouvrirDemandeFormule(infos) {
   const overlay = ouvrirModaleFormulaire('Changer de formule', `
     <form id="form-demande-formule">
       <div class="choix-formules">
-        ${infos.formule === 'gratuite' ? option('autonomie', `${escapeAttr(infos.offres.autonomie.label)} · ${euros(infos.prix_annuels.autonomie)}/an`, escapeAttr(infos.offres.autonomie.titre), false) : ''}
-        ${option('accompagne', `${escapeAttr(infos.offres.accompagne.label)} · ${euros(infos.prix_annuels.accompagne)}/an`, escapeAttr(infos.offres.accompagne.titre), true)}
+        ${infos.formule === 'gratuite' ? option('autonomie', `${escapeAttr(infos.offres.autonomie.label)} · ${prixAn(infos, 'autonomie')}`, escapeAttr(infos.offres.autonomie.titre), false) : ''}
+        ${option('accompagne', `${escapeAttr(infos.offres.accompagne.label)} · ${prixAn(infos, 'accompagne')}`, escapeAttr(infos.offres.accompagne.titre), true)}
         ${option('conseil', 'Je ne sais pas encore', 'Conseillez-moi au téléphone', false)}
       </div>
       <label for="tel-demande-formule" class="label-formule">Téléphone pour vous rappeler</label>
@@ -162,7 +165,8 @@ async function completerPopupModuleVerrouille(overlay, cleApi) {
   bloc.className = 'complement-popup-formule';
   bloc.innerHTML = `
     ${description ? `<p class="apport-module-formule">${escapeAttr(description)}</p>` : ''}
-    ${infos.formule === 'gratuite' ? `<p>Pour votre commune : <b>${escapeAttr(infos.offres.autonomie.label)} ${euros(infos.prix_annuels.autonomie)}/an</b> ou <b>${escapeAttr(infos.offres.accompagne.label)} ${euros(infos.prix_annuels.accompagne)}/an</b>.</p>` : ''}
+    ${infos.formule === 'gratuite' ? (infos.sur_devis ? '<p>Pour votre commune : tarif <b>sur devis</b>.</p>'
+      : `<p>Pour votre commune : <b>${escapeAttr(infos.offres.autonomie.label)} ${prixAn(infos, 'autonomie')}</b> ou <b>${escapeAttr(infos.offres.accompagne.label)} ${prixAn(infos, 'accompagne')}</b>.</p>`) : ''}
     ${infos.demande_en_cours ? `<p class="demande-en-cours-formule">⏳ Demande envoyée le ${dateCourte(infos.demande_en_cours.created_at)} : l’équipe vous rappelle très vite.</p>` : ''}
     ${infos.peut_demander ? '<button type="button" class="btn-demander-formule">Demander à changer de formule</button>' : ''}
     <button type="button" class="btn-voir-formules">Voir ce que comprend chaque formule</button>

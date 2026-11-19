@@ -196,7 +196,7 @@ function backoffice() {
     grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
     baremeTarifaire: {
       taux_base: 0, seuil_degressif: 0, taux_degressif: 0,
-      prix_plancher: 0, supplement_accompagne: 0, prix_patrimoine_premium: 0,
+      prix_plancher: 0, supplement_accompagne: 0, prix_patrimoine_premium: 0, seuil_devis: 5000,
     },
     baremeEnCours: false,
     baremeMsg: '',
@@ -339,6 +339,8 @@ function backoffice() {
     nouvInteraction: { type: 'note', contenu: '' },
     fermeture: { ouvert: false, dateRetour: '', enCours: false },
     emailLibre: { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' },
+    // Résultat d'un appel téléphonique — voir POST /prospects/:id/resultat-appel.
+    appel: { resultat: '', date: '', heure: '', note: '', enCours: false, msg: '' },
     carteVisiteHtml: null,
     carteVisiteMsg: '',
     conversion: { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' },
@@ -421,6 +423,7 @@ function backoffice() {
       this.prospMsg = '';
       this.conversion = { ouvert: false, enCours: false, succes: false, erreur: '', nom: '', slug: '', maireEmail: '', mairePrenom: '', maireNom: '', mairePassword: '', url: '' };
       this.emailLibre = { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' };
+      this.appel = { resultat: '', date: '', heure: '', note: '', enCours: false, msg: '' };
       this.carteVisiteHtml = null;
       this.carteVisiteMsg = '';
       this.coordsMsg = '';
@@ -2020,6 +2023,53 @@ function backoffice() {
       return this.favoris.filter((x) => x.nom === f.nom).length > 1;
     },
 
+    // Lien d'appel direct (tel:) : chiffres et « + » seulement, comme l'attendent les téléphones.
+    lienTel(numero) {
+      return 'tel:' + String(numero || '').replace(/[^\d+]/g, '');
+    },
+
+    // Un seul geste après un appel : le serveur journalise l'appel et programme la suite (voir
+    // suiteAppel dans prospection.ts). « Demande un mail » ouvre ensuite l'email libre pré-rempli.
+    async enregistrerAppel() {
+      const a = this.appel;
+      if (!a.resultat) return;
+      if (['rappeler', 'demo'].includes(a.resultat) && !a.date) { a.msg = 'Indique la date.'; return; }
+      a.enCours = true;
+      a.msg = '';
+      try {
+        const corps = { resultat: a.resultat };
+        if (a.date && ['rappeler', 'demo'].includes(a.resultat)) corps.date = a.date;
+        if (a.heure && ['rappeler', 'demo'].includes(a.resultat)) corps.heure = a.heure;
+        if (a.note.trim()) corps.note = a.note.trim();
+        const r = await boFetch('/prospection/prospects/' + this.prospect.id + '/resultat-appel', {
+          method: 'POST', body: JSON.stringify(corps),
+        });
+        const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+        this.prospect = { ...this.prospect, ...d.prospect };
+        this.interactions = d.interactions;
+        const demandeMail = a.resultat === 'envoyer_mail';
+        this.appel = { resultat: '', date: '', heure: '', note: '', enCours: false,
+          msg: 'Appel noté — suite prévue le ' + this.formatDate(r.prochaine_relance_le) + (r.prochaine_relance_heure ? ' à ' + r.prochaine_relance_heure : '') + '.' };
+        if (demandeMail) this.preparerEmailApresAppel(r.prochaine_relance_le);
+        this.chargerAujourdhui();
+      } catch (e) {
+        a.msg = e.message || 'Enregistrement impossible';
+        a.enCours = false;
+      }
+    },
+    // Mail de suivi « comme convenu au téléphone » : à relire avant d'envoyer, rien ne part seul.
+    preparerEmailApresAppel(dateRappel) {
+      const base = window.location.origin;
+      const espace = this.prospect.commune_slug
+        ? `\n👉 L'espace de ${this.prospect.nom}, déjà prêt : ${base}/${this.prospect.commune_slug}/` : '';
+      this.emailLibre = {
+        ouvert: true, inclureFiche: true, enCours: false, msg: '',
+        objet: 'Suite à notre appel — Plateforme-Agora',
+        message: `Bonjour,\n\nMerci pour votre accueil au téléphone. Comme convenu, voici de quoi découvrir Plateforme-Agora :\n\n👉 La démo en ligne : ${base}/bonvivre/${espace}\n\nLa version gratuite permet de tester sans engagement. Je vous rappelle le ${this.formatDate(dateRappel)} pour en parler.\n\nBelle journée,\nLéandre Sallé\nConseiller municipal à Eaucourt-sur-Somme`,
+      };
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+
     async ajouterInteraction() {
       if (!this.nouvInteraction.contenu.trim()) return;
       try {
@@ -2293,6 +2343,7 @@ function backoffice() {
             prix_plancher: Number(b.prix_plancher) || 0,
             supplement_accompagne: Number(b.supplement_accompagne) || 0,
             prix_patrimoine_premium: Number(b.prix_patrimoine_premium) || 0,
+            seuil_devis: Math.round(Number(b.seuil_devis)) || 5000,
           }),
         });
         this.baremeMsg = 'Barème enregistré.';

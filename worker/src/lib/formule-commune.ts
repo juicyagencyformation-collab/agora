@@ -8,7 +8,7 @@
 // enregistrés dans le backoffice, voir backoffice/tarification.ts), pour que tout colle.
 import { z } from 'zod';
 import { supabaseSelect } from '../db';
-import { chargerBareme, calculerPrixAutonomie, calculerPrixAccompagne, chargerOffresTexte, structurerOffresTexte } from '../backoffice/tarification';
+import { chargerBareme, calculerPrixAutonomie, calculerPrixAccompagne, estSurDevis, chargerOffresTexte, structurerOffresTexte } from '../backoffice/tarification';
 import { TOUS_LES_ONGLETS } from '../backoffice/administration';
 
 // Une demande en attente depuis plus longtemps n'est plus « en cours » : la mairie peut redemander.
@@ -63,6 +63,8 @@ export async function infosFormule(env: any, commune_id: string, role: string) {
     onglets_inclus: ongletsUtiles.filter((o: any) => o.actif).map((o: any) => o.cle),
     onglets_verrouilles: verrouilles,
     population,
+    // Au-delà du seuil du barème : le volet affiche « sur devis » au lieu des prix calculés.
+    sur_devis: estSurDevis(population, bareme),
     prix_annuels: {
       autonomie: calculerPrixAutonomie(population ?? 0, bareme),
       accompagne: calculerPrixAccompagne(population ?? 0, bareme),

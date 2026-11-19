@@ -25,11 +25,15 @@ export type BaremeTarifaire = {
   // Pas de calculerPrixPremium() ici — le calcul (1re année vs. années suivantes) reste
   // spécifique à l'affichage, géré directement dans accueil.html.
   prix_patrimoine_premium: number;
+  // Au-delà de ce nombre d'habitants, plus de prix calculé : « sur devis » (site + volet
+  // « Votre formule »). Ajouté le 2026-11-19, décidé avec Léandre (5 000).
+  seuil_devis: number;
 };
 
 const CLES_BAREME = [
   'bareme_taux_base', 'bareme_seuil_degressif', 'bareme_taux_degressif',
   'bareme_prix_plancher', 'bareme_supplement_accompagne', 'bareme_prix_patrimoine_premium',
+  'bareme_seuil_devis',
 ] as const;
 
 // Repli si la migration n'a pas encore tourné ou qu'une clé manque — mêmes valeurs que le seed,
@@ -37,6 +41,7 @@ const CLES_BAREME = [
 const BAREME_DEFAUT: BaremeTarifaire = {
   taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2,
   prix_plancher: 290, supplement_accompagne: 200, prix_patrimoine_premium: 749,
+  seuil_devis: 5000,
 };
 
 export async function chargerBareme(env: any): Promise<BaremeTarifaire> {
@@ -52,6 +57,7 @@ export async function chargerBareme(env: any): Promise<BaremeTarifaire> {
       prix_plancher: parValeur.get('bareme_prix_plancher') ?? BAREME_DEFAUT.prix_plancher,
       supplement_accompagne: parValeur.get('bareme_supplement_accompagne') ?? BAREME_DEFAUT.supplement_accompagne,
       prix_patrimoine_premium: parValeur.get('bareme_prix_patrimoine_premium') ?? BAREME_DEFAUT.prix_patrimoine_premium,
+      seuil_devis: parValeur.get('bareme_seuil_devis') ?? BAREME_DEFAUT.seuil_devis,
     };
   } catch {
     return BAREME_DEFAUT;
@@ -65,6 +71,10 @@ export function calculerPrixAutonomie(habitants: number, b: BaremeTarifaire): nu
   const brut = Math.min(bornes, b.seuil_degressif) * b.taux_base
     + Math.max(0, bornes - b.seuil_degressif) * b.taux_degressif;
   return Math.max(brut, b.prix_plancher);
+}
+
+export function estSurDevis(habitants: number | null | undefined, b: BaremeTarifaire): boolean {
+  return (habitants ?? 0) > b.seuil_devis;
 }
 
 export function calculerPrixAccompagne(habitants: number, b: BaremeTarifaire): number {

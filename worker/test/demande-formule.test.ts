@@ -100,6 +100,14 @@ describe('formule affichée', () => {
     expect((await (await appel('/formule', 'admin')).json()).peut_demander).toBe(false);
     expect((await appel('/formule', 'citoyen')).status).toBe(403);
   });
+
+  it('au-delà du seuil du barème (5 000 par défaut, réglable) : sur devis', async () => {
+    expect((await (await appel('/formule', 'maire')).json()).sur_devis).toBe(false);
+    db.communes[0].population = 5001;
+    expect((await (await appel('/formule', 'maire')).json()).sur_devis).toBe(true);
+    db.parametres_facturation.push({ cle: 'bareme_seuil_devis', valeur: '8000' });
+    expect((await (await appel('/formule', 'maire')).json()).sur_devis).toBe(false);
+  });
 });
 
 describe('demande de changement de formule', () => {
