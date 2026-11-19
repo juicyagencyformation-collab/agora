@@ -139,6 +139,27 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+describe('GET /appels-du-jour', () => {
+  it('ne garde que les communes dans le rayon, dans l\'ordre d\'appel', async () => {
+    const verifie = new Date().toISOString(); // horaires déjà vérifiés : pas d'appel à l'annuaire
+    db.prospects = [
+      // Pont-Remy (~3 km d'Eaucourt), Abbeville (~5 km), Amiens (~36 km), Lille (~85 km)
+      { id: 'pont', nom: 'Pont-Remy', statut: 'contacte', lat: 50.054, lng: 1.910, contact_telephone: '03', horaires_verifies_le: verifie, prochaine_relance_le: '2026-08-20' },
+      { id: 'abb', nom: 'Abbeville', statut: 'a_contacter', lat: 50.105, lng: 1.835, contact_telephone: '03', horaires_verifies_le: verifie, prochaine_relance_le: null, commune_id: 'c-abb' },
+      { id: 'ami', nom: 'Amiens', statut: 'contacte', lat: 49.894, lng: 2.302, contact_telephone: '03', horaires_verifies_le: verifie, prochaine_relance_le: '2026-08-20' },
+      { id: 'lil', nom: 'Lille', statut: 'contacte', lat: 50.629, lng: 3.057, contact_telephone: '03', horaires_verifies_le: verifie, prochaine_relance_le: '2026-08-20' },
+    ];
+    db.users = [{ commune_id: 'c-abb', role: 'admin', derniere_connexion_streak: '2026-11-01' }];
+    const res = await app.request('/appels-du-jour?rayon_km=30', { headers: await sessionStaff() }, ENV);
+    const corps: any = await res.json();
+    expect(res.status).toBe(200);
+    expect(corps.rayon_km).toBe(30);
+    // Amiens (~36 km) et Lille hors du cercle de 30 km.
+    expect(corps.appels.map((a: any) => a.nom)).toEqual(['Abbeville', 'Pont-Remy']); // 🔑 avant la plus proche
+    expect(corps.appels[1]).toMatchObject({ distance_km: 3, maire_connecte: false });
+  });
+});
+
 describe('POST /prospects/:id/resultat-appel', () => {
   it('refuse sans session staff', async () => {
     const res = await app.request('/prospects/p1/resultat-appel', { method: 'POST', body: '{}' }, ENV);

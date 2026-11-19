@@ -8,15 +8,20 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261106-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261119-3" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
        @keydown.window.ctrl.k.prevent="ouvrirPalette()" @keydown.window.meta.k.prevent="ouvrirPalette()">
     <!-- Navigation -->
-    <nav class="bo-nav">
+    <!-- Sur téléphone (≤ 720 px) : seuls la marque, « Aujourd'hui » et « ☰ Menu » restent visibles ;
+         le reste se déplie au clic et se replie dès qu'on choisit une destination. -->
+    <nav class="bo-nav" :class="{ 'bo-nav--ouvert': menuMobile }"
+         @click="if ($event.target.closest('.bo-nav__lien, .bo-nav__favori')) menuMobile = false">
       <div class="bo-nav__marque"><img src="/backoffice/logo.png?v=20260818-1" class="bo-nav__logo" alt="" onerror="this.remove()" />Agora <span>Backoffice</span></div>
-      <div class="bo-nav__lien" :class="{ actif: vue === 'aujourdhui' }" @click="allerAujourdhui()">🎯 Aujourd'hui<span class="bo-tiroir__compte" x-show="totalAujourdhui()" x-text="' ' + totalAujourdhui()"></span></div>
+      <div class="bo-nav__lien bo-nav__lien--fixe" :class="{ actif: vue === 'aujourdhui' }" @click="allerAujourdhui()">🎯 Aujourd'hui<span class="bo-tiroir__compte" x-show="totalAujourdhui()" x-text="' ' + totalAujourdhui()"></span></div>
+      <button type="button" class="bo-nav__burger" @click.stop="menuMobile = !menuMobile" :aria-expanded="menuMobile"
+              x-text="menuMobile ? '✕ Fermer' : '☰ Menu'"></button>
       <!-- Menu par espace métier (étape 4 du remaniement, 2026-11-04) : mêmes vues qu'avant, regroupées. -->
       <div class="bo-nav__groupe">Communes</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'communes' || (vue === 'fiche_unifiee' && fiche) }" @click="allerCommunes()">🏛 Communes clientes</div>
@@ -33,7 +38,7 @@
       <a class="bo-nav__lien" href="/backoffice/stickers" target="_blank" rel="noopener" style="text-decoration:none; color:inherit">🏷 Stickers</a>
       <div class="bo-nav__groupe">Configuration</div>
       <div class="bo-nav__lien" :class="{ actif: vue === 'reglages' }" @click="allerReglages()">⚙️ Réglages</div>
-      <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
+      <div class="bo-nav__lien" @click="ouvrirPalette()" title="Ctrl/Cmd+K">🔍 Rechercher <span class="bo-nav__raccourci" style="margin-left:auto; opacity:.5; font-size:11px">⌘K</span></div>
       <div class="bo-nav__favoris" x-show="favoris.length > 0">
         <div class="bo-nav__favoris-titre">⭐ Favoris</div>
         <template x-for="f in favoris" :key="f.id">
@@ -87,6 +92,46 @@
             <div>
               <div class="bo-titre">🎯 Aujourd'hui</div>
               <div class="bo-sous">Tout ce qui attend une action ou est en retard, regroupé au même endroit.</div>
+            </div>
+          </div>
+
+          <!-- Appels du jour (GET /prospection/appels-du-jour) : en tête, en liste (pas en tableau)
+               pour rester lisible sur téléphone. 15 affichés, le reste derrière « Voir la suite ». -->
+          <div class="bo-carte" style="margin-bottom:20px">
+            <div class="bo-appels__entete">
+              <strong>📞 Appels du jour<span class="bo-tiroir__compte" x-show="ajAppels.length" x-text="' — ' + ajAppels.length"></span></strong>
+              <label class="bo-appels__rayon">à moins de
+                <select x-model.number="ajAppelsRayon" @change="changerRayonAppels()">
+                  <template x-for="r in [10, 20, 30, 50, 100]" :key="r"><option :value="r" :selected="r === ajAppelsRayon" x-text="r + ' km'"></option></template>
+                </select>
+                d'Eaucourt
+              </label>
+            </div>
+            <div class="bo-vide" style="padding:16px 18px" x-show="ajAppelsErreur" x-text="ajAppelsErreur"></div>
+            <template x-if="!ajAppelsErreur && ajAppels.length === 0">
+              <div class="bo-vide" style="padding:16px 18px">Aucun appel prévu dans ce rayon aujourd'hui.</div>
+            </template>
+            <div class="bo-info" style="padding:8px 18px 0; font-size:12.5px" x-show="ajAppels.length > 0">
+              Dans l'ordre : mairie ouverte maintenant, puis 🔑 quelqu'un s'est déjà connecté, puis les plus proches.
+            </div>
+            <template x-for="p in appelsAffiches()" :key="p.id">
+              <div class="bo-appel" @click="ouvrirProspectPourAppel(p.id)">
+                <div class="bo-appel__commune">
+                  <div><span class="bo-nom-commune" x-text="p.nom"></span><span x-show="p.maire_connecte" title="Quelqu'un à la mairie s'est déjà connecté"> 🔑</span></div>
+                  <div class="bo-info" style="font-size:12px"
+                       x-text="p.distance_km + ' km · ' + libelleStatut(p.statut) + ' · ' + (!p.prochaine_relance_le ? 'jamais appelée' : p.prochaine_relance_le === ajDateAujourdhui ? 'prévu aujourd\'hui' : 'en retard depuis le ' + formatDate(p.prochaine_relance_le)) + (p.prochaine_relance_heure ? ' à ' + p.prochaine_relance_heure : '')"></div>
+                  <div style="font-size:13px; margin-top:2px" :style="p.ouverture?.ouvert ? { color: 'var(--bo-vert)', fontWeight: 600 } : {}"
+                       x-text="p.ouverture ? (p.ouverture.ouvert ? '🟢 ' : '🔴 ') + p.ouverture.libelle : 'Horaires inconnus'"></div>
+                </div>
+                <template x-if="p.contact_telephone">
+                  <a class="bo-btn bo-btn--compact bo-appel__tel" :href="lienTel(p.contact_telephone)" @click.stop x-text="'📞 ' + p.contact_telephone"></a>
+                </template>
+                <template x-if="!p.contact_telephone"><span class="bo-info">Pas de numéro</span></template>
+              </div>
+            </template>
+            <div style="padding:12px 18px" x-show="ajAppels.length > 15">
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="ajAppelsTous = !ajAppelsTous"
+                      x-text="ajAppelsTous ? 'Revenir aux 15 premiers' : 'Voir la suite (' + (ajAppels.length - 15) + ')'"></button>
             </div>
           </div>
 
@@ -163,7 +208,7 @@
 
           <div class="bo-tiroir" style="margin-bottom:20px">
             <div class="bo-tiroir__entete" style="cursor:pointer" @click="toggleTiroir('aj_prospects_relance')">
-              <span>📞 Prospects à relancer<span class="bo-tiroir__compte" x-show="ajProspectsRelance.length" x-text="' — ' + ajProspectsRelance.length"></span></span>
+              <span>✉ Relances par email en retard<span class="bo-tiroir__compte" x-show="ajProspectsRelance.length" x-text="' — ' + ajProspectsRelance.length + (ajProspectsRelance.length >= 200 ? '+' : '')"></span></span>
               <span style="display:flex; align-items:center; gap:10px">
                 <button class="bo-btn bo-btn--compact" @click.stop="relancerTousLesProspects()" :disabled="relanceLotEnCours" x-show="ajProspectsRelance.length > 0"
                         x-text="relanceLotEnCours ? 'Envoi…' : 'Tout traiter (' + Math.min(ajProspectsRelance.length, 40) + ')'"></button>
@@ -176,28 +221,18 @@
                 <div class="bo-vide" style="padding:16px 18px">Rien à relancer aujourd'hui.</div>
               </template>
               <div class="bo-info" style="padding:10px 18px 0; font-size:12.5px" x-show="ajProspectsRelance.length > 0">
-                Ordre d'appel : mairie ouverte maintenant, puis 🔑 quelqu'un s'est déjà connecté, puis les plus proches d'Eaucourt.
+                Arriéré des envois par email (toute la France, non compté dans le badge). Les relances se font désormais par téléphone : voir « Appels du jour » en haut.
               </div>
               <table x-show="ajProspectsRelance.length > 0">
-                <thead><tr><th>Commune</th><th>Mairie</th><th>Téléphone</th><th>Relance</th></tr></thead>
+                <thead><tr><th>Commune</th><th>Statut</th><th>Relance</th></tr></thead>
                 <tbody>
                   <template x-for="p in ajProspectsRelance" :key="p.id">
                     <tr @click="ouvrirProspect(p.id)">
-                      <td>
-                        <span class="bo-nom-commune" x-text="p.nom"></span><span x-show="p.maire_connecte" title="Quelqu'un à la mairie s'est déjà connecté"> 🔑</span>
-                        <div class="bo-info" style="font-size:12px" x-text="libelleStatut(p.statut) + (p.distance_km !== null ? ' · ' + p.distance_km + ' km' : '')"></div>
-                      </td>
-                      <td style="font-size:13px" :style="p.ouverture?.ouvert ? 'color:var(--bo-vert); font-weight:600' : ''"
-                          x-text="p.ouverture ? (p.ouverture.ouvert ? '🟢 ' : '🔴 ') + p.ouverture.libelle : '—'"></td>
-                      <td>
-                        <template x-if="p.contact_telephone">
-                          <a :href="lienTel(p.contact_telephone)" @click.stop style="white-space:nowrap" x-text="'📞 ' + p.contact_telephone"></a>
-                        </template>
-                        <template x-if="!p.contact_telephone"><span class="bo-info">—</span></template>
-                      </td>
+                      <td class="bo-nom-commune" x-text="p.nom"></td>
+                      <td x-text="libelleStatut(p.statut)"></td>
                       <td>
                         <span :class="p.prochaine_relance_le < ajDateAujourdhui ? 'bo-note--basse' : 'bo-note--moyenne'"
-                              x-text="(p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)) + (p.prochaine_relance_heure ? ' à ' + p.prochaine_relance_heure : '')"></span>
+                              x-text="p.prochaine_relance_le === ajDateAujourdhui ? 'Aujourd\'hui' : 'En retard — ' + formatDate(p.prochaine_relance_le)"></span>
                       </td>
                     </tr>
                   </template>
@@ -2674,6 +2709,19 @@
             <div x-show="!fiche || ongletFiche === 'echanges'">
               <div class="bo-section-titre" x-show="fiche" style="margin-top:0">📞 Prospection</div>
 
+              <!-- Barre d'appel, sur téléphone seulement : appeler et noter l'appel sans faire défiler
+                   les boutons d'emails et d'affiches. -->
+              <template x-if="prospect.statut !== 'ne_plus_contacter'">
+                <div class="bo-carte bo-barre-appel bo-mobile-seul">
+                  <template x-if="prospect.contact_telephone">
+                    <a class="bo-btn bo-appel__tel" :href="lienTel(prospect.contact_telephone)" x-text="'📞 Appeler ' + prospect.contact_telephone"></a>
+                  </template>
+                  <div style="font-size:13px" :style="prospect.ouverture?.ouvert ? { color: 'var(--bo-vert)', fontWeight: 600 } : {}"
+                       x-text="prospect.ouverture ? (prospect.ouverture.ouvert ? '🟢 ' : '🔴 ') + prospect.ouverture.libelle : 'Horaires non publiés'"></div>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" @click="document.getElementById('bloc-appel')?.scrollIntoView({ behavior: 'smooth' })">✍️ Noter l'appel</button>
+                </div>
+              </template>
+
               <div class="bo-fiche-entete" style="justify-content:space-between; align-items:flex-start">
                 <div>
                   <div style="margin-top:0" title="Favori">
@@ -2773,7 +2821,7 @@
                     <div class="bo-contact-ligne">
                       <span>Mairie</span>
                       <span>
-                        <span :style="prospect.ouverture?.ouvert ? 'color:var(--bo-vert); font-weight:600' : ''"
+                        <span :style="prospect.ouverture?.ouvert ? { color: 'var(--bo-vert)', fontWeight: 600 } : {}"
                               x-text="prospect.ouverture ? (prospect.ouverture.ouvert ? '🟢 ' : '🔴 ') + prospect.ouverture.libelle : 'Horaires non publiés dans l\'annuaire'"></span>
                         <span class="bo-info" style="display:block; font-size:12px" x-show="prospect.horaires_resume" x-text="prospect.horaires_resume"></span>
                       </span>
@@ -2788,7 +2836,7 @@
                        (POST /prospects/:id/resultat-appel). Masqué pour « Ne plus contacter ». -->
                   <template x-if="prospect.statut !== 'ne_plus_contacter'">
                     <div>
-                      <div class="bo-section-titre">Appel</div>
+                      <div class="bo-section-titre" id="bloc-appel">Appel</div>
                       <div class="bo-carte" style="padding:14px 18px">
                         <label style="margin-top:0">Résultat de l'appel</label>
                         <select x-model="appel.resultat" @change="appel.msg = ''">
@@ -2826,7 +2874,7 @@
                       <template x-for="s in statuts" :key="s"><option :value="s" :selected="s === prospect.statut" x-text="libelleStatut(s)"></option></template>
                     </select>
                     <label>Prochaine relance</label>
-                    <div style="display:flex; align-items:center; gap:8px">
+                    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px">
                       <input type="date" x-model="prospect.prochaine_relance_le" @change="prospect.prochaine_relance_heure = null; majProspect({ prochaine_relance_le: prospect.prochaine_relance_le || null })" style="flex:1" />
                       <input type="time" x-model="prospect.prochaine_relance_heure" title="Heure du rappel convenu (facultatif)" style="width:auto"
                              :disabled="!prospect.prochaine_relance_le"
@@ -4482,7 +4530,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20260924-1"></script>
-  <script src="/backoffice/js/app.js?v=20261119-2"></script>
+  <script src="/backoffice/js/app.js?v=20261119-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

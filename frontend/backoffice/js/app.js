@@ -289,6 +289,13 @@ function backoffice() {
     // onboardingSansContact/emailsRejetes, déjà chargés à chaque boot par chargerCommunes()
     // (dernier appel de init()) — pas la peine de les refetcher en double pour cette vue.
     ajProspectsRelance: [],
+    // File d'appels (GET /prospection/appels-du-jour) : communes proches d'Eaucourt, 15 affichées
+    // par défaut. Le rayon choisi est mémorisé sur cet appareil (simple confort).
+    ajAppels: [],
+    ajAppelsRayon: (() => { try { return Number(localStorage.getItem('bo_rayon_appels')) || 30; } catch { return 30; } })(),
+    ajAppelsTous: false,
+    ajAppelsErreur: '',
+    menuMobile: false, // menu de navigation replié sur téléphone
     ajProspectsPerdusRelance: [], // refus dus aujourd'hui — voir GET /prospects-perdus-a-relancer
     ajDateAujourdhui: '',
     ajEmailsRecus: [],
@@ -413,10 +420,11 @@ function backoffice() {
     // commune sans prospect (Eaucourt, commune de démo... créées hors prospection), ou les deux.
     // Les deux tables/routes backend restent inchangées (zéro impact sur CA/churn/onboarding
     // automatique, qui ne connaissent que commune_id) — seule la présentation est fusionnée.
-    async ouvrirFicheUnifiee({ prospectId = null, communeId = null } = {}) {
+    async ouvrirFicheUnifiee({ prospectId = null, communeId = null, onglet = 'ensemble' } = {}) {
       this.chargement = true;
+      this.menuMobile = false;
       this.vue = 'fiche_unifiee';
-      this.ongletFiche = 'ensemble';
+      this.ongletFiche = onglet;
       this.prospect = null;
       this.interactions = [];
       this.fiche = null;
@@ -1194,6 +1202,7 @@ function backoffice() {
         this.ajDateAujourdhui = relance.aujourdhui;
         this.ajEmailsRecus = recus.emails;
       } catch {}
+      await this.chargerAppelsDuJour();
       // À part : une anomalie qui échoue à se calculer ne doit pas vider le reste de la page.
       try { this.ajAnomalies = (await boFetch('/suivi/anomalies')).anomalies; } catch {}
       await this.chargerSuivi();
@@ -1248,8 +1257,28 @@ function backoffice() {
       }
       return [...groupes.values()];
     },
+    // À part : une file d'appels indisponible ne doit pas vider le reste du tableau de bord.
+    async chargerAppelsDuJour() {
+      try {
+        const r = await boFetch('/prospection/appels-du-jour?rayon_km=' + this.ajAppelsRayon);
+        this.ajAppels = r.appels;
+        this.ajAppelsErreur = '';
+      } catch (e) {
+        this.ajAppelsErreur = e.message || 'File d\'appels indisponible';
+      }
+    },
+    changerRayonAppels() {
+      try { localStorage.setItem('bo_rayon_appels', String(this.ajAppelsRayon)); } catch {}
+      this.ajAppelsTous = false;
+      this.chargerAppelsDuJour();
+    },
+    appelsAffiches() {
+      return this.ajAppelsTous ? this.ajAppels : this.ajAppels.slice(0, 15);
+    },
+    // Le badge compte ce qui est réellement à faire aujourd'hui : les 15 appels du jour, pas
+    // l'arriéré de relances par email (jusqu'à 200 lignes, laissé par les envois d'août).
     totalAujourdhui() {
-      return this.ajProspectsRelance.length + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
+      return Math.min(this.ajAppels.length, 15) + this.ajProspectsPerdusRelance.length + this.ajEmailsRecus.length + this.echeances.length
         + this.facturesEnAttente.length + this.onboardingSansContact.length + this.emailsRejetes.length + this.ajAnomalies.length
         + this.tachesVisibles().length;
     },
@@ -1790,6 +1819,11 @@ function backoffice() {
     async ouvrirProspect(id) {
       await this.ouvrirFicheUnifiee({ prospectId: id });
     },
+    // Depuis la file d'appels : directement sur l'onglet « Échanges », là où se trouve le bloc
+    // « Appel » quand la commune a déjà son espace (sinon il est caché sous la vue d'ensemble).
+    async ouvrirProspectPourAppel(id) {
+      await this.ouvrirFicheUnifiee({ prospectId: id, onglet: 'echanges' });
+    },
 
     async prospecter() {
       if (!confirm('Envoyer la présentation à la mairie ? Si cette commune n\'a pas encore d\'espace, il sera créé à l\'instant en version gratuite, avec un compte maire (identifiants envoyés dans l\'email).')) return;
@@ -2051,7 +2085,7 @@ function backoffice() {
         this.appel = { resultat: '', date: '', heure: '', note: '', enCours: false,
           msg: 'Appel noté — suite prévue le ' + this.formatDate(r.prochaine_relance_le) + (r.prochaine_relance_heure ? ' à ' + r.prochaine_relance_heure : '') + '.' };
         if (demandeMail) this.preparerEmailApresAppel(r.prochaine_relance_le);
-        this.chargerAujourdhui();
+        this.chargerAppelsDuJour();
       } catch (e) {
         a.msg = e.message || 'Enregistrement impossible';
         a.enCours = false;

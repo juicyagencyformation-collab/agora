@@ -125,6 +125,23 @@ input:focus { outline: none; border-color: var(--bo-accent); }
 .bo-nav__favori-etoiles { color: #f0b400; flex-shrink: 0; letter-spacing: -1px; }
 .bo-nav__favori-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bo-nav__pied { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--bo-border); font-size: 13px; color: var(--bo-text-faible); }
+/* Bouton « ☰ Menu » : n'existe que sur téléphone (voir le bloc ≤ 720 px plus bas). */
+.bo-nav__burger {
+  display: none; margin-left: auto; padding: 8px 12px; border: none; border-radius: 8px;
+  background: var(--bo-surface-2); color: var(--bo-text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+@media (hover: none) { .bo-nav__raccourci { display: none; } } /* « ⌘K » n'a pas de sens sans clavier */
+
+/* File d'appels du jour (tableau « Aujourd'hui ») : une ligne par commune, lisible sur téléphone. */
+.bo-appels__entete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid var(--bo-border); }
+.bo-appels__rayon { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; font-weight: 400; color: var(--bo-text-faible); }
+.bo-appels__rayon select { width: auto; margin: 0; padding: 4px 8px; }
+.bo-appel { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--bo-border); cursor: pointer; }
+.bo-appel:hover { background: var(--bo-surface-2); }
+.bo-appel__commune { min-width: 0; }
+.bo-appel__tel { white-space: nowrap; text-decoration: none; flex-shrink: 0; }
+.bo-barre-appel { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.bo-mobile-seul { display: none !important; }
 
 .bo-main { flex: 1; padding: 28px 32px; overflow-x: auto; }
 .bo-entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
@@ -352,6 +369,21 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
   .bo-nav__groupe { display: none; } /* menu en ligne sur mobile : les intitulés de groupe n'y apportent rien */
   .bo-nav__pied { display: flex; align-items: center; gap: 12px; margin: 0 0 0 auto; padding: 0; border-top: none; }
   .bo-nav__pied > div { margin: 0 !important; }
+
+  /* Menu replié par défaut : il occupait tout le premier écran (13 liens + favoris). */
+  .bo-nav__burger { display: inline-flex; }
+  .bo-nav:not(.bo-nav--ouvert) > .bo-nav__lien:not(.bo-nav__lien--fixe),
+  .bo-nav:not(.bo-nav--ouvert) > .bo-nav__favoris,
+  .bo-nav:not(.bo-nav--ouvert) > .bo-nav__pied { display: none !important; }
+  .bo-nav--ouvert > .bo-nav__lien:not(.bo-nav__lien--fixe) { flex: 1 1 calc(50% - 8px); }
+  .bo-nav--ouvert > .bo-nav__favoris { flex-basis: 100%; margin-top: 8px; }
+  .bo-nav--ouvert > .bo-nav__pied { flex-basis: 100%; margin: 8px 0 0; padding-top: 10px; border-top: 1px solid var(--bo-border); }
+
+  .bo-nav__marque { font-size: 0; } /* logo seul : « Agora Backoffice » faisait passer « Menu » à la ligne */
+  .bo-mobile-seul { display: flex !important; }
+  .bo-grille-2 > * { min-width: 0; } /* une ligne trop large ne doit plus élargir toute la colonne */
+  .bo-barre-appel .bo-appel__tel { display: flex; flex: 1 1 100%; justify-content: center; font-size: 16px; padding: 12px; }
+  .bo-appel { padding: 12px 14px; }
 
   .bo-main { padding: 18px 14px; }
 

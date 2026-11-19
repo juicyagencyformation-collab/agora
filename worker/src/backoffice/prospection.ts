@@ -506,33 +506,57 @@ app.get('/apercu', async (c) => {
 // les autres briques : échéances, onboarding bloqué, emails rejetés). Un filtre `lte` sur une
 // colonne nullable exclut naturellement les NULL (NULL <= X est indéterminé en SQL), donc pas
 // besoin d'un `not.is.null` séparé sur prochaine_relance_le.
-// Depuis le 2026-11-19, c'est aussi la file d'appels du jour : téléphone, état d'ouverture de la
-// mairie, signal 🔑 et distance depuis Eaucourt — voir trierFileAppels.
 app.get('/prospects-a-relancer', async (c) => {
   const aujourdhui = new Date().toISOString().slice(0, 10);
+  const prospects = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,departement,statut,prochaine_relance_le',
+    prochaine_relance_le: `lte.${aujourdhui}`,
+    statut: 'in.(a_contacter,contacte,relance,rdv)',
+    order: 'prochaine_relance_le.asc',
+    limit: '200',
+  });
+  return c.json({ prospects, aujourdhui });
+});
+
+// GET /appels-du-jour?rayon_km=30 — file d'appels du tableau « Aujourd'hui » (2026-11-19).
+// Volontairement limitée aux communes proches d'Eaucourt (« l'élu d'à côté », choix de Léandre) :
+// l'arriéré national de relances laissé par les envois d'août (~13 800 dates dépassées) ne doit
+// pas noyer la liste. Relance due OU jamais programmée (communes voisines jamais démarchées).
+// Filtre en deux temps : carré autour d'Eaucourt côté base (index lat/lng inutile à cette
+// échelle), puis vrai cercle en mémoire.
+const RAYON_APPELS_DEFAUT_KM = 30;
+app.get('/appels-du-jour', async (c) => {
+  const rayon = Math.min(300, Math.max(5, parseInt(c.req.query('rayon_km') || '', 10) || RAYON_APPELS_DEFAUT_KM));
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const { lat, lng } = POINT_DEPART_APPELS;
+  const dLat = rayon / 111.32;
+  const dLng = rayon / (111.32 * Math.cos((lat * Math.PI) / 180));
   const [prospects, communesConnectees] = await Promise.all([
     supabaseSelect(c.env, 'prospects', {
-      select: 'id,code_insee,nom,departement,statut,prochaine_relance_le,prochaine_relance_heure,contact_telephone,horaires_ouverture,horaires_verifies_le,lat,lng,commune_id',
-      prochaine_relance_le: `lte.${aujourdhui}`,
+      select: 'id,code_insee,nom,statut,prochaine_relance_le,prochaine_relance_heure,contact_telephone,horaires_ouverture,horaires_verifies_le,lat,lng,commune_id',
       statut: 'in.(a_contacter,contacte,relance,rdv)',
-      order: 'prochaine_relance_le.asc',
-      limit: '200',
+      or: `(prochaine_relance_le.lte.${aujourdhui},prochaine_relance_le.is.null)`,
+      and: `(lat.gte.${(lat - dLat).toFixed(4)},lat.lte.${(lat + dLat).toFixed(4)},lng.gte.${(lng - dLng).toFixed(4)},lng.lte.${(lng + dLng).toFixed(4)})`,
+      limit: '1000',
     }),
     chargerCommunesConnectees(c.env),
   ]);
-  await completerHoraires(c.env, prospects);
+  const proches = prospects
+    .map((p: any) => ({ ...p, distance: distanceMetres(lat, lng, p.lat, p.lng) / 1000 }))
+    .filter((p: any) => p.distance <= rayon)
+    .sort((a: any, b: any) => a.distance - b.distance);
+  await completerHoraires(c.env, proches); // les plus proches d'abord (plafond par appel)
   const maintenant = new Date();
-  const file = prospects.map((p: any) => ({
-    id: p.id, nom: p.nom, departement: p.departement, statut: p.statut,
+  const appels = proches.map((p: any) => ({
+    id: p.id, nom: p.nom, statut: p.statut,
     prochaine_relance_le: p.prochaine_relance_le,
     prochaine_relance_heure: p.prochaine_relance_heure?.slice(0, 5) ?? null,
     contact_telephone: p.contact_telephone,
     ouverture: etatOuverture(p.horaires_ouverture, maintenant),
     maire_connecte: !!(p.commune_id && communesConnectees.has(p.commune_id)),
-    distance_km: Number.isFinite(p.lat) && Number.isFinite(p.lng)
-      ? Math.round(distanceMetres(POINT_DEPART_APPELS.lat, POINT_DEPART_APPELS.lng, p.lat, p.lng) / 1000) : null,
+    distance_km: Math.round(p.distance),
   })).sort(trierFileAppels);
-  return c.json({ prospects: file, aujourdhui });
+  return c.json({ appels, rayon_km: rayon, aujourdhui });
 });
 
 // Ordre de la file d'appels : joignable (téléphone connu) → mairie ouverte maintenant → 🔑
