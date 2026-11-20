@@ -1,14 +1,14 @@
 // worker/src/backoffice/quota-resend.ts
-// Suivi presque en direct du quota Resend (migration 113, demandé par Léandre le 2026-11-20),
-// affiché en tête de la page « Aujourd'hui ». À chaque lecture : une requête à Resend (liste des
-// domaines, sans rien envoyer) pour relever ses en-têtes de quota, et une lecture d'etat_resend
-// (dernière valeur notée par lib/email.ts) si Resend ne les renvoie pas. 2 requêtes au plus.
+// Suivi du quota Resend (migration 113, demandé par Léandre le 2026-11-20), affiché en tête de la
+// page « Aujourd'hui ». Une seule lecture en base : la dernière consommation notée par lib/email.ts
+// à l'envoi (ou à la lecture d'un email reçu). Resend ne la renvoie pas sur une simple consultation
+// (essayé avec GET /domains le 2026-11-20 : aucun en-tête de quota), d'où ce relevé à l'usage, qui
+// suit pourtant la vraie valeur puisque le quota ne bouge qu'à l'envoi ou à la réception.
 // Plafonds du plan gratuit (mémoire « Resend en plan gratuit ») : à ajuster si le plan change.
 // Le quota du jour suit le jour UTC (remise à zéro à minuit UTC, 1 h ou 2 h à Paris).
 import { Hono } from 'hono';
 import { supabaseSelect } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
-import { noterQuotaResend } from '../lib/email';
 
 export const LIMITE_JOUR_RESEND = 100;
 export const LIMITE_MOIS_RESEND = 3000;
@@ -17,18 +17,6 @@ const app = new Hono();
 app.use('*', backofficeMiddleware);
 
 app.get('/', async (c) => {
-  let direct = false;
-  if (c.env.RESEND_API_KEY) {
-    try {
-      const res = await fetch('https://api.resend.com/domains', { headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}` } });
-      if (res.headers.get('x-resend-daily-quota') !== null || res.headers.get('x-resend-monthly-quota') !== null) {
-        await noterQuotaResend(c.env, res, { forcer: true });
-        direct = true;
-      }
-    } catch (e) {
-      console.error('Relevé du quota Resend', e);
-    }
-  }
   try {
     const [etat] = await supabaseSelect(c.env, 'etat_resend', {
       select: 'quota_jour,quota_mois,dernier_refus,dernier_refus_le,maj_le', id: 'eq.1',
@@ -42,7 +30,6 @@ app.get('/', async (c) => {
       limite_jour: LIMITE_JOUR_RESEND,
       limite_mois: LIMITE_MOIS_RESEND,
       maj_le: etat?.maj_le ?? null,
-      direct,
       // Refus pour quota du jour en cours seulement (un refus d'hier n'est plus d'actualité).
       refus: etat?.dernier_refus_le && new Date(etat.dernier_refus_le) >= minuitUtc
         ? { type: etat.dernier_refus, le: etat.dernier_refus_le } : null,

@@ -64,6 +64,16 @@ describe('Relevé à l\'envoi', () => {
     expect(ecritures).toBe(2);
   });
 
+  it('à partir de 70 % du quota du jour, chaque envoi est noté', async () => {
+    vi.setSystemTime(new Date('2026-11-20T13:00:00Z'));
+    reponseEnvoi = () => avecQuota('71', '900');
+    await envoyerEmail(ENV, 'a@b.fr', 'Sujet', '<p>x</p>');
+    reponseEnvoi = () => avecQuota('72', '901');
+    await envoyerEmail(ENV, 'a@b.fr', 'Sujet', '<p>x</p>');
+    expect(db.etat_resend[0].quota_jour).toBe(72);
+    expect(ecritures).toBe(2);
+  });
+
   it('un refus pour quota atteint est toujours noté', async () => {
     vi.setSystemTime(new Date('2026-11-20T11:00:00Z'));
     await envoyerEmail(ENV, 'a@b.fr', 'Sujet', '<p>x</p>');
@@ -85,17 +95,18 @@ describe('Lecture dans le backoffice', () => {
     expect((await quotaResend.request('/', {}, ENV)).status).toBe(401);
   });
 
-  it('relevé direct auprès de Resend quand il renvoie les en-têtes', async () => {
-    reponseDomaines = () => avecQuota('42', '1200', 200, '{"data":[]}');
+  it('renvoie le dernier relevé, sans aucun appel à Resend', async () => {
+    db.etat_resend.push({ id: 1, quota_jour: 42, quota_mois: 1200, maj_le: '2026-11-20T09:00:00.000Z' });
+    reponseDomaines = () => { throw new Error('Resend ne doit pas être appelé'); };
     const corps = await (await quotaResend.request('/', { headers: await session() }, ENV)).json() as any;
-    expect(corps).toMatchObject({ jour: 42, mois: 1200, limite_jour: 100, limite_mois: 3000, direct: true, refus: null });
+    expect(corps).toMatchObject({ jour: 42, mois: 1200, limite_jour: 100, limite_mois: 3000, refus: null });
     expect(corps.remise_a_zero).toBe('2026-11-21T00:00:00.000Z');
   });
 
-  it('sinon le dernier relevé, et le compteur du jour revient à 0 après minuit UTC', async () => {
+  it('le compteur du jour revient à 0 après minuit UTC, un refus d\'hier n\'est plus affiché', async () => {
     db.etat_resend.push({ id: 1, quota_jour: 87, quota_mois: 2100, maj_le: '2026-11-19T22:00:00.000Z',
       dernier_refus: 'daily_quota_exceeded', dernier_refus_le: '2026-11-19T21:00:00.000Z' });
     const corps = await (await quotaResend.request('/', { headers: await session() }, ENV)).json() as any;
-    expect(corps).toMatchObject({ jour: 0, mois: 2100, direct: false, refus: null });
+    expect(corps).toMatchObject({ jour: 0, mois: 2100, refus: null });
   });
 });

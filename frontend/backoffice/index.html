@@ -95,13 +95,14 @@
             </div>
           </div>
 
-          <!-- Quota Resend (backoffice/quota-resend.ts, migration 113) : relu toutes les 2 min sur
+          <!-- Quota Resend (backoffice/quota-resend.ts, migration 113) : valeur notée à chaque email
+               envoyé ou reçu (Resend ne la donne qu'à ce moment-là), relue toutes les 2 min sur
                cette page. Vert < 70 %, orange < 90 %, rouge au-delà ou si Resend a refusé un envoi. -->
           <template x-if="quotaResend && (quotaResend.jour !== null || quotaResend.mois !== null)">
             <div class="bo-carte bo-quota" style="margin-bottom:20px">
               <div class="bo-quota__titre">
                 <strong>✉️ Emails Resend</strong>
-                <span class="bo-info" x-text="(quotaResend.direct ? 'en direct' : 'dernier relevé') + (quotaResend.maj_le ? ' · ' + new Date(quotaResend.maj_le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '')"></span>
+                <span class="bo-info" x-show="quotaResend.maj_le" x-text="'à jour au dernier email, ' + new Date(quotaResend.maj_le).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })"></span>
               </div>
               <div class="bo-quota__alerte" x-show="quotaResend.refus"
                 x-text="'⛔ Quota ' + (quotaResend.refus?.type === 'monthly_quota_exceeded' ? 'du mois' : 'du jour') + ' atteint à ' + (quotaResend.refus ? new Date(quotaResend.refus.le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '') + ' : les emails ne partent plus (codes de connexion compris).'"></div>
@@ -4666,7 +4667,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261120-2"></script>
+  <script src="/backoffice/js/app.js?v=20261120-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

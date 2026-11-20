@@ -56,16 +56,21 @@ export async function envoyerEmail(
 
 // Consommation du quota Resend (migration 113, demandé par Léandre le 2026-11-20) : Resend la
 // renvoie dans les en-têtes x-resend-daily-quota (plan gratuit seulement) et x-resend-monthly-quota.
-// Gardée dans etat_resend pour le backoffice (backoffice/quota-resend.ts). Pour ne pas doubler les
-// requêtes d'un envoi en lot (bilans mensuels, limite de 50 sous-requêtes par exécution), au plus
-// une écriture par minute et par instance, sauf refus pour quota ou relevé forcé.
+// Gardée dans etat_resend pour le backoffice (backoffice/quota-resend.ts). Resend ne les renvoie
+// qu'à l'envoi ou à la lecture d'un email reçu, pas sur une simple consultation (vérifié en
+// production le 2026-11-20) : ce relevé EST donc la valeur à jour, le quota ne bougeant qu'à ces
+// moments-là. Pour ne pas doubler les requêtes d'un envoi en lot (bilans mensuels, limite de 50
+// sous-requêtes par exécution) : au plus une écriture par minute et par instance, sauf à partir de
+// 70 % du quota du jour (là, chaque envoi compte), en cas de refus pour quota ou de relevé forcé.
 let derniereNoteQuota = 0;
+const SEUIL_SUIVI_SERRE = 70;
 
 export async function noterQuotaResend(env: any, res: Response, options: { refus?: string | null; forcer?: boolean } = {}) {
   const jour = res.headers.get('x-resend-daily-quota');
   const mois = res.headers.get('x-resend-monthly-quota');
   if (jour === null && mois === null && !options.refus) return;
-  if (!options.refus && !options.forcer && Date.now() - derniereNoteQuota < 60_000) return;
+  const suiviSerre = jour !== null && (parseInt(jour, 10) || 0) >= SEUIL_SUIVI_SERRE;
+  if (!options.refus && !options.forcer && !suiviSerre && Date.now() - derniereNoteQuota < 60_000) return;
   derniereNoteQuota = Date.now();
   const maintenant = new Date().toISOString();
   try {

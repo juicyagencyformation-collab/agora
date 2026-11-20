@@ -7,6 +7,7 @@
 // jamais prise sur le prospect, c'est toujours Léandre qui corrige l'email ou reprogramme la
 // relance à la main (voir la fiche prospect : champ email éditable, bouton « Mairie fermée »).
 import { supabaseSelect, supabaseSelectTout, supabaseInsert } from '../db';
+import { noterQuotaResend } from '../lib/email';
 
 export type CategorieEmailRecu = 'verification_antispam' | 'fermeture' | 'changement_email' | 'autre';
 
@@ -29,6 +30,8 @@ async function recupererCorpsEmail(env: any, emailId: string): Promise<string | 
     const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
     });
+    // Un email reçu compte dans le quota Resend : relevé si Resend renvoie ses en-têtes ici.
+    await noterQuotaResend(env, res);
     if (!res.ok) {
       console.error(`GET /emails/receiving/${emailId} (Resend) → ${res.status} : ${await res.text().catch(() => '')}`);
       return null;

@@ -1218,8 +1218,8 @@ function backoffice() {
     // chargerCommunes(), voir le commentaire sur ajProspectsRelance). Rappelée aussi bien depuis
     // init() (pour que le badge du menu soit à jour partout, pas seulement une fois la vue
     // visitée) que depuis allerAujourdhui() (pour un état frais à chaque visite). —
-    // Suivi du quota Resend en tête d'« Aujourd'hui ». Une lecture = 1 appel à Resend + 1 lecture
-    // en base (backoffice/quota-resend.ts) ; relu toutes les 2 min seulement si la page est visible.
+    // Suivi du quota Resend en tête d'« Aujourd'hui ». Une lecture = 1 lecture en base
+    // (backoffice/quota-resend.ts) ; relu toutes les 2 min seulement si la page est visible.
     async chargerQuotaResend() {
       try { this.quotaResend = await boFetch('/quota-resend'); } catch { this.quotaResend = null; }
       this.minuteurQuotaResend ??= setInterval(() => {
