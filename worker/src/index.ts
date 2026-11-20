@@ -10,6 +10,7 @@ import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMu
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 import { purgerHabitantsInactifs } from './lib/comptes-inactifs';
+import { purgerDoubleAuthentification } from './lib/double-authentification';
 
 import auth from './auth';
 import commune from './routes/commune';
@@ -59,7 +60,7 @@ for (const chemin of ['/backoffice/auth/login', '/:slug/auth/login']) {
   app.use(chemin, limiterDebit('LIMITEUR_STRICT', { parEmail: true }), limiterDebit('LIMITEUR_LARGE'));
 }
 // Formulaires qui envoient un email : stricts (protège aussi le quota Resend).
-for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-contact', '/decouverte/communes/*']) {
+for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-contact', '/decouverte/communes/*', '/:slug/auth/login/*']) {
   app.use(chemin, limiterDebit('LIMITEUR_STRICT'));
 }
 // Inscription et liens à jeton : larges (plusieurs habitants peuvent partager une connexion).
@@ -198,7 +199,7 @@ export default {
       await executerIsolement(env, [
         purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire,
         relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection,
-        synchroniserEmailsRecusProspection, purgerTentativesConnexion,
+        synchroniserEmailsRecusProspection, purgerTentativesConnexion, purgerDoubleAuthentification,
       ]);
       // rafraichirContenuDemoBonvivre(env) désactivé le 2026-10-07 sur demande explicite — voir
       // la mémoire "Cron dates démo bonvivre" pour le pourquoi et comment le réactiver proprement.

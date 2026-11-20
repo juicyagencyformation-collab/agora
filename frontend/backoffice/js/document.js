@@ -47,7 +47,7 @@
       const TRANSFERTS = 'Données hébergées dans l\'UE. Transferts ponctuels possibles vers les États-Unis (Cloudflare, Resend), encadrés par le '
         + 'cadre de protection des données UE–États-Unis et/ou les clauses contractuelles types.';
       const SECURITE = 'Cloisonnement des données par commune contrôlé par le serveur ; mots de passe hachés et salés (PBKDF2) ; limitation '
-        + 'des tentatives de connexion ; HTTPS ; accès au backoffice réservé à l\'éditeur et à son assistant, tenus à la confidentialité, '
+        + 'des tentatives de connexion ; double authentification des comptes de la mairie (code par email sur tout nouvel appareil) ; HTTPS ; accès au backoffice réservé à l\'éditeur et à son assistant, tenus à la confidentialité, '
         + 'avec journal des actions ; fichiers et documents signés dans des espaces de stockage UE, les documents signés sans adresse publique.';
       feuille.innerHTML = `
         <header>

@@ -22,6 +22,7 @@
     .case-rgpd input { width: auto; margin: 2px 0 0; }
     /* Commune de démonstration (vitrine) : connexion seule, jamais d'inscription. */
     body.commune-demo #vers-inscription, body.commune-demo #form-inscription, body.commune-demo #vers-connexion { display: none !important; }
+    #form-code input::placeholder { letter-spacing: normal; font-size: 16px; }
     .lien-confidentialite { display: block; text-align: center; margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.85); text-decoration: underline; }
   </style>
 </head>
@@ -35,6 +36,16 @@
       <p id="erreur-connexion"></p>
       <button type="submit">Se connecter</button>
     </form>
+    <!-- Double authentification des comptes de la mairie, sur un appareil inconnu seulement
+         (worker/src/lib/double-authentification.ts) : code à 6 chiffres reçu par email. -->
+    <form id="form-code" hidden>
+      <p id="info-code" style="font-size:13.5px;color:var(--roseau);line-height:1.45;margin-bottom:10px"></p>
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}" maxlength="6"
+        placeholder="Code à 6 chiffres" required style="text-align:center;font-size:22px;letter-spacing:6px">
+      <p id="erreur-code" style="color:var(--rouge);font-size:13px;min-height:18px"></p>
+      <button type="submit">Valider</button>
+    </form>
+    <p class="bascule-mode" id="ligne-renvoyer-code" hidden><a id="renvoyer-code">Je n'ai rien reçu : renvoyer le code</a></p>
     <p class="bascule-mode" id="ligne-mdp-oublie"><a id="vers-mdp-oublie">Mot de passe oublié ?</a></p>
     <p class="bascule-mode" id="vers-inscription">Pas encore de compte ? <a>Créer un compte</a></p>
 
@@ -166,21 +177,65 @@
           zoneErreur.textContent = data.erreur || 'Connexion impossible';
           return;
         }
-        // Récompenses débloquées à la connexion (badges de série, montée de niveau) : on les
-        // transmet à l'app, qui les célèbre une fois chargée (la page de connexion n'a pas l'UI).
-        if ((data.nouveaux_badges && data.nouveaux_badges.length) || data.monte_de_niveau || data.streak_du_jour) {
-          sessionStorage.setItem('agora_recompenses_connexion', JSON.stringify({
-            nouveaux_badges: data.nouveaux_badges || [],
-            monte_de_niveau: !!data.monte_de_niveau,
-            niveau: data.niveau,
-            streak_du_jour: !!data.streak_du_jour,
-            streak_actuel: data.streak_actuel,
-          }));
-        }
-        document.location.href = pageApresConnexion;
+        if (data.double_authentification) return afficherEtapeCode(data);
+        finaliserConnexion(data);
       } catch {
         zoneErreur.textContent = 'Serveur inaccessible — vérifie API_BASE dans config.js';
       }
+    });
+
+    function finaliserConnexion(data) {
+      // Récompenses débloquées à la connexion (badges de série, montée de niveau) : on les
+      // transmet à l'app, qui les célèbre une fois chargée (la page de connexion n'a pas l'UI).
+      if ((data.nouveaux_badges && data.nouveaux_badges.length) || data.monte_de_niveau || data.streak_du_jour) {
+        sessionStorage.setItem('agora_recompenses_connexion', JSON.stringify({
+          nouveaux_badges: data.nouveaux_badges || [],
+          monte_de_niveau: !!data.monte_de_niveau,
+          niveau: data.niveau,
+          streak_du_jour: !!data.streak_du_jour,
+          streak_actuel: data.streak_actuel,
+        }));
+      }
+      document.location.href = pageApresConnexion;
+    }
+
+    // Compte de la mairie sur un appareil inconnu : le serveur a envoyé un code par email et
+    // remis un jeton de connexion en attente (gardé en mémoire de la page, jamais stocké).
+    const formCode = document.getElementById('form-code');
+    let jetonEnAttente = null;
+    function afficherEtapeCode(data) {
+      jetonEnAttente = data.jeton;
+      formConnexion.hidden = true;
+      ['vers-inscription', 'ligne-mdp-oublie'].forEach((id) => { document.getElementById(id).hidden = true; });
+      document.getElementById('info-code').textContent = `Pour protéger l'administration de la commune, un code vient d'être envoyé à ${data.email_masque}. `
+        + 'Ce code n\'est demandé que la première fois sur cet appareil : il sera ensuite reconnu pendant 6 mois.';
+      formCode.hidden = false;
+      document.getElementById('ligne-renvoyer-code').hidden = false;
+      formCode.code.focus();
+    }
+    async function appelCode(chemin, corps) {
+      const res = await fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/auth/${chemin}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ jeton: jetonEnAttente, ...corps }),
+      });
+      return { res, data: await res.json().catch(() => ({})) };
+    }
+    formCode.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const zoneErreur = document.getElementById('erreur-code');
+      zoneErreur.textContent = '';
+      try {
+        const { res, data } = await appelCode('login/code', { code: formCode.code.value.replace(/\s/g, '') });
+        if (!res.ok) { zoneErreur.textContent = data.erreur || 'Code refusé'; return; }
+        finaliserConnexion(data);
+      } catch { zoneErreur.textContent = 'Serveur inaccessible.'; }
+    });
+    document.getElementById('renvoyer-code').addEventListener('click', async () => {
+      const zoneErreur = document.getElementById('erreur-code');
+      try {
+        const { res, data } = await appelCode('login/renvoyer-code', {});
+        zoneErreur.textContent = res.ok ? 'Nouveau code envoyé.' : (data.erreur || 'Envoi impossible');
+      } catch { zoneErreur.textContent = 'Serveur inaccessible.'; }
     });
 
     formInscription.addEventListener('submit', async (e) => {

@@ -15,6 +15,7 @@ import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
 import { detacherFichesAssociations } from './lib/associations';
 import { completerLocalisationCommune } from './lib/localisation-commune';
 import { doitAccepterCgu, enregistrerAcceptationCgu, ROLES_DECIDEURS } from './lib/cgu';
+import { ROLES_DOUBLE_AUTH, appareilReconnu, reconnaitreAppareil, demarrerDoubleAuthentification, verifierCodeConnexion, renvoyerCodeConnexion } from './lib/double-authentification';
 
 // Compte bloqué depuis le backoffice (migration 082) — même message partout.
 const MESSAGE_COMPTE_BLOQUE = 'Ce compte est suspendu. Contactez votre mairie.';
@@ -131,7 +132,7 @@ app.post('/login', async (c) => {
   // contiennent jamais d'espace, donc un espace collé au copier-coller depuis l'email ne peut
   // être qu'un accident de copier-coller, jamais un caractère voulu du mot de passe.
   const [user] = await supabaseSelect(c.env, 'users', {
-    select: 'id,role,password_hash,bloque_le',
+    select: 'id,role,email,prenom,password_hash,bloque_le',
     commune_id: `eq.${commune_id}`,
     email: `ilike.${body.data.email.trim()}`,
   });
@@ -152,6 +153,21 @@ app.post('/login', async (c) => {
     await supabaseUpdate(c.env, 'users', { password_hash: nouveauHash }, { id: `eq.${user.id}` });
   }
 
+  // Double authentification des comptes de la mairie (lib/double-authentification.ts) : sur un
+  // appareil inconnu, pas de session tant que le code reçu par email n'est pas saisi.
+  if (ROLES_DOUBLE_AUTH.includes(user.role) && !(await appareilReconnu(c, user.id))) {
+    const attente = await demarrerDoubleAuthentification(c, user, commune_id);
+    if (!attente) return c.json({ erreur: "Le code de connexion n'a pas pu être envoyé par email. Réessayez dans quelques minutes." }, 503);
+    return c.json({ double_authentification: true, jeton: attente.jeton, email_masque: attente.email_masque });
+  }
+
+  return c.json(await ouvrirSession(c, { id: user.id, role: user.role }, commune_id));
+});
+
+// Session complète après une connexion réussie (mot de passe seul, ou mot de passe + code) :
+// cookies, série de connexion, badges remontés au client pour être célébrés une fois l'app
+// chargée (voir connexion.html → sessionStorage → navigation.js).
+async function ouvrirSession(c: any, user: { id: string; role: string }, commune_id: string) {
   const accessToken = await sign(
     { user_id: user.id, commune_id, role: user.role, exp: Math.floor(Date.now() / 1000) + 900 },
     c.env.JWT_SECRET,
@@ -173,16 +189,45 @@ app.post('/login', async (c) => {
   const autresBadges = await verifierBadges(c.env, commune_id, user.id);
   const nouveauxBadges = [...new Set([...resultatConnexion.nouveaux_badges, ...autresBadges])];
 
-  // Remontés au client pour être célébrés une fois l'app chargée (voir connexion.html →
-  // sessionStorage → navigation.js), car la page de connexion n'a pas l'UI d'animation.
-  return c.json({
+  return {
     ok: true, role: user.role,
     nouveaux_badges: nouveauxBadges,
     niveau: resultatConnexion.niveau,
     monte_de_niveau: resultatConnexion.monte_de_niveau,
     streak_actuel: resultatConnexion.streak_actuel,
     streak_du_jour: resultatConnexion.streak_du_jour,
+  };
+}
+
+// POST /login/code — deuxième étape de la double authentification : jeton de la connexion en
+// attente (remis par /login) + code reçu par email. Succès : session ouverte et appareil reconnu
+// 6 mois. Le compte est relu (rôle à jour, blocage éventuel posé entre-temps).
+const codeSchema = z.object({ jeton: z.string().min(40).max(100), code: z.string().trim().regex(/^\d{6}$/, 'Le code compte 6 chiffres.') });
+
+app.post('/login/code', async (c) => {
+  const body = codeSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: body.error.issues[0]?.message || 'Code invalide.' }, 400);
+  const commune_id = c.get('commune_id_resolue') as string;
+  const resultat = await verifierCodeConnexion(c, body.data.jeton, body.data.code, commune_id);
+  if (!resultat.ok) return c.json({ erreur: resultat.erreur }, resultat.statut);
+  const [user] = await supabaseSelect(c.env, 'users', {
+    select: 'id,role,bloque_le', id: `eq.${resultat.user_id}`, commune_id: `eq.${commune_id}`, compte_supprime_le: 'is.null',
   });
+  if (!user) return c.json({ erreur: 'Compte introuvable.' }, 401);
+  if (user.bloque_le) return c.json({ erreur: MESSAGE_COMPTE_BLOQUE }, 403);
+  await reconnaitreAppareil(c, user.id, commune_id);
+  return c.json(await ouvrirSession(c, user, commune_id));
+});
+
+// POST /login/renvoyer-code — nouveau code pour la même connexion en attente (3 envois au plus).
+const renvoiSchema = z.object({ jeton: z.string().min(40).max(100) });
+
+app.post('/login/renvoyer-code', async (c) => {
+  const body = renvoiSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Demande invalide.' }, 400);
+  const resultat = await renvoyerCodeConnexion(c, body.data.jeton, c.get('commune_id_resolue') as string);
+  if (!resultat.ok) return c.json({ erreur: resultat.erreur }, resultat.statut);
+  return c.json({ ok: true });
 });
 
 // POST /entrer-demo — ouvre une session "visiteur" sans identifiants, réservée aux communes de
@@ -331,6 +376,11 @@ app.post('/lien-connexion/:token/confirmer', async (c) => {
   // Simple repère informatif (première utilisation) — ne bloque jamais les suivantes.
   if (!enregistrement.utilise) {
     await supabaseUpdate(c.env, 'login_tokens', { utilise: true }, { id: `eq.${enregistrement.id}` });
+  }
+  // Le lien arrive dans la boîte mail : c'est déjà le second facteur. L'appareil d'un compte de la
+  // mairie est donc reconnu 6 mois, comme après un code (lib/double-authentification.ts).
+  if (ROLES_DOUBLE_AUTH.includes(user.role)) {
+    await reconnaitreAppareil(c, user.id, commune_id).catch((e) => console.error('Appareil non mémorisé', e));
   }
 
   const accessToken = await sign(
