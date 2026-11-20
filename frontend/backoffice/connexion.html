@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<!-- frontend/backoffice/connexion.html — connexion du staff Léandre Sallé (backoffice interne) -->
+<!-- frontend/backoffice/connexion.html — connexion du staff Léandre Sallé (backoffice interne).
+     Double authentification « une fois par jour » (worker/src/backoffice/auth.ts) : après le mot de
+     passe, ou directement au premier passage de la journée (?code=1), un code reçu par email. -->
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -8,10 +10,11 @@
   <title>Backoffice Agora — Connexion</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261119-4" />
+  <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body>
-  <div class="bo-login" x-data="connexionBackoffice()">
-    <form class="bo-login__carte" @submit.prevent="connecter()">
+  <div class="bo-login" x-data="connexionBackoffice()" x-init="init()">
+    <form class="bo-login__carte" @submit.prevent="connecter()" x-show="etape === 'identifiants'">
       <div class="bo-login__titre">Agora <span style="color:var(--bo-accent)">·</span> Backoffice</div>
       <div class="bo-login__sous">Espace interne Plateforme-Agora</div>
 
@@ -24,10 +27,23 @@
       <button class="bo-btn" type="submit" :disabled="chargement" x-text="chargement ? 'Connexion…' : 'Se connecter'"></button>
       <div class="bo-erreur" x-text="erreur"></div>
     </form>
+
+    <form class="bo-login__carte" @submit.prevent="validerCode()" x-show="etape === 'code'" x-cloak>
+      <div class="bo-login__titre">Code du jour</div>
+      <div class="bo-login__sous" x-text="'Envoyé à ' + emailMasque + '. Une fois saisi, plus de code jusqu’à demain 5 h.'"></div>
+
+      <label for="code">Code à 6 chiffres</label>
+      <input id="code" x-ref="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" x-model="code" required
+        style="text-align:center;font-size:22px;letter-spacing:6px" />
+
+      <button class="bo-btn" type="submit" :disabled="chargement" x-text="chargement ? 'Vérification…' : 'Valider'"></button>
+      <div class="bo-erreur" x-text="erreur"></div>
+      <div class="bo-login__sous" style="margin-top:12px"><a href="#" @click.prevent="renvoyer()">Je n'ai rien reçu : renvoyer le code</a></div>
+    </form>
   </div>
 
-  <script src="/backoffice/js/api.js?v=20260924-1"></script>
+  <script src="/backoffice/js/api.js?v=20261120-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
-  <script src="/backoffice/js/connexion.js?v=20260818-1"></script>
+  <script src="/backoffice/js/connexion.js?v=20261120-1"></script>
 </body>
 </html>

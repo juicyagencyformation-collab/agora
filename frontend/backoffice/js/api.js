@@ -13,6 +13,18 @@ const BO_API = '/api/backoffice';
 // seul rafraîchissement en cours entre tous les appels simultanés.
 let rafraichissementEnCours = null;
 
+// Résultat d'un /auth/refresh : 'ok', 'code' (session valide mais code du jour à saisir, voir la
+// double authentification de worker/src/backoffice/auth.ts) ou 'non' (reconnexion complète).
+function lancerRafraichissement() {
+  if (!rafraichissementEnCours) {
+    rafraichissementEnCours = fetch(BO_API + '/auth/refresh', { method: 'POST', credentials: 'include' })
+      .then(async (r) => (r.ok ? 'ok' : (await r.json().catch(() => ({}))).code_requis ? 'code' : 'non'))
+      .catch(() => 'non')
+      .finally(() => { rafraichissementEnCours = null; });
+  }
+  return rafraichissementEnCours;
+}
+
 async function boFetch(chemin, options = {}, _reessai = false) {
   const res = await fetch(BO_API + chemin, {
     credentials: 'include',
@@ -21,14 +33,9 @@ async function boFetch(chemin, options = {}, _reessai = false) {
   });
 
   if (res.status === 401 && !_reessai && !chemin.startsWith('/auth/')) {
-    if (!rafraichissementEnCours) {
-      rafraichissementEnCours = fetch(BO_API + '/auth/refresh', { method: 'POST', credentials: 'include' })
-        .then((r) => r.ok)
-        .finally(() => { rafraichissementEnCours = null; });
-    }
-    const ok = await rafraichissementEnCours;
-    if (ok) return boFetch(chemin, options, true);
-    redirigerVersConnexion();
+    const etat = await lancerRafraichissement();
+    if (etat === 'ok') return boFetch(chemin, options, true);
+    redirigerVersConnexion(etat === 'code');
     throw new Error('Session expirée');
   }
 
@@ -41,9 +48,11 @@ async function boFetch(chemin, options = {}, _reessai = false) {
   return data;
 }
 
-function redirigerVersConnexion() {
+// codeDuJour : la session existe encore, seul le code du jour manque → la page de connexion
+// l'envoie directement, sans redemander le mot de passe.
+function redirigerVersConnexion(codeDuJour = false) {
   if (!location.pathname.endsWith('/connexion') && !location.pathname.endsWith('/connexion.html')) {
-    location.href = '/backoffice/connexion';
+    location.href = '/backoffice/connexion' + (codeDuJour ? '?code=1' : '');
   }
 }
 
@@ -57,13 +66,7 @@ function redirigerVersConnexion() {
 // d'inactivité) : la prochaine vraie action de l'utilisateur retombera sur le chemin réactif de
 // boFetch, qui redirige proprement vers la connexion.
 if (!location.pathname.endsWith('/connexion') && !location.pathname.endsWith('/connexion.html')) {
-  setInterval(() => {
-    if (!rafraichissementEnCours) {
-      rafraichissementEnCours = fetch(BO_API + '/auth/refresh', { method: 'POST', credentials: 'include' })
-        .then((r) => r.ok)
-        .finally(() => { rafraichissementEnCours = null; });
-    }
-  }, 10 * 60 * 1000);
+  setInterval(lancerRafraichissement, 10 * 60 * 1000);
 }
 
 window.boFetch = boFetch;

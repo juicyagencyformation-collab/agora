@@ -60,7 +60,7 @@ for (const chemin of ['/backoffice/auth/login', '/:slug/auth/login']) {
   app.use(chemin, limiterDebit('LIMITEUR_STRICT', { parEmail: true }), limiterDebit('LIMITEUR_LARGE'));
 }
 // Formulaires qui envoient un email : stricts (protège aussi le quota Resend).
-for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-contact', '/decouverte/communes/*', '/:slug/auth/login/*']) {
+for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-contact', '/decouverte/communes/*', '/:slug/auth/login/*', '/backoffice/auth/login/*', '/backoffice/auth/demander-code']) {
   app.use(chemin, limiterDebit('LIMITEUR_STRICT'));
 }
 // Inscription et liens à jeton : larges (plusieurs habitants peuvent partager une connexion).
