@@ -244,6 +244,9 @@ function backoffice() {
     conventionNumerosPris: [],
     conventionEnCours: false,
     conventionMsg: '',
+    // — Lien d'accord du maire (accord de sous-traitance RGPD sans compte) — voir demanderAccordMaire()
+    accordMaireEnCours: false,
+    accordMaireMsg: '',
     // — Annonces de la plateforme (bandeau de l'accueil de l'app) — voir allerAnnonces()
     annonces: [],
     annoncesCibles: { communes: [], regions: [] },
@@ -464,6 +467,7 @@ function backoffice() {
       this.rapport = null;
       this.convention = null;
       this.conventionMsg = '';
+      this.accordMaireMsg = '';
       this.rapportMsg = '';
       const aujourdhuiIso = new Date().toISOString().slice(0, 10);
       this.rapportFin = aujourdhuiIso;
@@ -2939,6 +2943,24 @@ function backoffice() {
         this.conventionNumerosPris = rc.numeros_pris;
       } catch (e) { alert(e.message || 'Création impossible'); }
       finally { this.conventionEnCours = false; }
+    },
+    // Envoie au maire, à l'adresse de la mairie (modifiable), un lien pour donner l'accord de la
+    // commune sans compte (backoffice/preuves-cgu.ts → routes/accord-maire.ts). Jamais automatique.
+    async demanderAccordMaire() {
+      const commune = this.fiche?.commune;
+      if (!commune) return;
+      const email = prompt('Envoyer au maire le lien d\'accord (un clic, sans compte) à cette adresse :', commune.email_mairie || commune.contact_email || '');
+      if (email === null) return;
+      this.accordMaireEnCours = true;
+      this.accordMaireMsg = '';
+      try {
+        const r = await boFetch('/preuves-cgu/' + commune.id + '/demander-accord-maire', {
+          method: 'POST', body: JSON.stringify(email.trim() ? { email: email.trim() } : {}),
+        });
+        this.accordMaireMsg = 'Lien envoyé à ' + r.envoye_a + '.';
+        this.fiche.acceptation_cgu = { ...this.fiche.acceptation_cgu, derniere_demande_maire: { envoye_a: r.envoye_a, created_at: new Date().toISOString(), utilise_le: null } };
+      } catch (e) { this.accordMaireMsg = e.message || 'Échec de l\'envoi'; }
+      finally { this.accordMaireEnCours = false; }
     },
     async enregistrerConvention() {
       const c = this.convention;

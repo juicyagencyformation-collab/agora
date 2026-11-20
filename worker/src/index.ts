@@ -36,6 +36,7 @@ import photoDuJour from './routes/photo_du_jour';
 import memoire from './routes/memoire';
 import decouverte from './routes/decouverte';
 import desinscription from './routes/desinscription';
+import accordMaire from './routes/accord-maire';
 import lois from './routes/lois';
 import backoffice from './backoffice';
 import liensCourts from './routes/liens_courts';
@@ -61,7 +62,7 @@ for (const chemin of ['/:slug/auth/mot-de-passe-oublie', '/backoffice/demande-co
   app.use(chemin, limiterDebit('LIMITEUR_STRICT'));
 }
 // Inscription et liens à jeton : larges (plusieurs habitants peuvent partager une connexion).
-for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo', '/:slug/jeux-ailleurs/communes', '/desinscription']) {
+for (const chemin of ['/:slug/auth/register', '/:slug/auth/reinitialiser-mot-de-passe', '/:slug/auth/lien-connexion/*', '/:slug/auth/entrer-demo', '/:slug/jeux-ailleurs/communes', '/desinscription', '/accord-maire/*']) {
   app.use(chemin, limiterDebit('LIMITEUR_LARGE'));
 }
 
@@ -72,6 +73,10 @@ app.route('/decouverte', decouverte);
 // Désinscription des emails de suivi (lien en bas des emails + bouton des messageries) — publique,
 // hors commune, voir routes/desinscription.ts et lib/desinscription.ts.
 app.route('/desinscription', desinscription);
+
+// Accord du maire sur l'accord de sous-traitance RGPD, par lien personnel envoyé à la mairie —
+// public, hors commune (la commune vient du jeton), voir routes/accord-maire.ts.
+app.route('/accord-maire', accordMaire);
 
 // Backoffice interne Juicy Solutions — transverse, hors résolution de tenant (mêmes raisons
 // que /decouverte). Sa propre garde d'accès (scope 'backoffice') est appliquée dans ses routes.

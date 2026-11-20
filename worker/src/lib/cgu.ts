@@ -53,30 +53,49 @@ function echapper(s: unknown): string {
   return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
 }
 
-export async function enregistrerAcceptationCgu(c: any, user_id: string, commune_id: string, role: string): Promise<void> {
+type Signataire = {
+  commune_id: string; user_id: string | null; role: string;
+  nom_affiche: string | null; email: string | null;
+  canal: 'application' | 'lien_mairie';
+};
+
+// Cœur commun aux deux façons d'accepter (application connectée, lien envoyé au maire) : archive
+// le texte servi, journalise, envoie l'accusé de réception. Renvoie la ligne créée, ou null si
+// elle existait déjà (double clic, contrainte UNIQUE (user_id, version)).
+export async function journaliserAcceptationCgu(c: any, s: Signataire): Promise<any | null> {
   const env = c.env;
-  const [[moi], [commune], empreinte] = await Promise.all([
-    supabaseSelect(env, 'users', { select: 'nom,prenom,email', id: `eq.${user_id}` }),
-    supabaseSelect(env, 'communes', { select: 'nom,slug,email_mairie,contact_email', id: `eq.${commune_id}` }),
+  const [[commune], empreinte] = await Promise.all([
+    supabaseSelect(env, 'communes', { select: 'nom,slug,email_mairie,contact_email', id: `eq.${s.commune_id}` }),
     archiverTexteCgu(env),
   ]);
-  const nomAffiche = [moi?.prenom, moi?.nom].filter(Boolean).join(' ') || null;
   let acceptation: any = null;
   try {
     [acceptation] = await supabaseInsert(env, 'acceptations_cgu', {
-      commune_id, user_id, role, version: VERSION_CGU, empreinte_sha256: empreinte,
-      nom_affiche: nomAffiche,
-      email: moi?.email ?? null,
+      commune_id: s.commune_id, user_id: s.user_id, role: s.role, version: VERSION_CGU, empreinte_sha256: empreinte,
+      nom_affiche: s.nom_affiche, email: s.email,
+      // Colonne de la migration 109 : envoyée seulement hors application (valeur par défaut sinon),
+      // pour que l'acceptation dans l'app ne dépende jamais de cette migration.
+      ...(s.canal !== 'application' ? { canal: s.canal } : {}),
       ip: ipClient(c),
       user_agent: (c.req.header('User-Agent') || '').slice(0, 400) || null,
     });
   } catch (e) {
-    // Double clic : la contrainte UNIQUE (user_id, version) refuse le doublon, l'acceptation existe déjà.
     if (!String(e).includes('23505')) throw e;
+    return null;
   }
+  if (acceptation?.id) await envoyerAccuseReception(env, acceptation, commune, s.nom_affiche, s.role);
+  return acceptation ?? null;
+}
+
+export async function enregistrerAcceptationCgu(c: any, user_id: string, commune_id: string, role: string): Promise<void> {
+  const [moi] = await supabaseSelect(c.env, 'users', { select: 'nom,prenom,email', id: `eq.${user_id}` });
+  await journaliserAcceptationCgu(c, {
+    commune_id, user_id, role, canal: 'application',
+    nom_affiche: [moi?.prenom, moi?.nom].filter(Boolean).join(' ') || null,
+    email: moi?.email ?? null,
+  });
   // Compatibilité (export de la commune, ancienne colonne de la migration 080).
-  await supabaseUpdate(env, 'users', { cgu_sous_traitance_acceptee_le: new Date().toISOString() }, { id: `eq.${user_id}` });
-  if (acceptation?.id) await envoyerAccuseReception(env, acceptation, commune, nomAffiche, role);
+  await supabaseUpdate(c.env, 'users', { cgu_sous_traitance_acceptee_le: new Date().toISOString() }, { id: `eq.${user_id}` });
 }
 
 // Accusé de réception : une copie de la preuve chez la mairie (et dans le journal d'envoi de Resend),

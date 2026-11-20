@@ -171,8 +171,10 @@
           ont accepté en ligne, au nom de la commune, les conditions générales d'utilisation du service. Leur article 10
           constitue l'accord de sous-traitance de données personnelles prévu à l'article 28 du RGPD, conclu sous forme
           électronique comme l'admet l'article 28.9, y compris lorsque le service est gratuit.</p>
-        <p class="preuve-intro">Chaque acceptation résulte d'une case cochée puis d'un clic sur « Continuer » dans
-          l'application, après connexion personnelle au compte. Elle est horodatée par le serveur, conservée dans un journal
+        <p class="preuve-intro">Chaque acceptation résulte soit d'une case cochée puis d'un clic sur « Continuer » dans
+          l'application, après connexion personnelle au compte, soit d'un clic sur le bouton « J'accepte au nom de la commune,
+          en qualité de maire » d'une page ouverte depuis un lien personnel à usage unique, envoyé à l'adresse email de la
+          mairie. Elle est horodatée par le serveur, conservée dans un journal
           qu'aucune fonction du service ne permet de modifier, et rattachée au texte exact servi à cet instant (annexes).</p>
         ${acceptations.length ? '' : '<div class="preuve-alerte">Aucune acceptation enregistrée pour cette commune à ce jour. Elle sera demandée au premier compte mairie qui ouvrira l\'application.</div>'}
         <table class="lignes preuve">
@@ -182,7 +184,8 @@
               <tr>
                 <td>${i + 1}</td>
                 <td>${dateHeure(a.created_at)}</td>
-                <td><b>${echapper(a.nom_affiche || 'Compte anonymisé')}</b><br>${echapper(a.email || '')}<br>${echapper(ROLES[a.role] || a.role)}</td>
+                <td><b>${echapper(a.nom_affiche || 'Compte anonymisé')}</b><br>${echapper(a.email || '')}<br>${echapper(ROLES[a.role] || a.role)}
+                  <br><span class="preuve-tech">${a.canal === 'lien_mairie' ? 'Par le lien personnel envoyé à cette adresse de la mairie' : 'Dans l\'application, compte connecté'}</span></td>
                 <td>CGU, version du ${versionFr(a.version)}<br>${a.empreinte_sha256 ? 'Annexe ' + numeroAnnexe[a.empreinte_sha256] : '<span class="preuve-tech">texte non archivé (site injoignable à cet instant)</span>'}</td>
                 <td class="preuve-tech">IP : ${echapper(a.ip || 'inconnue')}<br>${echapper(a.user_agent || '')}
                   <br>${a.accuse_email_id ? 'Accusé de réception envoyé à ' + echapper(a.accuse_envoye_a) + ' (réf. ' + echapper(a.accuse_email_id) + ')' : 'Accusé de réception : non envoyé'}</td>

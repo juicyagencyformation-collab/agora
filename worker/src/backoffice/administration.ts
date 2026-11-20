@@ -176,7 +176,7 @@ app.get('/communes/:id', async (c) => {
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  const [membres, avis, stockage, acceptationsCgu] = await Promise.all([
+  const [membres, avis, stockage, acceptationsCgu, demandesAccordMaire] = await Promise.all([
     // compte_supprime_le: is.null — un compte anonymisé (RGPD) garde son ancien rôle en base
     // mais ne doit plus compter nulle part : sinon "Répartition des rôles" et le total Équipe
     // restent gonflés d'un fantôme après suppression, en désaccord avec "Gérer les utilisateurs"
@@ -191,6 +191,10 @@ app.get('/communes/:id', async (c) => {
     // l'onglet Dossier, le détail complet est dans l'attestation (preuves-cgu.ts).
     supabaseSelect(c.env, 'acceptations_cgu', {
       select: 'version,nom_affiche,role,created_at', commune_id: `eq.${id}`, order: 'created_at.desc',
+    }).catch(() => []),
+    // Dernier lien d'accord envoyé au maire (migration 109), pour ne pas le renvoyer en double.
+    supabaseSelect(c.env, 'demandes_accord_maire', {
+      select: 'envoye_a,created_at,utilise_le', commune_id: `eq.${id}`, order: 'created_at.desc', limit: '1',
     }).catch(() => []),
   ]);
 
@@ -219,6 +223,7 @@ app.get('/communes/:id', async (c) => {
       derniere: acceptationsCgu[0] ?? null,
       version_en_vigueur: VERSION_CGU,
       par_elu: acceptationsCgu.some((a: any) => a.version === VERSION_CGU && ['maire', 'elu'].includes(a.role)),
+      derniere_demande_maire: demandesAccordMaire[0] ?? null,
     },
     // Adresses de la mairie désinscrites des emails de suivi (lib/desinscription.ts) : affiché sur
     // la fiche pour que personne ne les relance à la main.
