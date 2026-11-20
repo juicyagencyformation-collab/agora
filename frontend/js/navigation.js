@@ -1,9 +1,9 @@
 // frontend/js/navigation.js
 
-// Acceptation obligatoire, une seule fois, des clauses de sous-traitance RGPD (art. 28)
-// intégrées aux CGU — uniquement pour les rôles qui engagent juridiquement la commune
-// (admin/élu/maire/superadmin) et seulement pour les comptes créés après le 2026-10-12 (voir
-// migration 080_cgu_soustraitance.sql, qui dispense les comptes déjà actifs à cette date).
+// Acceptation obligatoire des CGU et de l'accord de sous-traitance RGPD (art. 28, article 10)
+// — uniquement pour les rôles qui engagent juridiquement la commune (admin/élu/maire/superadmin),
+// une fois par version des CGU (worker/src/lib/cgu.ts, VERSION_CGU). Le serveur garde la preuve :
+// qui, quand, IP, texte exact accepté (migration 108, attestation dans le backoffice).
 // Pas de bouton pour fermer sans accepter : contrairement aux autres overlays de cette page.
 function afficherGateCguSousTraitance() {
   const overlay = document.createElement('div');
@@ -12,14 +12,16 @@ function afficherGateCguSousTraitance() {
     <div class="carte-cgu-soustraitance">
       <h2>Avant de continuer</h2>
       <p>Votre compte permet d'administrer cette commune sur Agora. Avant de poursuivre, nous avons
-      besoin de votre accord sur la manière dont vos données et celles des habitants sont traitées.</p>
-      <p>Les conditions générales d'utilisation incluent désormais les clauses de sous-traitance de
-      données personnelles prévues par l'article 28 du RGPD (instructions, sécurité, sous-traitants
-      ultérieurs, assistance pour l'exercice des droits, sort des données en fin de contrat).</p>
+      besoin de l'accord de la commune sur la manière dont les données des habitants sont traitées.</p>
+      <p>Les conditions générales d'utilisation (version du 20 novembre 2026) contiennent, à leur
+      article 10, l'accord de sous-traitance de données personnelles prévu par l'article 28 du RGPD :
+      données concernées, sécurité, sous-traitants, assistance pour l'exercice des droits, sort des
+      données en fin de contrat. Il s'applique aussi lorsque le service est gratuit.</p>
       <label>
         <input type="checkbox" id="case-accepter-cgu-soustraitance">
-        J'ai lu et j'accepte les <a href="conditions-utilisation.html" target="_blank">conditions générales d'utilisation</a>, y compris les clauses de sous-traitance RGPD.
+        J'ai lu et j'accepte, au nom de la commune, les <a href="conditions-utilisation.html" target="_blank">conditions générales d'utilisation</a>, y compris l'accord de sous-traitance RGPD (article 10). Je déclare être le maire, un élu titulaire d'une délégation, ou un agent habilité par le maire.
       </label>
+      <p style="font-size:12.5px">Un accusé de réception sera envoyé par email à vous et à la mairie.</p>
       <button class="btn-accepter-cgu" id="btn-accepter-cgu-soustraitance" disabled>Continuer</button>
     </div>
   `;

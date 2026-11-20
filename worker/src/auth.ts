@@ -14,6 +14,7 @@ import { jetonTurnstileValide, saisieTropRapide, plafondInscriptionsAtteint, PLA
 import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
 import { detacherFichesAssociations } from './lib/associations';
 import { completerLocalisationCommune } from './lib/localisation-commune';
+import { doitAccepterCgu, enregistrerAcceptationCgu, ROLES_DECIDEURS } from './lib/cgu';
 
 // Compte bloqué depuis le backoffice (migration 082) — même message partout.
 const MESSAGE_COMPTE_BLOQUE = 'Ce compte est suspendu. Contactez votre mairie.';
@@ -446,17 +447,10 @@ app.get('/me', jwtMiddleware, async (c) => {
   const role = c.get('role');
   const resultatConnexion = await gererConnexionQuotidienne(c.env, commune_id, user_id);
 
-  // Clauses de sous-traitance RGPD (art. 28) intégrées aux CGU : seuls les rôles décideurs
-  // engagent juridiquement la commune, un citoyen n'a rien à accepter ici (voir migration
-  // 080_cgu_soustraitance.sql — les comptes admin-niveau déjà actifs au 2026-10-12 sont
-  // dispensés, seuls les nouveaux comptes sont concernés).
-  let cguSousTraitanceAAccepter = false;
-  if (['admin', 'elu', 'maire', 'superadmin'].includes(role)) {
-    const [moi] = await supabaseSelect(c.env, 'users', {
-      select: 'cgu_sous_traitance_acceptee_le', id: `eq.${user_id}`,
-    });
-    cguSousTraitanceAAccepter = !moi?.cgu_sous_traitance_acceptee_le;
-  }
+  // Accord de sous-traitance RGPD (art. 28) intégré aux CGU : chaque compte décideur doit avoir
+  // accepté la version en vigueur, y compris les comptes dispensés en 2026-10 par la migration 080
+  // (voir lib/cgu.ts, migration 108). Sur erreur, on ne bloque jamais l'ouverture de l'app.
+  const cguSousTraitanceAAccepter = await doitAccepterCgu(c.env, user_id, role).catch(() => false);
   // Un compte mairie qui ouvre l'app : la mairie s'approprie l'espace, qui devient officiel
   // (migration 100). Sans effet s'il l'est déjà (filtre), sans risque avant la migration (catch).
   if (['admin', 'elu', 'maire'].includes(role)) {
@@ -476,16 +470,21 @@ app.get('/me', jwtMiddleware, async (c) => {
   });
 });
 
-// POST /accepter-cgu-soustraitance — acceptation explicite, par un rôle décideur, des clauses
-// de sous-traitance RGPD intégrées aux CGU (voir conditions-utilisation.html). Réservé aux
-// rôles qui engagent juridiquement la commune ; un citoyen n'a rien à y faire.
+// POST /accepter-cgu-soustraitance — acceptation explicite, par un rôle décideur, des CGU et de
+// l'accord de sous-traitance RGPD (article 10). Réservé aux rôles qui engagent juridiquement la
+// commune ; un citoyen n'a rien à y faire. Aucun corps lu : tout vient du JWT et du serveur
+// (version, texte archivé, IP), rien n'est fourni par le client. Preuve : lib/cgu.ts.
 app.post('/accepter-cgu-soustraitance', jwtMiddleware, async (c) => {
   const role = c.get('role');
-  if (!['admin', 'elu', 'maire', 'superadmin'].includes(role)) {
+  if (!ROLES_DECIDEURS.includes(role)) {
     return c.json({ erreur: 'Non applicable à ce rôle' }, 403);
   }
-  const user_id = c.get('user_id');
-  await supabaseUpdate(c.env, 'users', { cgu_sous_traitance_acceptee_le: new Date().toISOString() }, { id: `eq.${user_id}` });
+  try {
+    await enregistrerAcceptationCgu(c, c.get('user_id'), c.get('commune_id'), role);
+  } catch (e) {
+    console.error('Acceptation des CGU non enregistrée', e);
+    return c.json({ erreur: "L'acceptation n'a pas pu être enregistrée, réessayez." }, 500);
+  }
   return c.json({ ok: true });
 });
 

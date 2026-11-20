@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Conditions générales d'utilisation — Agora</title>
+  <!-- Lue par le Worker (worker/src/lib/cgu.ts) quand il archive le texte accepté par une mairie :
+       à changer avec la date « Version du … » ci-dessous à chaque modification. -->
+  <meta name="version-cgu" content="2026-11-20">
   <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/base.css?v=20261117-3">
@@ -25,7 +28,7 @@
   <h1>Conditions générales d'utilisation</h1>
   <p id="nom-commune-cgu" style="color:var(--roseau);"></p>
 
-  <p style="font-size:12.5px;color:var(--boue)">Dernière mise à jour : 10 novembre 2026.</p>
+  <p style="font-size:12.5px;color:var(--boue)">Version du 20 novembre 2026.</p>
 
   <h2>1. Objet</h2>
   <p>Les présentes conditions générales d'utilisation (« CGU ») définissent les modalités
@@ -142,28 +145,89 @@
     administrés (habitants, usagers), l'éditeur agit en qualité de sous-traitant au sens de
     l'article 28 du RGPD, et la mairie en qualité de responsable du traitement — y compris
     lorsque l'accès au service est gratuit. Les présentes clauses valent accord de
-    sous-traitance entre les parties pour la durée d'utilisation du service.</p>
-  <p>L'éditeur s'engage à : (a) ne traiter les données que sur instruction documentée de la
-    mairie (notamment via les paramétrages qu'elle effectue elle-même dans le back-office) ;
-    (b) garantir la confidentialité des données par les personnes autorisées à y accéder ;
-    (c) mettre en œuvre les mesures de sécurité appropriées (article 32 du RGPD), notamment le
-    cloisonnement strict des données entre communes, le hachage des mots de passe et le
-    chiffrement des communications ; (d) ne recourir qu'à des sous-traitants ultérieurs liés
-    par des garanties équivalentes, dont la liste à jour est tenue à la disposition de la
-    mairie sur demande ; (e) assister la mairie, dans la mesure du possible, pour répondre aux
-    demandes d'exercice des droits des personnes concernées et pour ses obligations en matière
-    de sécurité, de violations de données et d'analyses d'impact ; (f) notifier toute violation
-    de données personnelles dans les meilleurs délais, au plus tard 48 heures après en avoir
-    pris connaissance ; (g) à la fin de l'utilisation du service, restituer ou supprimer
-    l'ensemble des données de la mairie, selon son choix, dans un délai raisonnable ; (h) mettre
-    à disposition de la mairie les informations nécessaires pour démontrer le respect de ces
-    obligations.</p>
-  <p>La mairie s'engage, de son côté, à déterminer la base légale de chacun des traitements
-    qu'elle effectue, à informer ses administrés conformément aux articles 13 et 14 du RGPD, et
-    à n'attribuer les accès d'administration qu'aux personnes qui en ont besoin.</p>
-  <p>Une version détaillée de ces engagements, incluant la liste nominative des sous-traitants
-    ultérieurs et le détail des mesures de sécurité, peut être établie à la demande de la
-    mairie sous la forme d'un document dédié.</p>
+    sous-traitance entre les parties pour la durée d'utilisation du service, sous forme
+    électronique (article 28.9 du RGPD).</p>
+  <p><strong>10.1 Acceptation.</strong> Ces clauses sont acceptées au nom de la commune, en ligne,
+    lors de la première connexion d'un compte d'administration puis à chaque modification
+    substantielle. La personne qui les accepte déclare être le maire, un adjoint ou conseiller
+    municipal titulaire d'une délégation, ou un agent habilité par le maire à cet effet. L'éditeur
+    conserve la trace de chaque acceptation (identité, rôle, date et heure, adresse IP, version et
+    empreinte numérique du texte accepté) et en adresse un accusé de réception par email. Un
+    contrat de sous-traitance signé, reprenant ces engagements, peut être établi à la demande de
+    la mairie.</p>
+  <p><strong>10.2 Objet et finalités.</strong> Héberger et faire fonctionner l'application de la
+    commune : publication d'informations municipales (actualités, agenda, alertes), gestion des
+    comptes des habitants, réception et suivi des signalements, modération des contenus, envoi
+    des notifications et des emails de service, et, selon les modules activés par la mairie,
+    sondages, entraide, annuaire, jeux et patrimoine. <strong>Nature des opérations :</strong>
+    collecte, enregistrement, hébergement, consultation, affichage, envoi, modération,
+    restitution et suppression. <strong>Durée :</strong> celle de l'utilisation du service par la
+    commune, augmentée du délai de restitution et de suppression prévu à l'article 10.8.</p>
+  <p><strong>10.3 Personnes concernées :</strong> habitants et usagers inscrits sur l'espace de la
+    commune, élus et agents municipaux disposant d'un compte, responsables d'associations, et
+    personnes mentionnées dans les contenus publiés. <strong>Données traitées :</strong>
+    identité (nom, prénom, pseudonyme), adresse email, rôle, photo de profil facultative,
+    contenus publiés (textes, photos, commentaires, votes, réponses aux sondages), signalements
+    et leur position géographique lorsqu'elle est fournie, préférences de notification, données
+    de participation (points, badges), données techniques de connexion (dates, adresse IP pour la
+    sécurité). Aucune donnée sensible au sens de l'article 9 du RGPD n'est demandée ; les
+    utilisateurs sont invités à ne pas en publier.</p>
+  <p><strong>10.4 Instructions et confidentialité.</strong> L'éditeur ne traite les données que sur
+    instruction documentée de la mairie : les présentes clauses et les paramétrages qu'elle
+    effectue elle-même dans l'application (modules activés, durées, modération), y compris en ce
+    qui concerne les transferts de données hors de l'Union européenne. Il informe immédiatement
+    la mairie s'il estime qu'une instruction constitue une violation de la réglementation. Il
+    n'utilise jamais les données pour son propre compte, ne les vend ni ne les cède. Les
+    personnes autorisées à y accéder pour la maintenance et le support (l'éditeur et, le cas
+    échéant, son assistant) sont tenues à la confidentialité.</p>
+  <p><strong>10.5 Sous-traitants ultérieurs.</strong> La mairie donne une autorisation générale
+    au recours aux sous-traitants suivants : Cloudflare (hébergement de l'application et des
+    fichiers, ceux-ci dans l'Union européenne, vérification anti-robot, modération automatique
+    des photos lorsqu'elle est activée), Supabase (base de données, hébergée à Paris) et Resend
+    (envoi des emails). L'éditeur leur impose des obligations de protection des données
+    équivalentes et reste responsable envers la mairie de leur respect. Les transferts hors de
+    l'Union européenne qu'ils peuvent impliquer sont encadrés conformément au chapitre V du RGPD
+    (cadre de protection des données UE–États-Unis et/ou clauses contractuelles types), comme
+    décrit dans la <a href="confidentialite.html">politique de confidentialité</a>. Tout ajout ou
+    remplacement est annoncé par une mise à jour des présentes CGU, soumise à l'acceptation de la
+    mairie lors de sa connexion suivante ; elle peut s'y opposer en écrivant à
+    <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
+  <p><strong>10.6 Sécurité et protection dès la conception.</strong> L'éditeur met en œuvre les
+    mesures de l'article 32 du RGPD : cloisonnement strict des données entre communes, contrôlé
+    côté serveur à chaque requête ; mots de passe jamais stockés en clair (hachage salé) ; limitation
+    des tentatives de connexion ; communications chiffrées (HTTPS) ; fichiers et base de données
+    hébergés dans l'Union européenne ; accès d'administration réservés aux comptes désignés par la
+    mairie. Le service est conçu pour limiter les données au strict nécessaire (article 25) :
+    seuls le nom, le prénom et l'email sont demandés à l'inscription, la position n'est utilisée
+    que lorsque l'utilisateur l'autorise, et les contenus éphémères sont supprimés automatiquement.</p>
+  <p><strong>10.7 Assistance, violations et contrôle.</strong> L'éditeur : (a) permet aux
+    habitants d'exercer eux-mêmes, depuis leur compte, leurs droits d'accès et de portabilité
+    (export complet de leurs données) et d'effacement (suppression du compte), et assiste
+    gratuitement la mairie pour toute autre demande d'exercice des droits ; (b) l'assiste pour
+    ses obligations de sécurité, de notification des violations, d'analyse d'impact et de
+    consultation préalable de la CNIL, en lui fournissant notamment une fiche descriptive du
+    traitement prête à reporter dans son registre (<a href="fiche-registre.html">fiche
+    registre</a>) ; (c) notifie à la mairie toute violation de données personnelles au plus tard
+    48 heures après en avoir pris connaissance, par email aux adresses de la mairie connues du
+    service et, si possible, par téléphone, en précisant la nature de la violation, les
+    catégories et le nombre approximatif de personnes et de données concernées, ses conséquences
+    probables et les mesures prises ou proposées, afin de lui permettre de notifier la CNIL dans
+    le délai de 72 heures qui s'impose à elle ; (d) tient un registre des traitements effectués
+    pour le compte de la mairie (article 30.2) ; (e) met à la disposition de la mairie toutes
+    les informations nécessaires pour démontrer le respect de ces obligations et permet la
+    réalisation d'audits, y compris d'inspections, par la mairie ou un auditeur qu'elle mandate,
+    soumis à la confidentialité : sur pièces sans frais, sur place à une date convenue avec un
+    préavis de 30 jours.</p>
+  <p><strong>10.8 Fin du service.</strong> À la fin de l'utilisation du service, ou à tout moment
+    sur demande, l'éditeur remet à la mairie l'ensemble de ses données dans un format ouvert et
+    lisible par machine (JSON), puis, au choix de la mairie, les supprime dans un délai de 30
+    jours, sauf obligation légale de conservation. Les copies de sauvegarde de l'hébergeur
+    disparaissent à l'expiration de leur cycle de conservation, sans pouvoir être restaurées
+    entre-temps au profit de quiconque.</p>
+  <p><strong>10.9 Obligations de la mairie.</strong> La mairie détermine la base légale de chacun
+    des traitements qu'elle effectue, informe ses administrés conformément aux articles 13 et 14
+    du RGPD, inscrit le traitement à son registre, n'attribue les accès d'administration qu'aux
+    personnes qui en ont besoin et retire ceux des personnes qui quittent leurs fonctions.</p>
 
   <h2>11. Modification des CGU</h2>
   <p>L'éditeur peut faire évoluer les présentes CGU. Les utilisateurs sont informés de toute

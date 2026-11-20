@@ -5,6 +5,7 @@
 import exportCommune from './export-commune';
 import suiviCommunes from './suivi-communes';
 import documentsCommune from './documents-commune';
+import preuvesCgu from './preuves-cgu';
 import { routesStaff as conventionsStaff, routesFormulaire as conventionFormulaire } from './conventions';
 import annoncesPlateforme from './annonces-plateforme';
 import { Hono } from 'hono';
@@ -224,6 +225,7 @@ app.route('/conventions', conventionsStaff);
 app.route('/export-commune', exportCommune);
 app.route('/suivi', suiviCommunes);
 app.route('/documents', documentsCommune);
+app.route('/preuves-cgu', preuvesCgu);
 // Public, sans session : la secrétaire de mairie remplit les infos de la convention par jeton.
 app.route('/convention-formulaire', conventionFormulaire);
 

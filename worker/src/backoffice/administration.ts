@@ -26,6 +26,7 @@ import { verifierSequenceOnboarding, communesSansContactJoignable } from './onbo
 import { chargerBareme, CLES_OFFRES_TEXTE, chargerOffresTexte, enregistrerOffreTexte } from './tarification';
 import { CLES_CONTENU_TEXTE, chargerContenuTexte, enregistrerContenuTexte } from './contenu-texte';
 import { detacherFichesAssociations } from '../lib/associations';
+import { VERSION_CGU } from '../lib/cgu';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -175,7 +176,7 @@ app.get('/communes/:id', async (c) => {
   });
   if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
 
-  const [membres, avis, stockage] = await Promise.all([
+  const [membres, avis, stockage, acceptationsCgu] = await Promise.all([
     // compte_supprime_le: is.null — un compte anonymisé (RGPD) garde son ancien rôle en base
     // mais ne doit plus compter nulle part : sinon "Répartition des rôles" et le total Équipe
     // restent gonflés d'un fantôme après suppression, en désaccord avec "Gérer les utilisateurs"
@@ -186,6 +187,11 @@ app.get('/communes/:id', async (c) => {
       select: 'note,commentaire,created_at', commune_id: `eq.${id}`, order: 'created_at.desc',
     }),
     calculerStockageR2(c.env, id),
+    // Dernière acceptation des CGU / accord de sous-traitance (migration 108) : état affiché dans
+    // l'onglet Dossier, le détail complet est dans l'attestation (preuves-cgu.ts).
+    supabaseSelect(c.env, 'acceptations_cgu', {
+      select: 'version,nom_affiche,role,created_at', commune_id: `eq.${id}`, order: 'created_at.desc',
+    }).catch(() => []),
   ]);
 
   const parRole: Record<string, number> = {};
@@ -207,6 +213,13 @@ app.get('/communes/:id', async (c) => {
     citoyens: { total: (parRole.citoyen ?? 0) + (parRole.admin ?? 0) + (parRole.elu ?? 0), par_role: parRole },
     avis: { note_moyenne, nb: avis.length, liste: avis },
     stockage,
+    // par_elu : la version en vigueur a-t-elle été acceptée par le maire ou un élu ? Sinon (agent ou
+    // compte générique seulement), le pouvoir d'engager la commune est discutable : à faire confirmer.
+    acceptation_cgu: {
+      derniere: acceptationsCgu[0] ?? null,
+      version_en_vigueur: VERSION_CGU,
+      par_elu: acceptationsCgu.some((a: any) => a.version === VERSION_CGU && ['maire', 'elu'].includes(a.role)),
+    },
     // Adresses de la mairie désinscrites des emails de suivi (lib/desinscription.ts) : affiché sur
     // la fiche pour que personne ne les relance à la main.
     emails_suivi_refuses: await adressesDesinscritesCommune(c.env, commune),

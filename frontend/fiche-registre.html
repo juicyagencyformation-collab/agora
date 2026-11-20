@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!-- frontend/fiche-registre.html — fiche descriptive du traitement « application citoyenne »,
+     prête à reporter dans le registre des traitements de la mairie (article 30.1 du RGPD,
+     guide CNIL des collectivités 2026, p. 19). Fournie au titre de l'assistance du
+     sous-traitant (CGU article 10.7 b). À tenir à jour avec conditions-utilisation.html
+     (article 10) et confidentialite.html. Servie à la racine et sous /<slug>/ (PAGES_RACINE). -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fiche registre RGPD — Agora</title>
+  <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/base.css?v=20261117-3">
+  <style>
+    body { padding: 24px 18px 60px; max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 15px; color: var(--eau); margin: 0 0 4px; }
+    p, li, td, th { font-size: 14px; line-height: 1.55; color: var(--boue); }
+    .intro { font-size: 13.5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; vertical-align: top; padding: 10px 8px; border-bottom: 1px solid rgba(0,0,0,.1); }
+    th { width: 32%; font-weight: 600; color: var(--eau); }
+    td ul { margin: 0; padding-left: 18px; }
+    .a-completer { color: var(--roseau); font-style: italic; }
+    .imprimer { margin: 16px 0; }
+    a { color: var(--eau); }
+    .retour { display: inline-block; margin-top: 24px; }
+    @media print { .imprimer, .retour { display: none; } body { max-width: none; padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>Fiche registre — Application citoyenne</h1>
+  <p id="nom-commune-fiche" style="color:var(--roseau);"></p>
+  <p class="intro">Fiche à reporter dans le registre des activités de traitement de la mairie
+    (article 30 du RGPD). Elle décrit le traitement réalisé avec Plateforme-Agora ; la mairie, responsable du
+    traitement, la valide et la complète avec son délégué à la protection des données (DPO). Version du
+    20 novembre 2026.</p>
+  <button class="imprimer" onclick="window.print()">Imprimer / enregistrer en PDF</button>
+
+  <table>
+    <tr><th>Nom du traitement</th><td>Application citoyenne de la commune (Plateforme-Agora)</td></tr>
+    <tr><th>Responsable du traitement</th><td>Commune de <span class="nom-commune">[nom de la commune]</span>, représentée par son maire<br>
+      <span class="a-completer">Adresse, téléphone et email de la mairie : à compléter</span></td></tr>
+    <tr><th>Délégué à la protection des données</th><td><span class="a-completer">Nom et coordonnées du DPO de la commune (souvent mutualisé : centre de gestion ou intercommunalité) : à compléter</span></td></tr>
+    <tr><th>Sous-traitant</th><td>Léandre Sallé, entrepreneur individuel, éditeur de Plateforme-Agora — contact@plateforme-agora.fr.
+      Accord de sous-traitance : article 10 des <a href="conditions-utilisation.html">conditions générales d'utilisation</a>.</td></tr>
+    <tr><th>Finalités</th><td><ul>
+      <li>Informer les habitants : actualités, agenda, alertes et vigilances</li>
+      <li>Recevoir et suivre les signalements adressés à la mairie</li>
+      <li>Gérer les comptes des habitants et modérer les contenus publiés</li>
+      <li>Selon les modules activés : sondages, entraide entre voisins, annuaire, jeux et découverte du patrimoine</li>
+    </ul></td></tr>
+    <tr><th>Base légale proposée</th><td>Mission d'intérêt public de la commune (article 6.1.e du RGPD) pour l'information municipale et le
+      traitement des signalements ; consentement (article 6.1.a) pour l'inscription, les notifications et la localisation.
+      <span class="a-completer">À valider par la mairie.</span></td></tr>
+    <tr><th>Personnes concernées</th><td>Habitants et usagers inscrits, élus et agents disposant d'un compte, responsables
+      d'associations, personnes mentionnées dans les contenus publiés.</td></tr>
+    <tr><th>Données traitées</th><td>Identité (nom, prénom), email, rôle, photo de profil facultative ; contenus publiés (textes,
+      photos, commentaires, votes, réponses aux sondages) ; signalements et leur position lorsqu'elle est fournie ; préférences
+      de notification ; points et badges ; données techniques de connexion. Aucune donnée sensible (article 9) n'est demandée.</td></tr>
+    <tr><th>Destinataires</th><td>Élus et agents de la mairie disposant d'un compte d'administration ; les autres habitants pour les
+      contenus publiés ; le sous-traitant et ses sous-traitants ultérieurs (Cloudflare, Supabase, Resend), pour le seul
+      fonctionnement du service.</td></tr>
+    <tr><th>Durées de conservation</th><td><ul>
+      <li>Compte et contenus : tant que le compte existe ; suppression du compte par l'habitant (anonymisation immédiate) ou par la mairie</li>
+      <li>Messages du mur des voisins : 24 à 48 heures ; photo du jour et énigmes photo : durée fixée par la mairie ; demandes d'entraide : 90 jours après expiration</li>
+      <li>Toutes les données de la commune : restituées puis supprimées dans les 30 jours suivant la fin du service</li>
+    </ul></td></tr>
+    <tr><th>Transferts hors de l'Union européenne</th><td>Base de données (Paris) et fichiers hébergés dans l'Union européenne. Transferts
+      ponctuels possibles vers les États-Unis (réseau Cloudflare, envoi des emails par Resend, vérification anti-robot), encadrés
+      par le cadre de protection des données UE–États-Unis et/ou les clauses contractuelles types de la Commission européenne.</td></tr>
+    <tr><th>Mesures de sécurité</th><td>Cloisonnement strict des données entre communes, contrôlé par le serveur ; mots de passe hachés
+      et salés ; limitation des tentatives de connexion ; chiffrement HTTPS ; comptes d'administration nominatifs attribués par la
+      mairie ; signalement de contenu suivi d'un masquage immédiat puis d'une revue par la mairie.</td></tr>
+    <tr><th>Exercice des droits</th><td>Depuis le compte (Mon profil) : export complet des données, suppression du compte. Autres
+      demandes : auprès de la mairie, assistée gratuitement par le sous-traitant. Réponse sous un mois.</td></tr>
+    <tr><th>Analyse d'impact (AIPD)</th><td>Au regard des 9 critères de la CNIL, le traitement n'en remplit en principe aucun de façon
+      caractérisée (pas de données sensibles, pas de surveillance systématique, pas de décision produisant des effets juridiques).
+      Si la modération automatique des photos par intelligence artificielle est activée, le critère « usage innovant » peut être
+      retenu : un seul critère ne rend pas l'AIPD obligatoire. <span class="a-completer">Appréciation finale par la mairie et son DPO.</span></td></tr>
+  </table>
+
+  <a class="retour" href="conditions-utilisation.html">← Retour aux conditions d'utilisation</a>
+
+  <script src="/js/config.js?v=20261106-4"></script>
+  <script>
+    if (window.COMMUNE_SLUG) fetch(`${window.API_BASE}/${window.COMMUNE_SLUG}/commune`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data?.commune) return;
+        document.getElementById('nom-commune-fiche').textContent = `Commune de ${data.commune.nom}`;
+        document.querySelectorAll('.nom-commune').forEach((el) => { el.textContent = data.commune.nom; });
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

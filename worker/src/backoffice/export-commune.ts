@@ -89,6 +89,7 @@ export const TABLES: Record<string, string> = {
   avis_application: 'id,user_id,note,commentaire,created_at,updated_at',
   connexions_journalieres: 'id,user_id,jour,created_at',
   exports_rgpd_donnees: 'id,user_id,created_at',
+  acceptations_cgu: 'id,user_id,version,empreinte_sha256,nom_affiche,email,role,ip,user_agent,accuse_envoye_a,accuse_email_id,created_at',
 };
 
 export const NON_INCLUS: Record<string, string> = {

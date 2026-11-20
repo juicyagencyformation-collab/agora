@@ -32,6 +32,8 @@
     <li>Si vous gérez une association de l'annuaire : le lien entre votre compte et cette association, visible uniquement de la mairie (jamais des autres habitants), supprimé dès que vous cessez de la gérer ou que votre compte est supprimé</li>
     <li>Abonnement aux notifications (si activées), lié à votre navigateur</li>
     <li>À l'inscription uniquement : adresse IP et caractéristiques techniques du navigateur, analysées par Cloudflare Turnstile pour vérifier que le formulaire est rempli par une personne et non par un robot, ainsi que la durée de remplissage du formulaire (non conservée)</li>
+    <li>Tentatives de connexion échouées (email concerné), pour bloquer les attaques par essais successifs</li>
+    <li>Pour les comptes de la mairie (maire, élus, agents) : la trace de l'acceptation des conditions d'utilisation au nom de la commune (date et heure, adresse IP, navigateur, version du texte), qui sert de preuve de l'accord de sous-traitance</li>
   </ul>
 
   <h2>Finalités</h2>
@@ -50,6 +52,7 @@
 
   <h2 id="demandes-mairies">Demandes envoyées depuis le site plateforme-agora.fr</h2>
   <p>Le formulaire de demande de la page d'accueil (commune, nom, fonction, email, téléphone facultatif, message) sert uniquement à recontacter la personne au sujet de sa demande et à présenter la plateforme à sa commune. Responsable du traitement : Léandre Sallé. Base légale : l'intérêt légitime à répondre à une demande professionnelle. Ces informations ne sont ni vendues ni cédées, et sont supprimées 3 ans après le dernier échange si la commune ne devient pas cliente. Vous pouvez demander leur suppression à tout moment à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
+  <p><strong>Prospection des mairies.</strong> Pour présenter la plateforme aux communes, Léandre Sallé utilise les coordonnées professionnelles des mairies et de leurs élus (nom, fonction, email et téléphone de la mairie), issues d'annuaires publics comme service-public.fr, ainsi que les notes de ses échanges avec elles et les ouvertures et clics des emails envoyés. Base légale : l'intérêt légitime à faire connaître un service aux collectivités. Ces données sont supprimées 3 ans après le dernier échange si la commune ne devient pas cliente. Chaque email permet de se désinscrire, et vous pouvez vous opposer à tout moment à cette prospection en écrivant à <a href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>.</p>
 
   <h2>Base légale</h2>
   <p>Le traitement repose sur votre consentement (recueilli à l'inscription) et, pour certaines fonctionnalités municipales, sur l'exécution d'une mission d'intérêt public de la commune. La vérification anti-robot à l'inscription et les limites du nombre d'inscriptions reposent sur l'intérêt légitime à protéger le service et ses utilisateurs contre les inscriptions automatisées (article 6.1.f du RGPD).</p>
@@ -59,7 +62,14 @@
   <p><strong>Localisation et transferts.</strong> La base de données et les fichiers sont hébergés dans l'Union européenne. Cloudflare, Supabase et Resend sont des sociétés américaines : les données qui peuvent transiter hors de l'Union européenne (traitement au plus près de l'utilisateur, envoi des emails, vérification anti-robot) sont encadrées conformément au chapitre V du RGPD, par le cadre de protection des données UE–États-Unis (<em>Data Privacy Framework</em>) pour les prestataires certifiés et/ou par les clauses contractuelles types de la Commission européenne.</p>
 
   <h2>Durée de conservation</h2>
-  <p>Certains contenus sont éphémères par nature et supprimés automatiquement (messages du Mur des voisins après 24-48h, photos de la galerie "Photo du jour" et "Énigme photo" selon la durée définie par la mairie). Les autres données sont conservées tant que votre compte est actif.</p>
+  <ul>
+    <li>Compte et contenus publiés : tant que le compte existe. À la suppression du compte (par vous, depuis Mon profil, ou par la mairie), vos données personnelles sont anonymisées immédiatement.</li>
+    <li>Contenus éphémères, supprimés automatiquement : messages du Mur des voisins après 24 à 48 heures ; photos de la galerie « Photo du jour » et « Énigme photo » selon la durée choisie par la mairie ; demandes d'entraide 90 jours après leur expiration.</li>
+    <li>Tentatives de connexion échouées : 24 heures.</li>
+    <li>Comptes Explorateurs : anonymisés après 12 mois sans connexion.</li>
+    <li>Trace d'acceptation des conditions par un compte de la mairie : durée d'utilisation du service par la commune, puis 5 ans (délai de prescription).</li>
+    <li>Si la commune cesse d'utiliser le service : ses données lui sont restituées puis supprimées dans les 30 jours.</li>
+  </ul>
 
   <h2>Vos droits</h2>
   <p>Conformément au RGPD, vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation, d'opposition et de portabilité de vos données, ainsi que du droit de retirer votre consentement à tout moment. Vous pouvez exercer directement certains de ces droits depuis l'application, dans <strong>Mon profil</strong> :</p>
@@ -67,10 +77,10 @@
     <li><strong>Télécharger mes données</strong> — export complet au format JSON</li>
     <li><strong>Supprimer mon compte</strong> — anonymisation immédiate et irréversible de vos données personnelles</li>
   </ul>
-  <p>Pour toute autre demande, vous pouvez contacter le responsable du traitement : <a id="lien-contact-rgpd" href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Vous disposez également du droit d'introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank">www.cnil.fr</a>).</p>
+  <p>Pour toute autre demande, vous pouvez contacter le responsable du traitement : <a id="lien-contact-rgpd" href="mailto:contact@plateforme-agora.fr">contact@plateforme-agora.fr</a>. Pour l'espace d'une commune gérée par sa mairie, vous pouvez aussi vous adresser à la mairie ou à son délégué à la protection des données ; l'éditeur l'assiste gratuitement. Une réponse vous est apportée dans un délai d'un mois. Vous disposez également du droit d'introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr" target="_blank">www.cnil.fr</a>).</p>
 
   <h2>Sécurité</h2>
-  <p>L'accès à vos données est protégé par authentification, et l'isolation entre communes est strictement appliquée : aucune commune ne peut accéder aux données d'une autre.</p>
+  <p>L'accès à vos données est protégé par authentification, et l'isolation entre communes est strictement appliquée : aucune commune ne peut accéder aux données d'une autre. Les mots de passe ne sont jamais stockés en clair (hachage salé), les tentatives de connexion répétées sont bloquées, toutes les communications sont chiffrées (HTTPS) et les données sont hébergées dans l'Union européenne. Seuls l'éditeur et, le cas échéant, son assistant, tenus à la confidentialité, peuvent accéder aux données pour la maintenance et le support. En cas de violation de données, la mairie est prévenue au plus tard 48 heures après sa découverte.</p>
 
   <a class="retour" href="connexion.html">← Retour à la connexion</a>
 

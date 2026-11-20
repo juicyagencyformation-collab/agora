@@ -588,6 +588,16 @@
             </div>
           </div>
 
+          <!-- Registre RGPD de l'éditeur (article 30), à présenter à la CNIL sur demande : backoffice/preuves-cgu.ts
+               GET /registre + document.js (?type=registre-rgpd). Liste des communes tenue à jour automatiquement. -->
+          <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
+            <div>
+              <div style="font-weight:600">⚖️ Registre des traitements RGPD</div>
+              <div class="bo-info">Tes traitements en tant que responsable (espaces citoyens, Explorateurs, prospection, clients) et en tant que sous-traitant des communes. À présenter à la CNIL sur demande.</div>
+            </div>
+            <a class="bo-btn bo-btn--compact" href="/backoffice/document?type=registre-rgpd&id=plateforme" target="_blank" rel="noopener" style="text-decoration:none">📄 Registre (PDF)</a>
+          </div>
+
           <div class="bo-tiroir">
             <button type="button" class="bo-tiroir__entete" @click="toggleTiroir('diagnostic_email')">
               <span>🔧 Diagnostic email</span>
@@ -3568,8 +3578,34 @@
 
           </div>
           <div x-show="ongletFiche === 'dossier'">
+          <!-- Preuve d'acceptation des CGU + accord de sous-traitance RGPD (backoffice/preuves-cgu.ts,
+               migration 108) : à produire en cas de contrôle, y compris pour une commune en gratuit. -->
+          <div class="bo-section-titre" style="margin-top:0">⚖️ Accord de sous-traitance RGPD (CGU, article 10)</div>
+          <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
+            <div>
+              <template x-if="fiche?.acceptation_cgu?.derniere">
+                <div>
+                  <div style="font-weight:600"
+                    x-text="(fiche.acceptation_cgu.derniere.version === fiche.acceptation_cgu.version_en_vigueur ? '✅ ' : '🕓 ') + 'Accepté le ' + new Date(fiche.acceptation_cgu.derniere.created_at).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })"></div>
+                  <div class="bo-info" x-text="'Par ' + (fiche.acceptation_cgu.derniere.nom_affiche || 'compte anonymisé') + ' (' + fiche.acceptation_cgu.derniere.role + ') — CGU du ' + new Date(fiche.acceptation_cgu.derniere.version + 'T12:00:00').toLocaleDateString('fr-FR', { dateStyle: 'long' })
+                    + (fiche.acceptation_cgu.derniere.version === fiche.acceptation_cgu.version_en_vigueur ? '' : ' : la version en vigueur sera demandée à la prochaine ouverture de l’app')"></div>
+                  <div class="bo-info" style="color:#b54708" x-show="!fiche.acceptation_cgu.par_elu">
+                    ⚠️ Pas encore accepté par le maire ou un élu : un agent ou un compte partagé n'engage pas forcément la commune.
+                    Demander au maire de se connecter une fois à l'app.</div>
+                </div>
+              </template>
+              <template x-if="fiche && !fiche.acceptation_cgu?.derniere">
+                <div>
+                  <div style="font-weight:600">⚠️ Aucune acceptation enregistrée</div>
+                  <div class="bo-info">Elle sera demandée au premier compte mairie (maire, élu, admin) qui ouvrira l'app.</div>
+                </div>
+              </template>
+            </div>
+            <a class="bo-btn bo-btn--compact" :href="'/backoffice/document?type=preuve-cgu&id=' + fiche?.commune.id" target="_blank" rel="noopener" style="text-decoration:none">📄 Attestation (PDF)</a>
+          </div>
+
           <!-- Dossier documentaire (backoffice/documents-commune.ts) : documents signés, stockage privé -->
-          <div class="bo-section-titre" style="margin-top:0">📁 Documents signés</div>
+          <div class="bo-section-titre">📁 Documents signés</div>
           <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; margin-bottom:10px">
               <div class="bo-info">Conservés dans un espace privé (jamais accessible par une adresse publique) : téléchargement depuis le backoffice uniquement. Pour le classeur papier : imprimez la page de garde, puis chaque pièce.</div>
