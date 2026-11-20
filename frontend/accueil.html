@@ -434,7 +434,7 @@
           <a class="btn btn--vert" href="#demande" data-demande="devis">Recevoir un devis</a>
         </div>
       </div>
-      <p class="options">Facturé annuellement, déposé sur Chorus Pro · Options : chasse au trésor patrimoine créée avec vous (sur devis), packs de sondages pour le Thermomètre du village (à l'unité) · <a href="#demande" data-demande="fondatrice"><b>Communes fondatrices : −35 % à vie, 10 places jusqu'au 31 mars 2027</b></a></p>
+      <p class="options"><span id="o-gratuite"><b>Version complète gratuite à vie pour les communes de moins de <span id="o-seuil-gratuite">100</span> habitants</b> · </span>Facturé annuellement, déposé sur Chorus Pro · Options : chasse au trésor patrimoine créée avec vous (sur devis), packs de sondages pour le Thermomètre du village (à l'unité) · <a href="#demande" data-demande="fondatrice"><b>Communes fondatrices : −35 % à vie, 10 places jusqu'au 31 mars 2027</b></a></p>
     </div>
   </section>
 
@@ -517,10 +517,12 @@
 
   // ── Tarifs : barème public (worker/src/backoffice/tarification.ts). Repli local = valeurs de la
   // barème du 2026-11-20 (BAREME_DEFAUT), remplacées par celles du serveur dès qu'elles arrivent.
-  var B = { taux_base: 0.5, seuil_degressif: 500, taux_degressif: 0.06, prix_plancher: 250, supplement_accompagne: 200, seuil_devis: 5000 };
+  var B = { taux_base: 0.5, seuil_degressif: 500, taux_degressif: 0.06, prix_plancher: 250, supplement_accompagne: 200, seuil_devis: 5000, seuil_gratuite: 100 };
   // Population de la commune cherchée (peut dépasser le curseur) ; null = on suit le curseur.
   var habCommune = null;
-  var autonomie = function (h) { var brut = Math.min(h, B.seuil_degressif) * B.taux_base + Math.max(0, h - B.seuil_degressif) * B.taux_degressif; return Math.max(brut, B.prix_plancher); };
+  // Sous le seuil de gratuité (tarification.ts, estGratuitAVie) : Autonomie gratuite à vie.
+  var gratuitAVie = function (h) { return h > 0 && h < (B.seuil_gratuite || 0); };
+  var autonomie = function (h) { if (gratuitAVie(h)) return 0; var brut = Math.min(h, B.seuil_degressif) * B.taux_base + Math.max(0, h - B.seuil_degressif) * B.taux_degressif; return Math.max(brut, B.prix_plancher); };
   var euros = function (n) { return Math.round(n).toLocaleString('fr-FR') + ' €'; };
   var mensuel = function (an) { return euros(an / 12); };
   // Même libellé que le volet « Votre formule » (frontend/js/formule.js, parHabitantMois).
@@ -554,6 +556,16 @@
     document.getElementById('hab-accompagne').textContent = parHabitantMois(acc, h);
     document.getElementById('fond-autonomie').textContent = exact(a * 0.65);
     document.getElementById('fond-accompagne').textContent = exact(acc * 0.65);
+    var gratuite = document.getElementById('o-gratuite');
+    gratuite.hidden = !B.seuil_gratuite;
+    if (B.seuil_gratuite) document.getElementById('o-seuil-gratuite').textContent = B.seuil_gratuite.toLocaleString('fr-FR');
+    if (gratuitAVie(h)) {
+      document.getElementById('prix-autonomie').textContent = 'Gratuit';
+      document.querySelector('#prix-autonomie + small').hidden = true;
+      document.getElementById('mois-autonomie').parentNode.hidden = true;
+      document.getElementById('hab-autonomie').textContent = 'à vie, pour les communes de moins de ' + B.seuil_gratuite.toLocaleString('fr-FR') + ' habitants';
+      document.getElementById('fond-autonomie').parentNode.hidden = true;
+    }
   }
   curseurHab.addEventListener('input', function () { habCommune = null; majTarifs(); }); majTarifs();
   // Libellés, accroches, badge et listes des offres édités depuis le backoffice : repli silencieux
@@ -636,6 +648,7 @@
       + '<div class="porte porte--mairie"><h3>🏛️ Je suis la mairie</h3><p>Gratuit pour commencer, version complète dès <b></b> / an.</p><a class="btn btn--clair" href="#demande"></a></div>';
     portes.querySelector('.porte--habitant a').href = lienHabitant;
     if (r.population > B.seuil_devis) portes.querySelector('.porte--mairie p').textContent = 'Gratuit pour commencer, version complète sur devis.';
+    else if (gratuitAVie(r.population || 0)) portes.querySelector('.porte--mairie p').textContent = 'Version complète gratuite à vie : votre commune a moins de ' + B.seuil_gratuite.toLocaleString('fr-FR') + ' habitants.';
     else portes.querySelector('.porte--mairie b').textContent = euros(autonomie(r.population || 0));
     var btn = portes.querySelector('.porte--mairie a'); btn.textContent = 'Activer ' + r.nom + ' →';
     btn.addEventListener('click', function () { var d = document.getElementById('f-demande'); if (!d.value) d.value = 'gratuit'; });

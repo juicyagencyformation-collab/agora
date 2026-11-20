@@ -195,6 +195,10 @@ Boutons rapides "🆓 Passer en Gratuit" / "💶 Passer en Version complète", o
 
 Choisis une formule (Autonomie/Accompagné/Premium) → le prix suggéré se calcule en direct selon la population de la commune → **"Appliquer ce tarif"** ne fait que préremplir le champ, le prix réellement facturé (`Prix TTC/an`) reste **toujours modifiable à la main**. Pour Premium, coche "1re année" seulement si c'est une création (chasse au trésor incluse) — décoche pour un renouvellement.
 
+**Moins de 100 habitants (depuis le 2026-11-20)** : Autonomie est **gratuite à vie** (seuil réglable dans Réglages → Tarification). Le site, le volet « Votre formule » et le mémo d'appel l'affichent tout seuls. Pas de devis ni de facture : passer la commune en version complète et enregistrer la formule Autonomie (pour la modération automatique des photos). Accompagné reste payant (le supplément seul).
+
+**Communes fondatrices au renouvellement** : le prix proposé est le plus bas entre le prix de la convention et le barème du moment −35 % (Fay-les-Étangs et Tourly : 162,50 € au lieu de 188,50 €).
+
 ⚠️ **La formule enregistrée active des services, ce n'est pas qu'une étiquette de prix** : la **modération automatique des photos** ne tourne que pour Autonomie, Accompagné et Premium, et le **bilan mensuel** par email que pour Accompagné et Premium. Une commune payante sans formule choisie n'a ni l'un ni l'autre — toujours choisir et enregistrer la formule sur la fiche d'une commune qui paie (ou fondatrice).
 
 ### 6.4 Devis & facturation

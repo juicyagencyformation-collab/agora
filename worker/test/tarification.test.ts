@@ -3,7 +3,7 @@
 // db/migrations/050_bareme_habitant.sql) : plancher pour les petites communes, dégressivité
 // au-delà du seuil, et le supplément fixe (pas par habitant) de la formule Accompagné.
 import { describe, it, expect } from 'vitest';
-import { calculerPrixAutonomie, calculerPrixAccompagne, type BaremeTarifaire } from '../src/backoffice/tarification';
+import { calculerPrixAutonomie, calculerPrixAccompagne, estGratuitAVie, type BaremeTarifaire } from '../src/backoffice/tarification';
 
 const BAREME: BaremeTarifaire = {
   taux_base: 1, seuil_degressif: 1000, taux_degressif: 0.5,
@@ -70,5 +70,23 @@ describe('barème personnalisé (paramètres modifiés depuis le backoffice)', (
     expect(calculerPrixAutonomie(100, baremeStrict)).toBe(500); // plancher plus haut
     // 200*2 + 300*1 = 700
     expect(calculerPrixAutonomie(500, baremeStrict)).toBe(700);
+  });
+});
+
+// Gratuit à vie sous le seuil (2026-11-20, décidé avec Léandre face à PanneauPocket).
+describe('seuil de gratuité', () => {
+  const B = { ...BAREME, seuil_devis: 5000, seuil_gratuite: 100 };
+  it('Autonomie gratuite strictement sous le seuil, Accompagné = le seul supplément', () => {
+    expect(calculerPrixAutonomie(99, B)).toBe(0);
+    expect(calculerPrixAccompagne(99, B)).toBe(200);
+    expect(calculerPrixAutonomie(100, B)).toBe(250);
+  });
+  it('population inconnue (0) : jamais gratuite par défaut', () => {
+    expect(estGratuitAVie(0, B)).toBe(false);
+    expect(estGratuitAVie(null, B)).toBe(false);
+    expect(calculerPrixAutonomie(0, B)).toBe(250);
+  });
+  it('seuil à 0 : gratuité désactivée', () => {
+    expect(calculerPrixAutonomie(50, { ...B, seuil_gratuite: 0 })).toBe(250);
   });
 });

@@ -203,7 +203,7 @@ function backoffice() {
     grilleTarifaire: { tranches: [], mois_offerts_3ans: 0 },
     baremeTarifaire: {
       taux_base: 0, seuil_degressif: 0, taux_degressif: 0,
-      prix_plancher: 0, supplement_accompagne: 0, prix_patrimoine_premium: 0, seuil_devis: 5000,
+      prix_plancher: 0, supplement_accompagne: 0, prix_patrimoine_premium: 0, seuil_devis: 5000, seuil_gratuite: 100,
     },
     baremeEnCours: false,
     baremeMsg: '',
@@ -2180,7 +2180,9 @@ function backoffice() {
         : '';
       const signature = '\n\nBelle journée,\nLéandre Sallé\nConseiller municipal à Eaucourt-sur-Somme';
       const t = p.tarif;
-      const fondateur = t && !t.sur_devis
+      const fondateur = t && !t.sur_devis && t.autonomie === 0
+        ? `Avec ${t.habitants} habitants, ${p.nom} a droit à la version complète gratuitement, à vie.`
+        : t && !t.sur_devis
         ? `En tant que commune fondatrice, ${p.nom} garde 35 % de réduction à vie sur la version complète : ${this.euros(t.fondateur_autonomie)} par an au lieu de ${this.euros(Math.round(t.autonomie))}.`
         : 'En tant que commune fondatrice, la commune garde 35 % de réduction à vie sur la version complète.';
       if (cle === 'confirmation_demo') {
@@ -2480,6 +2482,7 @@ function backoffice() {
             supplement_accompagne: Number(b.supplement_accompagne) || 0,
             prix_patrimoine_premium: Number(b.prix_patrimoine_premium) || 0,
             seuil_devis: Math.round(Number(b.seuil_devis)) || 5000,
+            seuil_gratuite: Math.max(0, Math.round(Number(b.seuil_gratuite)) || 0),
           }),
         });
         this.baremeMsg = 'Barème enregistré.';
@@ -2515,6 +2518,7 @@ function backoffice() {
     calculerPrixAutonomie(habitants) {
       const b = this.baremeTarifaire;
       const hab = Math.max(0, Math.floor(Number(habitants)) || 0);
+      if (this.estGratuitAVie(hab)) return 0;
       const seuil = Number(b.seuil_degressif) || 0;
       const brut = Math.min(hab, seuil) * (Number(b.taux_base) || 0)
         + Math.max(0, hab - seuil) * (Number(b.taux_degressif) || 0);
@@ -2522,6 +2526,12 @@ function backoffice() {
     },
     calculerPrixAccompagne(habitants) {
       return this.calculerPrixAutonomie(habitants) + (Number(this.baremeTarifaire.supplement_accompagne) || 0);
+    },
+    // Autonomie gratuite à vie sous le seuil des Réglages (tarification.ts, estGratuitAVie) ;
+    // population inconnue (0) : jamais gratuite par défaut.
+    estGratuitAVie(habitants) {
+      const hab = Math.floor(Number(habitants)) || 0;
+      return hab > 0 && hab < (Number(this.baremeTarifaire.seuil_gratuite) || 0);
     },
     // premiereAnnee : la chasse au trésor (prix_patrimoine_premium) n'est facturée qu'une fois,
     // à la création — un renouvellement Premium ne la doit plus (voir tarification.ts).
@@ -3112,12 +3122,16 @@ function backoffice() {
     // Prix fondateur EXACT inscrit dans la convention (ex. 188,50 € pour Fay-les-Étangs et Tourly) :
     // il prime sur le barème. Il vaut pour Autonomie, et pour Accompagné seulement quand la commune
     // y est déjà en fondatrice (services Accompagné offerts en « geste fondateur », article 6).
+    // Décidé avec Léandre le 2026-11-20 : si le barème a baissé depuis la signature, la fondatrice
+    // paie le plus bas des deux (Fay et Tourly : 162,50 € au lieu de 188,50 € au renouvellement).
     prixConvention(formule) {
       const prix = Number(this.convention?.prix_annuel_fondateur);
       if (!(prix > 0)) return null;
       const c = this.fiche.commune;
       const geste = formule === 'accompagne' && c.forfait === 'Fondateur' && c.formule === 'accompagne';
-      return formule === 'autonomie' || geste ? prix : null;
+      if (formule !== 'autonomie' && !geste) return null;
+      const bareme = this.prixAbonnement('autonomie', true);
+      return bareme !== null ? Math.min(prix, bareme) : prix;
     },
     montantSuggere(formule, fondatrice) {
       return (fondatrice ? this.prixConvention(formule) : null) ?? this.prixAbonnement(formule, fondatrice);

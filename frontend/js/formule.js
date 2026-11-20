@@ -31,7 +31,9 @@ async function chargerInfosFormule(forcer = false) {
 
 const euros = (n) => `${Math.round(n).toLocaleString('fr-FR')} €`;
 // Au-delà du seuil du barème (sur_devis, voir lib/formule-commune.ts) : jamais de prix calculé.
-const prixAn = (infos, cle) => (infos.sur_devis ? 'sur devis' : `${euros(infos.prix_annuels[cle])}/an`);
+// Prix 0 = Autonomie gratuite à vie sous le seuil du barème (tarification.ts, estGratuitAVie).
+const prixAn = (infos, cle) => (infos.sur_devis ? 'sur devis'
+  : infos.prix_annuels[cle] === 0 ? 'gratuit à vie' : `${euros(infos.prix_annuels[cle])}/an`);
 // Par habitant et par mois, en centimes tant que c'est moins d'un euro.
 function parHabitantMois(prixAnnuel, population) {
   if (!population) return '';
@@ -55,7 +57,8 @@ function htmlCarteOffre(infos, cle) {
       ${cle === 'accompagne' && offre.badge ? `<span class="etiquette-offre-formule">${escapeAttr(offre.badge)}</span>` : ''}
       <span class="nom-offre-formule">${escapeAttr(offre.label)}</span>
       <span class="titre-offre-formule">${escapeAttr(offre.titre)}</span>
-      ${infos.sur_devis ? '<span class="montant-offre-formule">Sur devis</span>' : `
+      ${infos.sur_devis ? '<span class="montant-offre-formule">Sur devis</span>'
+        : prix === 0 ? '<span class="montant-offre-formule">Gratuit</span><span class="mois-offre-formule">à vie, pour votre commune</span>' : `
       <span class="montant-offre-formule">${euros(prix)} <small>/ an</small></span>
       <span class="mois-offre-formule">soit ${euros(prix / 12)} / mois</span>
       ${infos.population ? `<span class="hab-offre-formule">${parHabitantMois(prix, infos.population)}</span>` : ''}`}

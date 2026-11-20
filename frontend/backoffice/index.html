@@ -691,7 +691,7 @@
               <div class="bo-section-titre" style="margin-top:0">Formule de calcul</div>
               <div class="bo-info" style="margin-bottom:12px">
                 Autonomie = max(plancher, min(hab, seuil) × taux de base + max(0, hab − seuil) ×
-                taux dégressif). Accompagné = Autonomie + supplément fixe. Premium = Accompagné +
+                taux dégressif), et 0 € sous le seuil de gratuité. Accompagné = Autonomie + supplément fixe. Premium = Accompagné +
                 patrimoine la 1re année seulement (création de la chasse au trésor) ; à partir de la
                 2e année, Premium revient au prix Accompagné.
               </div>
@@ -709,6 +709,8 @@
               <input type="number" min="0" step="10" x-model="baremeTarifaire.prix_patrimoine_premium" style="width:120px" />
               <label>Sur devis au-delà de (habitants) — plus de prix affiché sur le site ni dans « Votre formule »</label>
               <input type="number" min="1" step="500" x-model="baremeTarifaire.seuil_devis" style="width:120px" />
+              <label>Autonomie gratuite à vie en dessous de (habitants) — 0 pour désactiver</label>
+              <input type="number" min="0" step="10" x-model="baremeTarifaire.seuil_gratuite" style="width:120px" />
 
               <div class="bo-section-titre">Offre Autonomie</div>
               <label style="margin-top:0">Nom de l'offre</label>
@@ -2913,9 +2915,10 @@
                           <template x-if="prospect.tarif && !prospect.tarif.sur_devis">
                             <ul class="bo-memo__prix">
                               <li>Gratuit pour démarrer : actualités, agenda, signalements.</li>
-                              <li>Version complète (Autonomie) : <b x-text="euros(Math.round(prospect.tarif.autonomie))"></b> par an, environ <span x-text="euros(Math.round(prospect.tarif.autonomie / 12))"></span> par mois.</li>
+                              <li x-show="prospect.tarif.autonomie === 0">Version complète (Autonomie) : <b>gratuite à vie</b>, la commune a moins de <span x-text="baremeTarifaire.seuil_gratuite"></span> habitants.</li>
+                              <li x-show="prospect.tarif.autonomie > 0">Version complète (Autonomie) : <b x-text="euros(Math.round(prospect.tarif.autonomie))"></b> par an, environ <span x-text="euros(Math.round(prospect.tarif.autonomie / 12))"></span> par mois.</li>
                               <li>Accompagné (bilan mensuel, support prioritaire) : <b x-text="euros(Math.round(prospect.tarif.accompagne))"></b> par an.</li>
-                              <li>🏅 Commune fondatrice, −35 % à vie : <b x-text="euros(prospect.tarif.fondateur_autonomie)"></b> par an (environ <span x-text="euros(Math.round(prospect.tarif.fondateur_autonomie / 12))"></span> par mois), Accompagné <span x-text="euros(prospect.tarif.fondateur_accompagne)"></span>.</li>
+                              <li x-show="prospect.tarif.autonomie > 0">🏅 Commune fondatrice, −35 % à vie : <b x-text="euros(prospect.tarif.fondateur_autonomie)"></b> par an (environ <span x-text="euros(Math.round(prospect.tarif.fondateur_autonomie / 12))"></span> par mois), Accompagné <span x-text="euros(prospect.tarif.fondateur_accompagne)"></span>.</li>
                             </ul>
                           </template>
 
@@ -3645,6 +3648,8 @@
                   Sur devis ou population inconnue : saisis le montant convenu avec la mairie.</div>
                 <div class="bo-info" x-show="!(abo.fondatrice &amp;&amp; prixConvention(abo.formule) !== null) &amp;&amp; prixAbonnement(abo.formule, abo.fondatrice) !== null">
                   Prix du barème pour <span x-text="(fiche.commune.population || 0).toLocaleString('fr-FR')"></span> habitants, modifiable.</div>
+                <div class="bo-info" x-show="abo.formule === 'autonomie' &amp;&amp; estGratuitAVie(fiche.commune.population)">
+                  Moins de <span x-text="baremeTarifaire.seuil_gratuite"></span> habitants : Autonomie gratuite à vie. Pas de devis ni de facture : passer la commune en version complète (onglet Configuration) et enregistrer la formule Autonomie.</div>
                 <div class="bo-info" style="color:#b54708" x-show="abo.fondatrice &amp;&amp; convention?.statut !== 'signee'">
                   ⚠️ Commune fondatrice : la convention (plus bas) doit être signée avant d'activer.</div>
               </div>
@@ -4749,7 +4754,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261120-5"></script>
+  <script src="/backoffice/js/app.js?v=20261120-6"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

@@ -1805,7 +1805,7 @@ app.get('/bareme-tarifaire', async (c) => {
   return c.json(await chargerBareme(c.env));
 });
 
-// PUT /bareme-tarifaire — met à jour les 7 paramètres du barème.
+// PUT /bareme-tarifaire — met à jour les 8 paramètres du barème.
 const baremeTarifaireSchema = z.object({
   taux_base: z.number().min(0),
   seuil_degressif: z.number().min(0),
@@ -1814,6 +1814,7 @@ const baremeTarifaireSchema = z.object({
   supplement_accompagne: z.number().min(0),
   prix_patrimoine_premium: z.number().min(0),
   seuil_devis: z.number().int().min(1),
+  seuil_gratuite: z.number().int().min(0).default(100),
 });
 
 app.put('/bareme-tarifaire', exigerAdmin, async (c) => {
@@ -1828,6 +1829,7 @@ app.put('/bareme-tarifaire', exigerAdmin, async (c) => {
     bareme_supplement_accompagne: body.data.supplement_accompagne,
     bareme_prix_patrimoine_premium: body.data.prix_patrimoine_premium,
     bareme_seuil_devis: body.data.seuil_devis,
+    bareme_seuil_gratuite: body.data.seuil_gratuite,
   };
   await Promise.all(Object.entries(parCle).map(async ([cle, valeur]) => {
     const maj = await supabaseUpdate(c.env, 'parametres_facturation', { valeur: String(valeur) }, { cle: `eq.${cle}` });

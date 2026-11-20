@@ -28,12 +28,15 @@ export type BaremeTarifaire = {
   // Au-delà de ce nombre d'habitants, plus de prix calculé : « sur devis » (site + volet
   // « Votre formule »). Ajouté le 2026-11-19, décidé avec Léandre (5 000).
   seuil_devis: number;
+  // En dessous de ce nombre d'habitants, Autonomie est gratuite à vie (Accompagné = le seul
+  // supplément). Ajouté le 2026-11-20, décidé avec Léandre (100, comme PanneauPocket). 0 = désactivé.
+  seuil_gratuite: number;
 };
 
 const CLES_BAREME = [
   'bareme_taux_base', 'bareme_seuil_degressif', 'bareme_taux_degressif',
   'bareme_prix_plancher', 'bareme_supplement_accompagne', 'bareme_prix_patrimoine_premium',
-  'bareme_seuil_devis',
+  'bareme_seuil_devis', 'bareme_seuil_gratuite',
 ] as const;
 
 // Repli si la migration n'a pas encore tourné ou qu'une clé manque — mêmes valeurs que le seed,
@@ -43,7 +46,7 @@ const CLES_BAREME = [
 const BAREME_DEFAUT: BaremeTarifaire = {
   taux_base: 0.5, seuil_degressif: 500, taux_degressif: 0.06,
   prix_plancher: 250, supplement_accompagne: 200, prix_patrimoine_premium: 749,
-  seuil_devis: 5000,
+  seuil_devis: 5000, seuil_gratuite: 100,
 };
 
 export async function chargerBareme(env: any): Promise<BaremeTarifaire> {
@@ -60,6 +63,7 @@ export async function chargerBareme(env: any): Promise<BaremeTarifaire> {
       supplement_accompagne: parValeur.get('bareme_supplement_accompagne') ?? BAREME_DEFAUT.supplement_accompagne,
       prix_patrimoine_premium: parValeur.get('bareme_prix_patrimoine_premium') ?? BAREME_DEFAUT.prix_patrimoine_premium,
       seuil_devis: parValeur.get('bareme_seuil_devis') ?? BAREME_DEFAUT.seuil_devis,
+      seuil_gratuite: parValeur.get('bareme_seuil_gratuite') ?? BAREME_DEFAUT.seuil_gratuite,
     };
   } catch {
     return BAREME_DEFAUT;
@@ -70,9 +74,16 @@ export async function chargerBareme(env: any): Promise<BaremeTarifaire> {
 // être répercutée à la main, ce fichier n'est pas accessible depuis une page statique).
 export function calculerPrixAutonomie(habitants: number, b: BaremeTarifaire): number {
   const bornes = Math.max(0, Math.floor(habitants || 0));
+  if (estGratuitAVie(bornes, b)) return 0;
   const brut = Math.min(bornes, b.seuil_degressif) * b.taux_base
     + Math.max(0, bornes - b.seuil_degressif) * b.taux_degressif;
   return Math.max(brut, b.prix_plancher);
+}
+
+// Population inconnue (0) : jamais gratuite par défaut, le plancher s'applique.
+export function estGratuitAVie(habitants: number | null | undefined, b: BaremeTarifaire): boolean {
+  const h = Math.floor(habitants ?? 0);
+  return h > 0 && h < (b.seuil_gratuite || 0);
 }
 
 export function estSurDevis(habitants: number | null | undefined, b: BaremeTarifaire): boolean {
