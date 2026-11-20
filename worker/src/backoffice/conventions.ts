@@ -9,14 +9,14 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, journaliser } from '../db';
 import { backofficeMiddleware, exigerAdmin } from '../middleware/backoffice';
 import { departementDeLaCommune } from '../lib/regions';
-import { genererConventionHtml, LIBELLES_ONGLETS, assemblerConventionEtDpa, appliquerSignature, empreinteSha256 } from './convention-document';
+import { genererConventionHtml, LIBELLES_ONGLETS, assemblerConventionEtDpa, appliquerSignature, empreinteSha256, nettoyerTexteConvention } from './convention-document';
 import { genererContratDpaHtml } from './contrat-dpa';
 import { infosContratDpa, chargerImageSignature } from './facturation';
 
 const COLONNES = 'id,commune_id,statut,numero_fondatrice,signataire_nom,signataire_qualite,deliberation_reference,'
   + 'deliberation_date,option_reconduction,siret_commune,code_service_chorus,facturation_nom,facturation_email,'
   + 'date_debut_souhaitee,citation_autorisee,premiere_annee_offerte,prix_annuel_fondateur,conditions_particulieres,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at,'
-  + 'signature_prestataire_le,signature_prestataire_empreinte';
+  + 'signature_prestataire_le,signature_prestataire_empreinte,texte_personnalise,texte_personnalise_le';
 // Une fois signée par le Prestataire, la convention est figée : seuls ces champs restent modifiables
 // (suivi de la signature côté mairie). Tout le reste changerait le texte signé.
 const CHAMPS_MODIFIABLES_APRES_SIGNATURE = ['statut', 'signee_le'];
@@ -163,7 +163,33 @@ routesStaff.get('/:id/document', async (c) => {
     return c.json({ html: appliquerSignature(conv.document_signe_html, signature), commune_nom: commune?.nom, signee_par_prestataire: true });
   }
   const { html, commune_nom } = await documentComplet(c.env, conv);
-  return c.json({ html: appliquerSignature(html, null), commune_nom, signee_par_prestataire: false });
+  return c.json({
+    html: appliquerSignature(html, null), commune_nom, signee_par_prestataire: false,
+    modifiable: !['signee', 'annulee'].includes(conv.statut),
+    texte_personnalise_le: conv.texte_personnalise_le ?? null, formulaire_rempli_le: conv.formulaire_rempli_le ?? null,
+  });
+});
+
+// PUT /:id/texte — texte de la convention réécrit à la main pour CETTE commune (2026-11-20) :
+// remplace tout le corps (titre → article 6), nettoyé (convention-document.ts). null = revenir au
+// texte automatique. Réservé à l'administrateur, et impossible une fois la convention signée.
+const texteSchema = z.object({ texte: z.string().max(200000).nullable() }).strict();
+routesStaff.put('/:id/texte', exigerAdmin, async (c) => {
+  const body = texteSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: premiereErreur(body.error) }, 400);
+  const [conv] = await supabaseSelect(c.env, 'conventions', { select: 'id,commune_id,statut,signature_prestataire_le', id: `eq.${c.req.param('id')}` });
+  if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
+  if (conv.signature_prestataire_le || ['signee', 'annulee'].includes(conv.statut)) {
+    return c.json({ erreur: 'Convention figée par la signature : annulez-la d\'abord pour modifier son texte.' }, 409);
+  }
+  const texte = body.data.texte === null ? null : nettoyerTexteConvention(body.data.texte).trim();
+  if (texte !== null && !texte.replace(/<[^>]*>/g, '').trim()) return c.json({ erreur: 'Le texte de la convention est vide.' }, 400);
+  const maintenant = new Date().toISOString();
+  await supabaseUpdate(c.env, 'conventions', {
+    texte_personnalise: texte, texte_personnalise_le: texte === null ? null : maintenant, updated_at: maintenant,
+  }, { id: `eq.${conv.id}` });
+  await journaliser(c.env, c.get('staff_id'), texte === null ? 'convention_texte_automatique' : 'convention_texte_personnalise', conv.commune_id);
+  return c.json({ ok: true, texte_personnalise_le: texte === null ? null : maintenant });
 });
 
 // POST /:id/signer — signature électronique simple du Prestataire (eIDAS, art. 1367 du Code civil) :

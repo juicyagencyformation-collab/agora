@@ -22,13 +22,62 @@
   // La convention « Commune fondatrice » est elle aussi rendue côté Worker (convention-document.ts).
   if (type === 'convention') {
     try {
-      const { html, commune_nom } = await boFetch('/conventions/' + id + '/document');
-      document.title = 'Convention Commune fondatrice — ' + (commune_nom || '') + ' — Backoffice Plateforme-Agora';
-      feuille.innerHTML = html;
+      const doc = await boFetch('/conventions/' + id + '/document');
+      document.title = 'Convention Commune fondatrice — ' + (doc.commune_nom || '') + ' — Backoffice Plateforme-Agora';
+      feuille.innerHTML = doc.html;
+      if (doc.modifiable && !doc.signee_par_prestataire) initEditionConvention(doc);
     } catch (e) {
       feuille.textContent = 'Impossible de charger la convention : ' + (e.message || 'erreur inconnue');
     }
     return;
+  }
+
+  // Texte de la convention réécrit à la main pour cette commune (2026-11-20, PUT /conventions/:id/texte) :
+  // le corps (titre → article 6) devient modifiable sur place ; signatures et DPA restent générés.
+  // Le Worker nettoie le HTML (liste blanche de balises) avant de l'enregistrer.
+  function initEditionConvention(doc) {
+    const corps = feuille.querySelector('[data-corps-convention]');
+    const barre = document.querySelector('.barre-actions');
+    if (!corps || !barre) return;
+    const bouton = (texte, sec, action) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn' + (sec ? ' btn--sec' : ''); b.textContent = texte;
+      b.addEventListener('click', action);
+      return b;
+    };
+    const info = document.createElement('div');
+    info.className = 'info-edition';
+    const majInfo = (texte, erreur) => { info.textContent = texte; info.classList.toggle('erreur', !!erreur); };
+    if (doc.texte_personnalise_le) {
+      const apres = doc.formulaire_rempli_le && doc.formulaire_rempli_le > doc.texte_personnalise_le;
+      majInfo('Texte personnalisé le ' + new Date(doc.texte_personnalise_le).toLocaleString('fr-FR')
+        + ' : les champs de la fiche ne le modifient plus.'
+        + (apres ? ' ⚠️ La mairie a transmis des informations depuis : vérifiez qu’elles figurent dans le texte.' : ''), apres);
+    }
+    const enregistrer = async (texte) => {
+      try {
+        await boFetch('/conventions/' + id + '/texte', { method: 'PUT', body: JSON.stringify({ texte }) });
+        location.reload();
+      } catch (e) {
+        majInfo('Échec : ' + (e.message || 'erreur inconnue'), true);
+      }
+    };
+    const modifier = bouton('✏️ Modifier le texte', true, () => {
+      corps.contentEditable = 'true';
+      corps.classList.add('en-edition');
+      corps.focus();
+      modifier.replaceWith(annuler, valider);
+      majInfo('Cliquez dans le texte pour le modifier (Ctrl+B : gras, Ctrl+I : italique). Les signatures et le DPA restent générés automatiquement.');
+    });
+    const annuler = bouton('Annuler', true, () => location.reload());
+    const valider = bouton('Enregistrer le texte', false, () => enregistrer(corps.innerHTML));
+    barre.prepend(modifier);
+    if (doc.texte_personnalise_le) {
+      barre.prepend(bouton('Revenir au texte automatique', true, () => {
+        if (confirm('Revenir au texte automatique ? Vos modifications du texte seront perdues.')) enregistrer(null);
+      }));
+    }
+    barre.after(info);
   }
 
   // Registre des activités de traitement de l'éditeur (?type=registre-rgpd&id=plateforme), article 30 du

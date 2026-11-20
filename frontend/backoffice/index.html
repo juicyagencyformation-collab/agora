@@ -3833,9 +3833,13 @@
                     <span class="bo-statut bo-statut--gagne" x-show="convention.premiere_annee_offerte">1re année offerte</span>
                     <span class="bo-statut" x-show="convention.prix_annuel_fondateur" x-text="Number(convention.prix_annuel_fondateur).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' € / an'"></span>
                     <span class="bo-info" style="margin-left:8px" x-text="'Commune fondatrice n° ' + (convention.numero_fondatrice || '?') + ' / 10' + (convention.signee_le ? ' · signée le ' + formatDate(convention.signee_le) : '') + (convention.envoyee_le && !convention.signee_le ? ' · envoyée le ' + formatDate(convention.envoyee_le) : '')"></span>
+                    <span class="bo-statut bo-statut--relance" x-show="convention.texte_personnalise_le" title="Texte réécrit à la main : les champs ci-dessous ne le modifient plus">✏️ Texte personnalisé</span>
                   </div>
-                  <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=convention&id=' + convention.id" target="_blank">📄 Voir la convention + DPA</a>
+                  <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=convention&id=' + convention.id" target="_blank"
+                     x-text="convention.signature_prestataire_le || ['signee', 'annulee'].includes(convention.statut) ? '📄 Voir la convention + DPA' : '📄 Voir / modifier le texte de la convention'"></a>
                 </div>
+                <div class="bo-info" style="color:#b54708" x-show="convention.texte_personnalise_le && !convention.signature_prestataire_le">
+                  ✏️ Texte personnalisé le <span x-text="formatDateHeure(convention.texte_personnalise_le)"></span> : les champs ci-dessous (prix, signataire, conditions…) ne modifient plus le texte. Pour reprendre leurs valeurs, « Revenir au texte automatique » depuis la convention.</div>
 
                 <!-- Signature électronique du Prestataire (conventions.ts, /:id/signer) : fige convention + DPA -->
                 <div class="bo-carte" style="padding:12px 14px; background:var(--bo-bg)" x-show="convention.statut !== 'annulee'">

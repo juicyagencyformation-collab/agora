@@ -35,7 +35,37 @@ export type DonneesConvention = {
   prix_annuel_fondateur?: number | string | null;
   // Texte libre ajouté tel quel (article 6), pour un arrangement propre à la commune.
   conditions_particulieres?: string | null;
+  // Texte de la convention réécrit à la main pour CETTE commune (2026-11-20, migration 115) :
+  // remplace tout le corps (titre → article 6) ; le bloc des signatures et le DPA restent générés.
+  texte_personnalise?: string | null;
 };
+
+// — Texte personnalisé : HTML issu de l'éditeur du backoffice (contenteditable), RECONSTRUIT balise
+// par balise depuis une liste blanche (même principe que lib/sanitize.ts) : aucun attribut gardé,
+// sauf quelques classes de mise en page connues. Les commentaires disparaissent, donc personne ne
+// peut y glisser le marqueur de signature électronique.
+const BALISES_CONVENTION = ['h1', 'h2', 'h3', 'p', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'div', 'span'];
+const CLASSES_CONVENTION = ['a-completer', 'chapeau', 'sous-titre'];
+
+function reconstruireBaliseConvention(balise: string): string {
+  const m = balise.match(/^<(\/?)([a-z][a-z0-9]*)([^>]*)>$/i);
+  if (!m) return '';
+  const [, fermante, nomBrut, attrs] = m;
+  const nom = nomBrut.toLowerCase();
+  if (!BALISES_CONVENTION.includes(nom)) return '';
+  if (nom === 'br') return fermante ? '' : '<br>';
+  if (fermante) return `</${nom}>`;
+  const classe = attrs.match(/class\s*=\s*["']([^"']*)["']/i)?.[1]?.trim();
+  return classe && CLASSES_CONVENTION.includes(classe) ? `<${nom} class="${classe}">` : `<${nom}>`;
+}
+
+export function nettoyerTexteConvention(html: string): string {
+  return html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<[^>]*>|</g, (balise) => (balise === '<' ? '&lt;' : reconstruireBaliseConvention(balise)));
+}
 
 // Libellés des onglets pour la ligne « Onglets » du tableau de l'article 3, dans l'ordre de
 // TOUS_LES_ONGLETS (administration.ts) — un test vérifie que les deux listes restent identiques.
@@ -100,6 +130,7 @@ export function genererConventionHtml(
   const contactFacturation = conv.facturation_nom || conv.facturation_email
     ? `${echapper(conv.facturation_nom ?? '')}${conv.facturation_nom && conv.facturation_email ? ', ' : ''}${echapper(conv.facturation_email ?? '')}`
     : A_COMPLETER();
+  const corpsPersonnalise = conv.texte_personnalise?.trim() ? nettoyerTexteConvention(conv.texte_personnalise) : null;
 
   return `
     <style>
@@ -120,6 +151,7 @@ export function genererConventionHtml(
     </style>
 
     <div class="contrat">
+      <div data-corps-convention>${corpsPersonnalise ?? `
       <h1>Convention « Commune fondatrice » — ${nomCommune}</h1>
       <div class="sous-titre">Plateforme-Agora</div>
       <p class="chapeau">La commune de ${nomCommune} devient commune fondatrice de Plateforme-Agora : ${offerte ? 'accès complet à tous les onglets offert pendant 12 mois, puis 35 % de réduction garantis' : '35 % de réduction sur la grille publique, garantis'} tant que son abonnement se poursuit sans interruption, en échange de ses retours d'expérience.</p>
@@ -202,6 +234,7 @@ export function genererConventionHtml(
 
       ${conditions ? `<h2>Article 6 — Conditions particulières</h2>
       ${paragraphes(conditions)}` : ''}
+      `}</div>
 
       <h2>Signatures</h2>
       <p>Fait en deux exemplaires, à ……………………, le ….. / ….. / ………</p>

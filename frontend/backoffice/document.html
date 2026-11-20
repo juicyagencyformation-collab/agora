@@ -81,6 +81,14 @@
     table.dossier-fiche.registre th { width: 24%; white-space: normal; padding: 5px 12px 5px 0; }
     table.dossier-fiche.registre td { padding: 5px 0; border-bottom: 1px solid var(--bord); }
 
+    /* Convention : édition du texte sur place (voir initEditionConvention dans document.js) */
+    .barre-actions { flex-wrap: wrap; }
+    .info-edition { max-width: 210mm; margin: -6px auto 12px; padding: 0 12px; font-size: 13px; color: var(--gris); }
+    .info-edition:empty { display: none; }
+    .info-edition.erreur { color: #b42318; }
+    [data-corps-convention].en-edition { outline: 2px dashed var(--navy); outline-offset: 8px; border-radius: 4px; }
+    [data-corps-convention].en-edition:focus { outline-style: solid; }
+
     footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid var(--bord); font-size: 11px; color: var(--gris); text-align: center; }
 
     /* Contrat DPA : panneau « Informations à compléter » (voir initContratDpa dans document.js) */
@@ -123,7 +131,8 @@
     @media print {
       body { background: #fff; }
       body.avec-panneau { padding-right: 0; }
-      .barre-actions, .panneau { display: none; }
+      .barre-actions, .panneau, .info-edition { display: none; }
+      [data-corps-convention].en-edition { outline: none; }
       .feuille { box-shadow: none; margin: 0; width: auto; min-height: auto; padding: 12mm; }
       @page { size: A4; margin: 0; }
     }
@@ -138,6 +147,6 @@
   <div class="feuille" id="feuille">Chargement…</div>
 
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/document.js?v=20261120-5"></script>
+  <script src="/backoffice/js/document.js?v=20261120-6"></script>
 </body>
 </html>

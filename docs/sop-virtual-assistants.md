@@ -294,7 +294,7 @@ Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app p
 4. « 📄 Voir la convention » : le document est prérempli avec tout ce qui est connu ; ce qui manque apparaît en orange. Imprimer ou enregistrer en PDF depuis le navigateur.
 5. Mettre à jour le statut (Envoyée, puis Signée avec sa date) dans « Modifier les informations et le statut ». Une fois signée ou annulée, le lien de la secrétaire ne fonctionne plus.
 
-⚠️ Le texte de la convention est celui validé par Léandre : il ne se modifie pas depuis le backoffice. Joindre le contrat DPA (annexe 1). Ne jamais attribuer un numéro de commune fondatrice ni marquer une convention signée sans l'accord de Léandre.
+⚠️ Le texte de la convention est celui validé par Léandre. Depuis le 2026-11-20, **seul Léandre** (compte administrateur) peut le réécrire pour une commune : « ✏️ Modifier le texte » dans l'aperçu, avant signature (le bloc des signatures et le DPA restent automatiques). Une fois le texte personnalisé, les champs de la fiche ne le modifient plus : en cas de changement, prévenir Léandre. Joindre le contrat DPA (annexe 1). Ne jamais attribuer un numéro de commune fondatrice ni marquer une convention signée sans l'accord de Léandre.
 
 ### 6.12 Contrat DPA (sous-traitance RGPD)
 

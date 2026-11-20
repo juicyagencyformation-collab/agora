@@ -238,6 +238,37 @@ describe('signature électronique du Prestataire', () => {
     expect(db.conventions[0].signature_prestataire_le).toBeUndefined();
   });
 
+  it('texte personnalisé : remplace le corps, nettoyé, signatures et DPA gardés', async () => {
+    const piege = '<h2 onclick="x()">Article 1 — Mon texte</h2><p style="color:red" class="chapeau">Libre</p>'
+      + '<script>alert(1)</script><!--SIGNATURE_PRESTATAIRE--><img src=x onerror=alert(1)><a href="javascript:x">lien</a>';
+    const res = await routesStaff.request('/c1/texte', { method: 'PUT', headers: await json(), body: JSON.stringify({ texte: piege }) }, ENV);
+    expect(res.status).toBe(200);
+    expect(db.conventions[0].texte_personnalise).toBe('<h2>Article 1 — Mon texte</h2><p class="chapeau">Libre</p>lien');
+    const { html, modifiable, texte_personnalise_le } = await (await routesStaff.request('/c1/document', { headers: await sessionStaff() }, ENV)).json();
+    expect(modifiable).toBe(true);
+    expect(texte_personnalise_le).toBeTruthy();
+    expect(html).toContain('Article 1 — Mon texte');
+    expect(html).not.toContain('Les parties');
+    expect(html).toContain('<h2>Signatures</h2>');
+    expect(html).toContain('Annexe 1 à la convention');
+    // La signature électronique ne vient que des marqueurs du Worker : 2 (convention + DPA), pas 3.
+    await routesStaff.request('/c1/signer', { method: 'POST', headers: await sessionStaff() }, ENV);
+    expect(db.conventions[0].document_signe_html.split('<!--SIGNATURE_PRESTATAIRE-->')).toHaveLength(3);
+    expect(db.conventions[0].document_signe_html).toContain('Article 1 — Mon texte');
+  });
+
+  it('texte personnalisé : retour au texte automatique, refusé après signature ou à un assistant', async () => {
+    await routesStaff.request('/c1/texte', { method: 'PUT', headers: await json(), body: JSON.stringify({ texte: '<p>Libre</p>' }) }, ENV);
+    await routesStaff.request('/c1/texte', { method: 'PUT', headers: await json(), body: JSON.stringify({ texte: null }) }, ENV);
+    expect(db.conventions[0].texte_personnalise).toBeNull();
+    expect((await routesStaff.request('/c1/texte', { method: 'PUT', headers: await json(), body: JSON.stringify({ texte: '<p> </p>' }) }, ENV)).status).toBe(400);
+    await routesStaff.request('/c1/signer', { method: 'POST', headers: await sessionStaff() }, ENV);
+    expect((await routesStaff.request('/c1/texte', { method: 'PUT', headers: await json(), body: JSON.stringify({ texte: '<p>Après</p>' }) }, ENV)).status).toBe(409);
+    db.conventions[0].signature_prestataire_le = null;
+    db.staff_backoffice = [{ id: 's1', role: 'assistant' }];
+    expect((await routesStaff.request('/c1/texte', { method: 'PUT', headers: await json(), body: JSON.stringify({ texte: '<p>VA</p>' }) }, ENV)).status).toBe(403);
+  });
+
   it('n’accepte qu’une image produite par le Worker dans le bloc de signature', async () => {
     const { appliquerSignature, MARQUEUR_SIGNATURE } = await import('../src/backoffice/convention-document');
     const piege = appliquerSignature(`<p>${MARQUEUR_SIGNATURE}</p>`, { le: '2026-11-04T13:32:00Z', empreinte: 'a'.repeat(64), image: 'javascript:alert(1)' });
