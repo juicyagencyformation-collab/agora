@@ -1,4 +1,5 @@
 // worker/src/lib/email.ts
+import { supabaseUpsert } from '../db';
 
 // Envoie un email via l'API Resend. Échoue silencieusement (juste loggé) plutôt que de
 // faire planter le flux appelant — un email non envoyé ne doit jamais bloquer une réponse
@@ -36,13 +37,45 @@ export async function envoyerEmail(
       }),
     });
     if (!res.ok) {
-      console.error('Échec envoi email Resend :', await res.text());
+      const texte = await res.text();
+      console.error('Échec envoi email Resend :', texte);
+      // Quota atteint (429 daily_quota_exceeded / monthly_quota_exceeded) : toujours noté, pour
+      // que le backoffice l'affiche tout de suite.
+      const refus = res.status === 429 ? (texte.match(/(daily|monthly)_quota_exceeded/)?.[0] ?? null) : null;
+      await noterQuotaResend(env, res, { refus });
       return null;
     }
+    await noterQuotaResend(env, res);
     const donnees = await res.json() as any;
     return donnees?.id || null;
   } catch (err) {
     console.error('Erreur réseau envoi email :', err);
     return null;
+  }
+}
+
+// Consommation du quota Resend (migration 113, demandé par Léandre le 2026-11-20) : Resend la
+// renvoie dans les en-têtes x-resend-daily-quota (plan gratuit seulement) et x-resend-monthly-quota.
+// Gardée dans etat_resend pour le backoffice (backoffice/quota-resend.ts). Pour ne pas doubler les
+// requêtes d'un envoi en lot (bilans mensuels, limite de 50 sous-requêtes par exécution), au plus
+// une écriture par minute et par instance, sauf refus pour quota ou relevé forcé.
+let derniereNoteQuota = 0;
+
+export async function noterQuotaResend(env: any, res: Response, options: { refus?: string | null; forcer?: boolean } = {}) {
+  const jour = res.headers.get('x-resend-daily-quota');
+  const mois = res.headers.get('x-resend-monthly-quota');
+  if (jour === null && mois === null && !options.refus) return;
+  if (!options.refus && !options.forcer && Date.now() - derniereNoteQuota < 60_000) return;
+  derniereNoteQuota = Date.now();
+  const maintenant = new Date().toISOString();
+  try {
+    await supabaseUpsert(env, 'etat_resend', [{
+      id: 1, maj_le: maintenant,
+      ...(jour !== null ? { quota_jour: parseInt(jour, 10) || 0 } : {}),
+      ...(mois !== null ? { quota_mois: parseInt(mois, 10) || 0 } : {}),
+      ...(options.refus ? { dernier_refus: options.refus, dernier_refus_le: maintenant } : {}),
+    }], 'id');
+  } catch (e) {
+    console.error('Quota Resend non enregistré', e);
   }
 }

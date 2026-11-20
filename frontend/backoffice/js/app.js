@@ -29,6 +29,10 @@ function backoffice() {
     // communes) sont chargées par init() de toute façon.
     vue: 'aujourdhui',
     chargement: true,
+    // Quota Resend (GET /quota-resend, migration 113) : relu toutes les 2 min tant que la page
+    // « Aujourd'hui » est affichée et l'onglet visible — voir chargerQuotaResend().
+    quotaResend: null,
+    minuteurQuotaResend: null,
     staff: { nom: '' },
     apercu: {},
     // Tiroirs repliables (Communes clientes + Réglages) : état mémorisé pour garder
@@ -1214,7 +1218,20 @@ function backoffice() {
     // chargerCommunes(), voir le commentaire sur ajProspectsRelance). Rappelée aussi bien depuis
     // init() (pour que le badge du menu soit à jour partout, pas seulement une fois la vue
     // visitée) que depuis allerAujourdhui() (pour un état frais à chaque visite). —
+    // Suivi du quota Resend en tête d'« Aujourd'hui ». Une lecture = 1 appel à Resend + 1 lecture
+    // en base (backoffice/quota-resend.ts) ; relu toutes les 2 min seulement si la page est visible.
+    async chargerQuotaResend() {
+      try { this.quotaResend = await boFetch('/quota-resend'); } catch { this.quotaResend = null; }
+      this.minuteurQuotaResend ??= setInterval(() => {
+        if (this.vue === 'aujourdhui' && !document.hidden) this.chargerQuotaResend();
+      }, 2 * 60 * 1000);
+    },
+    niveauQuota(utilise, limite) {
+      const part = (utilise ?? 0) / limite;
+      return part >= 0.9 ? 'rouge' : part >= 0.7 ? 'orange' : 'vert';
+    },
     async chargerAujourdhui() {
+      this.chargerQuotaResend(); // pas de await : indépendant du reste du tableau de bord
       try {
         const [relance, perdus, recus] = await Promise.all([
           boFetch('/prospection/prospects-a-relancer'),

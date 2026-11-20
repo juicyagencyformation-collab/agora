@@ -477,3 +477,18 @@ select { width: 100%; padding: 11px 12px; background: var(--bo-bg); border: 1px 
 /* Zone de signature au doigt (Réglages → Ma signature manuscrite) : blanche comme une feuille ;
    touch-action none pour que le doigt dessine au lieu de faire défiler la page. */
 .bo-pad-signature { width: 100%; height: 180px; background: #fff; border: 2px dashed var(--bo-border); border-radius: 10px; touch-action: none; cursor: crosshair; display: block; }
+
+/* Quota Resend en tête d'« Aujourd'hui » (backoffice/quota-resend.ts) : une jauge par période. */
+.bo-quota { padding: 14px 18px; }
+.bo-quota__titre { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.bo-quota__alerte { background: rgba(248,113,113,.15); color: var(--bo-rouge); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+.bo-quota__ligne { display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 4px 12px; margin-top: 6px; }
+.bo-quota__lib { font-size: 13px; color: var(--bo-text-faible); }
+.bo-quota__barre { height: 10px; background: var(--bo-surface-2); border-radius: 99px; overflow: hidden; }
+.bo-quota__rempli { height: 100%; border-radius: 99px; transition: width .4s; }
+.bo-quota__rempli--vert { background: var(--bo-vert); }
+.bo-quota__rempli--orange { background: var(--bo-jaune); }
+.bo-quota__rempli--rouge { background: var(--bo-rouge); }
+.bo-quota__val { font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.bo-quota__note { grid-column: 2 / 4; font-size: 11.5px; }
+.bo-quota__note:empty { display: none; }

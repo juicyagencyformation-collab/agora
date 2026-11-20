@@ -27,6 +27,7 @@ import { chargerBareme, CLES_OFFRES_TEXTE, chargerOffresTexte, enregistrerOffreT
 import { CLES_CONTENU_TEXTE, chargerContenuTexte, enregistrerContenuTexte } from './contenu-texte';
 import { detacherFichesAssociations } from '../lib/associations';
 import { VERSION_CGU } from '../lib/cgu';
+import { noterQuotaResend } from '../lib/email';
 
 const STATUTS_CLIENT = ['active', 'suspendue', 'resiliee'] as const;
 
@@ -414,6 +415,8 @@ app.post('/email-test', async (c) => {
     }),
   });
   const data: any = await res.json().catch(() => ({}));
+  // Relevé du quota Resend (lib/email.ts, migration 113), y compris si le quota bloque ce test.
+  await noterQuotaResend(c.env, res, { forcer: true, refus: res.status === 429 && /quota_exceeded/.test(String(data?.name)) ? data.name : null });
   if (!res.ok) {
     return c.json({ erreur: `Resend a refusé l'envoi (${res.status}) : ${data?.message || data?.name || 'erreur inconnue'}` }, 502);
   }

@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261119-4" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261120-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -94,6 +94,30 @@
               <div class="bo-sous">Tout ce qui attend une action ou est en retard, regroupé au même endroit.</div>
             </div>
           </div>
+
+          <!-- Quota Resend (backoffice/quota-resend.ts, migration 113) : relu toutes les 2 min sur
+               cette page. Vert < 70 %, orange < 90 %, rouge au-delà ou si Resend a refusé un envoi. -->
+          <template x-if="quotaResend && (quotaResend.jour !== null || quotaResend.mois !== null)">
+            <div class="bo-carte bo-quota" style="margin-bottom:20px">
+              <div class="bo-quota__titre">
+                <strong>✉️ Emails Resend</strong>
+                <span class="bo-info" x-text="(quotaResend.direct ? 'en direct' : 'dernier relevé') + (quotaResend.maj_le ? ' · ' + new Date(quotaResend.maj_le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '')"></span>
+              </div>
+              <div class="bo-quota__alerte" x-show="quotaResend.refus"
+                x-text="'⛔ Quota ' + (quotaResend.refus?.type === 'monthly_quota_exceeded' ? 'du mois' : 'du jour') + ' atteint à ' + (quotaResend.refus ? new Date(quotaResend.refus.le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '') + ' : les emails ne partent plus (codes de connexion compris).'"></div>
+              <template x-for="j in [
+                  { lib: 'Aujourd’hui', val: quotaResend.jour, max: quotaResend.limite_jour, note: 'remise à zéro à ' + new Date(quotaResend.remise_a_zero).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) },
+                  { lib: 'Ce mois-ci', val: quotaResend.mois, max: quotaResend.limite_mois, note: '' }
+                ].filter((x) => x.val !== null)" :key="j.lib">
+                <div class="bo-quota__ligne">
+                  <span class="bo-quota__lib" x-text="j.lib"></span>
+                  <div class="bo-quota__barre"><div :class="'bo-quota__rempli bo-quota__rempli--' + niveauQuota(j.val, j.max)" :style="'width:' + Math.min(100, Math.round(100 * j.val / j.max)) + '%'"></div></div>
+                  <span class="bo-quota__val" x-text="j.val.toLocaleString('fr-FR') + ' / ' + j.max.toLocaleString('fr-FR')"></span>
+                  <span class="bo-info bo-quota__note" x-text="j.note"></span>
+                </div>
+              </template>
+            </div>
+          </template>
 
           <!-- Appels du jour (GET /prospection/appels-du-jour) : en tête, en liste (pas en tableau)
                pour rester lisible sur téléphone. 15 affichés, le reste derrière « Voir la suite ». -->
@@ -4642,7 +4666,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261120-1"></script>
+  <script src="/backoffice/js/app.js?v=20261120-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
