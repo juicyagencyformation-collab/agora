@@ -523,6 +523,8 @@ function backoffice() {
             this.convention = this.conventionPourFormulaire(rc.convention);
             this.conventionNumerosPris = rc.numeros_pris;
           } catch { this.convention = null; }
+          // Le prix fondateur de la convention (ex. 188,50 €) prime sur le barème : recalcul une fois chargée.
+          this.initAbonnement();
           this.nouveauDevis = { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 };
           this.devisMsg = '';
           try { await this.chargerDevisFactures(communeId); } catch {}
@@ -3107,15 +3109,28 @@ function backoffice() {
       const brut = formule === 'accompagne' ? this.calculerPrixAccompagne(hab) : this.calculerPrixAutonomie(hab);
       return fondatrice ? Math.round(brut * 0.65 * 100) / 100 : Math.round(brut);
     },
+    // Prix fondateur EXACT inscrit dans la convention (ex. 188,50 € pour Fay-les-Étangs et Tourly) :
+    // il prime sur le barème. Il vaut pour Autonomie, et pour Accompagné seulement quand la commune
+    // y est déjà en fondatrice (services Accompagné offerts en « geste fondateur », article 6).
+    prixConvention(formule) {
+      const prix = Number(this.convention?.prix_annuel_fondateur);
+      if (!(prix > 0)) return null;
+      const c = this.fiche.commune;
+      const geste = formule === 'accompagne' && c.forfait === 'Fondateur' && c.formule === 'accompagne';
+      return formule === 'autonomie' || geste ? prix : null;
+    },
+    montantSuggere(formule, fondatrice) {
+      return (fondatrice ? this.prixConvention(formule) : null) ?? this.prixAbonnement(formule, fondatrice);
+    },
     // Repart de ce que la commune a déjà (renouvellement : même formule, même statut fondateur).
     initAbonnement() {
       const c = this.fiche.commune;
       const formule = ['autonomie', 'accompagne'].includes(c.formule) ? c.formule : 'autonomie';
       const fondatrice = c.forfait === 'Fondateur';
-      this.abo = { formule, fondatrice, montant: this.prixAbonnement(formule, fondatrice) ?? '', reference: '', enCours: false, msg: '' };
+      this.abo = { formule, fondatrice, montant: this.montantSuggere(formule, fondatrice) ?? '', reference: '', enCours: false, msg: '' };
     },
     recalculerAbonnement() {
-      this.abo.montant = this.prixAbonnement(this.abo.formule, this.abo.fondatrice) ?? '';
+      this.abo.montant = this.montantSuggere(this.abo.formule, this.abo.fondatrice) ?? '';
     },
     // Devis d'abonnement en cours (créé depuis ce bloc, pas encore facturé ni abandonné).
     devisAbonnement() {
@@ -3137,7 +3152,7 @@ function backoffice() {
     resumeAbonnement() {
       const c = this.fiche?.commune;
       if (!this.estPayante()) return 'Gratuit';
-      return [c.forfait === 'Fondateur' ? 'Commune fondatrice' : c.forfait,
+      return [c.forfait === 'Fondateur' ? (c.prix_annuel_ttc ? 'Commune fondatrice' : 'Commune fondatrice, accès offert') : c.forfait,
         c.formule ? this.libelleFormule(c.formule) : '⚠️ formule non enregistrée',
         c.prix_annuel_ttc ? this.euros(Number(c.prix_annuel_ttc)) + ' / an' : null,
         c.prochaine_echeance ? 'échéance le ' + this.formatDate(c.prochaine_echeance) : null].filter(Boolean).join(' · ');
