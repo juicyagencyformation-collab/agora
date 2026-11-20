@@ -19,7 +19,9 @@ function afficherGateCguSousTraitance() {
       données en fin de contrat. Il s'applique aussi lorsque le service est gratuit.</p>
       <label>
         <input type="checkbox" id="case-accepter-cgu-soustraitance">
-        J'ai lu et j'accepte, au nom de la commune, les <a href="conditions-utilisation.html" target="_blank">conditions générales d'utilisation</a>, y compris l'accord de sous-traitance RGPD (article 10). Je déclare être le maire, un élu titulaire d'une délégation, ou un agent habilité par le maire.
+        <!-- Texte dans un seul span : le label est en flex (dashboard.css), chaque morceau autour du
+             lien deviendrait sinon une colonne à part. -->
+        <span>J'ai lu et j'accepte, au nom de la commune, les <a href="conditions-utilisation.html" target="_blank">conditions générales d'utilisation</a>, y compris l'accord de sous-traitance RGPD (article 10). Je déclare être le maire, un élu titulaire d'une délégation, ou un agent habilité par le maire.</span>
       </label>
       <p style="font-size:12.5px">Un accusé de réception sera envoyé par email à vous et à la mairie.</p>
       <button class="btn-accepter-cgu" id="btn-accepter-cgu-soustraitance" disabled>Continuer</button>
