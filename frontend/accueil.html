@@ -416,8 +416,8 @@
         </div>
         <div class="offre">
           <div class="nom" id="label-autonomie">Autonomie</div><h3 id="titre-autonomie">Faire vivre le village et la mairie</h3>
-          <div class="montant"><span id="prix-autonomie">290 €</span><small> / an</small></div>
-          <div class="montant-mois">soit <span id="mois-autonomie">24 €</span> / mois</div>
+          <div class="montant"><span id="prix-autonomie">250 €</span><small> / an</small></div>
+          <div class="montant-mois">soit <span id="mois-autonomie">21 €</span> / mois</div>
           <div class="montant-hab" id="hab-autonomie"></div>
           <ul id="features-autonomie"><li>Tous les onglets de l’application</li><li>L’application à votre nom et à votre logo</li><li>Modération automatique des photos</li><li>Support email</li></ul>
           <div class="fondateur">Commune fondatrice : <b id="fond-autonomie"></b> / an, à vie</div>
@@ -426,8 +426,8 @@
         <div class="offre offre--mise-en-avant">
           <span class="ruban" id="badge-accompagne">Le plus demandé</span>
           <div class="nom" id="label-accompagne">Accompagné</div><h3 id="titre-accompagne">Accompagnement personnalisé</h3>
-          <div class="montant"><span id="prix-accompagne">490 €</span><small> / an</small></div>
-          <div class="montant-mois">soit <span id="mois-accompagne">41 €</span> / mois</div>
+          <div class="montant"><span id="prix-accompagne">450 €</span><small> / an</small></div>
+          <div class="montant-mois">soit <span id="mois-accompagne">38 €</span> / mois</div>
           <div class="montant-hab" id="hab-accompagne"></div>
           <ul id="features-accompagne"><li>Tout Autonomie, plus :</li><li>Support prioritaire</li><li>Bilan mensuel de votre commune</li><li>Suivi personnalisé de votre commune</li></ul>
           <div class="fondateur">Commune fondatrice : <b id="fond-accompagne"></b> / an, à vie</div>
@@ -516,8 +516,8 @@
   var zone = document.getElementById('resultat-commune');
 
   // ── Tarifs : barème public (worker/src/backoffice/tarification.ts). Repli local = valeurs de la
-  // migration 050, remplacées par celles du serveur dès qu'elles arrivent.
-  var B = { taux_base: 0.6, seuil_degressif: 500, taux_degressif: 0.2, prix_plancher: 290, supplement_accompagne: 200, seuil_devis: 5000 };
+  // barème du 2026-11-20 (BAREME_DEFAUT), remplacées par celles du serveur dès qu'elles arrivent.
+  var B = { taux_base: 0.5, seuil_degressif: 500, taux_degressif: 0.06, prix_plancher: 250, supplement_accompagne: 200, seuil_devis: 5000 };
   // Population de la commune cherchée (peut dépasser le curseur) ; null = on suit le curseur.
   var habCommune = null;
   var autonomie = function (h) { var brut = Math.min(h, B.seuil_degressif) * B.taux_base + Math.max(0, h - B.seuil_degressif) * B.taux_degressif; return Math.max(brut, B.prix_plancher); };

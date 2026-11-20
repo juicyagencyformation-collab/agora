@@ -91,7 +91,7 @@ describe('formule affichée', () => {
 
   it('GET /formule : onglets, prix au barème du site, droit de demander', async () => {
     const data = await (await appel('/formule', 'maire')).json();
-    expect(data).toMatchObject({ formule: 'gratuite', population: 357, prix_annuels: { autonomie: 290, accompagne: 490 }, peut_demander: true, demande_en_cours: null });
+    expect(data).toMatchObject({ formule: 'gratuite', population: 357, prix_annuels: { autonomie: 250, accompagne: 450 }, peut_demander: true, demande_en_cours: null });
     expect(data.onglets_verrouilles.sort()).toEqual(['conseil', 'mur']);
     expect(data.onglets_inclus).toContain('actualites');
     expect(data.onglets_inclus).toContain('agenda'); // sans ligne en base = actif

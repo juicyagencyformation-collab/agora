@@ -204,10 +204,10 @@ describe("qualification et fiche prête pour l'appel (lot 2)", () => {
   it('donne la distance depuis Eaucourt et le prix de la commune', async () => {
     Object.assign(db.prospects[0], { nom: 'Pont-Remy', population: 1500, lat: 50.054, lng: 1.910, horaires_verifies_le: new Date().toISOString() });
     const corps: any = await (await app.request('/prospects/p1', { headers: await sessionStaff() }, ENV)).json();
-    // Barème par défaut : 500 × 0,60 + 1 000 × 0,20 = 500 €, Accompagné + 200 €, fondateur − 35 %.
+    // Barème par défaut : 500 × 0,50 + 1 000 × 0,06 = 310 €, Accompagné + 200 €, fondateur − 35 %.
     expect(corps.prospect).toMatchObject({
       distance_km: 3,
-      tarif: { habitants: 1500, sur_devis: false, autonomie: 500, accompagne: 700, fondateur_autonomie: 325, fondateur_accompagne: 455 },
+      tarif: { habitants: 1500, sur_devis: false, autonomie: 310, accompagne: 510, fondateur_autonomie: 201.5, fondateur_accompagne: 331.5 },
     });
   });
   it('suit le barème en base : plancher, centimes, sur devis, population inconnue', async () => {
