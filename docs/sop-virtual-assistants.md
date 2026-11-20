@@ -93,7 +93,7 @@ L'heure de rappel peut aussi se régler à la main à côté de la date de proch
 ```
 
 - Passage à "contacté" automatique dès le premier envoi.
-- Passage à "gagné" uniquement via la conversion manuelle en commune cliente (§4).
+- Passage à "gagné" automatique quand l'abonnement est activé (bloc « 💶 Abonnement », §4), ou via la conversion manuelle en commune cliente.
 - Un prospect "gagné", "perdu" ou "ne plus contacter" ne peut plus recevoir d'envoi automatique **ni** de relance manuelle (bouton "🔁 Relancer" désactivé sur sa fiche).
 
 ### 2.6 Gérer un refus — deux statuts, pas un seul
@@ -132,12 +132,29 @@ Actions disponibles : **"✉️ Répondre"** (réponse threadée, apparaît comm
 
 ---
 
-## 4. Convertir un prospect en commune cliente
+## 4. Le parcours d'une commune, du premier appel au paiement
 
-Depuis la fiche prospect (si pas déjà cliente) → **"Convertir en commune cliente"** :
-1. Renseigne nom, slug d'URL, email/prénom/nom du maire, mot de passe temporaire.
-2. Coche "Envoyer les accès par email" si le maire doit recevoir ses identifiants tout de suite.
-3. Valide → la commune est créée (forfait Gratuit par défaut), le compte maire est créé, le prospect passe en statut "gagné".
+**Tronc commun (toutes les formules)**
+1. **Appel** depuis « 📞 Appels du jour » (§2.4 bis).
+2. **L'espace existe déjà** : toutes les communes de France ont un espace citoyen depuis le 6 novembre 2026. Rien à créer.
+3. **La mairie prend la main** : lien de connexion reçu avec la présentation (✉). Dès qu'un compte admin, élu ou maire ouvre l'app, l'espace devient « officiel » tout seul.
+4. **Accord RGPD** : la mairie accepte les CGU (article 10) à sa première connexion. Si ni le maire ni un élu ne l'a fait : onglet Dossier → « Demander l'accord du maire » (lien en un clic, sans compte).
+
+**🆓 Gratuit** : le parcours s'arrête là. Pour passer au payant, la mairie clique sur « Demander à changer de formule » (Ma commune → Votre formule) : la demande arrive dans « Aujourd'hui → Anomalies », on la rappelle.
+
+**💶 Autonomie, Accompagné et 🏅 Commune fondatrice** : tout se fait dans le bloc **« 💶 Abonnement »**, en haut de l'onglet **Dossier** de la fiche commune. Il n'affiche qu'une action à la fois :
+
+| Étape | Geste |
+|---|---|
+| 1. Devis | Choisir la formule, cocher « Commune fondatrice » si besoin : le prix se calcule depuis le barème (fondatrice : −35 % au centime), modifiable. **« Créer le devis »**, ouvrir le PDF, l'envoyer à la mairie |
+| 2. Bon de commande | Quand la mairie renvoie le devis signé ou un bon de commande : **« ✅ Bon de commande reçu »** (référence facultative). « Abandonner » si elle renonce |
+| 3. Activation | **« 🚀 Activer l'abonnement et facturer »** : tous les onglets s'ouvrent, forfait, formule, prix et échéance sont enregistrés, la demande de la mairie est close et la facture est émise. **Réservé à Léandre** |
+| 4. Paiement | Déposer le PDF de la facture sur **Chorus Pro** (manuel), cliquer « Déposée sur Chorus Pro », puis **« 💶 Payée »** à réception du paiement : l'échéance avance d'un an |
+
+- **Commune fondatrice** : faire signer la **convention** (§6.11) avant l'étape 3. 10 places, jusqu'au 31 mars 2027. La « première année offerte » est réservée à Fay-les-Étangs et Tourly : ne jamais la proposer.
+- **Renouvellement** : 60 jours avant l'échéance, un rappel part tout seul à la mairie et la commune apparaît dans « Aujourd'hui ». Le bloc propose alors « Créer le devis de renouvellement » avec la même formule et le même prix ; la date anniversaire ne bouge pas.
+- Le bouton « 🌟 Fondateur, accès offert » (onglet Configuration) sert uniquement aux accès offerts : il **efface** prix et échéance. Une fondatrice qui paie passe toujours par « 💶 Abonnement ».
+- « Convertir en commune cliente » (fiche prospect) ne sert plus que pour une commune sans espace, cas devenu exceptionnel.
 
 ---
 
@@ -181,6 +198,8 @@ Choisis une formule (Autonomie/Accompagné/Premium) → le prix suggéré se cal
 ⚠️ **La formule enregistrée active des services, ce n'est pas qu'une étiquette de prix** : la **modération automatique des photos** ne tourne que pour Autonomie, Accompagné et Premium, et le **bilan mensuel** par email que pour Accompagné et Premium. Une commune payante sans formule choisie n'a ni l'un ni l'autre — toujours choisir et enregistrer la formule sur la fiche d'une commune qui paie (ou fondatrice).
 
 ### 6.4 Devis & facturation
+
+Pour un abonnement, utiliser le bloc **« 💶 Abonnement »** (§4) : il fait tout ce qui suit en quatre gestes. La section « Devis & facturation » plus bas dans l'onglet Dossier reste pour les cas particuliers (prestation hors abonnement, montant libre, Premium).
 
 Cycle complet, intégré dans la fiche commune :
 

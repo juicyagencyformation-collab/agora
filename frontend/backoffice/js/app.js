@@ -238,6 +238,8 @@ function backoffice() {
     premiumPremiereAnnee: true,
     nouveauDevis: { objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30 },
     devisFormule: '', // formule utilisée pour préremplir objet/montant_ht du devis, voir preremplirDevis()
+    // Bloc « 💶 Abonnement » (onglet Dossier) : devis → bon de commande → activer et facturer → payée.
+    abo: { formule: 'autonomie', fondatrice: false, montant: '', reference: '', enCours: false, msg: '' },
     devisListe: [],
     facturesListe: [],
     devisEnCours: false,
@@ -505,6 +507,7 @@ function backoffice() {
           if (!this.fiche.commune.formule) this.fiche.commune.formule = '';
           this.premiumPremiereAnnee = true;
           this.devisFormule = this.fiche.commune.formule;
+          this.initAbonnement();
           this.qrCommune = this.genererQr(location.origin + '/' + this.fiche.commune.slug + '/');
           this.demarrage = null;
           boFetch('/suivi/communes/' + communeId + '/demarrage')
@@ -2176,7 +2179,7 @@ function backoffice() {
       const signature = '\n\nBelle journée,\nLéandre Sallé\nConseiller municipal à Eaucourt-sur-Somme';
       const t = p.tarif;
       const fondateur = t && !t.sur_devis
-        ? `En tant que commune fondatrice, ${p.nom} garde 35 % de réduction à vie sur la version complète : ${this.euros(t.fondateur_autonomie)} par an au lieu de ${this.euros(t.autonomie)}.`
+        ? `En tant que commune fondatrice, ${p.nom} garde 35 % de réduction à vie sur la version complète : ${this.euros(t.fondateur_autonomie)} par an au lieu de ${this.euros(Math.round(t.autonomie))}.`
         : 'En tant que commune fondatrice, la commune garde 35 % de réduction à vie sur la version complète.';
       if (cle === 'confirmation_demo') {
         return {
@@ -3094,6 +3097,116 @@ function backoffice() {
       } finally {
         this.devisEnCours = false;
       }
+    },
+    // — Bloc « 💶 Abonnement » (2026-11-20) : un seul geste à la fois, quelle que soit la formule —
+    // Prix du site : public arrondi à l'euro (comme accueil.html), fondateur −35 % au centime près.
+    // null = sur devis (au-delà du seuil des Réglages) ou population inconnue : montant à saisir.
+    prixAbonnement(formule, fondatrice) {
+      const hab = this.fiche?.commune?.population;
+      if (!hab || hab > (Number(this.baremeTarifaire.seuil_devis) || 5000)) return null;
+      const brut = formule === 'accompagne' ? this.calculerPrixAccompagne(hab) : this.calculerPrixAutonomie(hab);
+      return fondatrice ? Math.round(brut * 0.65 * 100) / 100 : Math.round(brut);
+    },
+    // Repart de ce que la commune a déjà (renouvellement : même formule, même statut fondateur).
+    initAbonnement() {
+      const c = this.fiche.commune;
+      const formule = ['autonomie', 'accompagne'].includes(c.formule) ? c.formule : 'autonomie';
+      const fondatrice = c.forfait === 'Fondateur';
+      this.abo = { formule, fondatrice, montant: this.prixAbonnement(formule, fondatrice) ?? '', reference: '', enCours: false, msg: '' };
+    },
+    recalculerAbonnement() {
+      this.abo.montant = this.prixAbonnement(this.abo.formule, this.abo.fondatrice) ?? '';
+    },
+    // Devis d'abonnement en cours (créé depuis ce bloc, pas encore facturé ni abandonné).
+    devisAbonnement() {
+      return this.devisListe.find((d) => d.formule && !d.facture_id && !['refuse', 'expire'].includes(d.statut)) || null;
+    },
+    factureAPayer() {
+      return this.facturesListe.find((f) => f.statut !== 'payee') || null;
+    },
+    // 0 devis à créer · 1 bon de commande attendu · 2 à activer · 3 facture à encaisser
+    etapeAbonnement() {
+      if (this.factureAPayer()) return 3;
+      const d = this.devisAbonnement();
+      return d ? (d.bon_commande_recu_le ? 2 : 1) : 0;
+    },
+    estPayante() {
+      const f = this.fiche?.commune?.forfait;
+      return !!f && f !== 'Gratuit';
+    },
+    resumeAbonnement() {
+      const c = this.fiche?.commune;
+      if (!this.estPayante()) return 'Gratuit';
+      return [c.forfait === 'Fondateur' ? 'Commune fondatrice' : c.forfait,
+        c.formule ? this.libelleFormule(c.formule) : '⚠️ formule non enregistrée',
+        c.prix_annuel_ttc ? this.euros(Number(c.prix_annuel_ttc)) + ' / an' : null,
+        c.prochaine_echeance ? 'échéance le ' + this.formatDate(c.prochaine_echeance) : null].filter(Boolean).join(' · ');
+    },
+    async actionAbonnement(fn) {
+      this.abo.enCours = true;
+      this.abo.msg = '';
+      try {
+        await fn();
+        await this.chargerDevisFactures(this.fiche.commune.id);
+      } catch (e) {
+        this.abo.msg = e.message || 'Échec';
+      } finally {
+        this.abo.enCours = false;
+      }
+    },
+    creerDevisAbonnement() {
+      const a = this.abo, c = this.fiche.commune;
+      if (!(Number(a.montant) > 0)) { a.msg = 'Indique le montant annuel.'; return; }
+      const libelle = this.libelleFormule(a.formule) + (a.fondatrice ? ', commune fondatrice (−35 % à vie)' : '');
+      return this.actionAbonnement(async () => {
+        await boFetch('/administration/devis', {
+          method: 'POST',
+          body: JSON.stringify({
+            commune_id: c.id, nom_destinataire: c.nom, objet: 'Abonnement annuel Plateforme-Agora — ' + libelle,
+            montant_ht: Number(a.montant), taux_tva: 0, duree_engagement_mois: 12, validite_jours: 30,
+            formule: a.formule, fondatrice: a.fondatrice,
+          }),
+        });
+        a.msg = 'Devis créé : ouvre-le, enregistre-le en PDF et envoie-le à la mairie.';
+      });
+    },
+    bonCommandeAbonnement() {
+      const d = this.devisAbonnement();
+      return this.actionAbonnement(() => boFetch('/administration/devis/' + d.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ statut: 'accepte', bon_commande_recu_le: new Date().toISOString(), bon_commande_reference: this.abo.reference.trim() || null }),
+      }));
+    },
+    abandonnerDevisAbonnement() {
+      const d = this.devisAbonnement();
+      if (!confirm(`Abandonner le devis ${d.numero} (marqué « refusé ») ?`)) return;
+      return this.actionAbonnement(() => boFetch('/administration/devis/' + d.id, { method: 'PATCH', body: JSON.stringify({ statut: 'refuse' }) }));
+    },
+    activerAbonnement() {
+      const d = this.devisAbonnement();
+      const quoi = this.libelleFormule(d.formule) + (d.fondatrice ? ', commune fondatrice' : '');
+      if (!confirm(`Activer l'abonnement ${quoi} et émettre la facture de ${this.euros(Number(d.montant_ttc))} ?\n\nTous les onglets s'ouvrent ; formule, prix et échéance sont enregistrés.`)) return;
+      return this.actionAbonnement(async () => {
+        const r = await boFetch('/administration/communes/' + this.fiche.commune.id + '/activer-abonnement', {
+          method: 'POST', body: JSON.stringify({ devis_id: d.id }),
+        });
+        await this.rafraichirCompteursCommune();
+        this.forfaitNom = this.fiche.commune.forfait || '';
+        try { this.ongletsCommune = (await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets')).onglets; } catch {}
+        this.abo.msg = 'Abonnement activé, facture ' + r.facture.numero + ' émise : dépose-la sur Chorus Pro.';
+      });
+    },
+    // Chorus Pro puis payée : « payée » avance l'échéance de 12 mois côté serveur.
+    marquerFactureAbonnement(statut) {
+      const f = this.factureAPayer();
+      return this.actionAbonnement(async () => {
+        await boFetch('/administration/factures/' + f.id, { method: 'PATCH', body: JSON.stringify({ statut }) });
+        if (statut === 'payee') {
+          await this.rafraichirCompteursCommune();
+          this.initAbonnement();
+          this.abo.msg = 'Payée — prochaine échéance le ' + this.formatDate(this.fiche.commune.prochaine_echeance) + '.';
+        }
+      });
     },
     // Préremplit objet + montant HT à partir d'une formule (Autonomie/Accompagné/Premium) et de
     // la population de la commune — un raccourci de saisie, pas un champ mémorisé sur le devis

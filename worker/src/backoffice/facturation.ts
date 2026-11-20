@@ -11,6 +11,7 @@ import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseUpsert, journal
 import { backofficeMiddleware, exigerAdmin, roleStaff } from '../middleware/backoffice';
 import { versCsv } from '../lib/csv';
 import { genererContratDpaHtml, CHAMPS_DPA, type CleDpa, type InfosDpa } from './contrat-dpa';
+import { TOUS_LES_ONGLETS, appliquerOngletsSurCommune, clorerDemandesFormule } from './administration';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
@@ -215,6 +216,9 @@ const devisSchema = z.object({
   taux_tva: z.number().min(0).max(100).default(0),
   duree_engagement_mois: z.number().int().min(1).max(60).optional().nullable(),
   validite_jours: z.number().int().min(1).max(365).default(30),
+  // Devis du bloc « 💶 Abonnement » (migration 114) : ce que « Activer et facturer » appliquera.
+  formule: z.enum(['autonomie', 'accompagne']).optional().nullable(),
+  fondatrice: z.boolean().optional(),
 });
 
 // sans_commune=1 : devis/factures "libres" (client hors commune, ex. prestation annexe à l'EI
@@ -272,17 +276,22 @@ app.post('/devis/:id/facturer', async (c) => {
   if (devis.facture_id) return c.json({ erreur: 'Ce devis a déjà été facturé.' }, 400);
   if (devis.statut !== 'accepte') return c.json({ erreur: 'Le devis doit être marqué « accepté » avant facturation.' }, 400);
   if (!devis.bon_commande_recu_le) return c.json({ erreur: 'Le bon de commande n\'a pas encore été enregistré.' }, 400);
+  const facture = await facturerDevis(c.env, devis);
+  return c.json({ ok: true, facture }, 201);
+});
 
-  const parametresDelai = await supabaseSelect(c.env, 'parametres_facturation', {
+// Émet la facture d'un devis (contrôles faits par l'appelant) et la relie au devis.
+async function facturerDevis(env: any, devis: any) {
+  const parametresDelai = await supabaseSelect(env, 'parametres_facturation', {
     select: 'valeur', cle: 'eq.entreprise_delai_paiement_jours',
   });
   const delaiJours = parseInt(parametresDelai[0]?.valeur || '30', 10) || 30;
 
-  const numero = await genererNumero(c.env, 'factures', 'F');
+  const numero = await genererNumero(env, 'factures', 'F');
   const dateEmission = new Date();
   const dateEcheance = new Date(dateEmission.getTime() + delaiJours * 24 * 3600 * 1000);
 
-  const [facture] = await supabaseInsert(c.env, 'factures', {
+  const [facture] = await supabaseInsert(env, 'factures', {
     devis_id: devis.id,
     commune_id: devis.commune_id,
     nom_destinataire: devis.nom_destinataire,
@@ -296,7 +305,61 @@ app.post('/devis/:id/facturer', async (c) => {
     date_echeance: dateEcheance.toISOString().slice(0, 10),
     numero,
   });
-  await supabaseUpdate(c.env, 'devis', { facture_id: facture.id, updated_at: new Date().toISOString() }, { id: `eq.${id}` });
+  await supabaseUpdate(env, 'devis', { facture_id: facture.id, updated_at: new Date().toISOString() }, { id: `eq.${devis.id}` });
+  return facture;
+}
+
+// POST /communes/:id/activer-abonnement — 3e geste du bloc « 💶 Abonnement » (2026-11-20) :
+// applique ce que la mairie a commandé sur le devis (formule, commune fondatrice, prix) et émet
+// la facture, en une fois. Remplace cinq réglages faits à la main ailleurs dans la fiche, dont
+// l'oubli de la formule (pas de modération photo ni de bilan) et le bouton « Fondateur » qui
+// effaçait prix et échéance d'une fondatrice pourtant payante.
+// Échéance : celle déjà en place pour un renouvellement (la date anniversaire ne bouge pas),
+// sinon aujourd'hui ; c'est le passage de la facture à « payée » qui l'avance de 12 mois. Le
+// rappel automatique est marqué comme fait : la facture tient lieu de rappel pour ce cycle.
+const activationSchema = z.object({ devis_id: z.string().uuid() });
+
+app.post('/communes/:id/activer-abonnement', exigerAdmin, async (c) => {
+  const communeId = c.req.param('id');
+  const body = activationSchema.safeParse(await c.req.json());
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [[devis], [commune]] = await Promise.all([
+    supabaseSelect(c.env, 'devis', { select: '*', id: `eq.${body.data.devis_id}`, commune_id: `eq.${communeId}` }),
+    supabaseSelect(c.env, 'communes', { select: 'id,nom,prochaine_echeance', id: `eq.${communeId}` }),
+  ]);
+  if (!commune || !devis) return c.json({ erreur: 'Devis introuvable pour cette commune.' }, 404);
+  if (!devis.formule) return c.json({ erreur: 'Ce devis n\'a pas été créé depuis « Abonnement » : utilise « Facturer » dans la liste des devis.' }, 400);
+  if (devis.facture_id) return c.json({ erreur: 'Ce devis a déjà été facturé.' }, 400);
+  if (!devis.bon_commande_recu_le) return c.json({ erreur: 'Le bon de commande n\'a pas encore été enregistré.' }, 400);
+
+  const maintenant = new Date().toISOString();
+  await appliquerOngletsSurCommune(c.env, communeId, [...TOUS_LES_ONGLETS]);
+  await supabaseUpdate(c.env, 'communes', {
+    forfait: devis.fondatrice ? 'Fondateur' : 'Version complète',
+    formule: devis.formule,
+    prix_annuel_ttc: devis.montant_ttc,
+    duree_engagement_mois: 12,
+    prochaine_echeance: commune.prochaine_echeance || maintenant.slice(0, 10),
+    derniere_relance_echeance_le: maintenant,
+    statut_client: 'active',
+  }, { id: `eq.${communeId}` });
+  if (devis.statut !== 'accepte') {
+    await supabaseUpdate(c.env, 'devis', { statut: 'accepte', updated_at: maintenant }, { id: `eq.${devis.id}` });
+  }
+  await clorerDemandesFormule(c.env, communeId);
+  // Le prospect lié est gagné : il sort des « Appels du jour » et de toute relance.
+  const prospectsGagnes = await supabaseUpdate(c.env, 'prospects',
+    { statut: 'gagne', prochaine_relance_le: null, prochaine_relance_heure: null, updated_at: maintenant },
+    { commune_id: `eq.${communeId}`, statut: 'neq.gagne' });
+  if (prospectsGagnes.length) {
+    await supabaseInsert(c.env, 'prospect_interactions', prospectsGagnes.map((p: any) => ({
+      prospect_id: p.id, staff_id: c.get('staff_id'), type: 'statut', contenu: 'Statut : → gagne (abonnement activé)',
+    })));
+  }
+  const facture = await facturerDevis(c.env, devis);
+  await journaliser(c.env, c.get('staff_id'), 'abonnement_active',
+    `${commune.nom} — ${devis.formule}${devis.fondatrice ? ', fondatrice' : ''} — ${devis.montant_ttc} € — facture ${facture.numero}`);
   return c.json({ ok: true, facture }, 201);
 });
 

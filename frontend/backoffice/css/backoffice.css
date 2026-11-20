@@ -149,6 +149,16 @@ input:focus { outline: none; border-color: var(--bo-accent); }
 .bo-memo__prix { padding-left: 18px; margin: 0; }
 .bo-qualif { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; padding: 2px 18px 14px; }
 .bo-qualif label { margin-top: 10px; }
+/* Bloc « 💶 Abonnement » de l'onglet Dossier */
+.bo-abo { padding: 14px 18px; margin-bottom: 16px; }
+.bo-abo__etat { font-weight: 600; margin-bottom: 10px; }
+.bo-abo__etapes { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; padding: 0; margin: 0 0 14px; counter-reset: etape; }
+.bo-abo__etapes li { counter-increment: etape; font-size: 12.5px; padding: 4px 10px; border-radius: 999px; background: var(--bo-surface-2); color: var(--bo-text-faible); }
+.bo-abo__etapes li::before { content: counter(etape) ". "; }
+.bo-abo__etapes .bo-abo__etape--faite::before { content: "✓ "; }
+.bo-abo__etapes .bo-abo__etape--active { background: var(--bo-accent-fort); color: #fff; font-weight: 600; }
+.bo-abo__ligne { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.bo-abo__case { display: flex; align-items: center; gap: 6px; font-weight: 400; margin: 0 0 10px; }
 .bo-mobile-seul { display: none !important; }
 
 .bo-main { flex: 1; padding: 28px 32px; overflow-x: auto; }

@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261120-1" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261120-2" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -2913,8 +2913,8 @@
                           <template x-if="prospect.tarif && !prospect.tarif.sur_devis">
                             <ul class="bo-memo__prix">
                               <li>Gratuit pour démarrer : actualités, agenda, signalements.</li>
-                              <li>Version complète (Autonomie) : <b x-text="euros(prospect.tarif.autonomie)"></b> par an, environ <span x-text="euros(Math.round(prospect.tarif.autonomie / 12))"></span> par mois.</li>
-                              <li>Accompagné (bilan mensuel, support prioritaire) : <b x-text="euros(prospect.tarif.accompagne)"></b> par an.</li>
+                              <li>Version complète (Autonomie) : <b x-text="euros(Math.round(prospect.tarif.autonomie))"></b> par an, environ <span x-text="euros(Math.round(prospect.tarif.autonomie / 12))"></span> par mois.</li>
+                              <li>Accompagné (bilan mensuel, support prioritaire) : <b x-text="euros(Math.round(prospect.tarif.accompagne))"></b> par an.</li>
                               <li>🏅 Commune fondatrice, −35 % à vie : <b x-text="euros(prospect.tarif.fondateur_autonomie)"></b> par an (environ <span x-text="euros(Math.round(prospect.tarif.fondateur_autonomie / 12))"></span> par mois), Accompagné <span x-text="euros(prospect.tarif.fondateur_accompagne)"></span>.</li>
                             </ul>
                           </template>
@@ -3565,7 +3565,7 @@
               <span class="bo-info">Préréglage des modules :</span>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('gratuit')" :disabled="presetEnCours">🆓 Passer en Gratuit</button>
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('complet')" :disabled="presetEnCours">💶 Passer en Version complète</button>
-              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('fondateur')" :disabled="presetEnCours">🌟 Passer en Fondateur</button>
+              <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerPresetOnglets('fondateur')" :disabled="presetEnCours" title="Accès complet offert, sans prix ni échéance. Une fondatrice qui paie passe par « 💶 Abonnement » (onglet Dossier).">🌟 Fondateur, accès offert</button>
               <span class="bo-info" x-text="presetMsg"></span>
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:8px 18px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--bo-border)">
@@ -3605,7 +3605,87 @@
           <div x-show="ongletFiche === 'dossier'">
           <!-- Preuve d'acceptation des CGU + accord de sous-traitance RGPD (backoffice/preuves-cgu.ts,
                migration 108) : à produire en cas de contrôle, y compris pour une commune en gratuit. -->
-          <div class="bo-section-titre" style="margin-top:0">⚖️ Accord de sous-traitance RGPD (CGU, article 10)</div>
+          <!-- Abonnement en 4 gestes (2026-11-20) : une seule action affichée à la fois.
+               Devis (formule + fondatrice, prix du barème) → bon de commande → activer et facturer
+               (POST /administration/communes/:id/activer-abonnement) → Chorus Pro → payée. -->
+          <div class="bo-section-titre" style="margin-top:0">💶 Abonnement</div>
+          <div class="bo-carte bo-abo">
+            <div class="bo-abo__etat" x-text="resumeAbonnement()"></div>
+            <ol class="bo-abo__etapes">
+              <template x-for="(e, i) in ['Devis', 'Bon de commande', 'Activation et facture', 'Chorus Pro puis payée']" :key="i">
+                <li :class="{ 'bo-abo__etape--faite': etapeAbonnement() > i, 'bo-abo__etape--active': etapeAbonnement() === i }" x-text="e"></li>
+              </template>
+            </ol>
+
+            <!-- 1. Devis -->
+            <template x-if="etapeAbonnement() === 0">
+              <div>
+                <div class="bo-abo__ligne">
+                  <div class="bo-champ-inline">
+                    <label style="margin-top:0">Formule</label>
+                    <select x-model="abo.formule" @change="recalculerAbonnement()" style="width:auto">
+                      <option value="autonomie">Autonomie</option>
+                      <option value="accompagne">Accompagné</option>
+                    </select>
+                  </div>
+                  <label class="bo-abo__case">
+                    <input type="checkbox" x-model="abo.fondatrice" @change="recalculerAbonnement()" style="width:auto" />
+                    Commune fondatrice (−35 % à vie)
+                  </label>
+                  <div class="bo-champ-inline">
+                    <label style="margin-top:0">Montant par an (€)</label>
+                    <input type="number" min="0" step="0.01" x-model="abo.montant" style="width:120px" />
+                  </div>
+                  <button class="bo-btn bo-btn--compact" @click="creerDevisAbonnement()" :disabled="abo.enCours"
+                          x-text="estPayante() ? 'Créer le devis de renouvellement' : 'Créer le devis'"></button>
+                </div>
+                <div class="bo-info" x-show="prixAbonnement(abo.formule, abo.fondatrice) === null">
+                  Sur devis ou population inconnue : saisis le montant convenu avec la mairie.</div>
+                <div class="bo-info" x-show="prixAbonnement(abo.formule, abo.fondatrice) !== null">
+                  Prix du barème pour <span x-text="(fiche.commune.population || 0).toLocaleString('fr-FR')"></span> habitants, modifiable.</div>
+                <div class="bo-info" style="color:#b54708" x-show="abo.fondatrice &amp;&amp; convention?.statut !== 'signee'">
+                  ⚠️ Commune fondatrice : la convention (plus bas) doit être signée avant d'activer.</div>
+              </div>
+            </template>
+
+            <!-- 2. Bon de commande -->
+            <template x-if="etapeAbonnement() === 1">
+              <div>
+                <p style="margin:0 0 10px">Devis <b x-text="devisAbonnement().numero"></b> (<span x-text="euros(Number(devisAbonnement().montant_ttc))"></span>) :
+                  enregistre-le en PDF et envoie-le à la mairie. Quand elle renvoie le devis signé ou un bon de commande :</p>
+                <div class="bo-abo__ligne">
+                  <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=devis&amp;id=' + devisAbonnement().id" target="_blank">📄 Devis (PDF)</a>
+                  <input type="text" x-model="abo.reference" placeholder="Référence du bon de commande (facultatif)" maxlength="150" style="flex:1; min-width:180px" />
+                  <button class="bo-btn bo-btn--compact" @click="bonCommandeAbonnement()" :disabled="abo.enCours">✅ Bon de commande reçu</button>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" @click="abandonnerDevisAbonnement()" :disabled="abo.enCours">Abandonner</button>
+                </div>
+              </div>
+            </template>
+
+            <!-- 3. Activer et facturer -->
+            <template x-if="etapeAbonnement() === 2">
+              <div class="bo-abo__ligne">
+                <span>Bon de commande reçu pour le devis <b x-text="devisAbonnement().numero"></b>.</span>
+                <button class="bo-btn bo-btn--compact" @click="activerAbonnement()" :disabled="abo.enCours">🚀 Activer l'abonnement et facturer</button>
+              </div>
+            </template>
+
+            <!-- 4. Chorus Pro puis payée -->
+            <template x-if="etapeAbonnement() === 3">
+              <div>
+                <p style="margin:0 0 10px">Facture <b x-text="factureAPayer().numero"></b> (<span x-text="euros(Number(factureAPayer().montant_ttc))"></span>),
+                  <span x-text="factureAPayer().statut === 'deposee_chorus' ? 'déposée sur Chorus Pro : en attente du paiement.' : 'à déposer sur Chorus Pro (dépôt manuel du PDF).'"></span></p>
+                <div class="bo-abo__ligne">
+                  <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&amp;id=' + factureAPayer().id" target="_blank">📄 Facture (PDF)</a>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="factureAPayer().statut === 'emise'" @click="marquerFactureAbonnement('deposee_chorus')" :disabled="abo.enCours">Déposée sur Chorus Pro</button>
+                  <button class="bo-btn bo-btn--compact" @click="marquerFactureAbonnement('payee')" :disabled="abo.enCours">💶 Payée</button>
+                </div>
+              </div>
+            </template>
+            <div class="bo-info" style="margin-top:8px" x-show="abo.msg" x-text="abo.msg"></div>
+          </div>
+
+          <div class="bo-section-titre">⚖️ Accord de sous-traitance RGPD (CGU, article 10)</div>
           <div class="bo-carte" style="padding:14px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
             <div>
               <template x-if="fiche?.acceptation_cgu?.derniere">
@@ -4667,7 +4747,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261120-3"></script>
+  <script src="/backoffice/js/app.js?v=20261120-4"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
