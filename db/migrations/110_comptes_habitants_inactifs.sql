@@ -1,0 +1,11 @@
+-- db/migrations/110_comptes_habitants_inactifs.sql
+-- 2026-11-20, validé par Léandre (guide CNIL des collectivités 2026, réflexe 4 « fixez des durées
+-- de conservation ») : un compte HABITANT (rôle citoyen) sans connexion depuis 3 ans est anonymisé,
+-- comme « Supprimer mon compte » (ses publications restent, sans son nom). Un email le prévient
+-- 30 jours avant : il lui suffit de se connecter pour garder son compte.
+-- Hors champ : comptes de la mairie (admin, élu, maire : gérés par la mairie), communes de
+-- démonstration et espace Explorateurs (purge à 12 mois, purgerExplorateursInactifs).
+-- Date de l'avertissement envoyé (NULL = jamais averti pour l'inactivité en cours). Une reconnexion
+-- suffit à annuler la suppression : la dernière connexion redevient récente.
+-- Logique : worker/src/cron.ts (purgerHabitantsInactifs). Tests : worker/test/habitants-inactifs.test.ts.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avertissement_inactivite_le TIMESTAMPTZ;

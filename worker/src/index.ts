@@ -9,6 +9,7 @@ import { gardeEspaceExplorateurs } from './middleware/explorateurs';
 import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs, purgerEchangesProspection } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
+import { purgerHabitantsInactifs } from './lib/comptes-inactifs';
 
 import auth from './auth';
 import commune from './routes/commune';
@@ -212,8 +213,9 @@ export default {
     } else if (event.cron === '0 6 * * *') {
       await envoyerResumeMeteoMatinal(env);
     } else if (event.cron === '0 * * * *') {
-      // Purge des Explorateurs ici plutôt qu'à 4 h, créneau déjà chargé : 16 requêtes au plus.
-      await executerIsolement(env, [synchroniserVigilanceMeteoFrance, purgerExplorateursInactifs]);
+      // Purges des Explorateurs et des habitants inactifs (3 ans, lib/comptes-inactifs.ts) ici plutôt
+      // qu'à 4 h, créneau déjà chargé : petits lots, une quinzaine de requêtes chacune au plus.
+      await executerIsolement(env, [synchroniserVigilanceMeteoFrance, purgerExplorateursInactifs, purgerHabitantsInactifs]);
     } else if (event.cron === '0 3 1 * *') {
       await executerIsolement(env, [purgerEchangesProspection, nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
     } else {

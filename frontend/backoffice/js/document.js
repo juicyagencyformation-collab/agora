@@ -74,7 +74,8 @@
           ['Personnes', 'Habitants inscrits (' + Number(nb_espaces_citoyens || 0).toLocaleString('fr-FR') + ' espaces citoyens ouverts)'],
           ['Données', 'Identité, email, contenus publiés, position ponctuelle si autorisée, données techniques de connexion'],
           ['Destinataires', 'Autres habitants (contenus publiés) ; sous-traitants : ' + SOUS_TRAITANTS],
-          ['Durées', 'Tant que le compte existe ; anonymisation à la suppression du compte ; contenus éphémères purgés automatiquement. '
+          ['Durées', 'Tant que le compte existe ; anonymisation à la suppression du compte, ou après 3 ans sans connexion (email '
+            + 'd\'avertissement 30 jours avant) ; contenus éphémères purgés automatiquement. '
             + 'À l\'adoption par la mairie, celle-ci devient responsable du traitement.'],
           ['Transferts', TRANSFERTS], ['Sécurité', SECURITE],
         ])}
