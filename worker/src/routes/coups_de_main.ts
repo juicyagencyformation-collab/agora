@@ -62,15 +62,76 @@ app.get('/', async (c) => {
   if (!annonces.length) return c.json({ annonces: [] });
 
   const idsAuteurs = [...new Set(annonces.map((a: any) => a.user_id))];
-  const auteurs = await supabaseSelect(c.env, 'users', {
-    select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
-  });
+  const [auteurs, reactions] = await Promise.all([
+    supabaseSelect(c.env, 'users', {
+      select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
+    }),
+    supabaseSelect(c.env, 'coups_de_main_reactions', {
+      select: 'annonce_id,user_id,emoji', commune_id: `eq.${commune_id}`,
+      annonce_id: `in.(${annonces.map((a: any) => a.id).join(',')})`,
+    }),
+  ]);
   const result = annonces.map((a: any) => {
     const auteur = auteurs.find((u: any) => u.id === a.user_id);
-    return { ...a, ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))) };
+    return {
+      ...a,
+      ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
+      reactions: resumerReactions(reactions.filter((r: any) => r.annonce_id === a.id), c.get('user_id')),
+    };
   });
 
-  return c.json({ annonces: result });
+  return c.json({ annonces: result, palette_reactions: EMOJIS_REACTION });
+});
+
+// Réactions « façon Discord » (2026-11-22, migration 116) : palette fixe d'emojis bienveillants,
+// seule source de vérité (renvoyée au client par GET /) — pas d'emoji libre, donc rien à modérer.
+// Aucune XP : ajouter/retirer en boucle ne rapporte rien.
+const EMOJIS_REACTION = [
+  '👍', '❤️', '😂', '😮', '😢', '🙏', '👏', '🎉', '💪', '🤝', '😊', '😍',
+  '🔥', '⭐', '🌻', '🌈', '☀️', '👌', '🤗', '😉', '🥰', '💡', '✅', '🍀',
+] as const;
+const reactionSchema = z.object({ emoji: z.enum(EMOJIS_REACTION) });
+
+// Regroupe par emoji : [{ emoji, total, moi }], le plus populaire d'abord (à égalité : ordre de la palette).
+function resumerReactions(lignes: { emoji: string; user_id: string }[], user_id: string) {
+  return EMOJIS_REACTION
+    .map((emoji) => {
+      const siennes = lignes.filter((r) => r.emoji === emoji);
+      return { emoji, total: siennes.length, moi: siennes.some((r) => r.user_id === user_id) };
+    })
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
+}
+
+// POST /:id/reactions — ajoute l'emoji s'il n'y est pas encore pour cette personne, le retire sinon.
+// Renvoie le résumé à jour de l'annonce, pour que le client redessine sa barre sans tout recharger.
+app.post('/:id/reactions', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const annonce_id = c.req.param('id');
+
+  const body = reactionSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: 'Réaction non autorisée' }, 400);
+
+  const [annonce] = await supabaseSelect(c.env, 'coups_de_main', {
+    select: 'id', commune_id: `eq.${commune_id}`, id: `eq.${annonce_id}`,
+  });
+  if (!annonce) return c.json({ erreur: 'Annonce introuvable' }, 404);
+
+  const [existante] = await supabaseSelect(c.env, 'coups_de_main_reactions', {
+    select: 'id', commune_id: `eq.${commune_id}`, annonce_id: `eq.${annonce_id}`,
+    user_id: `eq.${user_id}`, emoji: `eq.${body.data.emoji}`,
+  });
+  if (existante) {
+    await supabaseDelete(c.env, 'coups_de_main_reactions', { id: `eq.${existante.id}`, commune_id: `eq.${commune_id}` });
+  } else {
+    await supabaseInsert(c.env, 'coups_de_main_reactions', { commune_id, annonce_id, user_id, emoji: body.data.emoji });
+  }
+
+  const lignes = await supabaseSelect(c.env, 'coups_de_main_reactions', {
+    select: 'user_id,emoji', commune_id: `eq.${commune_id}`, annonce_id: `eq.${annonce_id}`,
+  });
+  return c.json({ reactions: resumerReactions(lignes, user_id) });
 });
 
 app.post('/', async (c) => {

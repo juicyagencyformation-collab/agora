@@ -13,6 +13,8 @@ const COULEURS_CATEGORIE = {
 };
 
 let filtreTypeActuel = null;
+// Palette fixe d'emojis de réaction, fournie par le serveur (seule source de vérité, GET /).
+let paletteReactions = [];
 
 // Barre de tri Tout / Offres / Demandes (vue principale).
 function initFiltresTypeAnnonces() {
@@ -48,7 +50,8 @@ async function chargerCoupsDeMain(filtreType = filtreTypeActuel, filtreCategorie
 
   const res = await appelApi(url);
   if (!res.ok) return;
-  const { annonces } = await res.json();
+  const { annonces, palette_reactions } = await res.json();
+  paletteReactions = palette_reactions || [];
   const conteneur = document.getElementById('liste-annonces');
   conteneur.innerHTML = '';
   if (!annonces.length) conteneur.innerHTML = `<p class="dechets-vide">Aucune annonce pour l'instant.</p>`;
@@ -88,17 +91,22 @@ function renderAnnonce(annonce) {
       </div>
     </button>
     <div class="contenu-article-deplie" hidden></div>
+    <div class="zone-reactions-annonce"></div>
   `;
+  initReactionsAnnonce(el.querySelector('.zone-reactions-annonce'), annonce);
 
   const zoneDepliee = el.querySelector('.contenu-article-deplie');
   let deploye = false;
   el.querySelector('.entete-article-compact').addEventListener('click', () => {
     deploye = !deploye;
     zoneDepliee.hidden = !deploye;
+    // Déplié : la vignette et l'extrait disparaissent de l'en-tête (la photo pleine largeur et
+    // le texte complet les remplacent juste en dessous, sans doublon).
+    el.classList.toggle('annonce-depliee', deploye);
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
       const estAuteurOuGestionnaire = annonce.user_id === window.USER_ID || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 
-      zoneDepliee.innerHTML = (annonce.photo_url ? `<img src="${annonce.photo_url}" class="miniature-article" loading="lazy" style="cursor:pointer;margin-bottom:8px;">` : '')
+      zoneDepliee.innerHTML = (annonce.photo_url ? `<div class="images-article"><img src="${annonce.photo_url}" class="miniature-article" loading="lazy" alt=""></div>` : '')
         + `<p>${texteAvecLiensCliquables(annonce.description)}</p>`
         + (annonce.prix ? `<p class="detail-annonce">💶 ${escapeAttr(annonce.prix)}</p>` : '')
         + (annonce.disponibilites ? `<p class="detail-annonce">🗓️ ${escapeAttr(annonce.disponibilites)}</p>` : '')
@@ -191,4 +199,44 @@ function renderAnnonce(annonce) {
   });
 
   return el;
+}
+
+// Réactions « façon Discord » : pastilles emoji + total, un appui ajoute/retire la sienne ;
+// « 😊+ » déplie la palette fixe. Hors du bouton d'en-tête (pas de bouton dans un bouton),
+// donc visibles et utilisables même annonce repliée.
+function initReactionsAnnonce(zone, annonce) {
+  let reactions = annonce.reactions || [];
+
+  async function basculer(emoji) {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main/${annonce.id}/reactions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emoji }),
+    });
+    if (!res.ok) { afficherToastMessage('Réaction non enregistrée.', 'erreur'); return; }
+    reactions = (await res.json()).reactions;
+    dessiner();
+  }
+
+  function dessiner() {
+    zone.innerHTML = `
+      <div class="barre-reactions-annonce">
+        ${reactions.map((r) => `<button type="button" class="btn-reaction${r.moi ? ' active' : ''}" data-emoji="${r.emoji}">${r.emoji} ${r.total}</button>`).join('')}
+        <button type="button" class="btn-reaction btn-ajout-reaction" aria-label="Ajouter une réaction" aria-expanded="false">😊+</button>
+      </div>
+      <div class="palette-reactions" hidden>
+        ${paletteReactions.map((e) => `<button type="button" data-emoji="${e}">${e}</button>`).join('')}
+      </div>
+    `;
+    const palette = zone.querySelector('.palette-reactions');
+    const btnAjout = zone.querySelector('.btn-ajout-reaction');
+    btnAjout.addEventListener('click', () => {
+      palette.hidden = !palette.hidden;
+      btnAjout.setAttribute('aria-expanded', String(!palette.hidden));
+    });
+    zone.querySelectorAll('[data-emoji]').forEach((btn) => {
+      btn.addEventListener('click', () => basculer(btn.dataset.emoji));
+    });
+  }
+
+  dessiner();
 }

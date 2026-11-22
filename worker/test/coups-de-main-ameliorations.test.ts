@@ -18,7 +18,7 @@ const ENV: any = {
 };
 
 function reinitialiser() {
-  db = { coups_de_main: [], coups_de_main_interets: [], users: [] };
+  db = { coups_de_main: [], coups_de_main_interets: [], coups_de_main_reactions: [], users: [] };
 }
 
 function correspond(valeur: any, filtre: string): boolean {
@@ -150,5 +150,60 @@ describe('PATCH /:id — pourvu et photo', () => {
     }, ENV);
     expect(res.status).toBe(200);
     expect(db.coups_de_main[0].photo_url).toBeNull();
+  });
+});
+
+// Réactions emoji « façon Discord » (2026-11-22, migration 116) : palette fixe, bascule
+// ajout/retrait, plusieurs emojis par personne, jamais l'annonce d'une autre commune.
+describe('POST /:id/reactions', () => {
+  async function reagir(emoji: string, user = 'voisin', commune = 'c1') {
+    return coupsDeMain.request('/a1/reactions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      ...(await cookiePour(commune, user)), body: JSON.stringify({ emoji }),
+    }, ENV);
+  }
+
+  it('refuse un emoji hors palette', async () => {
+    db.coups_de_main.push({ id: 'a1', commune_id: 'c1', user_id: 'auteur' });
+    const res = await reagir('🖕');
+    expect(res.status).toBe(400);
+    expect(db.coups_de_main_reactions).toHaveLength(0);
+  });
+
+  it('ajoute puis retire la même réaction (bascule), plusieurs emojis possibles', async () => {
+    db.coups_de_main.push({ id: 'a1', commune_id: 'c1', user_id: 'auteur' });
+    await reagir('👍');
+    const res = await reagir('❤️');
+    expect(res.status).toBe(200);
+    expect(db.coups_de_main_reactions).toHaveLength(2);
+    const { reactions } = await res.json();
+    expect(reactions).toEqual(expect.arrayContaining([{ emoji: '👍', total: 1, moi: true }]));
+
+    const res2 = await reagir('👍');
+    expect((await res2.json()).reactions).toEqual([{ emoji: '❤️', total: 1, moi: true }]);
+    expect(db.coups_de_main_reactions).toHaveLength(1);
+  });
+
+  it('refuse de réagir à une annonce d\'une autre commune', async () => {
+    db.coups_de_main.push({ id: 'a1', commune_id: 'c1', user_id: 'auteur' });
+    const res = await reagir('👍', 'intrus', 'c2');
+    expect(res.status).toBe(404);
+    expect(db.coups_de_main_reactions).toHaveLength(0);
+  });
+
+  it('GET / renvoie les réactions regroupées et la palette', async () => {
+    db.coups_de_main.push({ id: 'a1', commune_id: 'c1', user_id: 'auteur', description: 'x' });
+    db.coups_de_main_reactions.push(
+      { id: 'r1', commune_id: 'c1', annonce_id: 'a1', user_id: 'voisin', emoji: '🎉' },
+      { id: 'r2', commune_id: 'c1', annonce_id: 'a1', user_id: 'autre', emoji: '🎉' },
+      { id: 'r3', commune_id: 'c1', annonce_id: 'a1', user_id: 'autre', emoji: '👍' },
+    );
+    const res = await coupsDeMain.request('/', { ...(await cookiePour('c1', 'voisin')) }, ENV);
+    const data = await res.json();
+    expect(data.palette_reactions).toContain('👍');
+    expect(data.annonces[0].reactions).toEqual([
+      { emoji: '🎉', total: 2, moi: true },
+      { emoji: '👍', total: 1, moi: false },
+    ]);
   });
 });

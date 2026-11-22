@@ -52,6 +52,7 @@ export const TABLES: Record<string, string> = {
   mur_signalements: 'id,post_id,user_id,created_at',
   coups_de_main: 'id,user_id,type,titre,description,categorie,contact,prix,disponibilites,pourvu,photo_url,expires_at,created_at',
   coups_de_main_interets: 'id,annonce_id,user_id,message,created_at',
+  coups_de_main_reactions: 'id,annonce_id,user_id,emoji,created_at',
   events: 'id,user_id,titre,description,lieu,lat,lng,date_debut,date_fin,photo_url,officiel,type_action,necessite_validation_presence,'
     + 'seuil_succes_atteint,partage_autour,created_at',
   event_attendees: 'id,event_id,user_id,actif,contact_telephone,contact_email,created_at',

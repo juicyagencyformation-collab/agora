@@ -998,6 +998,22 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 /* Coups de main : annonce pourvue reléguée visuellement (reste visible, preuve que l'entraide
    fonctionne) + zone d'intérêt privé + liste des intéressés réservée à l'auteur. */
 .annonce-pourvue { opacity: .55; }
+/* Dépliée : plus de vignette ni d'extrait dans l'en-tête (photo pleine largeur + texte complet
+   juste en dessous) — évitait le doublon et le grand vide à droite de la photo (2026-11-22). */
+.annonce-depliee .entete-article-compact .miniature-liste-article,
+.annonce-depliee .entete-article-compact .extrait-article-compact { display: none; }
+/* Réactions emoji façon Discord, toujours visibles sous l'annonce (migration 116). */
+.zone-reactions-annonce { padding: 0 14px 10px; }
+.barre-reactions-annonce { display: flex; flex-wrap: wrap; gap: 6px; }
+.barre-reactions-annonce .btn-reaction { margin: 0; padding: 3px 10px; cursor: pointer; }
+.btn-ajout-reaction { opacity: .7; }
+.palette-reactions {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px;
+  margin-top: 8px; padding: 8px; border: 1px solid var(--eauL); border-radius: 12px; background: #fff;
+}
+.palette-reactions[hidden] { display: none; }
+.palette-reactions button { font-size: 22px; padding: 4px 0; border: none; background: none; border-radius: 8px; cursor: pointer; }
+.palette-reactions button:active { background: var(--eauXL); }
 .zone-interet-coup-de-main { margin-top: 12px; }
 .formulaire-interet-coup-de-main textarea { width: 100%; min-height: 60px; }
 .zone-interets-recus { margin-top: 14px; }
