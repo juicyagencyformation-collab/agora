@@ -95,28 +95,33 @@ function renderAnnonce(annonce) {
   `;
   initReactionsAnnonce(el.querySelector('.zone-reactions-annonce'), annonce);
 
+  // Vignette = photo en grand (lightbox), comme dans l'agenda, sans replier/déplier la carte.
+  const vignette = el.querySelector('.entete-article-compact img');
+  if (vignette) {
+    vignette.style.cursor = 'zoom-in';
+    vignette.addEventListener('click', (e) => {
+      e.stopPropagation(); // ne remonte pas jusqu'au bouton d'accordéon
+      ouvrirLightbox(annonce.photo_url);
+    });
+  }
+
   const zoneDepliee = el.querySelector('.contenu-article-deplie');
   let deploye = false;
   el.querySelector('.entete-article-compact').addEventListener('click', () => {
     deploye = !deploye;
     zoneDepliee.hidden = !deploye;
-    // Déplié : la vignette et l'extrait disparaissent de l'en-tête (la photo pleine largeur et
-    // le texte complet les remplacent juste en dessous, sans doublon).
+    // Déplié : l'extrait disparaît de l'en-tête (le texte complet est juste en dessous) ; la
+    // vignette reste, comme dans l'agenda — un appui dessus ouvre la photo en grand.
     el.classList.toggle('annonce-depliee', deploye);
     if (deploye && zoneDepliee.dataset.rempli !== 'true') {
       const estAuteurOuGestionnaire = annonce.user_id === window.USER_ID || ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
 
-      zoneDepliee.innerHTML = (annonce.photo_url ? `<div class="images-article"><img src="${annonce.photo_url}" class="miniature-article" loading="lazy" alt=""></div>` : '')
-        + `<p>${texteAvecLiensCliquables(annonce.description)}</p>`
+      zoneDepliee.innerHTML = `<p>${texteAvecLiensCliquables(annonce.description)}</p>`
         + (annonce.prix ? `<p class="detail-annonce">💶 ${escapeAttr(annonce.prix)}</p>` : '')
         + (annonce.disponibilites ? `<p class="detail-annonce">🗓️ ${escapeAttr(annonce.disponibilites)}</p>` : '')
         + (annonce.contact ? `<p class="detail-annonce">📞 ${texteAvecLiensCliquables(annonce.contact)}</p>` : '')
         + (annonce.user_id === window.USER_ID ? '' : '<div class="zone-interet-coup-de-main"></div>')
         + (estAuteurOuGestionnaire ? '<div class="zone-interets-recus"></div>' : '');
-
-      if (annonce.photo_url) {
-        zoneDepliee.querySelector('img.miniature-article').addEventListener('click', () => ouvrirLightbox(annonce.photo_url));
-      }
 
       // Exprimer un intérêt : jamais pour sa propre annonce (déjà exclu ci-dessus côté HTML).
       const zoneInteret = zoneDepliee.querySelector('.zone-interet-coup-de-main');

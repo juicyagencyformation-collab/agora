@@ -998,9 +998,8 @@ button.tuile-oeil:focus-visible { outline: 2px solid var(--eau); outline-offset:
 /* Coups de main : annonce pourvue reléguée visuellement (reste visible, preuve que l'entraide
    fonctionne) + zone d'intérêt privé + liste des intéressés réservée à l'auteur. */
 .annonce-pourvue { opacity: .55; }
-/* Dépliée : plus de vignette ni d'extrait dans l'en-tête (photo pleine largeur + texte complet
-   juste en dessous) — évitait le doublon et le grand vide à droite de la photo (2026-11-22). */
-.annonce-depliee .entete-article-compact .miniature-liste-article,
+/* Dépliée : la vignette reste (comme l'agenda, appui = photo en grand), seul l'extrait disparaît
+   puisque le texte complet est juste en dessous (2026-11-22). */
 .annonce-depliee .entete-article-compact .extrait-article-compact { display: none; }
 /* Réactions emoji façon Discord, toujours visibles sous l'annonce (migration 116). */
 .zone-reactions-annonce { padding: 0 14px 10px; }
