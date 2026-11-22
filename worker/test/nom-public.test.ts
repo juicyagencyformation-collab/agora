@@ -19,6 +19,10 @@ describe('nomPublic', () => {
     expect(nomPublic({ ...lea, nom: '🇨🇵' }, 'autre')).toEqual({ prenom: 'Léa', nom: '🇨🇵.' });
     expect(nomPublic({ ...lea, nom: 'Étienne' }, 'autre').nom).toBe('É.');
   });
+  it("un compte supprimé s'affiche « Compte supprimé », jamais « supprimé C. »", () => {
+    const efface = { id: 'u3', prenom: 'supprimé', nom: 'Compte', affichage_nom: 'initiale', compte_supprime_le: '2026-11-01T00:00:00Z' };
+    expect(nomPublic(efface, 'autre')).toEqual({ prenom: 'Compte supprimé', nom: '' });
+  });
   it('reste sûr sans utilisateur ou sans nom', () => {
     expect(nomPublic(undefined, 'u1')).toEqual({ prenom: '?', nom: '' });
     expect(nomPublic({ id: 'u2', prenom: 'Paul', nom: '' }, 'u1')).toEqual({ prenom: 'Paul', nom: '' });

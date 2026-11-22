@@ -7,11 +7,14 @@
 // habitante, 2026-10-26).
 // Ne PAS utiliser dans les outils de gestion (modération, contacts d'événement, validation de
 // présence, backoffice) : la mairie, responsable du traitement, doit pouvoir identifier l'auteur.
-export const COLONNES_NOM_PUBLIC = 'id,prenom,nom,affichage_nom';
+// compte_supprime_le : un compte effacé (RGPD, anonymiserComptes) s'affiche « Compte supprimé »
+// et non « supprimé C. » (ses prénom/nom anonymisés valent « supprimé » / « Compte », 2026-11-22).
+export const COLONNES_NOM_PUBLIC = 'id,prenom,nom,affichage_nom,compte_supprime_le';
 
 export function nomPublic(u: any, lecteurId?: string): { prenom: string; nom: string } {
   if (!u) return { prenom: '?', nom: '' };
   let affiche: { prenom: string; nom: string };
+  if (u.compte_supprime_le) return { prenom: 'Compte supprimé', nom: '' };
   if (u.affichage_nom && u.affichage_nom !== 'initiale') {
     affiche = { prenom: 'Anonyme', nom: '' };
   } else {

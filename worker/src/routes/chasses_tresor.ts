@@ -676,16 +676,23 @@ export async function validerEtapeParPosition(c: any, commune_id: string, commun
   return finaliserValidationEtape(c, commune_id, commune_joueur, user_id, etape, data.reponse);
 }
 
+// Hors classements (2026-11-22) : les comptes supprimés (anonymisés, « Compte supprimé » n'a rien
+// à faire dans un podium) et le superadmin (compte de la plateforme, pas un habitant).
+function joueurClassable(u: any): boolean {
+  return !u.compte_supprime_le && u.role !== 'superadmin';
+}
+
 // GET /classement-exploration — score combiné (étapes de chasse validées + énigmes trouvées),
 // affiché depuis l'onglet fusionné Chasse au trésor / Énigme photo.
 app.get('/classement-exploration', async (c) => {
   const commune_id = c.get('commune_id');
   const users = await supabaseSelect(c.env, 'users', {
-    select: `${COLONNES_NOM_PUBLIC},etapes_chasse_validees,enigmes_trouvees`,
+    select: `${COLONNES_NOM_PUBLIC},role,etapes_chasse_validees,enigmes_trouvees`,
     commune_id: `eq.${commune_id}`,
   });
 
   const classement = users
+    .filter(joueurClassable)
     .map((u: any) => ({
       prenom: [nomPublic(u, c.get('user_id')).prenom, nomPublic(u, c.get('user_id')).nom].filter(Boolean).join(' '),
       etapes: u.etapes_chasse_validees ?? 0,
@@ -715,9 +722,10 @@ export async function classementChasse(env: any, commune_id: string, chasse_id: 
   });
   const idsJoueurs = [...new Set(progressions.map((p: any) => p.user_id))];
   const users = idsJoueurs.length ? await supabaseSelect(env, 'users', {
-    select: COLONNES_NOM_PUBLIC,
+    select: `${COLONNES_NOM_PUBLIC},role`,
     id: `in.(${idsJoueurs.join(',')})`,
   }) : [];
+  const exclus = new Set(users.filter((u: any) => !joueurClassable(u)).map((u: any) => u.id));
 
   const parUtilisateur = new Map<string, { total: number; derniere: string }>();
   for (const p of progressions) {
@@ -728,6 +736,7 @@ export async function classementChasse(env: any, commune_id: string, chasse_id: 
   }
 
   return [...parUtilisateur.entries()]
+    .filter(([user_id]) => !exclus.has(user_id))
     .map(([user_id, stats]) => {
       const u = users.find((u: any) => u.id === user_id);
       const n = nomPublic(u, viewer_id);
