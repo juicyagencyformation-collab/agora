@@ -89,8 +89,17 @@ export async function crediterScoreCitoyen(
   await supabaseUpdate(env, 'users', { score_citoyen: nouveauScore }, { id: `eq.${user_id}` });
 }
 
+// Points de base qu'une présence rapporterait maintenant (barème × dégressivité), SANS rien
+// créditer — affichés au participant dès son scan (« +28 en attente de validation »).
+export async function pointsPrevusParticipation(env: any, commune_id: string, user_id: string, type_action: string): Promise<number> {
+  const base = POINTS_ACTIONS_CIVIQUES[type_action];
+  if (!base) return 0;
+  return Math.round(base * await calculerMultiplicateurDegressif(env, commune_id, user_id, type_action));
+}
+
 // Appelée quand une présence passe à "confirme". Calcule le barème × dégressivité,
 // gère les bonus associés (membre du conseil, validation élu), le streak et les badges.
+// points_gagnes = TOUT ce qui a été crédité ici (base + bonus), c'est ce que voit le participant.
 export async function attribuerPointsParticipation(
   env: any, commune_id: string, user_id: string,
   event: { id: string; type_action: string },
@@ -101,6 +110,7 @@ export async function attribuerPointsParticipation(
 
   const multiplicateur = await calculerMultiplicateurDegressif(env, commune_id, user_id, event.type_action);
   const points = Math.round(base * multiplicateur);
+  let total = points;
 
   await crediterScoreCitoyen(env, commune_id, user_id, points,
     `Présence validée : ${event.type_action}`, 'gain',
@@ -112,18 +122,20 @@ export async function attribuerPointsParticipation(
     });
     if (dejaMembre.length === 0) {
       await crediterScoreCitoyen(env, commune_id, user_id, BONUS_MEMBRE_ACTIF_CONSEIL, RAISON_MEMBRE_CONSEIL, 'bonus', { event_id: event.id });
+      total += BONUS_MEMBRE_ACTIF_CONSEIL;
     }
   }
 
   // Le maire hérite de ce bonus (super-élu) — voir worker/src/lib/permissions.ts.
   if (['elu', 'maire'].includes(valideurRole)) {
     await crediterScoreCitoyen(env, commune_id, user_id, BONUS_VALIDATION_ELU, RAISON_VALIDE_ELU, 'bonus', { event_id: event.id, valide_par: valideurId });
+    total += BONUS_VALIDATION_ELU;
   }
 
-  await gererStreakParticipation(env, commune_id, user_id);
+  total += await gererStreakParticipation(env, commune_id, user_id);
   const nouveauxBadges = await verifierBadgesCitoyens(env, commune_id, user_id);
 
-  return { points_gagnes: points, nouveaux_badges: nouveauxBadges };
+  return { points_gagnes: total, nouveaux_badges: nouveauxBadges };
 }
 
 // Pur : incrémente le streak mensuel si le mois précédent était bien consécutif (rollover
@@ -137,12 +149,13 @@ export function calculerStreakMensuel(dernierMois: string | null | undefined, mo
 
 // Streak "actions consécutives sans désistement" (pas une connexion quotidienne) + streak
 // mensuel séparé pour le bonus de régularité longue durée (6 mois consécutifs).
-export async function gererStreakParticipation(env: any, commune_id: string, user_id: string): Promise<void> {
+// Renvoie le bonus de régularité éventuellement crédité (0 sinon).
+export async function gererStreakParticipation(env: any, commune_id: string, user_id: string): Promise<number> {
   const [user] = await supabaseSelect(env, 'users', {
     select: 'streak_participation_actuel,streak_participation_record,streak_mensuel_citoyen_actuel,dernier_mois_action_citoyenne',
     commune_id: `eq.${commune_id}`, id: `eq.${user_id}`,
   });
-  if (!user) return;
+  if (!user) return 0;
 
   const nouveauStreak = (user.streak_participation_actuel ?? 0) + 1;
   const nouveauRecord = Math.max(nouveauStreak, user.streak_participation_record ?? 0);
@@ -171,9 +184,11 @@ export async function gererStreakParticipation(env: any, commune_id: string, use
       if (Date.now() - plusAncienne <= 90 * JOUR_MS) {
         await crediterScoreCitoyen(env, commune_id, user_id, BONUS_REGULARITE_3_ACTIONS,
           'Bonus régularité : 3 actions consécutives en moins de 3 mois', 'bonus');
+        return BONUS_REGULARITE_3_ACTIONS;
       }
     }
   }
+  return 0;
 }
 
 // Rompt une présence (no-show ou désistement tardif) : statut, pénalité, reset du streak

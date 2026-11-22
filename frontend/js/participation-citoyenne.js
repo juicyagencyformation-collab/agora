@@ -19,7 +19,7 @@ const LABELS_STATUT_PRESENCE = {
 function renderZoneScanCivique(event) {
   const statut = event.ma_participation_citoyenne;
   if (statut === 'confirme') {
-    return `<span class="pill-statut-presence pill-statut-confirme">✓ Présence confirmée</span>`;
+    return `<span class="pill-statut-presence pill-statut-confirme">✓ Présence confirmée${event.mes_points_citoyens ? ` · +${event.mes_points_citoyens} pts` : ''}</span>`;
   }
   if (statut === 'non_confirme') {
     return `
@@ -83,8 +83,10 @@ async function envoyerScanCivique(eventId, qrToken) {
   });
   const data = await res.json();
   if (res.ok) {
-    afficherToastMessage('Présence déclarée ✅ — en attente de validation par l\'organisateur.', 'succes');
+    // « +N » animé tout de suite, en version « en attente » : rien n'est crédité avant la validation.
+    afficherGainPoints({ points: data.points_prevus, enAttente: true });
     chargerAgenda();
+    surveillerConfirmationsPresence();
   } else {
     afficherToastMessage(data.erreur || 'Erreur lors du scan', 'erreur');
   }
@@ -168,4 +170,68 @@ async function validerParticipationCivique(eventId, participationId) {
   } else {
     afficherToastMessage(data.erreur || 'Erreur de validation', 'erreur');
   }
+}
+
+// ── Célébration « +N » façon jeu vidéo (2026-11-22) ──
+// Au scan : « +N » doré en attente. À la validation par l'organisateur : « +N » vert, une seule
+// fois (POST /mes-confirmations/vues). Tant qu'un scan récent attend sa validation, l'appli
+// revérifie toutes les 20 s (seulement écran allumé) : le « +N » tombe pendant qu'on est sur place.
+// Sinon, il s'affiche à la prochaine ouverture de l'appli, notification reçue ou non.
+
+let minuteurConfirmationsPresence = null;
+
+function initConfirmationsPresence() {
+  if (window.EST_EXPLORATEUR) return;
+  surveillerConfirmationsPresence();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') surveillerConfirmationsPresence();
+  });
+}
+
+async function surveillerConfirmationsPresence() {
+  clearTimeout(minuteurConfirmationsPresence);
+  if (ongletsVerrouilles.has('agenda') || document.visibilityState !== 'visible') return;
+  try {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/agenda/mes-confirmations`);
+    if (!res.ok) return;
+    const { confirmations, en_attente } = await res.json();
+    if (confirmations.length) {
+      await appelApi(`/${window.COMMUNE_SLUG}/agenda/mes-confirmations/vues`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: confirmations.map((c) => c.id) }),
+      });
+      confirmations.forEach((c) => afficherGainPoints({ points: c.points, titre: c.titre }));
+      if (document.getElementById('onglet-agenda')?.hidden === false) chargerAgenda();
+    }
+    if (en_attente) minuteurConfirmationsPresence = setTimeout(surveillerConfirmationsPresence, 20000);
+  } catch {}
+}
+
+// File d'attente : deux validations d'un coup = deux « +N » l'un après l'autre, jamais superposés.
+const fileGainsPoints = [];
+let gainPointsEnCours = false;
+
+function afficherGainPoints(gain) {
+  if (!gain.points) return;
+  fileGainsPoints.push(gain);
+  if (!gainPointsEnCours) { gainPointsEnCours = true; attendreFenetresFermees(jouerProchainGainPoints); }
+}
+
+function jouerProchainGainPoints() {
+  const gain = fileGainsPoints.shift();
+  if (!gain) { gainPointsEnCours = false; return; }
+  const el = document.createElement('div');
+  el.className = `gain-points-citoyens${gain.enAttente ? ' gain-en-attente' : ''}`;
+  el.setAttribute('role', 'status');
+  el.innerHTML = `
+    <span class="gain-points-valeur">+${gain.points}</span>
+    <span class="gain-points-libelle">${gain.enAttente ? '⏳ en attente de validation' : 'points de participation citoyenne'}</span>
+    ${gain.titre ? `<span class="gain-points-titre">${escapeAttr(gain.titre)}</span>` : ''}
+  `;
+  document.body.appendChild(el);
+  if (!gain.enAttente && typeof navigator.vibrate === 'function') navigator.vibrate([60, 40, 90]);
+  // Un appui l'escamote plus vite ; sinon il part tout seul à la fin de l'animation.
+  const terminer = () => { if (!el.isConnected) return; el.remove(); setTimeout(jouerProchainGainPoints, 200); };
+  el.addEventListener('click', terminer);
+  el.addEventListener('animationend', (e) => { if (e.target === el) terminer(); });
 }

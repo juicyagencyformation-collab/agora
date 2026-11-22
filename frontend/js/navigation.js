@@ -319,7 +319,7 @@ document.getElementById('fond-feuille-plus')?.addEventListener('click', () => {
     initFormulaireBadgeCitoyen, initBoutonDeconnexionProfil, initTogglesCategoriesProfil, initBadgeEntete,
     // Pas d'onboarding pour un Explorateur : de passage, il joue dans le navigateur et ne reçoit aucune notification.
     () => { if (!window.EST_EXPLORATEUR) initOnboardingPwa(); },
-    initLiensDirectsNotification, initFormulaireLoi,
+    initLiensDirectsNotification, initFormulaireLoi, initConfirmationsPresence,
   ];
   for (const etape of etapes) {
     try { etape(); } catch (err) { console.error('Démarrage :', etape.name || 'étape', err); }

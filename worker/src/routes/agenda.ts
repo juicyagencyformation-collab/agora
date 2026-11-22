@@ -12,7 +12,7 @@ import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/p
 import { genererQrSvg } from '../lib/qrcode';
 import { distanceMetres } from '../lib/geo';
 import {
-  attribuerPointsParticipation, romprePresenceCitoyenne,
+  attribuerPointsParticipation, romprePresenceCitoyenne, pointsPrevusParticipation,
   SEUIL_GEOFENCE_METRES,
 } from '../lib/points-citoyens';
 import { photoSuspecte } from '../lib/moderation-image';
@@ -129,7 +129,7 @@ app.get('/', async (c) => {
 
   const idsEventsCiviques = events.filter((e: any) => e.necessite_validation_presence).map((e: any) => e.id);
   const mesParticipationsCitoyennes = idsEventsCiviques.length ? await supabaseSelect(c.env, 'participations_citoyennes', {
-    select: 'event_id,statut', commune_id: `eq.${commune_id}`, event_id: `in.(${idsEventsCiviques.join(',')})`, user_id: `eq.${user_id}`,
+    select: 'event_id,statut,points_attribues', commune_id: `eq.${commune_id}`, event_id: `in.(${idsEventsCiviques.join(',')})`, user_id: `eq.${user_id}`,
   }) : [];
 
   const idsFiches = events.map((e: any) => e.fiche_id).filter(Boolean);
@@ -151,6 +151,7 @@ app.get('/', async (c) => {
       total_participants: participantsEvent.length,
       je_participe: participantsEvent.some((p: any) => p.user_id === user_id),
       ma_participation_citoyenne: mesParticipationsCitoyennes.find((p: any) => p.event_id === e.id)?.statut ?? null,
+      mes_points_citoyens: mesParticipationsCitoyennes.find((p: any) => p.event_id === e.id)?.points_attribues ?? null,
       participants: participantsEvent.map((p: any) => {
         const u = utilisateursParticipants.find((u: any) => u.id === p.user_id);
         return nomPublic(u, user_id);
@@ -467,6 +468,55 @@ app.get('/:id/ics', async (c) => {
   });
 });
 
+// ── Célébration « +N » côté participant (2026-11-22, migration 117) ──
+// GET /mes-confirmations — présences confirmées pas encore célébrées à l'écran, + en_attente
+// (un scan des 12 dernières heures pas encore validé) : tant que c'est vrai, le client
+// revérifie toutes les 20 s, pour que le « +N » s'affiche pendant qu'il est encore sur place.
+app.get('/mes-confirmations', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+
+  const [aCelebrer, enAttente] = await Promise.all([
+    supabaseSelect(c.env, 'participations_citoyennes', {
+      select: 'id,event_id,points_attribues', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
+      statut: 'eq.confirme', celebration_vue_le: 'is.null', order: 'valide_le.asc', limit: '10',
+    }),
+    supabaseSelect(c.env, 'participations_citoyennes', {
+      select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
+      statut: 'eq.scanne', scan_le: `gte.${new Date(Date.now() - 12 * 3600000).toISOString()}`, limit: '1',
+    }),
+  ]);
+
+  const idsEvents = [...new Set(aCelebrer.map((p: any) => p.event_id))];
+  const events = idsEvents.length ? await supabaseSelect(c.env, 'events', {
+    select: 'id,titre', commune_id: `eq.${commune_id}`, id: `in.(${idsEvents.join(',')})`,
+  }) : [];
+
+  return c.json({
+    confirmations: aCelebrer.map((p: any) => ({
+      id: p.id, points: p.points_attribues ?? 0,
+      titre: events.find((e: any) => e.id === p.event_id)?.titre ?? '',
+    })),
+    en_attente: enAttente.length > 0,
+  });
+});
+
+const confirmationsVuesSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(10) });
+
+// POST /mes-confirmations/vues — marque les célébrations comme vues (jamais rejouées). Filtré sur
+// son propre user_id : impossible de toucher aux présences de quelqu'un d'autre.
+app.post('/mes-confirmations/vues', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const body = confirmationsVuesSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  await supabaseUpdate(c.env, 'participations_citoyennes', { celebration_vue_le: new Date().toISOString() }, {
+    commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`, id: `in.(${body.data.ids.join(',')})`,
+  });
+  return c.json({ ok: true });
+});
+
 // ── Participation citoyenne vérifiée (scan QR + validation humaine) ──
 // Distincte de /:id/participer (simple inscription "je participe") : ces routes ne
 // s'appliquent qu'aux événements avec necessite_validation_presence.
@@ -488,7 +538,7 @@ app.post('/:id/scanner', async (c) => {
   if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,qr_token,necessite_validation_presence,lat,lng,date_debut,date_fin',
+    select: 'id,qr_token,necessite_validation_presence,lat,lng,date_debut,date_fin,type_action',
     commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
@@ -526,7 +576,9 @@ app.post('/:id/scanner', async (c) => {
     await supabaseInsert(c.env, 'participations_citoyennes', { commune_id, event_id, user_id, ...patch });
   }
 
-  return c.json({ ok: true, hors_geofence: horsGeofence });
+  // Points de base attendus (sans bonus) : le participant voit « +N en attente » dès son scan.
+  const points_prevus = await pointsPrevusParticipation(c.env, commune_id, user_id, event.type_action);
+  return c.json({ ok: true, hors_geofence: horsGeofence, points_prevus });
 });
 
 // GET /:id/participations-citoyennes — organisateur/élu/superadmin uniquement. NB : volontairement
@@ -577,6 +629,16 @@ app.get('/:id/participations-citoyennes', async (c) => {
   });
 });
 
+// Prévient le participant dès la validation (souvent le lendemain, téléphone rangé). Envoyée
+// quelles que soient ses préférences de notification : ça le concerne directement. Ceux qui ne
+// reçoivent pas de notification (iPhone anciens…) voient la célébration à la prochaine ouverture
+// de l'appli (GET /mes-confirmations ci-dessous).
+async function notifierPresenceConfirmee(env: any, commune_id: string, participant_id: string, event: { id: string; titre: string }, points: number) {
+  await envoyerNotificationAUtilisateurs(env, commune_id, [participant_id],
+    `✅ Présence confirmée${points ? ` : +${points} points` : ''}`, event.titre,
+    `/index.html?onglet=agenda&type=event&id=${event.id}`);
+}
+
 // PATCH /:id/participations-citoyennes/:pid/valider — organisateur/élu depuis "scanne"
 // uniquement ; superadmin depuis n'importe quel statut (pouvoir d'audit/correction).
 app.patch('/:id/participations-citoyennes/:pid/valider', async (c) => {
@@ -587,7 +649,7 @@ app.patch('/:id/participations-citoyennes/:pid/valider', async (c) => {
   const pid = c.req.param('pid');
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,user_id,type_action', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
+    select: 'id,user_id,type_action,titre', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
 
@@ -610,6 +672,7 @@ app.patch('/:id/participations-citoyennes/:pid/valider', async (c) => {
 
   const resultat = await attribuerPointsParticipation(c.env, commune_id, participation.user_id, event as any, role, user_id);
   await supabaseUpdate(c.env, 'participations_citoyennes', { points_attribues: resultat.points_gagnes }, { id: `eq.${pid}`, commune_id: `eq.${commune_id}` });
+  c.executionCtx.waitUntil(notifierPresenceConfirmee(c.env, commune_id, participation.user_id, event, resultat.points_gagnes));
 
   return c.json({ ok: true, points_gagnes: resultat.points_gagnes, nouveaux_badges: resultat.nouveaux_badges });
 });
@@ -623,7 +686,7 @@ app.post('/:id/participations-citoyennes/valider-tous', async (c) => {
   const event_id = c.req.param('id');
 
   const [event] = await supabaseSelect(c.env, 'events', {
-    select: 'id,user_id,type_action', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
+    select: 'id,user_id,type_action,titre', commune_id: `eq.${commune_id}`, id: `eq.${event_id}`,
   });
   if (!event) return c.json({ erreur: 'Événement introuvable' }, 404);
 
@@ -639,6 +702,7 @@ app.post('/:id/participations-citoyennes/valider-tous', async (c) => {
     const resultat = await attribuerPointsParticipation(c.env, commune_id, p.user_id, event as any, role, user_id);
     await supabaseUpdate(c.env, 'participations_citoyennes', { points_attribues: resultat.points_gagnes }, { id: `eq.${p.id}`, commune_id: `eq.${commune_id}` });
     pointsTotaux += resultat.points_gagnes;
+    c.executionCtx.waitUntil(notifierPresenceConfirmee(c.env, commune_id, p.user_id, event, resultat.points_gagnes));
   }
 
   return c.json({ ok: true, nombre_valides: valides.length, points_totaux: pointsTotaux });
