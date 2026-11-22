@@ -823,7 +823,7 @@ async function afficherQrEtapes(chasseId, zone) {
   zoneQr.innerHTML = etapes.map((e) => `
     <div class="ligne-toggle-onglet">
       <span>Étape ${e.ordre + 1} — ${escapeAttr(e.titre)}</span>
-      <a href="${window.API_BASE}/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/etapes/${e.id}/qr-page" target="_blank">Voir le QR à imprimer</a>
+      <button type="button" class="lien-qr-texte" data-qr-page="/${window.COMMUNE_SLUG}/chasses-tresor/${chasseId}/etapes/${e.id}/qr-page">Voir le QR à imprimer</button>
     </div>
   `).join('');
 }

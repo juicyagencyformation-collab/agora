@@ -40,10 +40,22 @@ function badgeQuandEvenement(dateDebutIso) {
 
 // Un seul bouton : détecte iOS (Calendrier natif via .ics) vs le reste (Google Agenda,
 // plus fiable qu'un .ics sur Android où le comportement du navigateur est très inégal).
+// Le .ics est une route protégée (jeton de 15 min) : un lien direct répondait « Non
+// authentifié » si l'appli était restée inactive. On renouvelle d'abord la session via
+// appelApi, puis on navigue vers le fichier (seule façon fiable d'ouvrir Calendrier sur iOS).
+document.addEventListener('click', async (e) => {
+  const lien = e.target.closest('a[data-ics-protege]');
+  if (!lien) return;
+  e.preventDefault();
+  const res = await appelApi(lien.getAttribute('href').replace(window.API_BASE, '')).catch(() => null);
+  if (res?.ok) window.location.href = lien.href;
+  else afficherToastMessage('Impossible d’ajouter l’événement au calendrier.', 'erreur');
+});
+
 function lienCalendrierAuto(event) {
   const estIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
   if (estIOS) {
-    return `<a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/ics" class="lien-calendrier">📅 Ajouter à mon calendrier</a>`;
+    return `<a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/ics" class="lien-calendrier" data-ics-protege>📅 Ajouter à mon calendrier</a>`;
   }
   return `<a href="${urlGoogleCalendar(event)}" target="_blank" rel="noopener" class="lien-calendrier">📅 Ajouter à mon calendrier</a>`;
 }
@@ -328,7 +340,7 @@ function remplirContenuEvenement(zone, event, peutModifier) {
 
     ${event.necessite_validation_presence && !event.est_moi ? `<div class="carte-scan-civique">${renderZoneScanCivique(event)}</div>` : ''}
     ${event.necessite_validation_presence && peutModifier ? `
-      <a href="${window.API_BASE}/${window.COMMUNE_SLUG}/agenda/${event.id}/qr-page" target="_blank" class="lien-qr-civique">📱 Voir le QR à afficher sur place</a>
+      <button type="button" class="lien-qr-civique" data-qr-page="/${window.COMMUNE_SLUG}/agenda/${event.id}/qr-page">📱 Voir le QR à afficher sur place</button>
     ` : ''}
     ${event.necessite_validation_presence && peutValiderPresences ? `
       <button type="button" class="btn-gerer-presences">🎫 Gérer les présences</button>

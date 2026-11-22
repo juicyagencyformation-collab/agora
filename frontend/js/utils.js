@@ -598,3 +598,60 @@ function afficherToastMessage(texte, type = 'info') {
     setTimeout(() => toast.remove(), 400);
   }, 2600);
 }
+
+// ── QR à afficher sur place / à imprimer (présences citoyennes, étapes de chasse) ──
+// Ouvert DANS l'appli via appelApi, jamais par un lien direct dans un nouvel onglet : un lien
+// direct n'a pas le rafraîchissement automatique de session (jeton de 15 min) et répondait
+// « Non authentifié » si l'appli était restée inactive ; sur iPhone en appli installée, le nouvel
+// onglet s'ouvrait en plus dans Safari, sans la session de l'appli (bug vécu le 2026-11-21).
+// Tout bouton portant data-qr-page="/<slug>/.../qr-page" l'ouvre (délégation globale).
+document.addEventListener('click', (e) => {
+  const bouton = e.target.closest('[data-qr-page]');
+  if (bouton) ouvrirQrPleinEcran(bouton.dataset.qrPage, bouton);
+});
+
+async function ouvrirQrPleinEcran(chemin, bouton) {
+  if (bouton) bouton.disabled = true;
+  let html;
+  try {
+    const res = await appelApi(chemin);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      afficherToastMessage(d.erreur || 'Impossible d’afficher le QR code.', 'erreur');
+      return;
+    }
+    html = await res.text();
+  } catch {
+    afficherToastMessage('Impossible d’afficher le QR code (connexion ?).', 'erreur');
+    return;
+  } finally {
+    if (bouton) bouton.disabled = false;
+  }
+
+  // Page générée par notre propre Worker (titre déjà échappé côté serveur, SVG du générateur maison).
+  const page = new DOMParser().parseFromString(html, 'text/html');
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay-qr-plein-ecran';
+  overlay.innerHTML = `<div class="contenu-qr-plein-ecran">${page.body.innerHTML}</div>
+    <div class="actions-qr-plein-ecran">
+      <button type="button" data-action="imprimer">🖨️ Imprimer</button>
+      <button type="button" data-action="fermer">Fermer</button>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // Écran allumé tant que le QR est affiché (Wake Lock : absent sur certains navigateurs, sans gravité).
+  let verrouEcran = null;
+  if (typeof navigator.wakeLock?.request === 'function') {
+    navigator.wakeLock.request('screen').then((v) => { verrouEcran = v; }).catch(() => {});
+  }
+  const fermer = () => { verrouEcran?.release().catch(() => {}); overlay.remove(); };
+  overlay.querySelector('[data-action="fermer"]').addEventListener('click', fermer);
+  overlay.querySelector('[data-action="imprimer"]').addEventListener('click', () => {
+    // Impression de la page seule (sans l'appli autour) via une iframe invisible.
+    const cadre = document.createElement('iframe');
+    cadre.style.cssText = 'position:fixed;width:0;height:0;border:0;';
+    cadre.srcdoc = html;
+    cadre.onload = () => { cadre.contentWindow.print(); setTimeout(() => cadre.remove(), 60000); };
+    document.body.appendChild(cadre);
+  });
+}

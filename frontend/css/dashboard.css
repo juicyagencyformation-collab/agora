@@ -2023,3 +2023,28 @@ form .choix-formule input { width: auto; margin: 3px 0 0; display: inline; accen
 @media (prefers-reduced-motion: reduce) {
   @keyframes gain-points-jaillit { 0% { opacity: 0; } 12%, 75% { opacity: 1; } 100% { opacity: 0; } }
 }
+
+/* QR plein écran (utils.js, ouvrirQrPleinEcran) : fond blanc pour un scan fiable, page du
+   Worker affichée telle quelle, boutons en bas. Remplace l'ancien lien vers un nouvel onglet. */
+.overlay-qr-plein-ecran {
+  position: fixed; inset: 0; z-index: 2500; background: #fff; overflow-y: auto;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 28px 16px calc(16px + env(safe-area-inset-bottom)); text-align: center; color: #3D3530;
+}
+.contenu-qr-plein-ecran h1 { font-size: 19px; margin: 0 0 6px; }
+.contenu-qr-plein-ecran p { color: #8B7355; font-size: 14px; margin: 0; }
+.contenu-qr-plein-ecran .qr { margin: 24px auto; max-width: 320px; }
+.contenu-qr-plein-ecran svg { display: block; width: 100%; max-width: 320px; height: auto; margin: 0 auto; }
+.contenu-qr-plein-ecran .token { font-family: monospace; font-size: 12px; color: #8B7355; margin-top: 14px; }
+.actions-qr-plein-ecran { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+.actions-qr-plein-ecran button {
+  padding: 12px 22px; border-radius: 100px; border: 1.5px solid var(--eauL);
+  background: #fff; color: var(--eau); font-weight: 600; font-size: 15px; cursor: pointer;
+}
+.actions-qr-plein-ecran [data-action="imprimer"] { background: var(--eau); color: #fff; border-color: var(--eau); }
+button.lien-qr-civique { cursor: pointer; font-family: inherit; }
+button.lien-qr-civique:disabled, .lien-qr-texte:disabled { opacity: .6; }
+.lien-qr-texte {
+  background: none; border: none; padding: 0; color: var(--eau); font: inherit; font-size: 13px;
+  text-decoration: underline; cursor: pointer;
+}

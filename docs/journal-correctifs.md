@@ -5,6 +5,40 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-22 — QR des présences citoyennes : « Non authentifié » puis s'affiche finalement
+
+**Gravité :** moyenne (organisateur bloqué sur place au moment de faire scanner)
+**Fichiers :** `frontend/js/utils.js` (`ouvrirQrPleinEcran`), `frontend/js/agenda.js`,
+`frontend/js/chasse-tresor.js`, `frontend/css/dashboard.css` (+ lien `.ics` iPhone dans `agenda.js`)
+
+### Symptôme
+Le 2026-11-21, « Voir le QR à afficher sur place » renvoyait une erreur, puis la page a fini
+par s'afficher après quelques essais.
+
+### Cause
+Le bouton était un lien direct `target="_blank"` vers `/api/.../qr-page`. Le jeton d'accès ne
+dure que 15 min ; seul `appelApi` sait le renouveler (POST /auth/refresh). Un lien direct
+ne le fait pas : appli inactive depuis plus de 15 min → 401 brut. Une fois l'appli réutilisée
+(jeton renouvelé), le lien marchait. Sur iPhone en appli installée, le nouvel onglet s'ouvre
+en plus dans Safari, sans la session de l'appli. Même défaut sur les QR d'étapes de chasse.
+
+### Correction
+QR ouvert DANS l'appli via `appelApi` (session renouvelée si besoin), en plein écran fond
+blanc, avec Imprimer (iframe invisible) et Fermer, écran maintenu allumé (Wake Lock si dispo).
+Tout bouton `data-qr-page="/<slug>/.../qr-page"` l'utilise (délégation globale).
+Même défaut corrigé sur « Ajouter à mon calendrier » (iPhone, lien `.ics` protégé) : session
+renouvelée via `appelApi` avant d’ouvrir le fichier.
+
+### Vérification
+50 QR générés par `qrcode.ts` décodés à 100 % par jsQR (le décodeur de l'appli) ; rendu
+plein écran contrôlé en capture Chrome headless.
+
+### À retenir
+Jamais de lien direct (`<a href>` / nouvel onglet) vers une route API protégée par JWT : passer
+par `appelApi`, sinon ça casse dès que le jeton de 15 min a expiré.
+
+---
+
 ## 2026-11-19 — Contrat de protection des données : base située à Francfort au lieu de Paris
 
 **Gravité :** faible (texte légal inexact, aucune donnée concernée)
