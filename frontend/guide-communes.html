@@ -11,7 +11,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" type="image/png" href="/icons/icon-192.png?v=20261005-6">
 <title>Plateforme-Agora pour les communes</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&family=DM+Sans:ital,wght@0,400;0,700;1,800&family=DM+Mono:wght@500&display=swap">
 <style>
   :root {
     --navy: #1B2A4A;
@@ -223,13 +223,111 @@
     .layout { grid-template-columns: 1fr; padding: 0; max-width: none; }
     body { background: #fff; }
   }
+
+  /* ── B.3 Actions citoyennes illustrées (2026-11-22) ──
+     Étapes texte + capture de téléphone. Les captures reproduisent l'appli (couleurs, polices
+     Playfair Display / DM Sans / DM Mono) et restent donc en clair, quel que soit le thème. */
+  .ac-etape { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 28px; align-items: center; padding: 26px 0; border-top: 1px solid var(--border); }
+  .ac-etape:first-of-type { border-top: none; }
+  .ac-texte { min-width: 0; }
+  .ac-texte h4 { font-family: 'Fraunces', Georgia, serif; font-size: 19px; margin: 8px 0 10px; text-wrap: balance; line-height: 1.25; }
+  .ac-qui { display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 4px; border-radius: 100px; background: var(--chip-bg); color: var(--chip-ink); font-size: 12px; font-weight: 700; }
+  .ac-num { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; }
+  .ac-consignes { margin-bottom: 12px; }
+  .ac-bouton { display: inline-block; padding: 0 8px; border-radius: 100px; border: 1.5px solid var(--border); background: var(--surface); color: var(--link); font-weight: 700; font-size: .92em; white-space: nowrap; }
+  .ac-astuce { font-size: 14px; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 10px; }
+  .ac-astuce strong { color: var(--text); }
+  .ac-attention { background: var(--rule-bg); border-color: var(--rule-border); }
+  @media (max-width: 640px) {
+    .ac-etape { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .ac-telephone { justify-self: center; }
+  }
+
+  .ac-telephone { width: 230px; max-width: 100%; border-radius: 34px; padding: 9px; background: #1E2326; box-shadow: 0 20px 40px -18px rgba(20, 30, 34, .45); }
+  .ac-ecran { position: relative; border-radius: 26px; overflow: hidden; background: #FAFAF8; color: #3D3530; font-family: 'DM Sans', system-ui, sans-serif; font-size: 10.5px; line-height: 1.45; height: 450px; display: flex; flex-direction: column; }
+  .ac-ecran p { margin: 0; max-width: none; }
+  .ac-haut { background: linear-gradient(90deg, #1F6672, #3E8794); color: #fff; padding: 18px 12px 9px; display: flex; align-items: center; gap: 7px; font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 13px; }
+  .ac-blason { width: 19px; height: 19px; border-radius: 5px; background: #fff; display: grid; place-items: center; font-size: 10px; }
+  .ac-corps { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .ac-nav { display: grid; grid-template-columns: repeat(6, 1fr); border-top: 1px solid #E5E0D6; background: #fff; padding: 5px 2px 8px; text-align: center; font-size: 7.5px; color: #8B7355; }
+  .ac-nav span { display: grid; gap: 1px; }
+  .ac-nav i { font-style: normal; font-size: 13px; }
+  .ac-nav .ac-actif { color: #2C5F6E; font-weight: 700; }
+  .ac-carte { background: #fff; border: 1px solid #C8DDE4; border-radius: 12px; padding: 9px; display: grid; gap: 6px; }
+  .ac-titre { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 13px; color: #3D3530; line-height: 1.25; }
+  .ac-meta { font-family: 'DM Mono', ui-monospace, monospace; font-size: 8.5px; color: #8B7355; }
+  .ac-badge { justify-self: start; padding: 1px 7px; border-radius: 100px; font-size: 8.5px; font-weight: 700; background: #EAF4F7; color: #2C5F6E; }
+  .ac-badge-officiel { background: #EFE6F7; color: #6B35A0; }
+  .ac-btn-plein { background: #2C5F6E; color: #fff; border-radius: 100px; padding: 7px 10px; text-align: center; font-weight: 700; font-size: 10.5px; }
+  .ac-btn-creux { border: 1.5px solid #C8DDE4; color: #2C5F6E; border-radius: 100px; padding: 6px 10px; text-align: center; font-weight: 700; font-size: 10px; background: #fff; }
+  .ac-champ { border: 1px solid #D9D2C6; border-radius: 7px; padding: 5px 7px; background: #fff; font-size: 9.5px; }
+  .ac-grise { color: #A89A86; }
+  .ac-label { font-size: 8.5px; font-weight: 700; color: #8B7355; margin-bottom: -4px; }
+  .ac-aide { font-size: 8.5px; color: #8B7355; }
+  .ac-gras { font-weight: 700; font-size: 10px; }
+  .ac-score { font-family: 'DM Mono', ui-monospace, monospace; font-weight: 500; color: #5C7A4E; }
+  .ac-repere { box-shadow: 0 0 0 3px #E2C97E; animation: ac-repere 2.4s ease-in-out infinite; }
+  @keyframes ac-repere { 50% { box-shadow: 0 0 0 6px rgba(226, 201, 126, .55); } }
+  .ac-date { width: 40px; border-radius: 9px; background: #EAF4F7; display: grid; place-items: center; padding: 5px 0; }
+  .ac-date b { font-family: 'Playfair Display', Georgia, serif; font-size: 16px; color: #2C5F6E; line-height: 1; }
+  .ac-date small { font-size: 7px; font-weight: 700; color: #8B7355; letter-spacing: .05em; }
+  .ac-ligne { display: flex; gap: 7px; align-items: center; }
+  .ac-flex { flex: 1; min-width: 0; display: grid; gap: 2px; }
+  .ac-separe { border-top: 1px solid #EEE8DE; padding-top: 7px; display: grid; gap: 7px; }
+  .ac-voile { position: absolute; inset: 0; background: rgba(61, 53, 48, .35); }
+  .ac-feuille { position: absolute; inset: 56px 0 0; background: #fff; border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px rgba(0,0,0,.18); padding: 12px; display: grid; gap: 7px; align-content: start; }
+  .ac-pill { display: inline-block; padding: 1px 7px; border-radius: 100px; font-size: 8px; font-weight: 700; white-space: nowrap; }
+  .ac-pill-scanne { background: rgba(226,201,126,.3); color: #8B6A2A; }
+  .ac-pill-confirme { background: rgba(92,122,78,.16); color: #5C7A4E; }
+  .ac-pill-inscrit { background: #EAF4F7; color: #2C5F6E; }
+  .ac-presence { display: flex; justify-content: space-between; align-items: center; gap: 5px; padding: 6px 0; border-bottom: 1px solid #EEE8DE; font-size: 9.5px; }
+  .ac-dernier { border-bottom: 0; }
+  .ac-mini { background: #2C5F6E; color: #fff; border-radius: 100px; padding: 2px 7px; font-size: 8px; font-weight: 700; }
+  .ac-jauge { height: 5px; border-radius: 5px; background: #EAF4F7; overflow: hidden; }
+  .ac-jauge i { display: block; height: 100%; background: #5C7A4E; border-radius: 5px; }
+  .ac-note-role { font-size: 8.5px; background: #F4EEFA; color: #6B35A0; border-radius: 7px; padding: 5px 7px; }
+  .ac-qr-plein { flex: 1; display: grid; align-content: space-between; padding: 22px 14px 14px; text-align: center; background: #fff; }
+  .ac-qr { width: 160px; margin: 12px auto 5px; }
+  .ac-qr svg { display: block; width: 100%; height: auto; }
+  .ac-jeton { font-family: 'DM Mono', ui-monospace, monospace; font-size: 6.5px; color: #8B7355; }
+  .ac-qr-actions { display: flex; gap: 7px; justify-content: center; }
+  .ac-gain { position: absolute; left: 0; right: 0; top: 36%; display: grid; justify-items: center; text-align: center; pointer-events: none; animation: ac-gain 3.2s ease-out infinite; }
+  .ac-gain b { font-family: 'DM Sans', system-ui, sans-serif; font-weight: 800; font-style: italic; font-size: 54px; line-height: 1; color: #4CD964; -webkit-text-stroke: 2px #123B24; paint-order: stroke fill; text-shadow: 0 4px 0 #123B24, 0 10px 20px rgba(0,0,0,.3); }
+  .ac-gain span { font-weight: 700; font-size: 9px; color: #fff; text-transform: uppercase; letter-spacing: .06em; text-shadow: 0 1px 0 #000, 0 2px 6px rgba(0,0,0,.6); }
+  .ac-gain small { font-size: 8.5px; color: #fff; text-shadow: 0 1px 0 #000, 0 2px 6px rgba(0,0,0,.6); }
+  .ac-attente b { color: #F6D365; -webkit-text-stroke-color: #5A4310; text-shadow: 0 4px 0 #5A4310, 0 10px 20px rgba(0,0,0,.3); }
+  @keyframes ac-gain {
+    0% { transform: translateY(18px) scale(.4); opacity: .3; }
+    10% { transform: translateY(0) scale(1.22); opacity: 1; }
+    18% { transform: scale(.95); } 26% { transform: scale(1); }
+    80% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-50px) scale(.95); opacity: .3; }
+  }
+  .ac-notif { position: absolute; top: 7px; left: 7px; right: 7px; background: rgba(255,255,255,.97); border-radius: 12px; padding: 7px 9px; box-shadow: 0 8px 22px rgba(0,0,0,.2); display: grid; gap: 1px; font-size: 9px; z-index: 2; }
+  .ac-notif em { font-style: normal; color: #8B7355; font-size: 7.5px; }
+  @media (prefers-reduced-motion: reduce) { .ac-gain, .ac-repere { animation: none; } }
+
+  .ac-intertitre { font-family: 'Fraunces', Georgia, serif; font-size: 18px; margin: 26px 0 6px; padding-top: 22px; border-top: 1px solid var(--border); }
+  .ac-bareme { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .ac-bareme div { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; display: grid; gap: 2px; }
+  .ac-bareme b { font-size: 22px; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { .ac-bareme { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .ac-details { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; padding: 0 16px; }
+  .ac-details summary { cursor: pointer; padding: 12px 0; font-weight: 700; }
+  .ac-details[open] { padding-bottom: 6px; }
+  .ac-details td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .ac-plus { color: var(--accent-ink); } .ac-moins { color: var(--coral); } .ac-zero { color: var(--text-muted); }
+  .ac-paliers { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .ac-paliers span { padding: 3px 10px; border-radius: 100px; background: var(--chip-bg); color: var(--chip-ink); font-size: 12.5px; }
+  .ac-paliers em { font-style: normal; opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
+  @media print { .ac-etape { break-inside: avoid; } .ac-gain, .ac-repere { animation: none; } .ac-details { break-inside: avoid; } }
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <a class="topbar__brand" href="/" style="text-decoration:none">Plateforme-Agora <span>Guide d'utilisation</span></a>
-  <div class="topbar__meta">Mis à jour le 15 novembre 2026</div>
+  <div class="topbar__meta">Mis à jour le 22 novembre 2026</div>
 </div>
 
 <div class="layout">
@@ -263,7 +361,7 @@
         <a href="#b2">Publier</a>
         <a href="#b2-redaction">Aide à la rédaction</a>
         <a href="#b2bis">Message de la mairie</a>
-        <a href="#b3">Actions citoyennes</a>
+        <a href="#b3">Actions citoyennes (illustré)</a>
         <a href="#b4">Modérer une alerte</a>
         <a href="#b5">Chasse au trésor</a>
         <a href="#b6">Conseil municipal</a>
@@ -381,7 +479,7 @@
         <h3>📅 A.6 Agenda</h3>
         <p class="module-qui"><span class="role-chip tous">Tout citoyen</span> propose · action citoyenne = <span class="role-chip admin">gestionnaires</span></p>
         <p>Deux sous-onglets : <strong>Agenda local</strong> et <strong>Autour de moi</strong> (voir A.17). Un événement créé par la mairie est marqué « 🏛️ Officiel », celui d'une association porte son nom (« 🤝 Comité des fêtes ») et part aussi dans « Autour de moi » chez les villages voisins. Tout événement qui n'est pas de la mairie peut être signalé : il est masqué aussitôt, puis revu par la mairie. Un clic « Je participe » suffit pour la plupart des événements. Sans photo, l'événement affiche une vignette avec le jour et le mois plutôt qu'une icône générique.</p>
-        <p>Certains événements sont des <strong>actions citoyennes</strong> (nettoyage, plantation, chantier participatif...) : vous scannez un QR sur place à votre arrivée, puis l'organisateur valide votre présence, ce qui rapporte des <strong>points de participation citoyenne</strong> (voir A.14). Dès le scan, un « +N » doré s’affiche à l’écran (en attente de validation) ; à la validation, un « +N » vert apparaît, sur place si l’appli est ouverte, sinon à la prochaine ouverture, accompagné d’une notification.</p>
+        <p>Certains événements sont des <strong>actions citoyennes</strong> (nettoyage, plantation, chantier participatif...) : vous scannez un QR sur place à votre arrivée, puis l'organisateur valide votre présence, ce qui rapporte des <strong>points de participation citoyenne</strong> (voir A.14). Dès le scan, un « +N » doré s’affiche à l’écran (en attente de validation) ; à la validation, un « +N » vert apparaît, sur place si l’appli est ouverte, sinon à la prochaine ouverture, accompagné d’une notification. Le pas-à-pas illustré, côté mairie, est en <a href="#b3">B.3</a>.</p>
         <div class="callout">
           <div class="callout__label">À savoir</div>
           <p>Un désistement tardif ou une absence non signalée entraîne une pénalité ; 3 absences non signalées en 60 jours suspendent temporairement vos inscriptions.</p>
@@ -546,13 +644,276 @@
     </section>
 
     <section id="b3">
-      <h3>🙋 B.3 Créer un événement officiel ou une action citoyenne</h3>
-      <ol>
-        <li>Choisissez le type d'action à la création (réservé aux gestionnaires).</li>
-        <li>Le jour J, les participants scannent un QR sur place.</li>
-        <li>Vous (ou un élu/le maire) validez les présences scannées : chaque participant en est aussitôt prévenu (« +N » à l’écran et notification).</li>
-        <li>Pour partager au-delà de votre commune, cochez « Autour de moi ».</li>
-      </ol>
+      <h3>🙋 B.3 Créer une action citoyenne, de la création à la validation</h3>
+      <p class="module-qui"><span class="role-chip admin">Admin</span> <span class="role-chip elu">Élu</span> <span class="role-chip maire">Maire</span> créent · organisateur, élu ou maire valident</p>
+      <p>Un nettoyage, une plantation, une réunion de quartier : chaque habitant venu sur place gagne des <strong>points de participation citoyenne</strong> (voir A.14). Six étapes, de la création de l'action jusqu'aux points crédités. Les captures sont des reconstitutions avec des données d'exemple.</p>
+
+      <div class="ac-etape">
+        <div class="ac-texte">
+          <div class="ac-qui"><span class="ac-num">1</span> Admin, élu ou maire</div>
+          <h4>Créer l'action dans l'agenda</h4>
+          <ol class="ac-consignes">
+            <li>Ouvrez l'onglet <span class="ac-bouton">📅 Agenda</span> puis <span class="ac-bouton">+ Proposer un événement</span>.</li>
+            <li>Remplissez le titre, la date, l'heure de fin et le lieu comme pour tout événement.</li>
+            <li>Dans <strong>🌍 Type d'action citoyenne</strong>, choisissez la nature de l'action (nettoyage, plantation…). C'est ce choix qui active le QR code et les points.</li>
+            <li>Publiez. Les habitants abonnés reçoivent la notification « Nouvel événement ». Pour partager l'action au-delà de votre commune, cochez « Autour de moi ».</li>
+          </ol>
+          <p class="ac-astuce"><strong>Seule la mairie voit ce champ.</strong> Un habitant peut proposer un événement, mais jamais une action qui rapporte des points : personne ne peut s'attribuer des points à lui-même.</p>
+        </div>
+        <div class="ac-telephone" role="img" aria-label="Capture : formulaire de création d'événement avec le champ Type d'action citoyenne réglé sur Nettoyage citoyen">
+          <div class="ac-ecran">
+            <div class="ac-haut"><span class="ac-blason">🏰</span>Votre commune</div>
+            <div class="ac-corps"><div class="ac-btn-plein">+ Proposer un événement</div></div>
+            <div class="ac-voile"></div>
+            <div class="ac-feuille">
+              <div class="ac-titre">Proposer un événement</div>
+              <div class="ac-label">Titre</div>
+              <div class="ac-champ">Nettoyage des berges</div>
+              <div class="ac-label">Début · fin</div>
+              <div class="ac-champ">sam. 6 déc. · 9:00 → 12:00</div>
+              <div class="ac-label">Lieu</div>
+              <div class="ac-champ">Pont de la Somme</div>
+              <div class="ac-label">🌍 Type d'action citoyenne (optionnel)</div>
+              <div class="ac-champ ac-repere">🧹 Nettoyage citoyen ▾</div>
+              <div class="ac-aide">Si renseigné, les participants devront scanner un QR code sur place pour valider leur présence et gagner des points de participation citoyenne.</div>
+              <div class="ac-btn-plein">Publier</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ac-etape">
+        <div class="ac-texte">
+          <div class="ac-qui"><span class="ac-num">2</span> Habitants · facultatif</div>
+          <h4>Les habitants s'inscrivent</h4>
+          <ol class="ac-consignes">
+            <li>L'habitant ouvre l'action dans l'agenda et appuie sur <span class="ac-bouton">Je participe</span>.</li>
+            <li>Vous voyez le nombre d'inscrits et, avec <span class="ac-bouton">Voir les coordonnées</span>, de quoi les prévenir en cas d'imprévu.</li>
+          </ol>
+          <p class="ac-astuce">L'inscription n'est pas obligatoire : un habitant qui passe par hasard peut scanner le QR sur place et gagner ses points.</p>
+          <p class="ac-astuce ac-attention"><strong>S'inscrire engage un peu.</strong> Se désinscrire plus de 24 h avant ne coûte rien. Moins de 24 h avant, ou ne pas venir du tout, retire 10 points.</p>
+        </div>
+        <div class="ac-telephone" role="img" aria-label="Capture : fiche de l'action dans l'agenda avec le bouton Je participe">
+          <div class="ac-ecran">
+            <div class="ac-haut"><span class="ac-blason">🏰</span>Votre commune</div>
+            <div class="ac-corps">
+              <div class="ac-carte">
+                <div class="ac-ligne">
+                  <div class="ac-date"><b>6</b><small>DÉC.</small></div>
+                  <div class="ac-flex">
+                    <span class="ac-badge ac-badge-officiel">🏛️ Officiel</span>
+                    <span class="ac-titre">Nettoyage des berges</span>
+                    <span class="ac-meta">6 déc., 9:00 · Pont de la Somme</span>
+                  </div>
+                </div>
+                <div class="ac-separe">
+                  <p>Gants et sacs fournis. Rendez-vous au pont, on remonte la berge jusqu'au moulin.</p>
+                  <span class="ac-meta">👥 12 participant(s)</span>
+                  <div class="ac-btn-plein ac-repere">Je participe</div>
+                  <div class="ac-btn-creux">📅 Ajouter à mon calendrier</div>
+                </div>
+              </div>
+            </div>
+            <div class="ac-nav"><span><i>🏠</i>Accueil</span><span><i>📰</i>Actus</span><span class="ac-actif"><i>📅</i>Agenda</span><span><i>🔔</i>Alertes</span><span><i>🤲</i>Entraide</span><span><i>⋯</i>Plus</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ac-etape">
+        <div class="ac-texte">
+          <div class="ac-qui"><span class="ac-num">3</span> Organisateur · le jour J</div>
+          <h4>Afficher le QR code sur place</h4>
+          <ol class="ac-consignes">
+            <li>Ouvrez l'action dans l'agenda et appuyez sur <span class="ac-bouton">📱 Voir le QR à afficher sur place</span>.</li>
+            <li>Le QR s'ouvre en plein écran. Montrez votre téléphone aux arrivants, ou posez-le à l'accueil : l'écran ne se met pas en veille.</li>
+            <li>Vous préférez une affiche ? Appuyez sur <span class="ac-bouton">🖨️ Imprimer</span> quelques jours avant et collez-la à l'entrée.</li>
+          </ol>
+          <p class="ac-astuce">Le code écrit sous le QR sert de secours : un habitant dont l'appareil photo refuse de scanner peut le taper à la main.</p>
+        </div>
+        <div class="ac-telephone" role="img" aria-label="Capture : QR code en plein écran avec les boutons Imprimer et Fermer">
+          <div class="ac-ecran">
+            <div class="ac-qr-plein">
+              <div>
+                <div class="ac-titre">Nettoyage des berges</div>
+                <p class="ac-aide">À scanner sur place pour déclarer sa présence</p>
+                <div class="ac-qr"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 290 290"><rect width="290" height="290" fill="#fff"/><g fill="#000"><rect x="0" y="0" width="10" height="10"/><rect x="10" y="0" width="10" height="10"/><rect x="20" y="0" width="10" height="10"/><rect x="30" y="0" width="10" height="10"/><rect x="40" y="0" width="10" height="10"/><rect x="50" y="0" width="10" height="10"/><rect x="60" y="0" width="10" height="10"/><rect x="100" y="0" width="10" height="10"/><rect x="110" y="0" width="10" height="10"/><rect x="120" y="0" width="10" height="10"/><rect x="130" y="0" width="10" height="10"/><rect x="140" y="0" width="10" height="10"/><rect x="160" y="0" width="10" height="10"/><rect x="190" y="0" width="10" height="10"/><rect x="200" y="0" width="10" height="10"/><rect x="220" y="0" width="10" height="10"/><rect x="230" y="0" width="10" height="10"/><rect x="240" y="0" width="10" height="10"/><rect x="250" y="0" width="10" height="10"/><rect x="260" y="0" width="10" height="10"/><rect x="270" y="0" width="10" height="10"/><rect x="280" y="0" width="10" height="10"/><rect x="0" y="10" width="10" height="10"/><rect x="60" y="10" width="10" height="10"/><rect x="80" y="10" width="10" height="10"/><rect x="110" y="10" width="10" height="10"/><rect x="140" y="10" width="10" height="10"/><rect x="150" y="10" width="10" height="10"/><rect x="160" y="10" width="10" height="10"/><rect x="170" y="10" width="10" height="10"/><rect x="190" y="10" width="10" height="10"/><rect x="220" y="10" width="10" height="10"/><rect x="280" y="10" width="10" height="10"/><rect x="0" y="20" width="10" height="10"/><rect x="20" y="20" width="10" height="10"/><rect x="30" y="20" width="10" height="10"/><rect x="40" y="20" width="10" height="10"/><rect x="60" y="20" width="10" height="10"/><rect x="90" y="20" width="10" height="10"/><rect x="130" y="20" width="10" height="10"/><rect x="140" y="20" width="10" height="10"/><rect x="150" y="20" width="10" height="10"/><rect x="160" y="20" width="10" height="10"/><rect x="190" y="20" width="10" height="10"/><rect x="220" y="20" width="10" height="10"/><rect x="240" y="20" width="10" height="10"/><rect x="250" y="20" width="10" height="10"/><rect x="260" y="20" width="10" height="10"/><rect x="280" y="20" width="10" height="10"/><rect x="0" y="30" width="10" height="10"/><rect x="20" y="30" width="10" height="10"/><rect x="30" y="30" width="10" height="10"/><rect x="40" y="30" width="10" height="10"/><rect x="60" y="30" width="10" height="10"/><rect x="100" y="30" width="10" height="10"/><rect x="120" y="30" width="10" height="10"/><rect x="130" y="30" width="10" height="10"/><rect x="140" y="30" width="10" height="10"/><rect x="150" y="30" width="10" height="10"/><rect x="160" y="30" width="10" height="10"/><rect x="190" y="30" width="10" height="10"/><rect x="200" y="30" width="10" height="10"/><rect x="220" y="30" width="10" height="10"/><rect x="240" y="30" width="10" height="10"/><rect x="250" y="30" width="10" height="10"/><rect x="260" y="30" width="10" height="10"/><rect x="280" y="30" width="10" height="10"/><rect x="0" y="40" width="10" height="10"/><rect x="20" y="40" width="10" height="10"/><rect x="30" y="40" width="10" height="10"/><rect x="40" y="40" width="10" height="10"/><rect x="60" y="40" width="10" height="10"/><rect x="80" y="40" width="10" height="10"/><rect x="90" y="40" width="10" height="10"/><rect x="110" y="40" width="10" height="10"/><rect x="120" y="40" width="10" height="10"/><rect x="140" y="40" width="10" height="10"/><rect x="150" y="40" width="10" height="10"/><rect x="160" y="40" width="10" height="10"/><rect x="170" y="40" width="10" height="10"/><rect x="180" y="40" width="10" height="10"/><rect x="190" y="40" width="10" height="10"/><rect x="200" y="40" width="10" height="10"/><rect x="220" y="40" width="10" height="10"/><rect x="240" y="40" width="10" height="10"/><rect x="250" y="40" width="10" height="10"/><rect x="260" y="40" width="10" height="10"/><rect x="280" y="40" width="10" height="10"/><rect x="0" y="50" width="10" height="10"/><rect x="60" y="50" width="10" height="10"/><rect x="90" y="50" width="10" height="10"/><rect x="120" y="50" width="10" height="10"/><rect x="130" y="50" width="10" height="10"/><rect x="150" y="50" width="10" height="10"/><rect x="160" y="50" width="10" height="10"/><rect x="170" y="50" width="10" height="10"/><rect x="180" y="50" width="10" height="10"/><rect x="190" y="50" width="10" height="10"/><rect x="200" y="50" width="10" height="10"/><rect x="220" y="50" width="10" height="10"/><rect x="280" y="50" width="10" height="10"/><rect x="0" y="60" width="10" height="10"/><rect x="10" y="60" width="10" height="10"/><rect x="20" y="60" width="10" height="10"/><rect x="30" y="60" width="10" height="10"/><rect x="40" y="60" width="10" height="10"/><rect x="50" y="60" width="10" height="10"/><rect x="60" y="60" width="10" height="10"/><rect x="80" y="60" width="10" height="10"/><rect x="100" y="60" width="10" height="10"/><rect x="120" y="60" width="10" height="10"/><rect x="140" y="60" width="10" height="10"/><rect x="160" y="60" width="10" height="10"/><rect x="180" y="60" width="10" height="10"/><rect x="200" y="60" width="10" height="10"/><rect x="220" y="60" width="10" height="10"/><rect x="230" y="60" width="10" height="10"/><rect x="240" y="60" width="10" height="10"/><rect x="250" y="60" width="10" height="10"/><rect x="260" y="60" width="10" height="10"/><rect x="270" y="60" width="10" height="10"/><rect x="280" y="60" width="10" height="10"/><rect x="110" y="70" width="10" height="10"/><rect x="120" y="70" width="10" height="10"/><rect x="130" y="70" width="10" height="10"/><rect x="140" y="70" width="10" height="10"/><rect x="150" y="70" width="10" height="10"/><rect x="170" y="70" width="10" height="10"/><rect x="180" y="70" width="10" height="10"/><rect x="190" y="70" width="10" height="10"/><rect x="0" y="80" width="10" height="10"/><rect x="20" y="80" width="10" height="10"/><rect x="40" y="80" width="10" height="10"/><rect x="60" y="80" width="10" height="10"/><rect x="120" y="80" width="10" height="10"/><rect x="140" y="80" width="10" height="10"/><rect x="170" y="80" width="10" height="10"/><rect x="180" y="80" width="10" height="10"/><rect x="200" y="80" width="10" height="10"/><rect x="240" y="80" width="10" height="10"/><rect x="270" y="80" width="10" height="10"/><rect x="0" y="90" width="10" height="10"/><rect x="10" y="90" width="10" height="10"/><rect x="20" y="90" width="10" height="10"/><rect x="30" y="90" width="10" height="10"/><rect x="40" y="90" width="10" height="10"/><rect x="100" y="90" width="10" height="10"/><rect x="110" y="90" width="10" height="10"/><rect x="140" y="90" width="10" height="10"/><rect x="170" y="90" width="10" height="10"/><rect x="180" y="90" width="10" height="10"/><rect x="200" y="90" width="10" height="10"/><rect x="210" y="90" width="10" height="10"/><rect x="220" y="90" width="10" height="10"/><rect x="270" y="90" width="10" height="10"/><rect x="280" y="90" width="10" height="10"/><rect x="0" y="100" width="10" height="10"/><rect x="10" y="100" width="10" height="10"/><rect x="30" y="100" width="10" height="10"/><rect x="60" y="100" width="10" height="10"/><rect x="70" y="100" width="10" height="10"/><rect x="80" y="100" width="10" height="10"/><rect x="90" y="100" width="10" height="10"/><rect x="110" y="100" width="10" height="10"/><rect x="130" y="100" width="10" height="10"/><rect x="160" y="100" width="10" height="10"/><rect x="180" y="100" width="10" height="10"/><rect x="210" y="100" width="10" height="10"/><rect x="220" y="100" width="10" height="10"/><rect x="230" y="100" width="10" height="10"/><rect x="250" y="100" width="10" height="10"/><rect x="260" y="100" width="10" height="10"/><rect x="270" y="100" width="10" height="10"/><rect x="280" y="100" width="10" height="10"/><rect x="10" y="110" width="10" height="10"/><rect x="20" y="110" width="10" height="10"/><rect x="30" y="110" width="10" height="10"/><rect x="80" y="110" width="10" height="10"/><rect x="90" y="110" width="10" height="10"/><rect x="110" y="110" width="10" height="10"/><rect x="120" y="110" width="10" height="10"/><rect x="160" y="110" width="10" height="10"/><rect x="170" y="110" width="10" height="10"/><rect x="190" y="110" width="10" height="10"/><rect x="210" y="110" width="10" height="10"/><rect x="230" y="110" width="10" height="10"/><rect x="250" y="110" width="10" height="10"/><rect x="10" y="120" width="10" height="10"/><rect x="30" y="120" width="10" height="10"/><rect x="50" y="120" width="10" height="10"/><rect x="60" y="120" width="10" height="10"/><rect x="80" y="120" width="10" height="10"/><rect x="100" y="120" width="10" height="10"/><rect x="110" y="120" width="10" height="10"/><rect x="160" y="120" width="10" height="10"/><rect x="170" y="120" width="10" height="10"/><rect x="190" y="120" width="10" height="10"/><rect x="220" y="120" width="10" height="10"/><rect x="230" y="120" width="10" height="10"/><rect x="250" y="120" width="10" height="10"/><rect x="280" y="120" width="10" height="10"/><rect x="10" y="130" width="10" height="10"/><rect x="20" y="130" width="10" height="10"/><rect x="30" y="130" width="10" height="10"/><rect x="40" y="130" width="10" height="10"/><rect x="50" y="130" width="10" height="10"/><rect x="100" y="130" width="10" height="10"/><rect x="130" y="130" width="10" height="10"/><rect x="160" y="130" width="10" height="10"/><rect x="170" y="130" width="10" height="10"/><rect x="210" y="130" width="10" height="10"/><rect x="220" y="130" width="10" height="10"/><rect x="230" y="130" width="10" height="10"/><rect x="250" y="130" width="10" height="10"/><rect x="280" y="130" width="10" height="10"/><rect x="10" y="140" width="10" height="10"/><rect x="50" y="140" width="10" height="10"/><rect x="60" y="140" width="10" height="10"/><rect x="80" y="140" width="10" height="10"/><rect x="110" y="140" width="10" height="10"/><rect x="140" y="140" width="10" height="10"/><rect x="210" y="140" width="10" height="10"/><rect x="280" y="140" width="10" height="10"/><rect x="10" y="150" width="10" height="10"/><rect x="50" y="150" width="10" height="10"/><rect x="100" y="150" width="10" height="10"/><rect x="110" y="150" width="10" height="10"/><rect x="130" y="150" width="10" height="10"/><rect x="140" y="150" width="10" height="10"/><rect x="150" y="150" width="10" height="10"/><rect x="160" y="150" width="10" height="10"/><rect x="170" y="150" width="10" height="10"/><rect x="190" y="150" width="10" height="10"/><rect x="200" y="150" width="10" height="10"/><rect x="230" y="150" width="10" height="10"/><rect x="280" y="150" width="10" height="10"/><rect x="20" y="160" width="10" height="10"/><rect x="60" y="160" width="10" height="10"/><rect x="70" y="160" width="10" height="10"/><rect x="140" y="160" width="10" height="10"/><rect x="170" y="160" width="10" height="10"/><rect x="180" y="160" width="10" height="10"/><rect x="190" y="160" width="10" height="10"/><rect x="200" y="160" width="10" height="10"/><rect x="220" y="160" width="10" height="10"/><rect x="280" y="160" width="10" height="10"/><rect x="20" y="170" width="10" height="10"/><rect x="50" y="170" width="10" height="10"/><rect x="100" y="170" width="10" height="10"/><rect x="110" y="170" width="10" height="10"/><rect x="120" y="170" width="10" height="10"/><rect x="140" y="170" width="10" height="10"/><rect x="170" y="170" width="10" height="10"/><rect x="180" y="170" width="10" height="10"/><rect x="220" y="170" width="10" height="10"/><rect x="250" y="170" width="10" height="10"/><rect x="270" y="170" width="10" height="10"/><rect x="280" y="170" width="10" height="10"/><rect x="0" y="180" width="10" height="10"/><rect x="20" y="180" width="10" height="10"/><rect x="40" y="180" width="10" height="10"/><rect x="50" y="180" width="10" height="10"/><rect x="60" y="180" width="10" height="10"/><rect x="80" y="180" width="10" height="10"/><rect x="90" y="180" width="10" height="10"/><rect x="100" y="180" width="10" height="10"/><rect x="120" y="180" width="10" height="10"/><rect x="130" y="180" width="10" height="10"/><rect x="210" y="180" width="10" height="10"/><rect x="220" y="180" width="10" height="10"/><rect x="230" y="180" width="10" height="10"/><rect x="240" y="180" width="10" height="10"/><rect x="250" y="180" width="10" height="10"/><rect x="260" y="180" width="10" height="10"/><rect x="270" y="180" width="10" height="10"/><rect x="280" y="180" width="10" height="10"/><rect x="10" y="190" width="10" height="10"/><rect x="40" y="190" width="10" height="10"/><rect x="70" y="190" width="10" height="10"/><rect x="110" y="190" width="10" height="10"/><rect x="150" y="190" width="10" height="10"/><rect x="160" y="190" width="10" height="10"/><rect x="170" y="190" width="10" height="10"/><rect x="190" y="190" width="10" height="10"/><rect x="200" y="190" width="10" height="10"/><rect x="210" y="190" width="10" height="10"/><rect x="250" y="190" width="10" height="10"/><rect x="280" y="190" width="10" height="10"/><rect x="0" y="200" width="10" height="10"/><rect x="20" y="200" width="10" height="10"/><rect x="30" y="200" width="10" height="10"/><rect x="60" y="200" width="10" height="10"/><rect x="70" y="200" width="10" height="10"/><rect x="80" y="200" width="10" height="10"/><rect x="100" y="200" width="10" height="10"/><rect x="110" y="200" width="10" height="10"/><rect x="160" y="200" width="10" height="10"/><rect x="170" y="200" width="10" height="10"/><rect x="200" y="200" width="10" height="10"/><rect x="210" y="200" width="10" height="10"/><rect x="220" y="200" width="10" height="10"/><rect x="230" y="200" width="10" height="10"/><rect x="240" y="200" width="10" height="10"/><rect x="250" y="200" width="10" height="10"/><rect x="270" y="200" width="10" height="10"/><rect x="280" y="200" width="10" height="10"/><rect x="110" y="210" width="10" height="10"/><rect x="120" y="210" width="10" height="10"/><rect x="130" y="210" width="10" height="10"/><rect x="160" y="210" width="10" height="10"/><rect x="170" y="210" width="10" height="10"/><rect x="190" y="210" width="10" height="10"/><rect x="200" y="210" width="10" height="10"/><rect x="240" y="210" width="10" height="10"/><rect x="250" y="210" width="10" height="10"/><rect x="260" y="210" width="10" height="10"/><rect x="280" y="210" width="10" height="10"/><rect x="0" y="220" width="10" height="10"/><rect x="10" y="220" width="10" height="10"/><rect x="20" y="220" width="10" height="10"/><rect x="30" y="220" width="10" height="10"/><rect x="40" y="220" width="10" height="10"/><rect x="50" y="220" width="10" height="10"/><rect x="60" y="220" width="10" height="10"/><rect x="100" y="220" width="10" height="10"/><rect x="120" y="220" width="10" height="10"/><rect x="140" y="220" width="10" height="10"/><rect x="170" y="220" width="10" height="10"/><rect x="180" y="220" width="10" height="10"/><rect x="190" y="220" width="10" height="10"/><rect x="200" y="220" width="10" height="10"/><rect x="220" y="220" width="10" height="10"/><rect x="240" y="220" width="10" height="10"/><rect x="250" y="220" width="10" height="10"/><rect x="260" y="220" width="10" height="10"/><rect x="280" y="220" width="10" height="10"/><rect x="0" y="230" width="10" height="10"/><rect x="60" y="230" width="10" height="10"/><rect x="100" y="230" width="10" height="10"/><rect x="130" y="230" width="10" height="10"/><rect x="140" y="230" width="10" height="10"/><rect x="160" y="230" width="10" height="10"/><rect x="170" y="230" width="10" height="10"/><rect x="180" y="230" width="10" height="10"/><rect x="200" y="230" width="10" height="10"/><rect x="240" y="230" width="10" height="10"/><rect x="250" y="230" width="10" height="10"/><rect x="270" y="230" width="10" height="10"/><rect x="0" y="240" width="10" height="10"/><rect x="20" y="240" width="10" height="10"/><rect x="30" y="240" width="10" height="10"/><rect x="40" y="240" width="10" height="10"/><rect x="60" y="240" width="10" height="10"/><rect x="80" y="240" width="10" height="10"/><rect x="110" y="240" width="10" height="10"/><rect x="140" y="240" width="10" height="10"/><rect x="170" y="240" width="10" height="10"/><rect x="180" y="240" width="10" height="10"/><rect x="200" y="240" width="10" height="10"/><rect x="210" y="240" width="10" height="10"/><rect x="220" y="240" width="10" height="10"/><rect x="230" y="240" width="10" height="10"/><rect x="240" y="240" width="10" height="10"/><rect x="250" y="240" width="10" height="10"/><rect x="270" y="240" width="10" height="10"/><rect x="280" y="240" width="10" height="10"/><rect x="0" y="250" width="10" height="10"/><rect x="20" y="250" width="10" height="10"/><rect x="30" y="250" width="10" height="10"/><rect x="40" y="250" width="10" height="10"/><rect x="60" y="250" width="10" height="10"/><rect x="90" y="250" width="10" height="10"/><rect x="100" y="250" width="10" height="10"/><rect x="120" y="250" width="10" height="10"/><rect x="130" y="250" width="10" height="10"/><rect x="140" y="250" width="10" height="10"/><rect x="170" y="250" width="10" height="10"/><rect x="180" y="250" width="10" height="10"/><rect x="190" y="250" width="10" height="10"/><rect x="240" y="250" width="10" height="10"/><rect x="250" y="250" width="10" height="10"/><rect x="270" y="250" width="10" height="10"/><rect x="280" y="250" width="10" height="10"/><rect x="0" y="260" width="10" height="10"/><rect x="20" y="260" width="10" height="10"/><rect x="30" y="260" width="10" height="10"/><rect x="40" y="260" width="10" height="10"/><rect x="60" y="260" width="10" height="10"/><rect x="80" y="260" width="10" height="10"/><rect x="120" y="260" width="10" height="10"/><rect x="130" y="260" width="10" height="10"/><rect x="140" y="260" width="10" height="10"/><rect x="160" y="260" width="10" height="10"/><rect x="170" y="260" width="10" height="10"/><rect x="180" y="260" width="10" height="10"/><rect x="240" y="260" width="10" height="10"/><rect x="260" y="260" width="10" height="10"/><rect x="280" y="260" width="10" height="10"/><rect x="0" y="270" width="10" height="10"/><rect x="60" y="270" width="10" height="10"/><rect x="90" y="270" width="10" height="10"/><rect x="100" y="270" width="10" height="10"/><rect x="140" y="270" width="10" height="10"/><rect x="170" y="270" width="10" height="10"/><rect x="200" y="270" width="10" height="10"/><rect x="250" y="270" width="10" height="10"/><rect x="270" y="270" width="10" height="10"/><rect x="0" y="280" width="10" height="10"/><rect x="10" y="280" width="10" height="10"/><rect x="20" y="280" width="10" height="10"/><rect x="30" y="280" width="10" height="10"/><rect x="40" y="280" width="10" height="10"/><rect x="50" y="280" width="10" height="10"/><rect x="60" y="280" width="10" height="10"/><rect x="80" y="280" width="10" height="10"/><rect x="110" y="280" width="10" height="10"/><rect x="130" y="280" width="10" height="10"/><rect x="160" y="280" width="10" height="10"/><rect x="170" y="280" width="10" height="10"/><rect x="200" y="280" width="10" height="10"/><rect x="230" y="280" width="10" height="10"/><rect x="270" y="280" width="10" height="10"/><rect x="280" y="280" width="10" height="10"/></g></svg></div>
+                <p class="ac-jeton">7c1e2a90-5b3d-4f8e-9a61-0d4c2b7e5f13</p>
+              </div>
+              <div class="ac-qr-actions"><span class="ac-btn-plein">🖨️ Imprimer</span><span class="ac-btn-creux">Fermer</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ac-etape">
+        <div class="ac-texte">
+          <div class="ac-qui"><span class="ac-num">4</span> Habitants · sur place</div>
+          <h4>Chacun scanne en arrivant</h4>
+          <ol class="ac-consignes">
+            <li>L'habitant ouvre l'action dans l'agenda de l'appli et appuie sur <span class="ac-bouton">📷 Scanner ma présence sur place</span>.</li>
+            <li>Il vise le QR. Un « +40 » doré jaillit à l'écran : sa présence est enregistrée, en attente de votre validation.</li>
+          </ol>
+          <p class="ac-astuce"><strong>Quand scanner ?</strong> De 30 minutes avant le début jusqu'à 2 heures après la fin. En dehors, le scan est refusé.</p>
+          <p class="ac-astuce">La position du téléphone est relevée au scan. Si quelqu'un scanne à plus de 150 m du lieu (une photo du QR envoyée par un ami, par exemple), il n'est pas bloqué, mais un ⚠️ vous le signale à l'étape suivante.</p>
+        </div>
+        <div class="ac-telephone" role="img" aria-label="Capture : après le scan, un +40 doré s'affiche avec la mention en attente de validation">
+          <div class="ac-ecran">
+            <div class="ac-haut"><span class="ac-blason">🏰</span>Votre commune</div>
+            <div class="ac-corps">
+              <div class="ac-carte">
+                <span class="ac-titre">Nettoyage des berges</span>
+                <span class="ac-meta">6 déc., 9:00 · Pont de la Somme</span>
+                <div class="ac-btn-plein">📷 Scanner ma présence sur place</div>
+                <div class="ac-champ ac-grise">Code manuel (si scan impossible)</div>
+                <div><span class="ac-pill ac-pill-scanne">Scanné</span></div>
+                <p class="ac-aide">En attente de validation par l'organisateur.</p>
+              </div>
+            </div>
+            <div class="ac-gain ac-attente"><b>+40</b><span>⏳ en attente de validation</span></div>
+            <div class="ac-nav"><span><i>🏠</i>Accueil</span><span><i>📰</i>Actus</span><span class="ac-actif"><i>📅</i>Agenda</span><span><i>🔔</i>Alertes</span><span><i>🤲</i>Entraide</span><span><i>⋯</i>Plus</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ac-etape">
+        <div class="ac-texte">
+          <div class="ac-qui"><span class="ac-num">5</span> Organisateur, élu ou maire</div>
+          <h4>Valider les présences</h4>
+          <ol class="ac-consignes">
+            <li>Ouvrez l'action et appuyez sur <span class="ac-bouton">🎫 Gérer les présences</span>.</li>
+            <li>Vérifiez la liste : chaque personne scannée porte la mention « Scanné, à valider ». Un ⚠️ signale un scan fait loin du lieu.</li>
+            <li>Appuyez sur <span class="ac-bouton">Valider</span> pour une personne, ou sur <span class="ac-bouton">✓ Valider tous les scannés</span> en fin d'action.</li>
+          </ol>
+          <p class="ac-astuce"><strong>Validé par un élu ou le maire : +10 points de bonus</strong> pour chaque habitant. Un admin qui n'organise pas l'action ne peut pas valider.</p>
+          <p class="ac-astuce ac-attention"><strong>Vous avez 48 heures après la fin.</strong> Passé ce délai, les présences non validées deviennent « non confirmées » : pas de points, mais pas de pénalité non plus. L'habitant peut alors contester, et la plateforme vérifie.</p>
+        </div>
+        <div class="ac-telephone" role="img" aria-label="Capture : panneau Gérer les présences avec la liste des participants et les boutons Valider">
+          <div class="ac-ecran">
+            <div class="ac-haut"><span class="ac-blason">🏰</span>Votre commune</div>
+            <div class="ac-corps">
+              <div class="ac-carte">
+                <span class="ac-titre">Nettoyage des berges</span>
+                <p class="ac-note-role">🏛️ Vous validez en tant qu'élu(e) : bonus de +10 pts pour chaque présence.</p>
+                <span class="ac-gras">2 / 5 confirmé(s)</span>
+                <div class="ac-jauge"><i style="width:40%"></i></div>
+                <div class="ac-btn-plein ac-repere">✓ Valider tous les scannés</div>
+                <div>
+                  <div class="ac-presence"><span>Martine L.</span><span><span class="ac-pill ac-pill-scanne">Scanné, à valider</span> <span class="ac-mini">Valider</span></span></div>
+                  <div class="ac-presence"><span>Paul D. ⚠️</span><span><span class="ac-pill ac-pill-scanne">Scanné, à valider</span> <span class="ac-mini">Valider</span></span></div>
+                  <div class="ac-presence"><span>Claire B.</span><span class="ac-pill ac-pill-confirme">Confirmé ✓</span></div>
+                  <div class="ac-presence"><span>Hugo T.</span><span class="ac-pill ac-pill-confirme">Confirmé ✓</span></div>
+                  <div class="ac-presence ac-dernier"><span>Nadia R.</span><span class="ac-pill ac-pill-inscrit">En attente de scan</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="ac-nav"><span><i>🏠</i>Accueil</span><span><i>📰</i>Actus</span><span class="ac-actif"><i>📅</i>Agenda</span><span><i>🔔</i>Alertes</span><span><i>🤲</i>Entraide</span><span><i>⋯</i>Plus</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ac-etape">
+        <div class="ac-texte">
+          <div class="ac-qui"><span class="ac-num">6</span> Automatique</div>
+          <h4>L'habitant voit ses points tomber</h4>
+          <ol class="ac-consignes">
+            <li>Encore sur place, l'appli ouverte : un « +50 » vert apparaît dans les 20 secondes qui suivent votre validation.</li>
+            <li>Téléphone rangé : il reçoit la notification « ✅ Présence confirmée : +50 points ». Et à sa prochaine ouverture de l'appli, le « +50 » s'affiche une fois, notification reçue ou non.</li>
+            <li>Son score, son palier et ses badges sont dans <span class="ac-bouton">Profil</span> → <strong>🌍 Participation citoyenne</strong>.</li>
+          </ol>
+          <p class="ac-astuce">Le « +40 » du scan devient « +50 » ici : 40 points pour un nettoyage, plus 10 parce qu'un élu a validé. Le chiffre final compte tous les bonus.</p>
+        </div>
+        <div class="ac-telephone" role="img" aria-label="Capture : notification Présence confirmée et grand +50 vert à l'écran">
+          <div class="ac-ecran">
+            <div class="ac-haut"><span class="ac-blason">🏰</span>Votre commune</div>
+            <div class="ac-corps">
+              <div class="ac-carte">
+                <span class="ac-titre">Nettoyage des berges</span>
+                <span class="ac-meta">6 déc., 9:00 · Pont de la Somme</span>
+                <div><span class="ac-pill ac-pill-confirme">✓ Présence confirmée · +50 pts</span></div>
+              </div>
+              <div class="ac-carte">
+                <span class="ac-gras">🌍 Participation citoyenne</span>
+                <span class="ac-gras">Citoyen engagé</span>
+                <div class="ac-jauge"><i style="width:22%"></i></div>
+                <span class="ac-aide">Prochain palier : Citoyen actif</span>
+                <span class="ac-score">190 points</span>
+              </div>
+            </div>
+            <div class="ac-notif"><b>✅ Présence confirmée : +50 points</b><span>Nettoyage des berges</span><em>Votre commune · maintenant</em></div>
+            <div class="ac-gain"><b>+50</b><span>points de participation citoyenne</span><small>Nettoyage des berges</small></div>
+            <div class="ac-nav"><span><i>🏠</i>Accueil</span><span><i>📰</i>Actus</span><span class="ac-actif"><i>📅</i>Agenda</span><span><i>🔔</i>Alertes</span><span><i>🤲</i>Entraide</span><span><i>⋯</i>Plus</span></div>
+          </div>
+        </div>
+      </div>
+
+      <h4 class="ac-intertitre">Combien rapporte chaque action</h4>
+      <p>Points de base par présence validée, selon le type choisi à l'étape 1.</p>
+      <div class="ac-bareme">
+        <div><b>50</b>🔨 Chantier participatif</div>
+        <div><b>40</b>🧹 Nettoyage citoyen</div>
+        <div><b>35</b>🌱 Plantation / jardin partagé</div>
+        <div><b>35</b>🤝 Maraude solidaire</div>
+        <div><b>30</b>🎨 Atelier de concertation</div>
+        <div><b>25</b>🙋 Aide ponctuelle</div>
+        <div><b>20</b>🏛️ Réunion publique</div>
+        <div><b>15</b>🏛️ Réunion du conseil citoyen</div>
+      </div>
+
+      <details class="ac-details">
+        <summary>Les bonus</summary>
+        <div class="table-wrap"><table>
+          <tbody>
+            <tr><td>Présence validée par un élu ou le maire</td><td class="ac-plus">+10</td></tr>
+            <tr><td>3 actions d'affilée sans désistement, en moins de 3 mois</td><td class="ac-plus">+30</td></tr>
+            <tr><td>Première réunion du conseil citoyen (devenir membre actif)</td><td class="ac-plus">+50</td></tr>
+            <tr><td>Organiser une action menée à terme, avec au moins une présence validée (pour l'organisateur)</td><td class="ac-plus">+100</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+
+      <details class="ac-details">
+        <summary>Les pénalités</summary>
+        <div class="table-wrap"><table>
+          <tbody>
+            <tr><td>Se désinscrire moins de 24 h avant l'action</td><td class="ac-moins">−10</td></tr>
+            <tr><td>Inscrit, mais jamais venu scanner</td><td class="ac-moins">−10</td></tr>
+            <tr><td>Se désinscrire plus de 24 h avant</td><td class="ac-zero">0</td></tr>
+            <tr><td>Scanné mais pas validé dans les 48 h (oubli de l'organisateur)</td><td class="ac-zero">0</td></tr>
+          </tbody>
+        </table></div>
+        <p>Trois absences en 60 jours suspendent les inscriptions à de nouvelles actions pendant 15 jours. Le score ne descend jamais sous zéro.</p>
+      </details>
+
+      <details class="ac-details">
+        <summary>Pourquoi on gagne moins à force de refaire la même action</summary>
+        <p>Pour encourager à varier les engagements, le même type d'action rapporte de moins en moins sur 30 jours glissants. Changer de type remet le compteur à 100 %.</p>
+        <div class="table-wrap"><table>
+          <tbody>
+            <tr><td>1re à 3e fois</td><td class="ac-zero">100 %</td></tr>
+            <tr><td>4e à 6e fois</td><td class="ac-zero">70 %</td></tr>
+            <tr><td>7e fois et au-delà</td><td class="ac-zero">40 %</td></tr>
+          </tbody>
+        </table></div>
+      </details>
+
+      <details class="ac-details">
+        <summary>Les paliers</summary>
+        <p>Le score fait monter l'habitant de palier, visible dans son profil.</p>
+        <div class="ac-paliers">
+          <span>Premier pas citoyen<em>1</em></span><span>Citoyen engagé<em>150</em></span><span>Citoyen actif<em>400</em></span>
+          <span>Pilier de quartier<em>800</em></span><span>Force motrice<em>1 500</em></span><span>Relais citoyen<em>2 500</em></span>
+          <span>Figure locale<em>4 000</em></span><span>Bâtisseur de ville<em>6 000</em></span><span>Ambassadeur<em>9 000</em></span>
+          <span>Voix de la cité<em>13 000</em></span><span>Légende citoyenne<em>20 000</em></span>
+        </div>
+      </details>
+
+      <details class="ac-details">
+        <summary>Questions fréquentes</summary>
+        <p><strong>Ces points sont-ils les mêmes que ceux des jeux ?</strong> Non. Les points des chasses au trésor et des énigmes forment un classement à part. La participation citoyenne ne récompense qu'un engagement réel et vérifié.</p>
+        <p><strong>L'organisateur peut-il scanner sa propre action ?</strong> Non, il ne voit pas le bouton de scan. Il est récompensé autrement (+100 une fois l'action menée à terme).</p>
+        <p><strong>Un habitant n'a pas de smartphone.</strong> Il ne peut pas scanner. Sa présence ne sera pas comptée, mais il reste le bienvenu à l'action.</p>
+        <p><strong>Le scan ne marche pas.</strong> L'habitant tape le code écrit sous le QR dans le champ « Code manuel ».</p>
+      </details>
     </section>
 
     <section id="b4">
