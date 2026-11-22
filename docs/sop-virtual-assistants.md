@@ -155,6 +155,11 @@ Actions disponibles : **"✉️ Répondre"** (réponse threadée, apparaît comm
 - **Renouvellement** : 60 jours avant l'échéance, un rappel part tout seul à la mairie et la commune apparaît dans « Aujourd'hui ». Le bloc propose alors « Créer le devis de renouvellement » avec la même formule et le même prix ; la date anniversaire ne bouge pas.
 - Le bouton « 🌟 Fondateur, accès offert » (onglet Configuration) sert uniquement aux accès offerts : il **efface** prix et échéance. Une fondatrice qui paie passe toujours par « 💶 Abonnement ».
 - « Convertir en commune cliente » (fiche prospect) ne sert plus que pour une commune sans espace, cas devenu exceptionnel.
+- **Facture erronée ou à réduire : l'avoir** (depuis le 2026-11-22, **réservé à Léandre**). Une facture émise ne se supprime JAMAIS. Bouton « Avoir… » à côté de la facture (listes de factures et bloc Abonnement) :
+  - *Total* : annule tout ce qui reste dû, la facture passe « Annulée (avoir) » et son statut ne bouge plus. *Partiel* : un montant (geste commercial, erreur de prix) ; plusieurs avoirs possibles, jamais plus que la facture.
+  - Numéros dédiés A-AAAA-NNNN ; motif obligatoire ; PDF « Facture d'avoir » qui cite la facture d'origine.
+  - Si la facture était sur Chorus Pro : y déposer aussi l'avoir, puis « Déposé sur Chorus Pro ». Si elle était déjà payée : rembourser par virement, puis « Remboursé » ; pour une annulation totale, cocher « Reculer l'échéance » (le paiement l'avait avancée).
+  - L'abonnement de la commune (formule, onglets) n'est pas modifié par un avoir : l'ajuster à part si besoin.
 
 ---
 

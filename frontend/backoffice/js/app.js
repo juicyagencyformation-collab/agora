@@ -262,6 +262,8 @@ function backoffice() {
     nouveauDevisLibre: { nom_destinataire: '', adresse_destinataire: '', objet: '', montant_ht: '', taux_tva: 0, duree_engagement_mois: null, validite_jours: 30 },
     // — Toutes les factures (vue d'ensemble, communes + libres) — voir allerToutesFactures()
     toutesFacturesListe: [],
+    // Fenêtre « Avoirs » d'une facture (2026-11-22) : null = fermée.
+    avoirFenetre: null,
     filtreFactureStatut: '',
     filtreFactureRecherche: '',
     triFactures: { cle: null, sens: 'desc' },
@@ -3151,7 +3153,7 @@ function backoffice() {
       return this.devisListe.find((d) => d.formule && !d.facture_id && !['refuse', 'expire'].includes(d.statut)) || null;
     },
     factureAPayer() {
-      return this.facturesListe.find((f) => f.statut !== 'payee') || null;
+      return this.facturesListe.find((f) => !['payee', 'annulee'].includes(f.statut)) || null;
     },
     // 0 devis à créer · 1 bon de commande attendu · 2 à activer · 3 facture à encaisser
     etapeAbonnement() {
@@ -3298,6 +3300,79 @@ function backoffice() {
         else await this.chargerDevisFactures(this.communeIdFacturationActuelle());
       } catch (e) { alert(e.message || 'Échec'); }
     },
+    async rechargerFactures() {
+      if (this.vue === 'toutes_factures') await this.chargerToutesFactures();
+      else await this.chargerDevisFactures(this.communeIdFacturationActuelle());
+    },
+
+    // — Avoirs (2026-11-22, facturation.ts) — une seule fenêtre pour les trois listes de factures
+    // et le bloc Abonnement : historique des avoirs de la facture, leur suivi, et un nouvel avoir
+    // (tout ce qui reste dû, ou une partie). Un avoir ne se supprime jamais.
+    libelleStatutFacture(s) {
+      return { emise: 'Émise', deposee_chorus: 'Déposée Chorus Pro', payee: 'Payée', annulee: 'Annulée (avoir)' }[s] || s;
+    },
+    libelleStatutAvoir(s) {
+      return { emis: 'Émis', depose_chorus: 'Déposé Chorus Pro', rembourse: 'Remboursé' }[s] || s;
+    },
+    resteFacture(f) {
+      return f.reste_ttc ?? Number(f.montant_ttc);
+    },
+    MOTIFS_AVOIR: ['Facture émise par erreur', 'Erreur de montant', 'Geste commercial', 'Résiliation ou prestation non réalisée'],
+    ouvrirAvoirs(f) {
+      this.avoirFenetre = { facture: f, partiel: false, montant: '', motifChoix: '', motifLibre: '', reculer: !!f.payee_le, enCours: false, msg: '', dernier: null };
+    },
+    fermerAvoirs() {
+      this.avoirFenetre = null;
+    },
+    motifAvoir() {
+      const a = this.avoirFenetre;
+      const libre = a.motifLibre.trim();
+      return a.motifChoix && a.motifChoix !== 'autre' ? [a.motifChoix, libre].filter(Boolean).join(' — ') : libre;
+    },
+    // Après une action : recharge la liste affichée et remet à jour la facture de la fenêtre.
+    async apresActionAvoir(f) {
+      await this.rechargerFactures();
+      if (this.fiche?.commune && f.commune_id === this.fiche.commune.id) {
+        await this.rafraichirCompteursCommune();
+        this.initAbonnement();
+      }
+      return [...this.facturesListe, ...this.toutesFacturesListe].find((x) => x.id === f.id) || f;
+    },
+    async emettreAvoir() {
+      const a = this.avoirFenetre, f = a.facture;
+      const motif = this.motifAvoir();
+      if (motif.length < 3) { a.msg = 'Indique le motif de l\'avoir.'; return; }
+      const reste = this.resteFacture(f);
+      const montant = a.partiel ? Math.round(Number(String(a.montant).replace(',', '.')) * 100) / 100 : reste;
+      if (!(montant > 0)) { a.msg = 'Indique le montant de l\'avoir.'; return; }
+      if (montant > reste) { a.msg = 'L\'avoir ne peut pas dépasser ce qui reste de la facture : ' + this.euros(reste) + '.'; return; }
+      const annule = montant === reste;
+      if (!confirm(`Émettre un avoir de ${this.euros(montant)} sur la facture ${f.numero}${annule ? ' ? Elle sera annulée.' : ' ?'}\n\nMotif : ${motif}\n\nUn avoir ne se supprime pas.`)) return;
+      a.enCours = true; a.msg = '';
+      try {
+        const r = await boFetch('/administration/factures/' + f.id + '/avoirs', {
+          method: 'POST',
+          body: JSON.stringify({ motif, ...(a.partiel ? { montant_ttc: montant } : {}), reculer_echeance: annule && !!f.payee_le && !!a.reculer }),
+        });
+        const maj = await this.apresActionAvoir(f);
+        this.avoirFenetre = {
+          facture: maj, partiel: false, montant: '', motifChoix: '', motifLibre: '', reculer: !!maj.payee_le, enCours: false, dernier: r.avoir,
+          msg: `Avoir ${r.avoir.numero} émis${r.facture_annulee ? ', facture annulée' : ''}${r.echeance_reculee ? ', échéance de la commune reculée' : ''}. Ouvre son PDF pour l'enregistrer${f.statut === 'deposee_chorus' || f.deposee_chorus_le ? ' et le déposer sur Chorus Pro' : ''}.`,
+        };
+      } catch (e) {
+        a.msg = e.message || 'Échec';
+        a.enCours = false;
+      }
+    },
+    async changerStatutAvoir(av, statut) {
+      const a = this.avoirFenetre;
+      try {
+        await boFetch('/administration/avoirs/' + av.id, { method: 'PATCH', body: JSON.stringify({ statut }) });
+        if (a) a.facture = await this.apresActionAvoir(a.facture);
+      } catch (e) {
+        if (a) a.msg = e.message || 'Échec'; else alert(e.message || 'Échec');
+      }
+    },
 
     // — Toutes les factures (vue d'ensemble communes + libres) —
     async chargerToutesFactures() {
@@ -3311,24 +3386,29 @@ function backoffice() {
     statsToutesFactures() {
       const aujourdhui = new Date().toISOString().slice(0, 10);
       const stats = { totalTtc: 0, encaisseTtc: 0, enAttenteTtc: 0, enRetardTtc: 0, enRetardNb: 0 };
+      // Montants nets des avoirs : une facture annulée ne compte plus, un avoir partiel réduit
+      // le facturé, l'encaissé (il est remboursé) ou ce qui reste à payer.
       for (const f of this.toutesFacturesListe) {
-        stats.totalTtc += Number(f.montant_ttc) || 0;
+        if (f.statut === 'annulee') continue;
+        const net = this.resteFacture(f);
+        stats.totalTtc += net;
         if (f.statut === 'payee') {
-          stats.encaisseTtc += Number(f.montant_ttc) || 0;
+          stats.encaisseTtc += net;
         } else {
-          stats.enAttenteTtc += Number(f.montant_ttc) || 0;
+          stats.enAttenteTtc += net;
           if (f.date_echeance && f.date_echeance < aujourdhui) {
-            stats.enRetardTtc += Number(f.montant_ttc) || 0;
+            stats.enRetardTtc += net;
             stats.enRetardNb += 1;
           }
         }
       }
+      for (const k of ['totalTtc', 'encaisseTtc', 'enAttenteTtc', 'enRetardTtc']) stats[k] = Math.round(stats[k] * 100) / 100;
       return stats;
     },
     // Rouge si en retard ET pas encore payée — une facture payée avec une échéance passée n'a
     // rien d'anormal (réglée après le délai, ou le jour même).
     classeEcheanceFacture(f) {
-      if (f.statut === 'payee' || !f.date_echeance) return '';
+      if (['payee', 'annulee'].includes(f.statut) || !f.date_echeance) return '';
       return this.classeEcheance(f.date_echeance);
     },
     trierParFacture(cle) {

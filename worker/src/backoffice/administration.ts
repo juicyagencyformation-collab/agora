@@ -24,6 +24,7 @@ import { uploaderFichier, deleteObject, urlLogoVersionnee } from '../storage';
 import { versCsv } from '../lib/csv';
 import { verifierSequenceOnboarding, communesSansContactJoignable } from './onboarding-drip';
 import { chargerBareme, CLES_OFFRES_TEXTE, chargerOffresTexte, enregistrerOffreTexte } from './tarification';
+import { avecAvoirs } from './avoirs';
 import { CLES_CONTENU_TEXTE, chargerContenuTexte, enregistrerContenuTexte } from './contenu-texte';
 import { detacherFichesAssociations } from '../lib/associations';
 import { VERSION_CGU } from '../lib/cgu';
@@ -1930,10 +1931,11 @@ app.get('/echeances', async (c) => {
   // logique d'alerte que les échéances d'abonnement ci-dessus, pour une seule vue "ce qui a
   // besoin d'attention" plutôt que deux écrans séparés. nom_destinataire est dénormalisé sur la
   // facture (capturé à sa création), pas besoin de jointure vers communes.
-  const factures = await supabaseSelect(c.env, 'factures', {
+  // Une facture annulée par avoir n'attend plus rien ; un avoir partiel réduit ce qui reste dû.
+  const factures = await avecAvoirs(c.env, await supabaseSelect(c.env, 'factures', {
     select: 'id,numero,commune_id,nom_destinataire,montant_ttc,date_echeance,statut',
-    statut: 'neq.payee', order: 'date_echeance.asc', limit: '500',
-  });
+    statut: 'not.in.(payee,annulee)', order: 'date_echeance.asc', limit: '500',
+  }));
   return c.json({ communes, factures });
 });
 
@@ -1953,23 +1955,31 @@ function montantAnnualise(prix: number | null | undefined, dureeEngagementMois: 
 }
 
 app.get('/chiffre-affaires', async (c) => {
-  const [facturesPayees, facturesEnAttente] = await Promise.all([
-    supabaseSelectTout(c.env, 'factures', { select: 'montant_ht,payee_le,commune_id', statut: 'eq.payee' }),
-    supabaseSelectTout(c.env, 'factures', { select: 'montant_ht,statut', statut: 'neq.payee' }),
+  // Avoirs (migration 118) : une facture payée puis annulée garde payee_le (statut « annulee ») :
+  // son encaissement compte, et son avoir est retranché au mois où il a été émis. En attente :
+  // seules les factures émises ou déposées, nettes de leurs avoirs partiels.
+  const [facturesPayees, facturesEnAttente, avoirs] = await Promise.all([
+    supabaseSelectTout(c.env, 'factures', { select: 'id,montant_ht,payee_le,commune_id', payee_le: 'not.is.null' }),
+    supabaseSelectTout(c.env, 'factures', { select: 'id,montant_ht,statut', statut: 'in.(emise,deposee_chorus)' }),
+    supabaseSelectTout(c.env, 'avoirs', { select: 'facture_id,montant_ht,date_emission' }),
   ]);
+  const idsPayees = new Set(facturesPayees.map((f: any) => f.id));
+  const avoirsSurPayees = avoirs.filter((a: any) => idsPayees.has(a.facture_id));
+  const avoirsParFacture = new Map<string, number>();
+  for (const a of avoirs) avoirsParFacture.set(a.facture_id, (avoirsParFacture.get(a.facture_id) ?? 0) + Number(a.montant_ht));
 
-  const caReelTotal = facturesPayees.reduce((s: number, f: any) => s + Number(f.montant_ht), 0);
-  const enAttenteTotal = facturesEnAttente.reduce((s: number, f: any) => s + Number(f.montant_ht), 0);
+  const caReelTotal = facturesPayees.reduce((s: number, f: any) => s + Number(f.montant_ht), 0)
+    - avoirsSurPayees.reduce((s: number, a: any) => s + Number(a.montant_ht), 0);
+  const enAttenteTotal = facturesEnAttente.reduce((s: number, f: any) => s + Number(f.montant_ht) - (avoirsParFacture.get(f.id) ?? 0), 0);
 
   const parMois = new Map<string, number>();
   const parAnnee = new Map<string, number>();
-  for (const f of facturesPayees) {
-    if (!f.payee_le) continue;
-    const mois = f.payee_le.slice(0, 7);
-    const annee = f.payee_le.slice(0, 4);
-    parMois.set(mois, (parMois.get(mois) ?? 0) + Number(f.montant_ht));
-    parAnnee.set(annee, (parAnnee.get(annee) ?? 0) + Number(f.montant_ht));
-  }
+  const ajouter = (date: string, montant: number) => {
+    parMois.set(date.slice(0, 7), (parMois.get(date.slice(0, 7)) ?? 0) + montant);
+    parAnnee.set(date.slice(0, 4), (parAnnee.get(date.slice(0, 4)) ?? 0) + montant);
+  };
+  for (const f of facturesPayees) if (f.payee_le) ajouter(f.payee_le, Number(f.montant_ht));
+  for (const a of avoirsSurPayees) if (a.date_emission) ajouter(a.date_emission, -Number(a.montant_ht));
   const serieMois: { mois: string; montant: number }[] = [];
   const maintenant = new Date();
   for (let i = 11; i >= 0; i--) {

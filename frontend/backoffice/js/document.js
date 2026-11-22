@@ -5,7 +5,7 @@
 // (une facture adressée à une commune doit ensuite être déposée sur Chorus Pro).
 (async function () {
   const params = new URLSearchParams(location.search);
-  const type = ['facture', 'contrat-dpa', 'convention', 'dossier', 'preuve-cgu', 'registre-rgpd'].includes(params.get('type')) ? params.get('type') : 'devis';
+  const type = ['facture', 'avoir', 'contrat-dpa', 'convention', 'dossier', 'preuve-cgu', 'registre-rgpd'].includes(params.get('type')) ? params.get('type') : 'devis';
   const id = params.get('id');
 
   const echapper = (s) => (s || '').replace(/[&<>"']/g, (m) => (
@@ -461,11 +461,91 @@
   let entreprise, doc;
   try {
     entreprise = (await boFetch('/administration/parametres-entreprise')).parametres;
-    const chemin = type === 'facture' ? '/administration/factures/' + id : '/administration/devis/' + id;
-    doc = (await boFetch(chemin))[type];
+    const chemin = { facture: '/administration/factures/', avoir: '/administration/avoirs/' }[type] || '/administration/devis/';
+    doc = (await boFetch(chemin + id))[type];
   } catch (e) {
     feuille.textContent = 'Impossible de charger le document : ' + (e.message || 'erreur inconnue');
     return;
+  }
+
+  const enteteEmetteur = (titre, numero) => `
+    <header>
+      <div>
+        <div class="marque">Plateforme-Agora</div>
+        <div class="emetteur">
+          ${echapper(entreprise.entreprise_raison_sociale)}<br />
+          ${echapper(entreprise.entreprise_adresse)}<br />
+          ${echapper(entreprise.entreprise_cp_ville)}<br />
+          SIRET ${echapper(entreprise.entreprise_siret) || '—'}<br />
+          ${echapper(entreprise.entreprise_email)} ${entreprise.entreprise_telephone ? '· ' + echapper(entreprise.entreprise_telephone) : ''}
+        </div>
+      </div>
+      <div class="titre-doc">
+        <h1>${titre}</h1>
+        <div class="numero">N° ${echapper(numero)}</div>
+      </div>
+    </header>`;
+  const mentionsEmetteur = `
+    <p><strong>${echapper(entreprise.entreprise_raison_sociale)}</strong>${entreprise.entreprise_forme_juridique ? ' — ' + echapper(entreprise.entreprise_forme_juridique) : ''} —
+    SIRET&nbsp;: ${echapper(entreprise.entreprise_siret) || '—'}</p>
+    <p>${echapper(entreprise.entreprise_adresse)}${entreprise.entreprise_adresse ? ', ' : ''}${echapper(entreprise.entreprise_cp_ville)}</p>
+    <p>${echapper(entreprise.entreprise_mention_tva) || 'TVA non applicable, art. 293 B du CGI'}</p>`;
+
+  // Facture d'avoir (2026-11-22, migration 118) : montants en négatif, référence obligatoire à la
+  // facture corrigée (numéro et date), motif, et ce que devient la somme (déduite ou remboursée).
+  if (type === 'avoir') {
+    const f = doc.facture || {};
+    const negatif = (n) => '−' + euros(n);
+    document.title = `Avoir ${doc.numero} — Backoffice Plateforme-Agora`;
+    const suite = f.payee_le
+      ? `La facture n° ${echapper(f.numero)} ayant été réglée, le montant de cet avoir est remboursé par virement.`
+      : `Montant à déduire de la facture n° ${echapper(f.numero)}${f.reste_ttc > 0 ? ` : reste dû après avoir(s), ${euros(f.reste_ttc)}.` : ', désormais entièrement annulée : plus rien n\'est dû.'}`;
+    feuille.innerHTML = `
+      ${enteteEmetteur('FACTURE D\'AVOIR', doc.numero)}
+      <div class="meta">
+        <div class="dest">
+          <b>${echapper(doc.nom_destinataire)}</b>
+          <span>${echapper(doc.adresse_destinataire) || ''}</span>
+        </div>
+        <div class="meta__bloc" style="text-align:right">
+          <b>Date d'émission</b>${dateFr(doc.date_emission)}<br /><br />
+          <b>Facture d'origine</b>N° ${echapper(f.numero) || '—'} du ${dateFr(f.date_emission)}
+        </div>
+      </div>
+      <table class="lignes">
+        <thead><tr><th>Désignation</th><th class="montant">Montant HT</th></tr></thead>
+        <tbody>
+          <tr><td>${doc.type === 'total' ? 'Annulation totale' : 'Avoir partiel'} de la facture n° ${echapper(f.numero)}${f.objet ? ` — ${echapper(f.objet)}` : ''}
+            <br /><span style="color:var(--gris);font-size:12px">Motif : ${echapper(doc.motif)}</span></td>
+            <td class="montant">${negatif(doc.montant_ht)}</td></tr>
+        </tbody>
+      </table>
+      <div class="totaux">
+        <table>
+          <tr><td class="lib">Total HT</td><td class="val">${negatif(doc.montant_ht)}</td></tr>
+          ${doc.taux_tva > 0 ? `<tr><td class="lib">TVA (${doc.taux_tva}&nbsp;%)</td><td class="val">${negatif(doc.montant_ttc - doc.montant_ht)}</td></tr>` : ''}
+          <tr class="total"><td class="lib">Total de l'avoir TTC</td><td class="val">${negatif(doc.montant_ttc)}</td></tr>
+        </table>
+      </div>
+      <div class="mentions">
+        ${mentionsEmetteur}
+        <p><strong>Effet de l'avoir</strong> — ${suite}</p>
+        <p>Avoir adressé à une administration publique : à déposer sur Chorus Pro, en référence à la facture d'origine.</p>
+      </div>
+      <footer>${echapper(entreprise.entreprise_raison_sociale)} · plateforme-agora.fr</footer>
+    `;
+    return;
+  }
+
+  // Facture corrigée par un ou des avoirs : rappel à l'écran seulement (le PDF de la facture, lui,
+  // reste exactement celui qui a été émis).
+  if (type === 'facture' && doc.avoirs?.length) {
+    const rappel = document.createElement('div');
+    rappel.className = 'rappel-avoirs';
+    rappel.textContent = (doc.statut === 'annulee' ? 'Facture annulée par ' : 'Facture corrigée par ')
+      + doc.avoirs.map((a) => `l'avoir ${a.numero} (−${euros(a.montant_ttc)})`).join(', ')
+      + (doc.statut === 'annulee' ? '.' : ` : reste dû ${euros(doc.reste_ttc)}.`) + ' Ce rappel n\'apparaît pas à l\'impression.';
+    feuille.before(rappel);
   }
 
   document.title = `${type === 'facture' ? 'Facture' : 'Devis'} ${doc.numero} — Backoffice Plateforme-Agora`;

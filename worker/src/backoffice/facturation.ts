@@ -12,12 +12,15 @@ import { backofficeMiddleware, exigerAdmin, roleStaff } from '../middleware/back
 import { versCsv } from '../lib/csv';
 import { genererContratDpaHtml, CHAMPS_DPA, type CleDpa, type InfosDpa } from './contrat-dpa';
 import { TOUS_LES_ONGLETS, appliquerOngletsSurCommune, clorerDemandesFormule } from './administration';
+import { avecAvoirs, COLONNES_AVOIR, arrondi } from './avoirs';
 
 const app = new Hono();
 app.use('*', backofficeMiddleware);
 
 const STATUTS_DEVIS = ['envoye', 'accepte', 'refuse', 'expire'] as const;
+// « annulee » n'est jamais choisi à la main : seul un avoir couvrant tout le montant y mène.
 const STATUTS_FACTURE = ['emise', 'deposee_chorus', 'payee'] as const;
+const STATUTS_AVOIR = ['emis', 'depose_chorus', 'rembourse'] as const;
 
 const CLES_ENTREPRISE = [
   'entreprise_raison_sociale', 'entreprise_forme_juridique', 'entreprise_siret',
@@ -195,8 +198,8 @@ app.put('/contrat-dpa/:communeId', async (c) => {
 });
 
 // Numéro séquentiel SANS TROU par table et par année (ex. F-2026-0001) — obligation légale pour
-// les factures (Code de commerce), reprise ici pour les devis par cohérence.
-async function genererNumero(env: any, table: 'devis' | 'factures', prefixe: string): Promise<string> {
+// les factures (Code de commerce), reprise ici pour les devis par cohérence. Avoirs : A-2026-0001.
+async function genererNumero(env: any, table: 'devis' | 'factures' | 'avoirs', prefixe: string): Promise<string> {
   const annee = new Date().getFullYear();
   const base = `${prefixe}-${annee}-`;
   const [dernier] = await supabaseSelect(env, table, {
@@ -374,17 +377,32 @@ app.get('/factures', async (c) => {
   if (c.req.query('sans_commune') === '1') filtres.commune_id = 'is.null';
   else if (communeId) filtres.commune_id = `eq.${communeId}`;
   const factures = await supabaseSelect(c.env, 'factures', filtres);
-  return c.json({ factures });
+  return c.json({ factures: await avecAvoirs(c.env, factures) });
 });
 
 // GET /factures-export.csv — export de la vue "Toutes les factures" (mêmes colonnes que le
-// tableau backoffice), pour la compta.
+// tableau backoffice), pour la compta. Les avoirs y figurent aussi, en montants négatifs, avec
+// la facture qu'ils corrigent dans l'objet.
 app.get('/factures-export.csv', async (c) => {
-  const factures = await supabaseSelect(c.env, 'factures', {
-    select: 'numero,nom_destinataire,objet,montant_ht,taux_tva,montant_ttc,date_emission,date_echeance,statut',
-    order: 'created_at.desc', limit: '500',
-  });
-  const csv = versCsv(factures, [
+  const [factures, avoirs] = await Promise.all([
+    supabaseSelect(c.env, 'factures', {
+      select: 'id,numero,nom_destinataire,objet,montant_ht,taux_tva,montant_ttc,date_emission,date_echeance,statut',
+      order: 'created_at.desc', limit: '500',
+    }),
+    supabaseSelect(c.env, 'avoirs', { select: COLONNES_AVOIR, order: 'created_at.desc', limit: '500' }),
+  ]);
+  const numeroFacture = new Map(factures.map((f: any) => [f.id, f.numero]));
+  const lignes = [
+    ...factures.map((f: any) => ({ ...f, type: 'Facture' })),
+    ...avoirs.map((a: any) => ({
+      type: 'Avoir', numero: a.numero, nom_destinataire: a.nom_destinataire,
+      objet: `Avoir sur ${numeroFacture.get(a.facture_id) ?? 'facture'} — ${a.motif}`,
+      montant_ht: -Number(a.montant_ht), taux_tva: a.taux_tva, montant_ttc: -Number(a.montant_ttc),
+      date_emission: a.date_emission, date_echeance: '', statut: a.statut,
+    })),
+  ].sort((x: any, y: any) => String(y.date_emission).localeCompare(String(x.date_emission)));
+  const csv = versCsv(lignes, [
+    { cle: 'type', titre: 'Type' },
     { cle: 'numero', titre: 'N°' }, { cle: 'nom_destinataire', titre: 'Destinataire' },
     { cle: 'objet', titre: 'Objet' }, { cle: 'montant_ht', titre: 'Montant HT' },
     { cle: 'taux_tva', titre: 'TVA %' }, { cle: 'montant_ttc', titre: 'Montant TTC' },
@@ -402,7 +420,8 @@ app.get('/factures-export.csv', async (c) => {
 app.get('/factures/:id', async (c) => {
   const [facture] = await supabaseSelect(c.env, 'factures', { select: '*', id: `eq.${c.req.param('id')}` });
   if (!facture) return c.json({ erreur: 'Facture introuvable' }, 404);
-  return c.json({ facture });
+  const [avecSesAvoirs] = await avecAvoirs(c.env, [facture]);
+  return c.json({ facture: avecSesAvoirs });
 });
 
 const facturePatchSchema = z.object({ statut: z.enum(STATUTS_FACTURE) });
@@ -410,6 +429,11 @@ const facturePatchSchema = z.object({ statut: z.enum(STATUTS_FACTURE) });
 app.patch('/factures/:id', async (c) => {
   const body = facturePatchSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Statut invalide' }, 400);
+  const [actuelle] = await supabaseSelect(c.env, 'factures', { select: 'id,statut', id: `eq.${c.req.param('id')}` });
+  if (!actuelle) return c.json({ erreur: 'Facture introuvable' }, 404);
+  if (actuelle.statut === 'annulee') return c.json({ erreur: 'Facture annulée par avoir : son statut ne change plus.' }, 409);
+  // Déjà payée : ne rien refaire (sinon l'échéance de la commune avancerait une deuxième fois).
+  if (actuelle.statut === body.data.statut) return c.json({ ok: true, facture: actuelle });
   const patch: Record<string, unknown> = { statut: body.data.statut };
   if (body.data.statut === 'deposee_chorus') patch.deposee_chorus_le = new Date().toISOString();
   if (body.data.statut === 'payee') patch.payee_le = new Date().toISOString();
@@ -433,6 +457,92 @@ app.patch('/factures/:id', async (c) => {
     }
   }
   return c.json({ ok: true, facture: maj[0] });
+});
+
+// — Avoirs (2026-11-22, migration 118) —
+// POST /factures/:id/avoirs — annule tout ou partie d'une facture émise. montant_ttc absent = tout
+// ce qui reste dû. Une facture entièrement couverte passe « annulee ». Facture déjà payée puis
+// entièrement annulée : reculer_echeance défait l'avance d'échéance qu'avait faite le paiement.
+// Réservé à l'administrateur (document comptable).
+const avoirSchema = z.object({
+  montant_ttc: z.number().positive().max(1_000_000).optional(),
+  motif: z.string().trim().min(3, 'Indique le motif de l\'avoir.').max(500),
+  reculer_echeance: z.boolean().optional(),
+}).strict();
+
+app.post('/factures/:id/avoirs', exigerAdmin, async (c) => {
+  const body = avoirSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: body.error.issues[0]?.message ?? 'Données invalides' }, 400);
+  const [facture] = await supabaseSelect(c.env, 'factures', {
+    select: 'id,numero,commune_id,nom_destinataire,adresse_destinataire,montant_ttc,taux_tva,statut,payee_le,duree_engagement_mois',
+    id: `eq.${c.req.param('id')}`,
+  });
+  if (!facture) return c.json({ erreur: 'Facture introuvable' }, 404);
+  if (facture.statut === 'annulee') return c.json({ erreur: 'Cette facture est déjà entièrement annulée.' }, 400);
+
+  const [{ avoirs: deja, reste_ttc: reste }] = await avecAvoirs(c.env, [facture]);
+  if (reste <= 0) return c.json({ erreur: 'Cette facture est déjà entièrement couverte par des avoirs.' }, 400);
+  const montant = body.data.montant_ttc === undefined ? reste : arrondi(body.data.montant_ttc);
+  if (montant <= 0 || montant > reste) {
+    return c.json({ erreur: `L'avoir ne peut pas dépasser ce qui reste de la facture : ${reste.toLocaleString('fr-FR')} €.` }, 400);
+  }
+  const solde = montant === reste;
+  const taux = Number(facture.taux_tva) || 0;
+  const reculer = !!body.data.reculer_echeance && solde && !!facture.payee_le && !!facture.commune_id;
+  const maintenant = new Date().toISOString();
+
+  const [avoir] = await supabaseInsert(c.env, 'avoirs', {
+    numero: await genererNumero(c.env, 'avoirs', 'A'),
+    facture_id: facture.id, commune_id: facture.commune_id,
+    nom_destinataire: facture.nom_destinataire, adresse_destinataire: facture.adresse_destinataire,
+    motif: body.data.motif, type: !deja.length && solde ? 'total' : 'partiel',
+    montant_ht: arrondi(montant / (1 + taux / 100)), taux_tva: taux, montant_ttc: montant,
+    date_emission: maintenant.slice(0, 10), echeance_reculee: reculer, cree_par: c.get('staff_id') ?? null,
+  });
+  if (solde) await supabaseUpdate(c.env, 'factures', { statut: 'annulee', annulee_le: maintenant }, { id: `eq.${facture.id}` });
+  if (reculer) {
+    const [commune] = await supabaseSelect(c.env, 'communes', { select: 'prochaine_echeance', id: `eq.${facture.commune_id}` });
+    if (commune?.prochaine_echeance) {
+      const date = new Date(`${commune.prochaine_echeance}T12:00:00Z`);
+      date.setUTCMonth(date.getUTCMonth() - (facture.duree_engagement_mois || 12));
+      await supabaseUpdate(c.env, 'communes', { prochaine_echeance: date.toISOString().slice(0, 10) }, { id: `eq.${facture.commune_id}` });
+    }
+  }
+  await journaliser(c.env, c.get('staff_id'), 'avoir_emis',
+    `${avoir.numero} sur ${facture.numero} — ${montant} € TTC${solde ? ' (facture annulée)' : ''} — ${body.data.motif}`);
+  return c.json({ ok: true, avoir, facture_annulee: solde, echeance_reculee: reculer }, 201);
+});
+
+// GET /avoirs/:id — pour le PDF : l'avoir et la facture qu'il corrige (numéro, date, montant).
+app.get('/avoirs/:id', async (c) => {
+  const [avoir] = await supabaseSelect(c.env, 'avoirs', { select: COLONNES_AVOIR, id: `eq.${c.req.param('id')}` });
+  if (!avoir) return c.json({ erreur: 'Avoir introuvable' }, 404);
+  const [facture] = await supabaseSelect(c.env, 'factures', {
+    select: 'id,numero,objet,date_emission,montant_ttc,statut,payee_le,deposee_chorus_le', id: `eq.${avoir.facture_id}`,
+  });
+  const [avecSesAvoirs] = facture ? await avecAvoirs(c.env, [facture]) : [null];
+  return c.json({ avoir: { ...avoir, facture: avecSesAvoirs ? { ...avecSesAvoirs, avoirs: undefined } : null } });
+});
+
+// PATCH /avoirs/:id — suivi : déposé sur Chorus Pro, puis remboursé (seulement si la facture
+// d'origine avait été payée : sinon l'avoir réduit simplement ce qui reste à payer).
+const avoirPatchSchema = z.object({ statut: z.enum(STATUTS_AVOIR) }).strict();
+
+app.patch('/avoirs/:id', async (c) => {
+  const body = avoirPatchSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Statut invalide' }, 400);
+  const [avoir] = await supabaseSelect(c.env, 'avoirs', { select: 'id,numero,facture_id,statut', id: `eq.${c.req.param('id')}` });
+  if (!avoir) return c.json({ erreur: 'Avoir introuvable' }, 404);
+  if (body.data.statut === 'rembourse') {
+    const [facture] = await supabaseSelect(c.env, 'factures', { select: 'payee_le', id: `eq.${avoir.facture_id}` });
+    if (!facture?.payee_le) return c.json({ erreur: 'La facture n\'a pas été payée : rien à rembourser, l\'avoir réduit ce qui reste dû.' }, 400);
+  }
+  const patch: Record<string, unknown> = { statut: body.data.statut };
+  if (body.data.statut === 'depose_chorus') patch.deposee_chorus_le = new Date().toISOString();
+  if (body.data.statut === 'rembourse') patch.rembourse_le = new Date().toISOString();
+  const [maj] = await supabaseUpdate(c.env, 'avoirs', patch, { id: `eq.${avoir.id}` });
+  if (body.data.statut === 'rembourse') await journaliser(c.env, c.get('staff_id'), 'avoir_rembourse', avoir.numero);
+  return c.json({ ok: true, avoir: maj });
 });
 
 export default app;

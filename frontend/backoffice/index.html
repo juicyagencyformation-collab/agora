@@ -8,7 +8,7 @@
   <title>Backoffice Agora</title>
   <link rel="icon" href="/backoffice/logo.png?v=20260818-1" />
   <link rel="stylesheet" href="/backoffice/vendor/leaflet.css?v=20260818-1" />
-  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261120-2" />
+  <link rel="stylesheet" href="/backoffice/css/backoffice.css?v=20261122-1" />
 </head>
 <body>
   <div class="bo-app" x-data="backoffice()" x-init="init()"
@@ -53,6 +53,87 @@
         <div style="margin-top:8px"><a @click.prevent="deconnexion()" href="#">Se déconnecter</a></div>
       </div>
     </nav>
+
+    <!-- Fenêtre « Avoirs » d'une facture (2026-11-22, ouvrirAvoirs dans app.js, routes dans
+         facturation.ts) : historique et suivi des avoirs, puis un nouvel avoir, total ou partiel. -->
+    <div class="bo-palette bo-avoirs" x-show="avoirFenetre" x-cloak @keydown.escape.window="fermerAvoirs()">
+      <div class="bo-palette__fond" @click="fermerAvoirs()"></div>
+      <template x-if="avoirFenetre">
+        <div class="bo-avoirs__boite" role="dialog" aria-modal="true" aria-labelledby="titre-avoirs">
+          <div class="bo-avoirs__tete">
+            <div id="titre-avoirs" class="bo-titre" style="font-size:18px" x-text="'Avoirs · facture ' + avoirFenetre.facture.numero"></div>
+            <button type="button" class="bo-btn bo-btn--sec bo-btn--compact" @click="fermerAvoirs()" aria-label="Fermer">✕</button>
+          </div>
+          <div class="bo-info" x-text="avoirFenetre.facture.nom_destinataire + ' · ' + avoirFenetre.facture.objet"></div>
+          <div x-text="'Montant ' + euros(avoirFenetre.facture.montant_ttc)
+            + (avoirFenetre.facture.total_avoirs_ttc > 0 ? ' · avoirs −' + euros(avoirFenetre.facture.total_avoirs_ttc) + ' · reste ' + euros(resteFacture(avoirFenetre.facture)) : '')
+            + ' · ' + libelleStatutFacture(avoirFenetre.facture.statut) + (avoirFenetre.facture.payee_le ? ' (payée le ' + formatDate(avoirFenetre.facture.payee_le) + ')' : '')"></div>
+
+          <template x-if="(avoirFenetre.facture.avoirs || []).length">
+            <table>
+              <thead><tr><th>N°</th><th>Date</th><th>Montant</th><th>Motif</th><th>Suivi</th></tr></thead>
+              <tbody>
+                <template x-for="av in avoirFenetre.facture.avoirs" :key="av.id">
+                  <tr style="cursor:default">
+                    <td><a :href="'/backoffice/document?type=avoir&id=' + av.id" target="_blank" x-text="av.numero"></a></td>
+                    <td x-text="formatDate(av.date_emission)"></td>
+                    <td x-text="'−' + euros(av.montant_ttc)"></td>
+                    <td x-text="av.motif"></td>
+                    <td>
+                      <div x-text="libelleStatutAvoir(av.statut) + (av.echeance_reculee ? ' · échéance reculée' : '')"></div>
+                      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px">
+                        <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="av.statut === 'emis'" @click="changerStatutAvoir(av, 'depose_chorus')">Déposé sur Chorus Pro</button>
+                        <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="avoirFenetre.facture.payee_le && av.statut !== 'rembourse'" @click="changerStatutAvoir(av, 'rembourse')">Remboursé</button>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </template>
+
+          <template x-if="estAdmin() && avoirFenetre.facture.statut !== 'annulee' && resteFacture(avoirFenetre.facture) > 0">
+            <div class="bo-carte" style="padding:14px 16px; background:var(--bo-bg)">
+              <div class="bo-section-titre" style="margin-top:0">Nouvel avoir</div>
+              <label style="display:flex; align-items:center; gap:8px; margin:0 0 8px">
+                <input type="checkbox" x-model="avoirFenetre.partiel" style="width:auto; margin:0" />
+                Avoir partiel : seulement une partie de la facture
+              </label>
+              <div class="bo-info" x-show="!avoirFenetre.partiel" x-text="'Annule tout ce qui reste, ' + euros(resteFacture(avoirFenetre.facture)) + ' : la facture passe « annulée ».'"></div>
+              <div x-show="avoirFenetre.partiel">
+                <label>Montant de l'avoir (€ TTC, au plus <span x-text="euros(resteFacture(avoirFenetre.facture))"></span>)</label>
+                <input type="number" min="0.01" step="0.01" :max="resteFacture(avoirFenetre.facture)" x-model="avoirFenetre.montant" style="width:160px" />
+              </div>
+              <label>Motif</label>
+              <select x-model="avoirFenetre.motifChoix">
+                <option value="">Choisir…</option>
+                <template x-for="m in MOTIFS_AVOIR" :key="m"><option :value="m" x-text="m"></option></template>
+                <option value="autre">Autre (préciser)</option>
+              </select>
+              <textarea x-model="avoirFenetre.motifLibre" rows="2" maxlength="400" style="margin-top:6px"
+                        :placeholder="avoirFenetre.motifChoix && avoirFenetre.motifChoix !== 'autre' ? 'Précision (facultatif)' : 'Motif de l’avoir'"></textarea>
+              <template x-if="avoirFenetre.facture.payee_le">
+                <div>
+                  <div class="bo-info" style="margin-top:6px">Facture déjà payée : l'avoir sera à rembourser par virement (puis « Remboursé » ci-dessus).</div>
+                  <label style="display:flex; align-items:center; gap:8px; margin-top:6px" x-show="!avoirFenetre.partiel && avoirFenetre.facture.commune_id">
+                    <input type="checkbox" x-model="avoirFenetre.reculer" style="width:auto; margin:0" />
+                    Reculer l'échéance de la commune d'autant : le paiement l'avait avancée
+                  </label>
+                </div>
+              </template>
+              <div style="margin-top:10px">
+                <button class="bo-btn bo-btn--compact" @click="emettreAvoir()" :disabled="avoirFenetre.enCours">Émettre l'avoir</button>
+              </div>
+            </div>
+          </template>
+          <div class="bo-info" x-show="!estAdmin() && avoirFenetre.facture.statut !== 'annulee'">Les avoirs sont émis par le compte administrateur.</div>
+          <div class="bo-info" style="font-weight:600" x-show="avoirFenetre.msg" x-text="avoirFenetre.msg"></div>
+          <a class="bo-btn bo-btn--compact" style="align-self:flex-start" x-show="avoirFenetre.dernier" target="_blank"
+             :href="avoirFenetre.dernier ? '/backoffice/document?type=avoir&id=' + avoirFenetre.dernier.id : '#'"
+             x-text="avoirFenetre.dernier ? '📄 PDF de l’avoir ' + avoirFenetre.dernier.numero : ''"></a>
+        </div>
+      </template>
+    </div>
 
     <!-- Palette de recherche globale (Ctrl/Cmd+K) -->
     <div class="bo-palette" x-show="paletteOuverte" x-cloak @keydown.escape.window="fermerPalette()">
@@ -329,7 +410,7 @@
                   <tr @click="f.commune_id ? ouvrirFiche(f.commune_id) : null">
                     <td x-text="f.numero"></td>
                     <td x-text="f.nom_destinataire"></td>
-                    <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td><span x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></span><div class="bo-info" x-show="f.total_avoirs_ttc > 0" x-text="'avoir −' + euros(f.total_avoirs_ttc) + (f.statut === 'annulee' ? '' : ' · reste ' + euros(f.reste_ttc))"></div></td>
                     <td><span :class="classeEcheance(f.date_echeance)" x-text="formatDate(f.date_echeance)"></span></td>
                   </tr>
                 </template>
@@ -437,7 +518,7 @@
                       <tr @click="f.commune_id ? ouvrirFiche(f.commune_id) : null">
                         <td x-text="f.numero"></td>
                         <td x-text="f.nom_destinataire"></td>
-                        <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                        <td><span x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></span><div class="bo-info" x-show="f.total_avoirs_ttc > 0" x-text="'avoir −' + euros(f.total_avoirs_ttc) + (f.statut === 'annulee' ? '' : ' · reste ' + euros(f.reste_ttc))"></div></td>
                         <td><span :class="classeEcheance(f.date_echeance)" x-text="formatDate(f.date_echeance)"></span></td>
                         <td x-text="f.statut"></td>
                       </tr>
@@ -2371,16 +2452,17 @@
                     <td x-text="f.numero"></td>
                     <td x-text="f.nom_destinataire"></td>
                     <td x-text="f.objet"></td>
-                    <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td><span x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></span><div class="bo-info" x-show="f.total_avoirs_ttc > 0" x-text="'avoir −' + euros(f.total_avoirs_ttc) + (f.statut === 'annulee' ? '' : ' · reste ' + euros(f.reste_ttc))"></div></td>
                     <td x-text="formatDate(f.date_echeance)"></td>
                     <td>
-                      <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
+                      <span class="bo-statut bo-statut--perdu" x-show="f.statut === 'annulee'">Annulée (avoir)</span>
+<select x-show="f.statut !== 'annulee'" x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
                         <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
-                          <option :value="s" :selected="s === f.statut" x-text="s"></option>
+                          <option :value="s" :selected="s === f.statut" x-text="libelleStatutFacture(s)"></option>
                         </template>
                       </select>
                     </td>
-                    <td><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a></td>
+                    <td style="display:flex; gap:6px"><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a><button class="bo-btn bo-btn--sec bo-btn--compact" x-show="estAdmin() || (f.avoirs || []).length" @click="ouvrirAvoirs(f)" x-text="(f.avoirs || []).length ? 'Avoirs (' + f.avoirs.length + ')' : 'Avoir…'"></button></td>
                   </tr>
                 </template>
               </tbody>
@@ -2419,6 +2501,7 @@
               <option value="emise">Émise</option>
               <option value="deposee_chorus">Déposée Chorus Pro</option>
               <option value="payee">Payée</option>
+              <option value="annulee">Annulée (avoir)</option>
             </select>
             <input type="text" x-model="filtreFactureRecherche" placeholder="N°, destinataire, objet…" />
           </div>
@@ -2441,16 +2524,17 @@
                   <td x-text="f.numero"></td>
                   <td class="bo-nom-commune" x-text="f.nom_destinataire"></td>
                   <td x-text="f.objet"></td>
-                  <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                  <td><span x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></span><div class="bo-info" x-show="f.total_avoirs_ttc > 0" x-text="'avoir −' + euros(f.total_avoirs_ttc) + (f.statut === 'annulee' ? '' : ' · reste ' + euros(f.reste_ttc))"></div></td>
                   <td><span :class="classeEcheanceFacture(f)" x-text="f.date_echeance ? formatDate(f.date_echeance) : '—'"></span></td>
                   <td>
-                    <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
+                    <span class="bo-statut bo-statut--perdu" x-show="f.statut === 'annulee'">Annulée (avoir)</span>
+<select x-show="f.statut !== 'annulee'" x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
                       <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
-                        <option :value="s" :selected="s === f.statut" x-text="s"></option>
+                        <option :value="s" :selected="s === f.statut" x-text="libelleStatutFacture(s)"></option>
                       </template>
                     </select>
                   </td>
-                  <td><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a></td>
+                  <td style="display:flex; gap:6px"><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a><button class="bo-btn bo-btn--sec bo-btn--compact" x-show="estAdmin() || (f.avoirs || []).length" @click="ouvrirAvoirs(f)" x-text="(f.avoirs || []).length ? 'Avoirs (' + f.avoirs.length + ')' : 'Avoir…'"></button></td>
                 </tr>
               </template>
             </tbody>
@@ -3680,12 +3764,13 @@
             <!-- 4. Chorus Pro puis payée -->
             <template x-if="etapeAbonnement() === 3">
               <div>
-                <p style="margin:0 0 10px">Facture <b x-text="factureAPayer().numero"></b> (<span x-text="euros(Number(factureAPayer().montant_ttc))"></span>),
+                <p style="margin:0 0 10px">Facture <b x-text="factureAPayer().numero"></b> (<span x-text="factureAPayer().total_avoirs_ttc > 0 ? 'reste ' + euros(resteFacture(factureAPayer())) + ' après avoir' : euros(Number(factureAPayer().montant_ttc))"></span>),
                   <span x-text="factureAPayer().statut === 'deposee_chorus' ? 'déposée sur Chorus Pro : en attente du paiement.' : 'à déposer sur Chorus Pro (dépôt manuel du PDF).'"></span></p>
                 <div class="bo-abo__ligne">
                   <a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&amp;id=' + factureAPayer().id" target="_blank">📄 Facture (PDF)</a>
                   <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="factureAPayer().statut === 'emise'" @click="marquerFactureAbonnement('deposee_chorus')" :disabled="abo.enCours">Déposée sur Chorus Pro</button>
                   <button class="bo-btn bo-btn--compact" @click="marquerFactureAbonnement('payee')" :disabled="abo.enCours">💶 Payée</button>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="estAdmin()" @click="ouvrirAvoirs(factureAPayer())" title="Facture erronée ou à réduire : l'annuler en tout ou partie">Avoir…</button>
                 </div>
               </div>
             </template>
@@ -4008,16 +4093,17 @@
                   <tr style="cursor:default">
                     <td x-text="f.numero"></td>
                     <td x-text="f.objet"></td>
-                    <td x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></td>
+                    <td><span x-text="f.montant_ttc.toLocaleString('fr-FR') + ' €'"></span><div class="bo-info" x-show="f.total_avoirs_ttc > 0" x-text="'avoir −' + euros(f.total_avoirs_ttc) + (f.statut === 'annulee' ? '' : ' · reste ' + euros(f.reste_ttc))"></div></td>
                     <td x-text="formatDate(f.date_echeance)"></td>
                     <td>
-                      <select x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
+                      <span class="bo-statut bo-statut--perdu" x-show="f.statut === 'annulee'">Annulée (avoir)</span>
+<select x-show="f.statut !== 'annulee'" x-model="f.statut" @change="changerStatutFacture(f)" style="width:auto">
                         <template x-for="s in ['emise','deposee_chorus','payee']" :key="s">
-                          <option :value="s" :selected="s === f.statut" x-text="s"></option>
+                          <option :value="s" :selected="s === f.statut" x-text="libelleStatutFacture(s)"></option>
                         </template>
                       </select>
                     </td>
-                    <td><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a></td>
+                    <td style="display:flex; gap:6px"><a class="bo-btn bo-btn--sec bo-btn--compact" :href="'/backoffice/document?type=facture&id=' + f.id" target="_blank">Voir / PDF</a><button class="bo-btn bo-btn--sec bo-btn--compact" x-show="estAdmin() || (f.avoirs || []).length" @click="ouvrirAvoirs(f)" x-text="(f.avoirs || []).length ? 'Avoirs (' + f.avoirs.length + ')' : 'Avoir…'"></button></td>
                   </tr>
                 </template>
               </tbody>
@@ -4758,7 +4844,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261120-6"></script>
+  <script src="/backoffice/js/app.js?v=20261122-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

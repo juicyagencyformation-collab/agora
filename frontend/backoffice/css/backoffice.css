@@ -23,6 +23,14 @@
 /* — Palette de recherche globale (Ctrl/Cmd+K) — */
 .bo-palette { position: fixed; inset: 0; z-index: 100; display: flex; justify-content: center; padding-top: 12vh; }
 .bo-palette__fond { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.7); }
+/* Fenêtre « Avoirs » d'une facture (2026-11-22) : même fond que la palette, boîte plus large. */
+.bo-avoirs { padding: 8vh 16px 16px; }
+.bo-avoirs__boite {
+  position: relative; width: 100%; max-width: 720px; height: fit-content; max-height: 84vh; overflow-y: auto;
+  background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5); padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.bo-avoirs__tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .bo-palette__boite {
   position: relative; width: 100%; max-width: 520px; height: fit-content;
   background: var(--bo-surface); border: 1px solid var(--bo-border); border-radius: 12px;
