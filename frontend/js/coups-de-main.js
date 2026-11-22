@@ -119,38 +119,8 @@ function renderAnnonce(annonce) {
       }
 
       // Exprimer un intérêt : jamais pour sa propre annonce (déjà exclu ci-dessus côté HTML).
-      // Un seul envoi par personne (contrainte serveur) — le bouton se remplace par une
-      // confirmation après coup, sans recharger toute la liste.
       const zoneInteret = zoneDepliee.querySelector('.zone-interet-coup-de-main');
-      if (zoneInteret) {
-        zoneInteret.innerHTML = `
-          <button type="button" class="btn-interet-coup-de-main">🙋 Je suis intéressé(e)</button>
-          <div class="formulaire-interet-coup-de-main" hidden>
-            <textarea class="message-interet-coup-de-main" placeholder="Message pour l'auteur (optionnel) — vos coordonnées si vous voulez qu'on vous rappelle" maxlength="500"></textarea>
-            <button type="button" class="btn-envoyer-interet-coup-de-main">Envoyer</button>
-          </div>
-        `;
-        const btnOuvrir = zoneInteret.querySelector('.btn-interet-coup-de-main');
-        const formulaire = zoneInteret.querySelector('.formulaire-interet-coup-de-main');
-        btnOuvrir.addEventListener('click', () => { btnOuvrir.hidden = true; formulaire.hidden = false; });
-        zoneInteret.querySelector('.btn-envoyer-interet-coup-de-main').addEventListener('click', async (e) => {
-          const bouton = e.currentTarget;
-          bouton.disabled = true;
-          const message = zoneInteret.querySelector('.message-interet-coup-de-main').value.trim();
-          const res = await appelApi(`/${window.COMMUNE_SLUG}/coups-de-main/${annonce.id}/interet`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message || undefined }),
-          });
-          if (res.ok) {
-            zoneInteret.innerHTML = '<p class="detail-annonce">✓ Votre intérêt a été envoyé à l\'auteur.</p>';
-            afficherToastMessage('Intérêt envoyé !', 'succes');
-          } else {
-            const d = await res.json().catch(() => ({}));
-            afficherToastMessage(d.erreur || 'Échec de l\'envoi.', 'erreur');
-            bouton.disabled = false;
-          }
-        });
-      }
+      if (zoneInteret) dessinerInteret(zoneInteret, annonce);
 
       // Auteur (ou gestionnaire) : liste privée des personnes intéressées, jamais visible par
       // les autres citoyens (voir GET /:id/interets, réservé côté serveur).
@@ -239,4 +209,70 @@ function initReactionsAnnonce(zone, annonce) {
   }
 
   dessiner();
+}
+
+// Intérêt privé pour une annonce, trois états : bouton « Je suis intéressé(e) » → formulaire
+// (Envoyer / Annuler) → intérêt envoyé (message rappelé + Modifier / Retirer). Un seul intérêt
+// par personne (contrainte serveur) ; modifier ne renotifie pas l'auteur.
+function dessinerInteret(zone, annonce) {
+  const url = `/${window.COMMUNE_SLUG}/coups-de-main/${annonce.id}/interet`;
+  const envoye = annonce.mon_interet;
+
+  if (envoye) {
+    zone.innerHTML = `
+      <p class="detail-annonce">✓ Votre intérêt a été envoyé à l'auteur.</p>
+      ${envoye.message ? `<p class="detail-annonce message-interet-envoye">« ${escapeAttr(envoye.message)} »</p>` : ''}
+      <div class="actions-interet-coup-de-main">
+        <button type="button" data-action="modifier">✏️ Modifier</button>
+        <button type="button" data-action="retirer">Retirer</button>
+      </div>
+    `;
+    zone.querySelector('[data-action="modifier"]').addEventListener('click', () => afficherFormulaire(true));
+    zone.querySelector('[data-action="retirer"]').addEventListener('click', async () => {
+      if (!confirm('Retirer votre intérêt ? L’auteur ne le verra plus.')) return;
+      const res = await appelApi(url, { method: 'DELETE' });
+      if (!res.ok) { afficherToastMessage('Échec du retrait.', 'erreur'); return; }
+      annonce.mon_interet = null;
+      afficherToastMessage('Intérêt retiré.', 'succes');
+      dessinerInteret(zone, annonce);
+    });
+    return;
+  }
+
+  zone.innerHTML = '<button type="button" class="btn-interet-coup-de-main">🙋 Je suis intéressé(e)</button>';
+  zone.querySelector('.btn-interet-coup-de-main').addEventListener('click', () => afficherFormulaire(false));
+
+  function afficherFormulaire(modification) {
+    zone.innerHTML = `
+      <div class="formulaire-interet-coup-de-main">
+        <textarea class="message-interet-coup-de-main" placeholder="Message pour l'auteur (optionnel) — vos coordonnées si vous voulez qu'on vous rappelle" maxlength="500"></textarea>
+        <div class="actions-interet-coup-de-main">
+          <button type="button" class="btn-envoyer-interet-coup-de-main">${modification ? 'Enregistrer' : 'Envoyer'}</button>
+          <button type="button" data-action="annuler">Annuler</button>
+        </div>
+      </div>
+    `;
+    const champ = zone.querySelector('textarea');
+    champ.value = modification ? (annonce.mon_interet?.message || '') : '';
+    champ.focus();
+    zone.querySelector('[data-action="annuler"]').addEventListener('click', () => dessinerInteret(zone, annonce));
+    zone.querySelector('.btn-envoyer-interet-coup-de-main').addEventListener('click', async (e) => {
+      const bouton = e.currentTarget;
+      bouton.disabled = true;
+      const message = champ.value.trim();
+      const res = await appelApi(url, {
+        method: modification ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: message || undefined }),
+      });
+      if (res.ok) {
+        annonce.mon_interet = { message: message || null };
+        afficherToastMessage(modification ? 'Message modifié.' : 'Intérêt envoyé !', 'succes');
+        dessinerInteret(zone, annonce);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        afficherToastMessage(typeof d.erreur === 'string' ? d.erreur : 'Échec de l’envoi.', 'erreur');
+        bouton.disabled = false;
+      }
+    });
+  }
 }

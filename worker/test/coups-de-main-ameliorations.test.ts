@@ -207,3 +207,47 @@ describe('POST /:id/reactions', () => {
     ]);
   });
 });
+
+// Modifier / retirer son intérêt (2026-11-22) : uniquement le sien, jamais celui d'un autre.
+describe('PATCH et DELETE /:id/interet', () => {
+  function semer() {
+    db.coups_de_main.push({ id: 'a1', commune_id: 'c1', user_id: 'auteur', description: 'x' });
+    db.coups_de_main_interets.push({ id: 'i1', commune_id: 'c1', annonce_id: 'a1', user_id: 'voisin', message: 'Dispo samedi' });
+  }
+
+  it('modifie le message de son intérêt', async () => {
+    semer();
+    const res = await coupsDeMain.request('/a1/interet', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      ...(await cookiePour('c1', 'voisin')), body: JSON.stringify({ message: 'Plutôt dimanche' }),
+    }, ENV);
+    expect(res.status).toBe(200);
+    expect(db.coups_de_main_interets[0].message).toBe('Plutôt dimanche');
+  });
+
+  it('un autre citoyen ne peut ni modifier ni retirer un intérêt qui n\'est pas le sien', async () => {
+    semer();
+    const res = await coupsDeMain.request('/a1/interet', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      ...(await cookiePour('c1', 'curieux')), body: JSON.stringify({ message: 'piraté' }),
+    }, ENV);
+    expect(res.status).toBe(404);
+    const res2 = await coupsDeMain.request('/a1/interet', { method: 'DELETE', ...(await cookiePour('c1', 'curieux')) }, ENV);
+    expect(res2.status).toBe(404);
+    expect(db.coups_de_main_interets).toHaveLength(1);
+    expect(db.coups_de_main_interets[0].message).toBe('Dispo samedi');
+  });
+
+  it('retire son intérêt, et GET / indique mon_interet', async () => {
+    semer();
+    const avant = await (await coupsDeMain.request('/', { ...(await cookiePour('c1', 'voisin')) }, ENV)).json();
+    expect(avant.annonces[0].mon_interet).toEqual({ message: 'Dispo samedi' });
+
+    const res = await coupsDeMain.request('/a1/interet', { method: 'DELETE', ...(await cookiePour('c1', 'voisin')) }, ENV);
+    expect(res.status).toBe(200);
+    expect(db.coups_de_main_interets).toHaveLength(0);
+
+    const apres = await (await coupsDeMain.request('/', { ...(await cookiePour('c1', 'voisin')) }, ENV)).json();
+    expect(apres.annonces[0].mon_interet).toBeNull();
+  });
+});

@@ -62,21 +62,30 @@ app.get('/', async (c) => {
   if (!annonces.length) return c.json({ annonces: [] });
 
   const idsAuteurs = [...new Set(annonces.map((a: any) => a.user_id))];
-  const [auteurs, reactions] = await Promise.all([
+  const idsAnnonces = annonces.map((a: any) => a.id).join(',');
+  const [auteurs, reactions, mesInterets] = await Promise.all([
     supabaseSelect(c.env, 'users', {
       select: COLONNES_NOM_PUBLIC, commune_id: `eq.${commune_id}`, id: `in.(${idsAuteurs.join(',')})`,
     }),
     supabaseSelect(c.env, 'coups_de_main_reactions', {
       select: 'annonce_id,user_id,emoji', commune_id: `eq.${commune_id}`,
-      annonce_id: `in.(${annonces.map((a: any) => a.id).join(',')})`,
+      annonce_id: `in.(${idsAnnonces})`,
+    }),
+    // Son propre intérêt déjà exprimé : permet au client d'afficher « Modifier / Retirer »
+    // au lieu du bouton « Je suis intéressé(e) » (qui répondrait « déjà exprimé »).
+    supabaseSelect(c.env, 'coups_de_main_interets', {
+      select: 'annonce_id,message', commune_id: `eq.${commune_id}`,
+      user_id: `eq.${c.get('user_id')}`, annonce_id: `in.(${idsAnnonces})`,
     }),
   ]);
   const result = annonces.map((a: any) => {
     const auteur = auteurs.find((u: any) => u.id === a.user_id);
+    const monInteret = mesInterets.find((i: any) => i.annonce_id === a.id);
     return {
       ...a,
       ...(({ prenom: auteur_prenom, nom: auteur_nom }) => ({ auteur_prenom, auteur_nom }))(nomPublic(auteur, c.get('user_id'))),
       reactions: resumerReactions(reactions.filter((r: any) => r.annonce_id === a.id), c.get('user_id')),
+      mon_interet: monInteret ? { message: monInteret.message } : null,
     };
   });
 
@@ -293,6 +302,41 @@ app.post('/:id/interet', async (c) => {
   ));
 
   return c.json({ ok: true }, 201);
+});
+
+// PATCH /:id/interet — modifier le message de son propre intérêt. Pas de nouvelle notification
+// (l'auteur voit le message à jour dans sa liste) : modifier en boucle ne le harcèle pas.
+app.patch('/:id/interet', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const annonce_id = c.req.param('id');
+
+  const body = interetSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+
+  const [interet] = await supabaseSelect(c.env, 'coups_de_main_interets', {
+    select: 'id', commune_id: `eq.${commune_id}`, annonce_id: `eq.${annonce_id}`, user_id: `eq.${user_id}`,
+  });
+  if (!interet) return c.json({ erreur: 'Aucun intérêt à modifier' }, 404);
+
+  await supabaseUpdate(c.env, 'coups_de_main_interets', { message: body.data.message?.trim() || null },
+    { id: `eq.${interet.id}`, commune_id: `eq.${commune_id}` });
+  return c.json({ ok: true });
+});
+
+// DELETE /:id/interet — retirer son intérêt (l'auteur ne le voit plus dans sa liste).
+app.delete('/:id/interet', async (c) => {
+  const commune_id = c.get('commune_id');
+  const user_id = c.get('user_id');
+  const annonce_id = c.req.param('id');
+
+  const [interet] = await supabaseSelect(c.env, 'coups_de_main_interets', {
+    select: 'id', commune_id: `eq.${commune_id}`, annonce_id: `eq.${annonce_id}`, user_id: `eq.${user_id}`,
+  });
+  if (!interet) return c.json({ erreur: 'Aucun intérêt à retirer' }, 404);
+
+  await supabaseDelete(c.env, 'coups_de_main_interets', { id: `eq.${interet.id}`, commune_id: `eq.${commune_id}` });
+  return c.json({ ok: true });
 });
 
 // GET /:id/interets — réservé à l'auteur de l'annonce (ou un gestionnaire) : c'est la seule
