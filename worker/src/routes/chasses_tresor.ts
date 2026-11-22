@@ -677,9 +677,10 @@ export async function validerEtapeParPosition(c: any, commune_id: string, commun
 }
 
 // Hors classements (2026-11-22) : les comptes supprimés (anonymisés, « Compte supprimé » n'a rien
-// à faire dans un podium) et le superadmin (compte de la plateforme, pas un habitant).
+// à faire dans un podium). Jamais de filtre sur le rôle : un superadmin peut être un vrai habitant
+// qui joue (le compte de Léandre avait disparu du classement d'Eaucourt-sur-Somme).
 function joueurClassable(u: any): boolean {
-  return !u.compte_supprime_le && u.role !== 'superadmin';
+  return !u.compte_supprime_le;
 }
 
 // GET /classement-exploration — score combiné (étapes de chasse validées + énigmes trouvées),
@@ -687,7 +688,7 @@ function joueurClassable(u: any): boolean {
 app.get('/classement-exploration', async (c) => {
   const commune_id = c.get('commune_id');
   const users = await supabaseSelect(c.env, 'users', {
-    select: `${COLONNES_NOM_PUBLIC},role,etapes_chasse_validees,enigmes_trouvees`,
+    select: `${COLONNES_NOM_PUBLIC},etapes_chasse_validees,enigmes_trouvees`,
     commune_id: `eq.${commune_id}`,
   });
 
@@ -722,7 +723,7 @@ export async function classementChasse(env: any, commune_id: string, chasse_id: 
   });
   const idsJoueurs = [...new Set(progressions.map((p: any) => p.user_id))];
   const users = idsJoueurs.length ? await supabaseSelect(env, 'users', {
-    select: `${COLONNES_NOM_PUBLIC},role`,
+    select: COLONNES_NOM_PUBLIC,
     id: `in.(${idsJoueurs.join(',')})`,
   }) : [];
   const exclus = new Set(users.filter((u: any) => !joueurClassable(u)).map((u: any) => u.id));

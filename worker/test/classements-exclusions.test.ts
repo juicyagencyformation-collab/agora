@@ -1,5 +1,5 @@
 // worker/test/classements-exclusions.test.ts
-// Classements Explorer (2026-11-22) : ni comptes supprimés (anonymisés), ni superadmin.
+// Classements Explorer (2026-11-22) : pas de comptes supprimés ; un superadmin qui joue y reste.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { sign } from '@tsndr/cloudflare-worker-jwt';
 import chasses from '../src/routes/chasses_tresor';
@@ -81,14 +81,14 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('Classements sans comptes supprimés ni superadmin', () => {
+describe('Classements sans comptes supprimés', () => {
   it('classement Explorer', async () => {
     const { classement } = await (await appel(chasses, '/classement-exploration', 'GET', 'u1', 'citoyen')).json();
-    expect(classement.map((l: any) => l.score)).toEqual([22]);
+    expect(classement.map((l: any) => l.score)).toEqual([22, 3]);
   });
   it('classement d’une chasse', async () => {
     const { classement } = await (await appel(chasses, '/ch1/classement', 'GET', 'u1', 'citoyen')).json();
-    expect(classement).toHaveLength(1);
+    expect(classement).toHaveLength(2);
     expect(classement[0].prenom).toContain('Véro');
   });
 });
