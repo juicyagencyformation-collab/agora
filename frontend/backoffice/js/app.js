@@ -212,7 +212,7 @@ function backoffice() {
     // textarea), pas de structure imbriquée côté backoffice pour rester un simple formulaire.
     offresTexte: {
       offre_autonomie_label: '', offre_autonomie_titre: '', offre_autonomie_features: '',
-      offre_accompagne_label: '', offre_accompagne_titre: '', offre_accompagne_badge: '', offre_accompagne_features: '',
+      offre_accompagne_label: '', offre_accompagne_titre: '', offre_accompagne_features: '',
       offre_premium_label: '', offre_premium_titre: '', offre_premium_features: '',
     },
     offresTexteEnCours: false,

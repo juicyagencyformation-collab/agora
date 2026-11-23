@@ -110,10 +110,13 @@ export function calculerPrixFondateur(prix: number): number {
 export const DEFAUTS_OFFRES_TEXTE: Record<string, string> = {
   offre_autonomie_label: 'Autonomie',
   offre_autonomie_titre: 'Faire vivre le village et la mairie',
+  // Offre mise en avant (pastille + carte foncée) partout : site, plaquette, volet « Votre formule ».
+  // Passée d'Accompagné à Autonomie le 2026-11-23 (décision de Léandre : c'est la première marche
+  // payante) ; « Recommandé » plutôt que « Le plus demandé », affirmation de fait non vérifiable.
+  offre_autonomie_badge: 'Recommandé',
   offre_autonomie_features: 'Tous les onglets de l’application\nL’application à votre nom et à votre logo\nModération automatique des photos\nEspace associations\nSupport email\nValorisation du patrimoine en option, sur devis',
   offre_accompagne_label: 'Accompagné',
   offre_accompagne_titre: 'Accompagnement personnalisé',
-  offre_accompagne_badge: 'Le plus demandé',
   offre_accompagne_features: 'Tout Autonomie, plus :\nSupport prioritaire\nBilan mensuel de votre commune\nSuivi personnalisé de votre commune',
   offre_premium_label: 'Premium',
   offre_premium_titre: 'Patrimoine & découverte',
@@ -152,11 +155,11 @@ export function structurerOffresTexte(brut: Record<string, string>): Record<'aut
   return {
     autonomie: {
       label: brut.offre_autonomie_label, titre: brut.offre_autonomie_titre,
-      features: enListe(brut.offre_autonomie_features),
+      badge: brut.offre_autonomie_badge, features: enListe(brut.offre_autonomie_features),
     },
     accompagne: {
       label: brut.offre_accompagne_label, titre: brut.offre_accompagne_titre,
-      badge: brut.offre_accompagne_badge, features: enListe(brut.offre_accompagne_features),
+      features: enListe(brut.offre_accompagne_features),
     },
     premium: {
       label: brut.offre_premium_label, titre: brut.offre_premium_titre,

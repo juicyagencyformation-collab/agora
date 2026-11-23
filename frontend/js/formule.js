@@ -53,8 +53,8 @@ function htmlCarteOffre(infos, cle) {
   const offre = infos.offres[cle];
   const prix = infos.prix_annuels[cle];
   return `
-    <div class="carte-offre-formule ${cle === 'accompagne' ? 'mise-en-avant' : ''}">
-      ${cle === 'accompagne' && offre.badge ? `<span class="etiquette-offre-formule">${escapeAttr(offre.badge)}</span>` : ''}
+    <div class="carte-offre-formule ${cle === 'autonomie' ? 'mise-en-avant' : ''}">
+      ${cle === 'autonomie' && offre.badge ? `<span class="etiquette-offre-formule">${escapeAttr(offre.badge)}</span>` : ''}
       <span class="nom-offre-formule">${escapeAttr(offre.label)}</span>
       <span class="titre-offre-formule">${escapeAttr(offre.titre)}</span>
       ${infos.sur_devis ? '<span class="montant-offre-formule">Sur devis</span>'

@@ -798,6 +798,8 @@
               <input type="text" x-model="offresTexte.offre_autonomie_label" />
               <label>Accroche</label>
               <input type="text" x-model="offresTexte.offre_autonomie_titre" />
+              <label>Badge (offre mise en avant)</label>
+              <input type="text" x-model="offresTexte.offre_autonomie_badge" />
               <label>Fonctionnalités (une par ligne)</label>
               <textarea x-model="offresTexte.offre_autonomie_features" rows="4"></textarea>
 
@@ -806,8 +808,6 @@
               <input type="text" x-model="offresTexte.offre_accompagne_label" />
               <label>Accroche</label>
               <input type="text" x-model="offresTexte.offre_accompagne_titre" />
-              <label>Badge (mis en avant)</label>
-              <input type="text" x-model="offresTexte.offre_accompagne_badge" />
               <label>Fonctionnalités (une par ligne)</label>
               <textarea x-model="offresTexte.offre_accompagne_features" rows="4"></textarea>
 
@@ -835,7 +835,8 @@
                   <input type="range" min="50" max="8000" step="10" x-model.number="tarifApercuHabitants" class="pricing-slider" />
                 </div>
                 <div class="pricing-grid">
-                  <div class="pricing-card">
+                  <div class="pricing-card featured">
+                    <div class="pricing-badge" x-show="offresTexte.offre_autonomie_badge" x-text="offresTexte.offre_autonomie_badge"></div>
                     <div class="pricing-label" x-text="offresTexte.offre_autonomie_label"></div>
                     <div class="pricing-title" x-text="offresTexte.offre_autonomie_titre"></div>
                     <div class="pricing-amount"><span class="amount" x-text="formaterPrixApercu(calculerAutonomiePreview())"></span><span class="period"> / an</span></div>
@@ -843,8 +844,7 @@
                       <template x-for="f in featuresListe(offresTexte.offre_autonomie_features)" :key="f"><li x-text="f"></li></template>
                     </ul>
                   </div>
-                  <div class="pricing-card featured">
-                    <div class="pricing-badge" x-show="offresTexte.offre_accompagne_badge" x-text="offresTexte.offre_accompagne_badge"></div>
+                  <div class="pricing-card">
                     <div class="pricing-label" x-text="offresTexte.offre_accompagne_label"></div>
                     <div class="pricing-title" x-text="offresTexte.offre_accompagne_titre"></div>
                     <div class="pricing-amount"><span class="amount" x-text="formaterPrixApercu(calculerAccompagnePreview())"></span><span class="period"> / an</span></div>
@@ -4897,7 +4897,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261123-4"></script>
+  <script src="/backoffice/js/app.js?v=20261123-5"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

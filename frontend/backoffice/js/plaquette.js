@@ -232,15 +232,15 @@
         <div class="montant">0 € <small>sans limite de temps</small></div><div class="detail">sans carte bancaire</div>
         <ul>${libres.map((k) => `<li>✓ ${MODULES[k][0]}</li>`).join('')}<li>✓ Vos couleurs et votre nom</li></ul>
       </div>
-      <div class="offre payante">
+      <div class="offre vedette">
+        ${d.offres.autonomie.badge ? `<span class="badge">${echapper(d.offres.autonomie.badge)}</span>` : ''}
         <span class="nom">${echapper(d.offres.autonomie.label)}</span><h3>${echapper(d.offres.autonomie.titre)}</h3>
         ${prixPublic(t.autonomie, t.gratuite_a_vie)}
         <div class="detail" style="margin-top:4px"><b>Tout le gratuit, plus ${payants.length} modules :</b></div>
         <div class="modules">${payants.map((k) => `<span>${MODULES[k][0]}</span>`).join('')}</div>
         <ul>${offreTexte(d.offres.autonomie)}</ul>
       </div>
-      <div class="offre vedette">
-        ${d.offres.accompagne.badge ? `<span class="badge">${echapper(d.offres.accompagne.badge)}</span>` : ''}
+      <div class="offre payante">
         <span class="nom">${echapper(d.offres.accompagne.label)}</span><h3>${echapper(d.offres.accompagne.titre)}</h3>
         ${prixPublic(t.accompagne, false)}
         <ul>${offreTexte(d.offres.accompagne)}</ul>
