@@ -6,7 +6,7 @@ import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
 import { gardeEspaceExplorateurs } from './middleware/explorateurs';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs, purgerEchangesProspection } from './cron';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs, purgerEchangesProspection, fermerOngletsOfferts } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 import { purgerHabitantsInactifs } from './lib/comptes-inactifs';
@@ -200,6 +200,7 @@ export default {
         purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire,
         relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection,
         synchroniserEmailsRecusProspection, purgerTentativesConnexion, purgerDoubleAuthentification,
+        fermerOngletsOfferts,
       ]);
       // rafraichirContenuDemoBonvivre(env) désactivé le 2026-10-07 sur demande explicite — voir
       // la mémoire "Cron dates démo bonvivre" pour le pourquoi et comment le réactiver proprement.

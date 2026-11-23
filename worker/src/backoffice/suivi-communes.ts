@@ -10,6 +10,7 @@ import { backofficeMiddleware } from '../middleware/backoffice';
 import { z } from 'zod';
 import { supabaseSelect, supabaseSelectTout, supabaseCount, supabaseUpsert, journaliser } from '../db';
 import { infosContratDpa } from './facturation';
+import { LIBELLES_ONGLETS } from './convention-document';
 import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
 import { FORMULES_SOUHAITEES, JOURS_VALIDITE_DEMANDE } from '../lib/formule-commune';
 
@@ -172,11 +173,34 @@ async function anomaliesDemandesFormule(env: any): Promise<Anomalie[]> {
   });
 }
 
+// Onglets offerts par une convention (migration 119) qui se ferment dans les 30 jours : appeler la
+// mairie pour proposer l'abonnement. Sans abonnement, le cron les ferme le lendemain de la date.
+const JOURS_RAPPEL_OFFRE = 30;
+async function anomaliesOngletsOfferts(env: any): Promise<Anomalie[]> {
+  const limite = new Date(Date.now() + JOURS_RAPPEL_OFFRE * 86400000).toISOString().slice(0, 10);
+  const onglets = await supabaseSelect(env, 'onglets_config', {
+    select: 'commune_id,cle,offert_jusqu_au', offert_jusqu_au: `lte.${limite}`, actif: 'eq.true',
+  }).catch(() => [] as any[]);
+  if (!onglets.length) return [];
+  const ids = [...new Set(onglets.map((o: any) => o.commune_id as string))];
+  const communes = await supabaseSelect(env, 'communes', { select: 'id,nom,slug', id: `in.(${ids.join(',')})` });
+  return ids.map((id) => {
+    const cm = communes.find((x: any) => x.id === id);
+    const siens = onglets.filter((o: any) => o.commune_id === id);
+    const fin = siens.map((o: any) => o.offert_jusqu_au).sort()[0];
+    const date = new Date(fin + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    return {
+      code: 'offre_fin_proche', gravite: 'moyenne' as const, commune_id: id, commune_nom: cm?.nom ?? null, commune_slug: cm?.slug ?? null,
+      message: `🎁 Onglets offerts (${siens.map((o: any) => LIBELLES_ONGLETS[o.cle] ?? o.cle).join(', ')}) jusqu'au ${date} : appeler la mairie pour proposer l'abonnement, sinon ils se ferment seuls le lendemain.`,
+    };
+  });
+}
+
 app.get('/anomalies', async (c) => {
-  const demandesFormule = await anomaliesDemandesFormule(c.env);
+  const [demandesFormule, offresFinProche] = await Promise.all([anomaliesDemandesFormule(c.env), anomaliesOngletsOfferts(c.env)]);
   const communes = await communesSuivies(c.env);
   const ids = communes.map((cm: any) => cm.id);
-  if (!ids.length) return c.json({ anomalies: demandesFormule });
+  if (!ids.length) return c.json({ anomalies: [...demandesFormule, ...offresFinProche] });
   const [conventions, dpas] = await Promise.all([
     supabaseSelect(c.env, 'conventions', { select: 'commune_id,statut,created_at', commune_id: `in.(${ids.join(',')})` }),
     Promise.all(ids.map((id: string) => infosContratDpa(c.env, id))),
@@ -193,7 +217,7 @@ app.get('/anomalies', async (c) => {
     code: 'plafond_inscriptions', gravite: 'haute', commune_id: null, commune_nom: null, commune_slug: null,
     message: `Plafond d'inscriptions atteint (${p.details}) le ${new Date(p.created_at).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })} : robots ou vrai lancement ? Les inscriptions reprennent seules après une heure.`,
   }));
-  return c.json({ anomalies: [...demandesFormule, ...alertesInscriptions, ...detecterAnomalies(communes, conventions, dpaManquants)] });
+  return c.json({ anomalies: [...demandesFormule, ...alertesInscriptions, ...offresFinProche, ...detecterAnomalies(communes, conventions, dpaManquants)] });
 });
 
 // Liste de démarrage d'une commune (chaque étape se coche d'elle-même dès qu'elle est faite) et son

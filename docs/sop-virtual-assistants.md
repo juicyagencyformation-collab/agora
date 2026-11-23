@@ -301,6 +301,8 @@ Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app p
 
 ⚠️ Le texte de la convention est celui validé par Léandre. Depuis le 2026-11-20, **seul Léandre** (compte administrateur) peut le réécrire pour une commune : « ✏️ Modifier le texte » dans l'aperçu, avant signature (le bloc des signatures et le DPA restent automatiques). Une fois le texte personnalisé, les champs de la fiche ne le modifient plus : en cas de changement, prévenir Léandre. Joindre le contrat DPA (annexe 1). Ne jamais attribuer un numéro de commune fondatrice ni marquer une convention signée sans l'accord de Léandre.
 
+**Première année offerte à la carte** (depuis le 2026-11-23, Fay-les-Étangs et Tourly uniquement) : sous la case « Première année offerte », les onglets cochés sont offerts 12 mois en plus de la version gratuite, et la convention le dit d'elle-même. Aucune case cochée = accès complet offert. « 🎁 Mettre en service l'offre » (Léandre seulement) ouvre ces onglets avec leur date de fin, visible dans « Forfait & stockage » (« 🎁 offert jusqu'au … »). Un rappel apparaît dans Aujourd'hui → Anomalies 30 jours avant la fin : prévenir Léandre, qui appelle la mairie. Sans abonnement, les onglets offerts se ferment seuls le lendemain de la date de fin, et la commune repasse au forfait Gratuit. Un préréglage d'onglets ou un abonnement activé efface ces dates : plus rien ne se ferme seul.
+
 ### 6.12 Contrat DPA (sous-traitance RGPD)
 
 1. Fiche commune → « 📄 Générer le contrat DPA ». Le panneau de droite liste les informations à compléter ; chaque trou du contrat est en rouge avec son nom (ex. « [● DPO de la commune] ») et un clic dessus ouvre le bon champ.

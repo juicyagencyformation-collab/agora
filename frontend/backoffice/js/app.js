@@ -248,6 +248,8 @@ function backoffice() {
     // — Convention « Commune fondatrice » de la fiche ouverte — voir creerConvention()
     convention: null,
     conventionNumerosPris: [],
+    conventionOngletsGratuits: [], // palier gratuit : seuls les autres onglets peuvent être « offerts »
+    miseEnServiceDebut: '',
     conventionEnCours: false,
     conventionMsg: '',
     // — Lien d'accord du maire (accord de sous-traitance RGPD sans compte) — voir demanderAccordMaire()
@@ -524,6 +526,7 @@ function backoffice() {
             const rc = await boFetch('/conventions/commune/' + communeId);
             this.convention = this.conventionPourFormulaire(rc.convention);
             this.conventionNumerosPris = rc.numeros_pris;
+            this.conventionOngletsGratuits = rc.onglets_gratuits || [];
           } catch { this.convention = null; }
           // Le prix fondateur de la convention (ex. 188,50 €) prime sur le barème : recalcul une fois chargée.
           this.initAbonnement();
@@ -2964,7 +2967,7 @@ function backoffice() {
     },
     conventionPourFormulaire(c) {
       if (!c) return null;
-      return { ...c, option_reconduction: c.option_reconduction || '',
+      return { ...c, option_reconduction: c.option_reconduction || '', onglets_offerts: c.onglets_offerts || [],
         citation_autorisee: c.citation_autorisee === null || c.citation_autorisee === undefined ? '' : String(c.citation_autorisee) };
     },
     async creerConvention() {
@@ -2975,6 +2978,7 @@ function backoffice() {
         const rc = await boFetch('/conventions/commune/' + this.fiche.commune.id);
         this.convention = this.conventionPourFormulaire(rc.convention);
         this.conventionNumerosPris = rc.numeros_pris;
+        this.conventionOngletsGratuits = rc.onglets_gratuits || [];
       } catch (e) { alert(e.message || 'Création impossible'); }
       finally { this.conventionEnCours = false; }
     },
@@ -3009,6 +3013,8 @@ function backoffice() {
       corps.prix_annuel_fondateur = c.prix_annuel_fondateur === '' || c.prix_annuel_fondateur === null || c.prix_annuel_fondateur === undefined
         ? null : Math.round(Number(c.prix_annuel_fondateur) * 100) / 100;
       corps.conditions_particulieres = (c.conditions_particulieres || '').trim() || null;
+      // Offre à la carte : aucune case cochée = accès complet offert (enregistré null).
+      corps.onglets_offerts = c.premiere_annee_offerte && c.onglets_offerts?.length ? c.onglets_offerts : null;
       if (['signee', 'annulee'].includes(c.statut) && !confirm(c.statut === 'signee'
         ? 'Marquer la convention comme signée ? Le lien de la secrétaire cessera de fonctionner.'
         : 'Annuler la convention ? Son numéro de commune fondatrice sera libéré et le lien de la secrétaire désactivé.')) {
@@ -3020,6 +3026,40 @@ function backoffice() {
         this.convention = this.conventionPourFormulaire(r.convention);
         this.conventionMsg = 'Enregistré.';
       } catch (e) { this.conventionMsg = e.message || 'Échec de l\'enregistrement'; }
+      finally { this.conventionEnCours = false; }
+    },
+    // — Offre « première année offerte » à la carte (2026-11-23, migration 119) —
+    ongletsPayants() {
+      return Object.keys(LABELS_ONGLET).filter((cle) => !this.conventionOngletsGratuits.includes(cle));
+    },
+    basculerOngletOffert(cle) {
+      const l = this.convention.onglets_offerts || [];
+      this.convention.onglets_offerts = l.includes(cle) ? l.filter((k) => k !== cle) : [...l, cle];
+    },
+    libellesOngletsOfferts() {
+      const l = this.convention?.onglets_offerts || [];
+      return l.length ? l.map((cle) => this.libelleOnglet(cle)).join(', ') : 'accès complet';
+    },
+    // Onglets de la commune qui portent aujourd'hui une date de fin d'offre (posée par la mise en service).
+    ongletsOffertsEnCours() {
+      return this.ongletsCommune.filter((o) => o.offert_jusqu_au && o.actif);
+    },
+    async mettreEnServiceOffre() {
+      const debut = this.miseEnServiceDebut || new Date().toISOString().slice(0, 10);
+      if (!confirm(`Mettre en service l'offre à partir du ${this.formatDate(debut)} ?
+
+`
+        + `Onglets offerts 12 mois : ${this.libellesOngletsOfferts()} (tel qu'enregistré sur la convention), en plus de la version gratuite. `
+        + 'Les autres onglets payants se ferment. Sans abonnement, les onglets offerts se fermeront seuls le lendemain de la fin.')) return;
+      this.conventionEnCours = true;
+      this.conventionMsg = '';
+      try {
+        const r = await boFetch('/conventions/' + this.convention.id + '/mettre-en-service', { method: 'POST', body: JSON.stringify({ debut }) });
+        this.conventionMsg = `Offre en service : ${r.onglets_offerts.map((cle) => this.libelleOnglet(cle)).join(', ')} jusqu'au ${this.formatDate(r.offert_jusqu_au)} inclus. Envoie le mail de confirmation de mise en service à la mairie.`;
+        try { this.ongletsCommune = (await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets')).onglets; } catch {}
+        await this.rafraichirCompteursCommune();
+        this.forfaitNom = this.fiche.commune.forfait || '';
+      } catch (e) { this.conventionMsg = e.message || 'Mise en service impossible'; }
       finally { this.conventionEnCours = false; }
     },
     elementsConvention() {

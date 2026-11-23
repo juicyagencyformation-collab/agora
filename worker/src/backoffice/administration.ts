@@ -52,9 +52,11 @@ export async function chargerOngletsGratuits(env: any): Promise<string[]> {
 // autres. Avant le 2026-11-03 : une lecture puis une requête par onglet (~15) quand la commune
 // avait déjà ses lignes, et une coupure en route laissait une moitié des onglets modifiée.
 // Exportée : réutilisée par prospection.ts, onboarding.ts et routes/decouverte.ts.
+// Efface aussi toute date « offert jusqu'au » (migration 119) : après un préréglage ou l'activation
+// d'un abonnement, plus aucun onglet ne doit se fermer tout seul (voir conventions.ts, mettre-en-service).
 export async function appliquerOngletsSurCommune(env: any, communeId: string, ongletsActifs: string[]): Promise<void> {
   await supabaseUpsert(env, 'onglets_config', TOUS_LES_ONGLETS.map((cle) => ({
-    commune_id: communeId, cle, actif: ongletsActifs.includes(cle),
+    commune_id: communeId, cle, actif: ongletsActifs.includes(cle), offert_jusqu_au: null,
   })), 'commune_id,cle');
 }
 
@@ -2080,7 +2082,7 @@ app.post('/communes/:id/onglets/preset', async (c) => {
 // création de la commune — même logique que GET /:slug/moderation/onglets côté citoyen).
 app.get('/communes/:id/onglets', async (c) => {
   const id = c.req.param('id');
-  const onglets = await supabaseSelect(c.env, 'onglets_config', { select: 'cle,actif', commune_id: `eq.${id}` });
+  const onglets = await supabaseSelect(c.env, 'onglets_config', { select: 'cle,actif,offert_jusqu_au', commune_id: `eq.${id}` });
   const clesExistantes = new Set(onglets.map((o: any) => o.cle));
   const completes = [
     ...onglets,

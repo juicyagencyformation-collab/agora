@@ -1,5 +1,5 @@
 // worker/src/cron.ts
-import { supabaseDelete, supabaseSelect, supabaseSelectTout, supabaseUpdate } from './db';
+import { supabaseDelete, supabaseSelect, supabaseSelectTout, supabaseUpdate, journaliser } from './db';
 import { deleteObject } from './storage';
 import { romprePresenceCitoyenne, verifierSuspensionNoShow, crediterOrganisationAction } from './lib/points-citoyens';
 import { envoyerEmailEcheance } from './backoffice/email-commune';
@@ -192,6 +192,27 @@ export async function cloturerActionsCiviques(env: any) {
     for (const event of eventsTermines) {
       await crediterOrganisationAction(env, commune.id, event);
     }
+  }
+}
+
+// Onglets offerts par une convention « première année offerte » (migration 119) : fermés le lendemain
+// de leur date « offert jusqu'au » (dernier jour inclus). Une commune qui s'est abonnée entre-temps
+// n'a plus de date (appliquerOngletsSurCommune les efface) et n'est donc jamais touchée. Si l'offre
+// était tout ce qui la distinguait du gratuit (Fondateur sans prix), elle repasse au forfait Gratuit :
+// elle suit alors les changements du palier gratuit comme les autres communes gratuites.
+export async function fermerOngletsOfferts(env: any) {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const expires = await supabaseSelect(env, 'onglets_config', {
+    select: 'commune_id,cle', offert_jusqu_au: `lt.${aujourdhui}`,
+  });
+  if (!expires.length) return;
+  await supabaseUpdate(env, 'onglets_config', { actif: false, offert_jusqu_au: null }, { offert_jusqu_au: `lt.${aujourdhui}` });
+  const communes = [...new Set(expires.map((o: any) => o.commune_id as string))];
+  await supabaseUpdate(env, 'communes', { forfait: 'Gratuit' }, {
+    id: `in.(${communes.join(',')})`, forfait: 'eq.Fondateur', prix_annuel_ttc: 'is.null',
+  });
+  for (const id of communes) {
+    await journaliser(env, null, 'onglets_offerts_fermes', `${id} — ${expires.filter((o: any) => o.commune_id === id).map((o: any) => o.cle).join(', ')}`);
   }
 }
 
