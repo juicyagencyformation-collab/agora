@@ -1876,7 +1876,8 @@ const abonnementSchema = z.object({
   prix_annuel_ttc: z.number().min(0).nullable().optional(),
   duree_engagement_mois: z.union([z.literal(12), z.literal(36)]).optional(),
   prochaine_echeance: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  formule: z.enum(['autonomie', 'accompagne', 'premium']).nullable().optional(),
+  // 'gratuit' : fondatrice en formule gratuite (convention, migration 120) — ni bilan ni modération IA.
+  formule: z.enum(['gratuit', 'autonomie', 'accompagne', 'premium']).nullable().optional(),
 });
 
 app.patch('/communes/:id/abonnement', async (c) => {
@@ -1886,7 +1887,7 @@ app.patch('/communes/:id/abonnement', async (c) => {
   if (Object.keys(body.data).length === 0) return c.json({ erreur: 'Aucun champ à mettre à jour' }, 400);
 
   await supabaseUpdate(c.env, 'communes', body.data, { id: `eq.${id}` });
-  if (body.data.formule) await clorerDemandesFormule(c.env, id);
+  if (body.data.formule && body.data.formule !== 'gratuit') await clorerDemandesFormule(c.env, id);
   return c.json({ ok: true });
 });
 

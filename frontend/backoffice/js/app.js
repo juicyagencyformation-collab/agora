@@ -2552,7 +2552,7 @@ function backoffice() {
       return null;
     },
     libelleFormule(formule) {
-      return { autonomie: 'Autonomie', accompagne: 'Accompagné', premium: 'Premium' }[formule] || 'Personnalisé';
+      return { gratuit: 'Gratuit', autonomie: 'Autonomie', accompagne: 'Accompagné', premium: 'Premium' }[formule] || 'Personnalisé';
     },
     // Aperçu live du tiroir tarification — population test, pas celle d'une commune réelle.
     calculerAutonomiePreview() {
@@ -2963,11 +2963,13 @@ function backoffice() {
 
     // Prix fondateur exact de la commune ouverte : offre Autonomie du barème actuel − 35 %, au centime.
     prixFondateurExact() {
-      return Math.round(this.calculerPrixAutonomie(this.fiche?.commune.population) * 0.65 * 100) / 100;
+      const hab = this.fiche?.commune.population;
+      const prix = this.convention?.formule === 'accompagne' ? this.calculerPrixAccompagne(hab) : this.calculerPrixAutonomie(hab);
+      return Math.round(prix * 0.65 * 100) / 100;
     },
     conventionPourFormulaire(c) {
       if (!c) return null;
-      return { ...c, option_reconduction: c.option_reconduction || '', onglets_offerts: c.onglets_offerts || [],
+      return { ...c, formule: c.formule || 'autonomie', option_reconduction: c.option_reconduction || '', onglets_offerts: c.onglets_offerts || [],
         citation_autorisee: c.citation_autorisee === null || c.citation_autorisee === undefined ? '' : String(c.citation_autorisee) };
     },
     async creerConvention() {
@@ -3008,13 +3010,14 @@ function backoffice() {
         'option_reconduction', 'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee'];
       const corps = Object.fromEntries(champs.map((k) => [k, c[k] ?? null]));
       corps.citation_autorisee = c.citation_autorisee === '' ? null : c.citation_autorisee === 'true';
-      corps.premiere_annee_offerte = !!c.premiere_annee_offerte;
+      corps.formule = c.formule || 'autonomie';
+      // Formule gratuite : pas de « première année offerte » (accès complet) mais des onglets offerts.
+      corps.premiere_annee_offerte = c.formule !== 'gratuit' && !!c.premiere_annee_offerte;
       // Vide = pas de prix inscrit (la convention dit alors « grille du site − 35 % »).
       corps.prix_annuel_fondateur = c.prix_annuel_fondateur === '' || c.prix_annuel_fondateur === null || c.prix_annuel_fondateur === undefined
         ? null : Math.round(Number(c.prix_annuel_fondateur) * 100) / 100;
       corps.conditions_particulieres = (c.conditions_particulieres || '').trim() || null;
-      // Offre à la carte : aucune case cochée = accès complet offert (enregistré null).
-      corps.onglets_offerts = c.premiere_annee_offerte && c.onglets_offerts?.length ? c.onglets_offerts : null;
+      corps.onglets_offerts = c.formule === 'gratuit' && c.onglets_offerts?.length ? c.onglets_offerts : null;
       if (['signee', 'annulee'].includes(c.statut) && !confirm(c.statut === 'signee'
         ? 'Marquer la convention comme signée ? Le lien de la secrétaire cessera de fonctionner.'
         : 'Annuler la convention ? Son numéro de commune fondatrice sera libéré et le lien de la secrétaire désactivé.')) {
@@ -3028,7 +3031,8 @@ function backoffice() {
       } catch (e) { this.conventionMsg = e.message || 'Échec de l\'enregistrement'; }
       finally { this.conventionEnCours = false; }
     },
-    // — Offre « première année offerte » à la carte (2026-11-23, migration 119) —
+    // — Offre de la convention (2026-11-23, migrations 119-120) : formule gratuite + onglets offerts
+    // reconduits tacitement, ou première année offerte d'une formule payante —
     ongletsPayants() {
       return Object.keys(LABELS_ONGLET).filter((cle) => !this.conventionOngletsGratuits.includes(cle));
     },
@@ -3038,28 +3042,64 @@ function backoffice() {
     },
     libellesOngletsOfferts() {
       const l = this.convention?.onglets_offerts || [];
-      return l.length ? l.map((cle) => this.libelleOnglet(cle)).join(', ') : 'accès complet';
+      return l.length ? l.map((cle) => this.libelleOnglet(cle)).join(', ') : 'aucun onglet';
+    },
+    offreAMettreEnService() {
+      const c = this.convention;
+      return !!c && (c.formule === 'gratuit' || !!c.premiere_annee_offerte);
     },
     // Onglets de la commune qui portent aujourd'hui une date de fin d'offre (posée par la mise en service).
     ongletsOffertsEnCours() {
       return this.ongletsCommune.filter((o) => o.offert_jusqu_au && o.actif);
     },
+    texteMiseEnService() {
+      const c = this.convention || {};
+      if (c.formule !== 'gratuit') return 'Ouvre tous les onglets pour 12 mois (première année offerte). Rappel dans Anomalies 30 jours avant la fin ; sans abonnement, retour au gratuit le lendemain.';
+      if (!c.onglets_offerts?.length) return 'Ouvre la version gratuite seule (aucun onglet offert coché).';
+      return `Ouvre la version gratuite + ${this.libellesOngletsOfferts()} pour 12 mois, reconduits tacitement 3 fois (enregistre d'abord la convention si tu viens de changer les cases). Les autres onglets payants se ferment ; rappel dans Anomalies 90 jours avant chaque reconduction.`;
+    },
+    etatReconduction() {
+      const c = this.convention || {};
+      if (c.formule !== 'gratuit') return 'Sans abonnement, fermeture automatique le lendemain.';
+      if (c.offre_non_reconduite) return '⏹ Reconduction refusée : les onglets offerts se fermeront le lendemain.';
+      if ((c.offre_reconductions || 0) >= 3) return '⏹ 4 ans atteints : les onglets offerts se fermeront le lendemain.';
+      return `🔁 Reconduction tacite de 12 mois le lendemain (${(c.offre_reconductions || 0) + 1}/3). Pour l'arrêter : prévenir la mairie par mail au moins 2 mois avant, puis « Ne pas reconduire ».`;
+    },
     async mettreEnServiceOffre() {
+      const c = this.convention;
       const debut = this.miseEnServiceDebut || new Date().toISOString().slice(0, 10);
-      if (!confirm(`Mettre en service l'offre à partir du ${this.formatDate(debut)} ?
-
-`
-        + `Onglets offerts 12 mois : ${this.libellesOngletsOfferts()} (tel qu'enregistré sur la convention), en plus de la version gratuite. `
-        + 'Les autres onglets payants se ferment. Sans abonnement, les onglets offerts se fermeront seuls le lendemain de la fin.')) return;
+      const quoi = c.formule === 'gratuit'
+        ? `Version gratuite + ${this.libellesOngletsOfferts()} offerts 12 mois, reconduits tacitement (tel qu'enregistré sur la convention). Les autres onglets payants se ferment.`
+        : 'Tous les onglets offerts 12 mois. Sans abonnement, ils se fermeront seuls le lendemain de la fin.';
+      if (!confirm(`Mettre en service l'offre à partir du ${this.formatDate(debut)} ?\n\n${quoi}`)) return;
       this.conventionEnCours = true;
       this.conventionMsg = '';
       try {
-        const r = await boFetch('/conventions/' + this.convention.id + '/mettre-en-service', { method: 'POST', body: JSON.stringify({ debut }) });
-        this.conventionMsg = `Offre en service : ${r.onglets_offerts.map((cle) => this.libelleOnglet(cle)).join(', ')} jusqu'au ${this.formatDate(r.offert_jusqu_au)} inclus. Envoie le mail de confirmation de mise en service à la mairie.`;
+        const r = await boFetch('/conventions/' + c.id + '/mettre-en-service', { method: 'POST', body: JSON.stringify({ debut }) });
+        this.conventionMsg = r.offert_jusqu_au
+          ? `Offre en service : ${r.onglets_offerts.map((cle) => this.libelleOnglet(cle)).join(', ')} jusqu'au ${this.formatDate(r.offert_jusqu_au)} inclus. Envoie le mail de confirmation de mise en service à la mairie.`
+          : 'Version gratuite en service. Envoie le mail de confirmation de mise en service à la mairie.';
+        c.offre_reconductions = 0;
+        c.offre_non_reconduite = false;
         try { this.ongletsCommune = (await boFetch('/administration/communes/' + this.fiche.commune.id + '/onglets')).onglets; } catch {}
         await this.rafraichirCompteursCommune();
         this.forfaitNom = this.fiche.commune.forfait || '';
       } catch (e) { this.conventionMsg = e.message || 'Mise en service impossible'; }
+      finally { this.conventionEnCours = false; }
+    },
+    // Refus de reconduction notifié (par la mairie ou par toi, 2 mois avant) : modifiable même après signature.
+    async basculerReconduction() {
+      const c = this.convention;
+      const refus = !c.offre_non_reconduite;
+      if (!confirm(refus
+        ? 'Ne pas reconduire l\'offre ? Les onglets offerts se fermeront le lendemain de leur date de fin.\n\nLa mairie doit en être prévenue par mail au moins 2 mois avant.'
+        : 'Reprendre la reconduction tacite des onglets offerts ?')) return;
+      this.conventionEnCours = true;
+      try {
+        const r = await boFetch('/conventions/' + c.id, { method: 'PATCH', body: JSON.stringify({ offre_non_reconduite: refus }) });
+        this.convention = this.conventionPourFormulaire(r.convention);
+        this.conventionMsg = refus ? 'Reconduction arrêtée.' : 'Reconduction tacite rétablie.';
+      } catch (e) { this.conventionMsg = e.message || 'Échec'; }
       finally { this.conventionEnCours = false; }
     },
     elementsConvention() {
@@ -3069,9 +3109,9 @@ function backoffice() {
         { libelle: 'Numéro de commune fondatrice', fait: rempli(c.numero_fondatrice) },
         { libelle: 'Signataire', fait: rempli(c.signataire_nom) },
         { libelle: 'Délibération (numéro et date)', fait: rempli(c.deliberation_reference) && rempli(c.deliberation_date) },
-        { libelle: 'Option de reconduction', fait: rempli(c.option_reconduction) },
+        { libelle: 'Option de reconduction', fait: rempli(c.option_reconduction), facultatif: c.formule === 'gratuit' },
         { libelle: 'SIRET de la commune', fait: rempli(c.siret_commune) },
-        { libelle: 'Email de facturation', fait: rempli(c.facturation_email) },
+        { libelle: 'Email de facturation', fait: rempli(c.facturation_email), facultatif: c.formule === 'gratuit' },
         { libelle: 'Accord pour citer la commune', fait: rempli(c.citation_autorisee) },
         { libelle: 'Code service Chorus Pro', fait: rempli(c.code_service_chorus), facultatif: true },
         { libelle: 'Date de mise en service souhaitée', fait: rempli(c.date_debut_souhaitee), facultatif: true },

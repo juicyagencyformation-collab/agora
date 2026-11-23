@@ -3660,7 +3660,7 @@
                 <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0; min-width:160px">
                   <input type="checkbox" :checked="o.actif" @change="toggleOngletCommune(o)" style="width:auto" />
                   <span x-text="libelleOnglet(o.cle)"></span>
-                  <span class="bo-info" x-show="o.offert_jusqu_au && o.actif" x-text="'🎁 offert jusqu'au ' + formatDate(o.offert_jusqu_au)"></span>
+                  <span class="bo-info" x-show="o.offert_jusqu_au && o.actif" x-text="'🎁 offert jusqu’au ' + formatDate(o.offert_jusqu_au)"></span>
                 </label>
               </template>
             </div>
@@ -3861,6 +3861,7 @@
                 <label style="margin-top:0">Formule</label>
                 <select x-model="fiche.commune.formule" style="width:auto">
                   <option value="">Personnalisé</option>
+                  <option value="gratuit">Gratuit (convention fondatrice)</option>
                   <option value="autonomie">Autonomie</option>
                   <option value="accompagne">Accompagné</option>
                   <option value="premium">Premium</option>
@@ -3870,7 +3871,7 @@
                 <input type="checkbox" x-model="premiumPremiereAnnee" style="width:auto" /> 1re année (chasse au trésor incluse)
               </label>
             </div>
-            <div class="bo-info" style="margin-bottom:10px" x-show="fiche.commune.formule">
+            <div class="bo-info" style="margin-bottom:10px" x-show="fiche.commune.formule && fiche.commune.formule !== 'gratuit'">
               Prix suggéré pour <span x-text="fiche.commune.population || 0"></span> hab. :
               <strong x-text="formaterPrixApercu(calculerPrixFormule(fiche.commune.formule, fiche.commune.population, premiumPremiereAnnee))"></strong> TTC/an
               <button class="bo-btn bo-btn--sec bo-btn--compact" @click="appliquerTarifFormule()" style="margin-left:8px">Appliquer ce tarif</button>
@@ -3916,8 +3917,9 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap">
                   <div>
                     <span class="bo-statut" :class="'bo-statut--' + ({ brouillon: 'a_contacter', envoyee: 'relance', signee: 'gagne', annulee: 'perdu' })[convention.statut]" x-text="({ brouillon: 'Brouillon', envoyee: 'Envoyée', signee: 'Signée', annulee: 'Annulée' })[convention.statut]"></span>
-                    <span class="bo-statut bo-statut--gagne" x-show="convention.premiere_annee_offerte">1re année offerte</span>
-                    <span class="bo-statut" x-show="convention.premiere_annee_offerte && convention.onglets_offerts?.length" x-text="'À la carte : ' + libellesOngletsOfferts()"></span>
+                    <span class="bo-statut" x-text="libelleFormule(convention.formule || 'autonomie')"></span>
+                    <span class="bo-statut bo-statut--gagne" x-show="convention.formule !== 'gratuit' && convention.premiere_annee_offerte">1re année offerte</span>
+                    <span class="bo-statut bo-statut--gagne" x-show="convention.formule === 'gratuit' && convention.onglets_offerts?.length" x-text="'Offerts : ' + libellesOngletsOfferts()"></span>
                     <span class="bo-statut" x-show="convention.prix_annuel_fondateur" x-text="Number(convention.prix_annuel_fondateur).toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' € / an'"></span>
                     <span class="bo-info" style="margin-left:8px" x-text="'Commune fondatrice n° ' + (convention.numero_fondatrice || '?') + ' / 10' + (convention.signee_le ? ' · signée le ' + formatDate(convention.signee_le) : '') + (convention.envoyee_le && !convention.signee_le ? ' · envoyée le ' + formatDate(convention.envoyee_le) : '')"></span>
                     <span class="bo-statut bo-statut--relance" x-show="convention.texte_personnalise_le" title="Texte réécrit à la main : les champs ci-dessous ne le modifient plus">✏️ Texte personnalisé</span>
@@ -3948,17 +3950,23 @@
                   </template>
                 </div>
 
-                <!-- Mise en service de l'offre (conventions.ts, /:id/mettre-en-service) : onglets offerts datés, fermés seuls par le cron -->
-                <div class="bo-carte" style="padding:12px 14px; background:var(--bo-bg)" x-show="convention.premiere_annee_offerte && convention.statut !== 'annulee'">
+                <!-- Mise en service de l'offre (conventions.ts, /:id/mettre-en-service) : onglets offerts datés ;
+                     le cron les reconduit (formule gratuite, tacite) ou les ferme le lendemain de la date -->
+                <div class="bo-carte" style="padding:12px 14px; background:var(--bo-bg)" x-show="offreAMettreEnService() && convention.statut !== 'annulee'">
                   <div style="font-weight:600; margin-bottom:4px">🎁 Mise en service de l'offre</div>
                   <template x-if="ongletsOffertsEnCours().length">
-                    <div class="bo-info" style="margin-bottom:6px" x-text="'En service : ' + ongletsOffertsEnCours().map(o => libelleOnglet(o.cle)).join(', ') + ' offert(s) jusqu'au ' + formatDate(ongletsOffertsEnCours()[0].offert_jusqu_au) + ' inclus, fermeture automatique le lendemain sans abonnement.'"></div>
+                    <div style="margin-bottom:6px">
+                      <div class="bo-info" x-text="'En service : ' + ongletsOffertsEnCours().map(o => libelleOnglet(o.cle)).join(', ') + ' offert(s) jusqu’au ' + formatDate(ongletsOffertsEnCours()[0].offert_jusqu_au) + ' inclus.'"></div>
+                      <div class="bo-info" x-text="etatReconduction()"></div>
+                    </div>
                   </template>
-                  <div class="bo-info" style="margin-bottom:6px" x-show="!ongletsOffertsEnCours().length">Ouvre la version gratuite + <b x-text="libellesOngletsOfferts()"></b> pour 12 mois (enregistre d'abord la convention si tu viens de changer les cases). Les autres onglets payants se ferment ; un rappel apparaît dans Anomalies 30 jours avant la fin.</div>
+                  <div class="bo-info" style="margin-bottom:6px" x-show="!ongletsOffertsEnCours().length" x-text="texteMiseEnService()"></div>
                   <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap" x-show="estAdmin()">
                     <label style="margin:0; font-size:13px">À partir du</label>
                     <input type="date" x-model="miseEnServiceDebut" style="width:auto" />
                     <button class="bo-btn bo-btn--sec bo-btn--compact" @click="mettreEnServiceOffre()" :disabled="conventionEnCours" x-text="ongletsOffertsEnCours().length ? 'Remettre en service' : 'Mettre en service'"></button>
+                    <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="convention.formule === 'gratuit' && ongletsOffertsEnCours().length" @click="basculerReconduction()" :disabled="conventionEnCours"
+                            x-text="convention.offre_non_reconduite ? '🔁 Reprendre la reconduction' : '⏹ Ne pas reconduire'"></button>
                   </div>
                 </div>
 
@@ -3989,9 +3997,15 @@
                     <div class="bo-champ-inline"><label>Statut</label>
                       <select x-model="convention.statut"><option value="brouillon">Brouillon</option><option value="envoyee">Envoyée</option><option value="signee">Signée</option><option value="annulee">Annulée</option></select></div>
                     <div class="bo-champ-inline" x-show="convention.statut === 'signee'"><label>Signée le</label><input type="date" x-model="convention.signee_le" /></div>
-                    <label style="grid-column:1/-1; display:flex; align-items:center; gap:8px; font-size:13px; margin:4px 0"><input type="checkbox" x-model="convention.premiere_annee_offerte" style="width:auto; margin:0" /> Première année offerte (accord exceptionnel)</label>
-                    <div style="grid-column:1/-1; margin:0 0 6px 24px" x-show="convention.premiere_annee_offerte">
-                      <div class="bo-info" style="margin-bottom:4px">Onglets offerts 12 mois, en plus de la version gratuite. <b>Aucune case cochée = accès complet offert.</b></div>
+                    <div class="bo-champ-inline"><label>Formule</label>
+                      <select x-model="convention.formule">
+                        <option value="gratuit">Gratuit + onglets offerts</option>
+                        <option value="autonomie">Autonomie</option>
+                        <option value="accompagne">Accompagné</option>
+                      </select></div>
+                    <label style="grid-column:1/-1; display:flex; align-items:center; gap:8px; font-size:13px; margin:4px 0" x-show="convention.formule !== 'gratuit'"><input type="checkbox" x-model="convention.premiere_annee_offerte" style="width:auto; margin:0" /> Première année offerte (accès complet 12 mois, puis abonnement)</label>
+                    <div style="grid-column:1/-1; margin:0 0 6px 0" x-show="convention.formule === 'gratuit'">
+                      <div class="bo-info" style="margin-bottom:4px">Onglets payants offerts en plus de la version gratuite : 12 mois, reconduits tacitement 3 fois (4 ans au maximum).</div>
                       <div style="display:flex; flex-wrap:wrap; gap:4px 16px">
                         <template x-for="cle in ongletsPayants()" :key="cle">
                           <label style="display:flex; align-items:center; gap:6px; font-weight:400; font-size:13px; margin:0">
@@ -4001,11 +4015,11 @@
                         </template>
                       </div>
                     </div>
-                    <div class="bo-champ-inline" style="grid-column:1/-1"><label>Prix fondateur inscrit dans cette convention (€ par an, offre Autonomie)</label>
+                    <div class="bo-champ-inline" style="grid-column:1/-1"><label x-text="'Prix fondateur inscrit dans cette convention (€ par an, offre ' + (convention.formule === 'accompagne' ? 'Accompagné' : 'Autonomie') + (convention.formule === 'gratuit' ? ', si la commune s’abonne' : '') + ')'"></label>
                       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
                         <input type="number" min="0" step="0.01" x-model="convention.prix_annuel_fondateur" placeholder="vide = « grille du site − 35 % »" style="width:220px" />
                         <button type="button" class="bo-btn bo-btn--sec bo-btn--compact" @click="convention.prix_annuel_fondateur = prixFondateurExact()"
-                                x-text="'Calculer : Autonomie − 35 % = ' + prixFondateurExact().toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €'"></button>
+                                x-text="'Calculer : ' + (convention.formule === 'accompagne' ? 'Accompagné' : 'Autonomie') + ' − 35 % = ' + prixFondateurExact().toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' €'"></button>
                       </div>
                     </div>
                     <div class="bo-champ-inline" style="grid-column:1/-1"><label>Conditions particulières (ajoutées telles quelles en article 6 ; une ligne vide = nouveau paragraphe)</label>
@@ -4871,7 +4885,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261123-1"></script>
+  <script src="/backoffice/js/app.js?v=20261123-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

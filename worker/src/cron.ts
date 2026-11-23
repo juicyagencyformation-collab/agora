@@ -11,6 +11,7 @@ import { synchroniserEmailsRecus } from './backoffice/emails-recus';
 import { envoyerBilansMensuels } from './lib/bilan-mensuel';
 import { anonymiserComptes } from './auth';
 import { SLUG_EXPLORATEURS } from './middleware/explorateurs';
+import { peutReconduireOffre, prolongerDouzeMois, RECONDUCTIONS_MAX } from './backoffice/conventions';
 
 export async function nettoyerCoupsDeMainExpires(env: any) {
   const seuil = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
@@ -195,23 +196,45 @@ export async function cloturerActionsCiviques(env: any) {
   }
 }
 
-// Onglets offerts par une convention « première année offerte » (migration 119) : fermés le lendemain
-// de leur date « offert jusqu'au » (dernier jour inclus). Une commune qui s'est abonnée entre-temps
-// n'a plus de date (appliquerOngletsSurCommune les efface) et n'est donc jamais touchée. Si l'offre
-// était tout ce qui la distinguait du gratuit (Fondateur sans prix), elle repasse au forfait Gratuit :
-// elle suit alors les changements du palier gratuit comme les autres communes gratuites.
+// Onglets offerts par une convention fondatrice (migrations 119-120), le lendemain de leur date
+// « offert jusqu'au » (dernier jour inclus) :
+// - formule gratuite, reconduction possible (peutReconduireOffre) : prolongés de 12 mois (tacite) ;
+// - sinon : fermés. Si l'offre était tout ce qui la distinguait du gratuit (Fondateur sans prix), la
+//   commune repasse au forfait Gratuit et suit alors les changements du palier gratuit.
+// Une commune abonnée entre-temps n'a plus de date (appliquerOngletsSurCommune les efface).
 export async function fermerOngletsOfferts(env: any) {
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const expires = await supabaseSelect(env, 'onglets_config', {
-    select: 'commune_id,cle', offert_jusqu_au: `lt.${aujourdhui}`,
+    select: 'commune_id,cle,offert_jusqu_au', offert_jusqu_au: `lt.${aujourdhui}`,
   });
   if (!expires.length) return;
-  await supabaseUpdate(env, 'onglets_config', { actif: false, offert_jusqu_au: null }, { offert_jusqu_au: `lt.${aujourdhui}` });
   const communes = [...new Set(expires.map((o: any) => o.commune_id as string))];
-  await supabaseUpdate(env, 'communes', { forfait: 'Gratuit' }, {
-    id: `in.(${communes.join(',')})`, forfait: 'eq.Fondateur', prix_annuel_ttc: 'is.null',
+  const conventions = await supabaseSelect(env, 'conventions', {
+    select: 'id,commune_id,formule,statut,offre_non_reconduite,offre_reconductions', commune_id: `in.(${communes.join(',')})`, statut: 'neq.annulee',
   });
-  for (const id of communes) {
+  const conventionDe = (id: string) => conventions.find((cv: any) => cv.commune_id === id);
+  const aReconduire = communes.filter((id) => peutReconduireOffre(conventionDe(id)));
+  const aFermer = communes.filter((id) => !aReconduire.includes(id));
+
+  for (const id of aReconduire) {
+    const conv = conventionDe(id);
+    const siens = expires.filter((o: any) => o.commune_id === id);
+    for (const date of new Set(siens.map((o: any) => o.offert_jusqu_au as string))) {
+      await supabaseUpdate(env, 'onglets_config', { offert_jusqu_au: prolongerDouzeMois(date) }, { commune_id: `eq.${id}`, offert_jusqu_au: `eq.${date}` });
+    }
+    const n = (conv.offre_reconductions ?? 0) + 1;
+    await supabaseUpdate(env, 'conventions', { offre_reconductions: n, updated_at: new Date().toISOString() }, { id: `eq.${conv.id}` });
+    await journaliser(env, null, 'offre_reconduite', `${id} — reconduction ${n}/${RECONDUCTIONS_MAX} : ${siens.map((o: any) => o.cle).join(', ')}`);
+  }
+
+  if (!aFermer.length) return;
+  await supabaseUpdate(env, 'onglets_config', { actif: false, offert_jusqu_au: null }, {
+    commune_id: `in.(${aFermer.join(',')})`, offert_jusqu_au: `lt.${aujourdhui}`,
+  });
+  await supabaseUpdate(env, 'communes', { forfait: 'Gratuit' }, {
+    id: `in.(${aFermer.join(',')})`, forfait: 'eq.Fondateur', prix_annuel_ttc: 'is.null',
+  });
+  for (const id of aFermer) {
     await journaliser(env, null, 'onglets_offerts_fermes', `${id} — ${expires.filter((o: any) => o.commune_id === id).map((o: any) => o.cle).join(', ')}`);
   }
 }

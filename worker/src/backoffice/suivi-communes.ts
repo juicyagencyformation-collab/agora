@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseSelectTout, supabaseCount, supabaseUpsert, journaliser } from '../db';
 import { infosContratDpa } from './facturation';
 import { LIBELLES_ONGLETS } from './convention-document';
+import { peutReconduireOffre, RECONDUCTIONS_MAX } from './conventions';
 import { SLUGS_COMMUNES_TEST } from '../lib/communes-test';
 import { FORMULES_SOUHAITEES, JOURS_VALIDITE_DEMANDE } from '../lib/formule-commune';
 
@@ -173,26 +174,52 @@ async function anomaliesDemandesFormule(env: any): Promise<Anomalie[]> {
   });
 }
 
-// Onglets offerts par une convention (migration 119) qui se ferment dans les 30 jours : appeler la
-// mairie pour proposer l'abonnement. Sans abonnement, le cron les ferme le lendemain de la date.
+// Onglets offerts par une convention fondatrice (migrations 119-120) arrivant à leur date de fin :
+// - reconduction tacite à venir (formule gratuite) : rappel entre J-90 et J-60, tant qu'un refus peut
+//   encore être notifié à la mairie (préavis de 2 mois) ;
+// - fermeture à venir (offre non reconductible, refusée ou 4 ans atteints) : rappel dans les 30 jours,
+//   pour appeler la mairie et proposer l'abonnement.
+// Règle pure, testable sans base.
+export function anomalieFinOffre(conv: any, fin: string, noms: string[], maintenant = Date.now()): { message: string; gravite: Anomalie['gravite'] } | null {
+  const jours = Math.ceil((new Date(fin + 'T23:59:59Z').getTime() - maintenant) / 86400000);
+  const date = (iso: string) => new Date(iso + 'T12:00:00Z').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' });
+  const liste = noms.join(', ');
+  if (peutReconduireOffre(conv)) {
+    if (jours > 90 || jours <= 60) return null;
+    const limite = new Date(fin + 'T12:00:00Z');
+    limite.setUTCMonth(limite.getUTCMonth() - 2);
+    return {
+      gravite: 'info',
+      message: `🔁 Onglets offerts (${liste}) jusqu'au ${date(fin)} : reconduits automatiquement pour 12 mois (reconduction ${(conv.offre_reconductions ?? 0) + 1}/${RECONDUCTIONS_MAX}). Pour arrêter : prévenir la mairie par mail avant le ${date(limite.toISOString().slice(0, 10))}, puis « Ne pas reconduire » sur la convention.`,
+    };
+  }
+  if (jours > JOURS_RAPPEL_OFFRE) return null;
+  return {
+    gravite: 'moyenne',
+    message: `🎁 Onglets offerts (${liste}) jusqu'au ${date(fin)}${conv?.formule === 'gratuit' ? (conv.offre_non_reconduite ? ', offre non reconduite' : ', fin des 4 ans') : ''} : appeler la mairie pour proposer l'abonnement, sinon ils se ferment seuls le lendemain.`,
+  };
+}
+
 const JOURS_RAPPEL_OFFRE = 30;
 async function anomaliesOngletsOfferts(env: any): Promise<Anomalie[]> {
-  const limite = new Date(Date.now() + JOURS_RAPPEL_OFFRE * 86400000).toISOString().slice(0, 10);
+  const limite = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
   const onglets = await supabaseSelect(env, 'onglets_config', {
     select: 'commune_id,cle,offert_jusqu_au', offert_jusqu_au: `lte.${limite}`, actif: 'eq.true',
   }).catch(() => [] as any[]);
   if (!onglets.length) return [];
   const ids = [...new Set(onglets.map((o: any) => o.commune_id as string))];
-  const communes = await supabaseSelect(env, 'communes', { select: 'id,nom,slug', id: `in.(${ids.join(',')})` });
-  return ids.map((id) => {
+  const [communes, conventions] = await Promise.all([
+    supabaseSelect(env, 'communes', { select: 'id,nom,slug', id: `in.(${ids.join(',')})` }),
+    supabaseSelect(env, 'conventions', {
+      select: 'commune_id,formule,statut,offre_non_reconduite,offre_reconductions', commune_id: `in.(${ids.join(',')})`, statut: 'neq.annulee',
+    }),
+  ]);
+  return ids.flatMap((id) => {
     const cm = communes.find((x: any) => x.id === id);
     const siens = onglets.filter((o: any) => o.commune_id === id);
     const fin = siens.map((o: any) => o.offert_jusqu_au).sort()[0];
-    const date = new Date(fin + 'T12:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-    return {
-      code: 'offre_fin_proche', gravite: 'moyenne' as const, commune_id: id, commune_nom: cm?.nom ?? null, commune_slug: cm?.slug ?? null,
-      message: `🎁 Onglets offerts (${siens.map((o: any) => LIBELLES_ONGLETS[o.cle] ?? o.cle).join(', ')}) jusqu'au ${date} : appeler la mairie pour proposer l'abonnement, sinon ils se ferment seuls le lendemain.`,
-    };
+    const a = anomalieFinOffre(conventions.find((cv: any) => cv.commune_id === id), fin, siens.map((o: any) => LIBELLES_ONGLETS[o.cle] ?? o.cle));
+    return a ? [{ code: 'offre_fin_proche', gravite: a.gravite, commune_id: id, commune_nom: cm?.nom ?? null, commune_slug: cm?.slug ?? null, message: a.message }] : [];
   });
 }
 

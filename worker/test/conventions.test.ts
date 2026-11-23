@@ -7,6 +7,7 @@ import { sign } from '@tsndr/cloudflare-worker-jwt';
 import { routesStaff, routesFormulaire } from '../src/backoffice/conventions';
 import { genererConventionHtml, LIBELLES_ONGLETS } from '../src/backoffice/convention-document';
 import { fermerOngletsOfferts } from '../src/cron';
+import { anomalieFinOffre } from '../src/backoffice/suivi-communes';
 import { TOUS_LES_ONGLETS } from '../src/backoffice/administration';
 
 type Ligne = Record<string, any>;
@@ -177,28 +178,42 @@ describe('document', () => {
     expect(offerte).not.toMatch(/1 €|euro versé/);
     expect(offerte).not.toContain('<th>Abonnement fondateur</th>');
   });
-  it('offre à la carte : version gratuite + onglets offerts, jamais « tous les onglets »', () => {
+  it('formule gratuite : version gratuite + onglets offerts reconduits tacitement, aucune facture', () => {
     const gratuits = ['actualites', 'alertes', 'agenda', 'chasse_tresor', 'enigmes'];
-    const html = genererConventionHtml({ ...base, option_reconduction: 'tacite', premiere_annee_offerte: true, onglets_offerts: ['coups_de_main', 'mur'] },
+    const html = genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: ['coups_de_main', 'mur'] },
       { nom: 'Tourly', slug: 'tourly' }, '60', entreprise, Object.keys(LIBELLES_ONGLETS), gratuits);
-    expect(html).toContain('version gratuite, plus les onglets <strong>Mur des voisins et Coups de main</strong> offerts pendant 12 mois');
+    expect(html).toContain('version gratuite, plus les onglets <strong>Mur des voisins et Coups de main</strong> offerts par périodes de 12 mois reconductibles');
     expect(html).toContain('<strong>La version gratuite</strong> de Plateforme-Agora, sans limite de durée : actualités, signalements, agenda, chasse au trésor, énigme photo');
-    expect(html).toContain("12 mois d'accès aux onglets <strong>Mur des voisins et Coups de main</strong>, en plus de la version gratuite");
-    expect(html).toContain("pendant ou à l'issue des 12 mois, la Commune peut ouvrir tous les onglets");
-    expect(html).toContain('les onglets offerts se ferment au terme des 12 mois');
+    expect(html).toContain("l'accès aux onglets <strong>Mur des voisins et Coups de main</strong> pendant 12 mois");
+    expect(html).toContain("l'offre est reconduite tacitement par périodes de 12 mois, 3 fois au plus, soit 4 ans au maximum");
+    expect(html).toContain('La Commune comme le Prestataire peuvent refuser la reconduction par mail, au moins 2 mois avant');
+    expect(html).toContain('ne donnent lieu à aucun paiement ni à aucune facture');
+    expect(html).toContain('à tout moment, la Commune peut ouvrir tous les onglets');
     expect(html).toContain('Les autres onglets (thermomètre du village, conseil municipal, annuaire');
-    expect(html).toContain('<td>Version gratuite, onglets offerts fermés, données conservées</td>');
+    expect(html).toContain('<td>12 mois, reconduits tacitement 3 fois (4 ans au maximum)</td>');
     expect(html).not.toContain('Tous les onglets et modules');
-    expect(html).not.toContain("12 mois d'accès complet");
-    expect(html).not.toContain('Tous, selon les besoins de la commune');
+    expect(html).not.toContain('Période fondatrice');
+    expect(html).not.toContain('Contact facturation');
+    expect(html).not.toContain("l'année en cours reste due");
     // Un seul onglet : accords au singulier ; un onglet gratuit coché par erreur est ignoré.
-    const un = genererConventionHtml({ ...base, premiere_annee_offerte: true, onglets_offerts: ['mur', 'agenda'] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise, undefined, gratuits);
-    expect(un).toContain("plus l'onglet <strong>Mur des voisins</strong> offert pendant 12 mois");
-    expect(un).toContain("l'onglet offert se ferme au terme des 12 mois");
-    // Sans case cochée : accès complet offert, comme avant.
-    const complet = genererConventionHtml({ ...base, premiere_annee_offerte: true, onglets_offerts: [] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise, undefined, gratuits);
-    expect(complet).toContain('Tous les onglets et modules');
-    expect(complet).toContain("12 mois d'accès complet");
+    const un = genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: ['mur', 'agenda'] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise, undefined, gratuits);
+    expect(un).toContain("plus l'onglet <strong>Mur des voisins</strong> offert par périodes de 12 mois reconductibles");
+    expect(un).toContain("l'onglet offert se ferme et l'espace reste en version gratuite");
+    // Sans onglet offert : la version gratuite seule.
+    const seul = genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: [] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise, undefined, gratuits);
+    expect(seul).toContain('fondatrice de Plateforme-Agora : version gratuite, et 35 % de réduction garantis si elle s');
+    expect(seul).toContain('la version gratuite ne donne lieu à aucun paiement');
+    expect(seul).not.toContain('Onglets offerts');
+  });
+  it('formules payantes : onglets offerts ignorés, services et prix Accompagné', () => {
+    const autonomie = genererConventionHtml({ ...base, formule: 'autonomie', premiere_annee_offerte: true, onglets_offerts: ['mur'] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
+    expect(autonomie).toContain('Tous les onglets et modules');
+    expect(autonomie).toContain("12 mois d'accès complet");
+    expect(autonomie).not.toContain('Accompagné');
+    const accompagne = genererConventionHtml({ ...base, formule: 'accompagne', prix_annuel_fondateur: 292.5 }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
+    expect(accompagne).toContain("<strong>Les services de l'offre Accompagné</strong> : support prioritaire, bilan mensuel");
+    expect(accompagne).toContain("pour l'offre Accompagné, ce qui correspond à 35 % de réduction");
+    expect(accompagne).toContain('292,50 € par an (offre Accompagné)');
   });
   it('inscrit le prix fondateur exact de la convention quand il est renseigné', () => {
     const avecPrix = genererConventionHtml({ ...base, premiere_annee_offerte: true, prix_annuel_fondateur: '188.50' }, { nom: 'Tourly', slug: 'tourly' }, '60', entreprise);
@@ -316,61 +331,103 @@ describe('signature électronique du Prestataire', () => {
   });
 });
 
-describe('offre à la carte : mise en service et fermeture automatique', () => {
+describe('offre de la convention : mise en service, reconduction et fermeture', () => {
   const json = async () => ({ 'Content-Type': 'application/json', ...(await sessionStaff()) });
   beforeEach(() => {
     db.communes[1].forfait = 'Version complète';
     db.communes[1].prix_annuel_ttc = 250;
-    db.conventions.push({ id: 'c2', commune_id: 'tourly', statut: 'envoyee', numero_fondatrice: 3, premiere_annee_offerte: true, onglets_offerts: ['mur', 'coups_de_main'] });
+    db.conventions.push({ id: 'c2', commune_id: 'tourly', statut: 'envoyee', numero_fondatrice: 3, formule: 'gratuit', onglets_offerts: ['mur', 'coups_de_main'], offre_reconductions: 2, offre_non_reconduite: true });
   });
   const actifs = (commune: string) => db.onglets_config.filter((o) => o.commune_id === commune && o.actif).map((o) => o.cle).sort();
+  const LIBRES = ['actualites', 'agenda', 'alertes', 'chasse_tresor', 'enigmes'];
 
-  it('enregistre les onglets offerts (doublons retirés, vide = accès complet), refuse une clé inconnue', async () => {
-    const ok = await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify({ onglets_offerts: ['mur', 'mur', 'memoire'] }) }, ENV);
+  it('enregistre formule et onglets offerts (doublons retirés, vide = null), refuse une valeur inconnue', async () => {
+    const ok = await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify({ formule: 'gratuit', onglets_offerts: ['mur', 'mur', 'memoire'] }) }, ENV);
     expect(ok.status).toBe(200);
     expect(db.conventions[0].onglets_offerts).toEqual(['mur', 'memoire']);
     await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify({ onglets_offerts: [] }) }, ENV);
     expect(db.conventions[0].onglets_offerts).toBeNull();
-    const ko = await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify({ onglets_offerts: ['piscine'] }) }, ENV);
-    expect(ko.status).toBe(400);
+    for (const corps of [{ onglets_offerts: ['piscine'] }, { formule: 'premium' }]) {
+      expect((await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify(corps) }, ENV)).status).toBe(400);
+    }
   });
 
-  it('ouvre gratuit + onglets offerts datés, ferme le reste, forfait Fondateur sans prix', async () => {
+  it('après signature : « Ne pas reconduire » reste possible, la formule non', async () => {
+    db.conventions[0].signature_prestataire_le = '2026-11-23T10:00:00Z';
+    expect((await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify({ offre_non_reconduite: false }) }, ENV)).status).toBe(200);
+    expect(db.conventions[0].offre_non_reconduite).toBe(false);
+    expect((await routesStaff.request('/c2', { method: 'PATCH', headers: await json(), body: JSON.stringify({ formule: 'autonomie' }) }, ENV)).status).toBe(409);
+  });
+
+  it('gratuite : ouvre gratuit + onglets offerts datés, ferme le reste, formule et forfait recopiés, compteurs remis à zéro', async () => {
     const res = await routesStaff.request('/c2/mettre-en-service', { method: 'POST', headers: await json(), body: JSON.stringify({ debut: '2026-11-23' }) }, ENV);
     expect(res.status).toBe(200);
     expect((await res.json() as any).offert_jusqu_au).toBe('2027-11-22');
-    expect(actifs('tourly')).toEqual(['actualites', 'agenda', 'alertes', 'chasse_tresor', 'coups_de_main', 'enigmes', 'mur']);
+    expect(actifs('tourly')).toEqual([...LIBRES, 'coups_de_main', 'mur'].sort());
     expect(db.onglets_config.filter((o) => o.offert_jusqu_au).map((o) => [o.cle, o.offert_jusqu_au]).sort())
       .toEqual([['coups_de_main', '2027-11-22'], ['mur', '2027-11-22']]);
-    expect(db.communes[1]).toMatchObject({ forfait: 'Fondateur', prix_annuel_ttc: null, prochaine_echeance: null });
+    expect(db.communes[1]).toMatchObject({ forfait: 'Fondateur', formule: 'gratuit', prix_annuel_ttc: null, prochaine_echeance: null });
+    expect(db.conventions[0]).toMatchObject({ offre_reconductions: 0, offre_non_reconduite: false });
   });
 
-  it('sans onglet coché : tous les onglets payants offerts', async () => {
-    db.conventions[0].onglets_offerts = null;
+  it('payante avec première année offerte : tous les onglets offerts ; sans elle : refusée', async () => {
+    Object.assign(db.conventions[0], { formule: 'accompagne', premiere_annee_offerte: true });
     await routesStaff.request('/c2/mettre-en-service', { method: 'POST', headers: await json(), body: '{}' }, ENV);
     expect(actifs('tourly')).toHaveLength(TOUS_LES_ONGLETS.length);
     expect(db.onglets_config.filter((o) => o.offert_jusqu_au)).toHaveLength(TOUS_LES_ONGLETS.length - 5);
-  });
-
-  it('refusée sans première année offerte, ou à un assistant', async () => {
+    expect(db.communes[1].formule).toBe('accompagne');
     db.conventions[0].premiere_annee_offerte = false;
     expect((await routesStaff.request('/c2/mettre-en-service', { method: 'POST', headers: await json(), body: '{}' }, ENV)).status).toBe(400);
-    db.conventions[0].premiere_annee_offerte = true;
+  });
+
+  it('refusée à un assistant', async () => {
     db.staff_backoffice = [{ id: 's1', role: 'assistant' }];
     expect((await routesStaff.request('/c2/mettre-en-service', { method: 'POST', headers: await json(), body: '{}' }, ENV)).status).toBe(403);
     expect(db.onglets_config).toHaveLength(0);
   });
 
-  it('le cron ferme les onglets offerts échus (et repasse la commune en Gratuit), pas ceux encore en cours', async () => {
+  it('cron : reconduit tacitement la formule gratuite (12 mois, compteur +1), sans rien fermer', async () => {
     await routesStaff.request('/c2/mettre-en-service', { method: 'POST', headers: await json(), body: JSON.stringify({ debut: '2024-01-10' }) }, ENV);
-    db.onglets_config.push({ commune_id: 'fay', cle: 'mur', actif: true, offert_jusqu_au: '2099-01-01' });
-    db.communes[0].forfait = 'Fondateur';
     await fermerOngletsOfferts(ENV);
-    expect(actifs('tourly')).toEqual(['actualites', 'agenda', 'alertes', 'chasse_tresor', 'enigmes']);
-    expect(db.onglets_config.filter((o) => o.commune_id === 'tourly' && o.offert_jusqu_au)).toHaveLength(0);
-    expect(db.communes[1].forfait).toBe('Gratuit');
-    expect(actifs('fay')).toEqual(['mur']);
-    expect(db.communes[0].forfait).toBe('Fondateur');
-    expect(db.journal_activite.some((j) => j.action === 'onglets_offerts_fermes')).toBe(true);
+    expect(actifs('tourly')).toEqual([...LIBRES, 'coups_de_main', 'mur'].sort());
+    expect(db.onglets_config.filter((o) => o.offert_jusqu_au).map((o) => o.offert_jusqu_au)).toEqual(['2026-01-09', '2026-01-09']);
+    expect(db.conventions[0].offre_reconductions).toBe(1);
+    expect(db.communes[1].forfait).toBe('Fondateur');
+    expect(db.journal_activite.some((j) => j.action === 'offre_reconduite')).toBe(true);
+  });
+
+  for (const [cas, etat] of [['reconduction refusée', { offre_non_reconduite: true }], ['4 ans atteints', { offre_reconductions: 3 }],
+    ['convention payante', { formule: 'autonomie', premiere_annee_offerte: true }]] as const) {
+    it(`cron : ferme les onglets offerts échus (${cas}) et repasse la commune en Gratuit, pas les offres en cours`, async () => {
+      await routesStaff.request('/c2/mettre-en-service', { method: 'POST', headers: await json(), body: JSON.stringify({ debut: '2024-01-10' }) }, ENV);
+      Object.assign(db.conventions[0], etat);
+      db.onglets_config.push({ commune_id: 'fay', cle: 'mur', actif: true, offert_jusqu_au: '2099-01-01' });
+      db.communes[0].forfait = 'Fondateur';
+      await fermerOngletsOfferts(ENV);
+      expect(actifs('tourly')).toEqual(LIBRES);
+      expect(db.onglets_config.filter((o) => o.commune_id === 'tourly' && o.offert_jusqu_au)).toHaveLength(0);
+      expect(db.communes[1].forfait).toBe('Gratuit');
+      expect(actifs('fay')).toEqual(['mur']);
+      expect(db.communes[0].forfait).toBe('Fondateur');
+      expect(db.journal_activite.some((j) => j.action === 'onglets_offerts_fermes')).toBe(true);
+    });
+  }
+
+  it('rappel : reconduction entre J-90 et J-60 (date limite du préavis), fermeture dans les 30 derniers jours', () => {
+    const jour = (iso: string) => new Date(iso + 'T08:00:00Z').getTime();
+    const gratuite = { formule: 'gratuit', statut: 'signee', offre_reconductions: 0, offre_non_reconduite: false };
+    expect(anomalieFinOffre(gratuite, '2027-11-22', ['Mur des voisins'], jour('2027-08-01'))).toBeNull(); // J-113
+    const r = anomalieFinOffre(gratuite, '2027-11-22', ['Mur des voisins'], jour('2027-09-01')); // J-82
+    expect(r?.gravite).toBe('info');
+    expect(r?.message).toContain('reconduction 1/3');
+    expect(r?.message).toContain('avant le 22 septembre 2027');
+    expect(anomalieFinOffre(gratuite, '2027-11-22', ['Mur des voisins'], jour('2027-10-01'))).toBeNull(); // J-52 : trop tard pour refuser
+    const refusee = { ...gratuite, offre_non_reconduite: true };
+    expect(anomalieFinOffre(refusee, '2027-11-22', ['Mur des voisins'], jour('2027-10-01'))).toBeNull();
+    const fermeture = anomalieFinOffre(refusee, '2027-11-22', ['Mur des voisins'], jour('2027-11-01'));
+    expect(fermeture?.gravite).toBe('moyenne');
+    expect(fermeture?.message).toContain('offre non reconduite');
+    expect(fermeture?.message).toContain('se ferment seuls le lendemain');
+    expect(anomalieFinOffre({ ...gratuite, offre_reconductions: 3 }, '2027-11-22', ['Mur des voisins'], jour('2027-11-01'))?.message).toContain('fin des 4 ans');
   });
 });

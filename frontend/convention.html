@@ -78,7 +78,7 @@
         </div>
       </section>
 
-      <section class="carte">
+      <section class="carte" id="section-renouvellement">
         <h2 id="titre-renouvellement">Renouvellement de l'abonnement</h2>
         <p class="aide" id="aide-renouvellement">L'abonnement est conclu pour 1 an. Comment préférez-vous gérer son renouvellement ?</p>
         <label class="option"><input type="radio" name="option_reconduction" value="tacite">
@@ -143,6 +143,12 @@
           document.getElementById('titre-renouvellement').textContent = 'Après la période fondatrice';
           document.getElementById('aide-renouvellement').textContent = "Après les 12 mois offerts, rien ne devient payant sans une décision de votre part. Si vous choisissez de continuer, comment préférez-vous gérer l'abonnement ?";
           document.getElementById('aide-facturation').textContent = "Aucune facture pendant les 12 mois offerts. Ensuite, la facture annuelle sera déposée sur Chorus Pro, comme pour tout achat de la commune.";
+        }
+        // Formule gratuite (version gratuite + onglets offerts reconduits tacitement) : pas d'abonnement
+        // à renouveler, aucune facture ; le SIRET reste utile pour identifier la commune.
+        if (d.formule === 'gratuit') {
+          document.getElementById('section-renouvellement').hidden = true;
+          document.getElementById('aide-facturation').textContent = "Aucune facture : la version gratuite et les onglets offerts sont gratuits. Le SIRET identifie la commune dans la convention ; le reste ne servira que si vous décidez un jour de vous abonner.";
         }
         for (const k of CHAMPS_TEXTE) document.getElementById(k).value = d.champs[k] || '';
         const option = form.querySelector(`input[name=option_reconduction][value="${d.champs.option_reconduction}"]`);

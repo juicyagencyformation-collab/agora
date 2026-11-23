@@ -35,8 +35,10 @@ export type DonneesConvention = {
   prix_annuel_fondateur?: number | string | null;
   // Texte libre ajouté tel quel (article 6), pour un arrangement propre à la commune.
   conditions_particulieres?: string | null;
-  // Offre « à la carte » (2026-11-23, migration 119) : avec premiere_annee_offerte, seuls ces onglets
-  // payants sont offerts 12 mois, en plus de la version gratuite. Vide ou absent = accès complet offert.
+  // Formule de la convention (migration 120) — absente = autonomie (texte d'avant).
+  formule?: 'gratuit' | 'autonomie' | 'accompagne' | null;
+  // Formule gratuite (migrations 119-120) : onglets payants offerts par périodes de 12 mois reconduites
+  // tacitement, en plus de la version gratuite. Ignoré pour les formules payantes.
   onglets_offerts?: string[] | null;
   // Texte de la convention réécrit à la main pour CETTE commune (2026-11-20, migration 115) :
   // remplace tout le corps (titre → article 6) ; le bloc des signatures et le DPA restent générés.
@@ -122,15 +124,19 @@ export function genererConventionHtml(
     ? "<p><strong>Échéance</strong> — sans nouvelle décision de la Commune, l'abonnement prend fin à sa date anniversaire, sans démarche particulière.</p>"
     : '<p><strong>Préavis</strong> — la Commune peut refuser la reconduction par mail, au moins 2 mois avant la date anniversaire de l\'abonnement.</p>';
   const dureeTableau = tacite ? '1 an, reconductible tacitement 3 fois' : annuelle ? '1 an, renouvelable chaque année sur décision de la Commune' : A_COMPLETER('[selon l\'option choisie]');
-  // « Première année offerte » : accord exceptionnel (Fay-les-Étangs, Tourly — jusqu'au 2026-11-04 :
-  // 1 € symbolique), coché sur la fiche. Sans lui, pas de période fondatrice : l'abonnement à −35 %
-  // démarre dès la mise en service.
-  const offerte = !!conv.premiere_annee_offerte;
-  // Offre à la carte : version gratuite + quelques onglets payants offerts 12 mois (ex. Fay, Tourly).
+  // Formule de la convention (migration 120) : gratuit (version gratuite + onglets offerts reconduits
+  // tacitement), autonomie (défaut, texte d'avant) ou accompagne (autonomie + services).
+  const formule = conv.formule ?? 'autonomie';
+  const gratuit = formule === 'gratuit';
+  const nomOffre = formule === 'accompagne' ? 'Accompagné' : 'Autonomie';
+  // « Première année offerte » (offres payantes seulement) : accès complet offert 12 mois, puis
+  // abonnement au tarif fondateur. Sans elle, l'abonnement à −35 % démarre dès la mise en service.
+  const offerte = !gratuit && !!conv.premiere_annee_offerte;
+  // Formule gratuite : onglets payants offerts, en plus de la version gratuite (ex. Fay, Tourly).
   const gratuits = ordonner(ongletsGratuits ?? []);
   const texteGratuit = gratuits.length ? gratuits.map((cle) => LIBELLES_ONGLETS[cle].toLowerCase()).join(', ') : GRATUIT_PAR_DEFAUT;
-  const offerts = ordonner(conv.onglets_offerts ?? []).filter((cle) => !gratuits.includes(cle));
-  const alaCarte = offerte && offerts.length > 0;
+  const offerts = gratuit ? ordonner(conv.onglets_offerts ?? []).filter((cle) => !gratuits.includes(cle)) : [];
+  const aOffre = offerts.length > 0;
   const pluriel = offerts.length > 1;
   const nomsOfferts = `<strong>${listeFr(offerts.map((cle) => LIBELLES_ONGLETS[cle]))}</strong>`;
   const autresPayants = ordonner(Object.keys(LIBELLES_ONGLETS).filter((cle) => !gratuits.includes(cle) && !offerts.includes(cle)));
@@ -139,9 +145,10 @@ export function genererConventionHtml(
     ? null : Number(conv.prix_annuel_fondateur);
   const euros = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
   const prixFondateur = prixNombre !== null && Number.isFinite(prixNombre)
-    ? `<strong>${euros(prixNombre)} par an</strong> (soit ${euros(Math.round(prixNombre / 12 * 100) / 100)} par mois) pour l'offre Autonomie, ce qui correspond à 35 % de réduction sur la grille publique de plateforme-agora.fr en vigueur à la signature ; toute autre offre bénéficie de la même réduction de 35 %`
+    ? `<strong>${euros(prixNombre)} par an</strong> (soit ${euros(Math.round(prixNombre / 12 * 100) / 100)} par mois) pour l'offre ${nomOffre}, ce qui correspond à 35 % de réduction sur la grille publique de plateforme-agora.fr en vigueur à la signature ; toute autre offre bénéficie de la même réduction de 35 %`
     : null;
-  const prixTableau = prixFondateur ? `${euros(prixNombre as number)} par an (offre Autonomie), tant que l'abonnement est continu` : 'Grille du site − 35 %, tant que l\'abonnement est continu';
+  const souscrire = prixFondateur ? `au tarif fondateur de ${prixFondateur}` : 'l\x27offre de son choix avec <strong>35 % de réduction sur la grille publique</strong> de plateforme-agora.fr en vigueur';
+  const prixTableau = prixFondateur ? `${euros(prixNombre as number)} par an (offre ${nomOffre}), tant que l'abonnement est continu` : 'Grille du site − 35 %, tant que l\'abonnement est continu';
   const conditions = (conv.conditions_particulieres ?? '').trim();
   const dateSouhaitee = conv.date_debut_souhaitee ? ` (date souhaitée par la Commune : ${echapper(dateFr(conv.date_debut_souhaitee))})` : '';
   const case_ = (coche: boolean) => (coche ? '☒' : '☐');
@@ -151,7 +158,30 @@ export function genererConventionHtml(
   const contactFacturation = conv.facturation_nom || conv.facturation_email
     ? `${echapper(conv.facturation_nom ?? '')}${conv.facturation_nom && conv.facturation_email ? ', ' : ''}${echapper(conv.facturation_email ?? '')}`
     : A_COMPLETER();
+  const chorus = `déposée sur Chorus Pro${conv.code_service_chorus ? ` (code service : ${echapper(conv.code_service_chorus)})` : ''}, avec la mention « ${ou(entreprise.entreprise_mention_tva)} »`;
   const corpsPersonnalise = conv.texte_personnalise?.trim() ? nettoyerTexteConvention(conv.texte_personnalise) : null;
+
+  // — Formule gratuite : chapeau, articles 2, 3 et 5 —
+  const chapeauGratuit = `version gratuite${aOffre ? `, plus ${pluriel ? 'les onglets' : 'l\'onglet'} ${nomsOfferts} offert${pluriel ? 's' : ''} par périodes de 12 mois reconductibles` : ''}, et 35 % de réduction garantis si elle s'abonne, tant que son abonnement se poursuit sans interruption`;
+  const contenuGratuit = `<li><strong>La version gratuite</strong> de Plateforme-Agora, sans limite de durée : ${texteGratuit}, ainsi que la météo, la vigilance météo et les notifications.</li>
+        ${aOffre ? `<li>${pluriel ? 'Les onglets' : 'L\'onglet'} ${nomsOfferts}, <strong>offert${pluriel ? 's' : ''} par périodes de 12 mois, reconductibles</strong> (article 3).</li>` : ''}`;
+  const article3Gratuit = `<p><strong>Gratuité</strong> — la version gratuite${aOffre ? ' et les onglets offerts ne donnent' : ' ne donne'} lieu à aucun paiement ni à aucune facture.</p>
+      ${aOffre ? `<p><strong>Onglets offerts</strong> — le Prestataire <strong>offre</strong> à la Commune l'accès ${pluriel ? 'aux onglets' : 'à l\'onglet'} ${nomsOfferts} pendant 12 mois, à compter de la mise en service de l'offre, confirmée par mail par le Prestataire${dateSouhaitee}. Cette offre remercie la Commune pour ses retours (article 4).</p>
+      <p><strong>Reconduction</strong> — l'offre est reconduite tacitement par périodes de 12 mois, 3 fois au plus, soit 4 ans au maximum. La Commune comme le Prestataire peuvent refuser la reconduction par mail, au moins 2 mois avant la fin de la période en cours. Sans reconduction, ${pluriel ? 'les onglets offerts se ferment' : 'l\'onglet offert se ferme'} et l'espace reste en version gratuite (${texteGratuit}) : rien n'est supprimé et les habitants gardent leur compte.</p>` : ''}
+      <p><strong>Tarif fondateur</strong> — à tout moment, la Commune peut ouvrir tous les onglets en souscrivant ${souscrire}. La souscription nécessite une décision expresse de la Commune (bon de commande ou délibération) ; l'abonnement est conclu pour 1 an et facturé annuellement, en début de période. Ce tarif est garanti sans limite de durée tant que l'abonnement se poursuit sans interruption. La réduction de 35 % s'applique aussi aux packs de contenus.</p>
+      <table>
+        <thead><tr><th></th><th>Version gratuite</th>${aOffre ? '<th>Onglets offerts</th>' : ''}</tr></thead>
+        <tbody>
+          <tr><td>Onglets</td><td>${texteGratuit.charAt(0).toUpperCase() + texteGratuit.slice(1)}</td>${aOffre ? `<td>${nomsOfferts}</td>` : ''}</tr>
+          <tr><td>Prix</td><td>Gratuit</td>${aOffre ? '<td>Offert</td>' : ''}</tr>
+          <tr><td>Durée</td><td>Sans limite de durée</td>${aOffre ? '<td>12 mois, reconduits tacitement 3 fois (4 ans au maximum)</td>' : ''}</tr>
+          ${aOffre ? `<tr><td>Sans reconduction</td><td>La version gratuite reste en place</td><td>${pluriel ? 'Onglets fermés' : 'Onglet fermé'}, données conservées</td></tr>` : ''}
+        </tbody>
+      </table>
+      <p><strong>Facturation</strong> — aucune facture tant que la Commune n'a pas souscrit d'abonnement. En cas d'abonnement : une facture annuelle ${chorus}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>`;
+  const article5Gratuit = `<p><strong>Durée</strong> — la convention prend effet à la mise en service${aOffre ? ' de l\'offre' : ''} et court sans limite de durée${aOffre ? ' ; les onglets offerts suivent la durée de l\'article 3' : ''}. Le statut de Commune fondatrice et le tarif fondateur restent acquis tant qu'elle court.</p>
+      <p><strong>Résiliation</strong> — la Commune peut mettre fin à la convention à tout moment, par simple mail, sans pénalité. Le Prestataire ne peut résilier qu'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>`;
+
 
   return `
     <style>
@@ -175,24 +205,24 @@ export function genererConventionHtml(
       <div data-corps-convention>${corpsPersonnalise ?? `
       <h1>Convention « Commune fondatrice » — ${nomCommune}</h1>
       <div class="sous-titre">Plateforme-Agora</div>
-      <p class="chapeau">La commune de ${nomCommune} devient commune fondatrice de Plateforme-Agora : ${alaCarte ? `version gratuite, plus ${pluriel ? 'les onglets' : 'l\'onglet'} ${nomsOfferts} offert${pluriel ? 's' : ''} pendant 12 mois, puis 35 % de réduction garantis` : offerte ? 'accès complet à tous les onglets offert pendant 12 mois, puis 35 % de réduction garantis' : '35 % de réduction sur la grille publique, garantis'} tant que son abonnement se poursuit sans interruption, en échange de ses retours d'expérience.</p>
+      <p class="chapeau">La commune de ${nomCommune} devient commune fondatrice de Plateforme-Agora : ${gratuit ? chapeauGratuit : `${offerte ? 'accès complet à tous les onglets offert pendant 12 mois, puis 35 % de réduction garantis' : '35 % de réduction sur la grille publique, garantis'} tant que son abonnement se poursuit sans interruption`}, en échange de ses retours d'expérience.</p>
 
       <h2>Article 1 — Les parties</h2>
       <p><strong>Le prestataire</strong> — Léandre SALLE, ${echapper((entreprise.entreprise_forme_juridique || 'entrepreneur individuel').toLowerCase())} (« ${ou(entreprise.entreprise_raison_sociale)} »), éditeur de Plateforme-Agora. Siège : ${ou(entreprise.entreprise_adresse)}, ${ou(entreprise.entreprise_cp_ville)} — SIREN ${ou(sirenFormate)}, RCS Amiens. Contact : ${ou(entreprise.entreprise_email)}. Ci-après « le Prestataire ».</p>
       <p><strong>La commune bénéficiaire</strong> — Commune de ${nomCommune}${lieuCommune}, SIRET ${ou(conv.siret_commune)}, représentée par ${ou(conv.signataire_nom, 'M. / Mme ……………')}, ${echapper(qualite)}, agissant en vertu de la délibération n° ${ou(conv.deliberation_reference)} du ${ou(dateFr(conv.deliberation_date))}. Ci-après « la Commune ».</p>
 
       <h2>Article 2 — Objet et statut de commune fondatrice</h2>
-      <p>La convention met à disposition de la Commune un espace Plateforme-Agora${alaCarte ? '' : ' complet'} et lui confère le statut de <strong>Commune fondatrice</strong>.</p>
+      <p>La convention met à disposition de la Commune un espace Plateforme-Agora${gratuit ? '' : ' complet'} et lui confère le statut de <strong>Commune fondatrice</strong>.</p>
       <p>Ce statut est réservé aux 10 premières communes signataires. La Commune est la commune fondatrice n° ${ou(conv.numero_fondatrice)} / 10.</p>
       <p>Il comprend :</p>
       <ul>
-        ${alaCarte ? `<li><strong>La version gratuite</strong> de Plateforme-Agora, sans limite de durée : ${texteGratuit}, ainsi que la météo, la vigilance météo et les notifications.</li>
-        <li>${pluriel ? 'Les onglets' : 'L\'onglet'} ${nomsOfferts}, <strong>offert${pluriel ? 's' : ''} pendant 12 mois</strong> (article 3).</li>`
-        : `<li><strong>Tous les onglets et modules</strong> disponibles à la mise en service : actualités, agenda, alertes météo et vigilance, Conseil municipal, sondages, annuaire, mur des voisins et entraide, carte du village, chasse au trésor patrimoine, ainsi que les modules ajoutés ${offerte ? 'pendant la période fondatrice' : 'par la suite'}.</li>`}
+        ${gratuit ? contenuGratuit
+        : `<li><strong>Tous les onglets et modules</strong> disponibles à la mise en service : actualités, agenda, alertes météo et vigilance, Conseil municipal, sondages, annuaire, mur des voisins et entraide, carte du village, chasse au trésor patrimoine, ainsi que les modules ajoutés ${offerte ? 'pendant la période fondatrice' : 'par la suite'}.</li>
+        ${formule === 'accompagne' ? '<li><strong>Les services de l\x27offre Accompagné</strong> : support prioritaire, bilan mensuel de la commune envoyé à la mairie et suivi personnalisé de la commune.</li>' : ''}`}
         <li><strong>Un espace dédié</strong> à l'adresse plateforme-agora.fr/${echapper(commune.slug)}, administré par la mairie.</li>
         <li><strong>Un accès prioritaire au Prestataire</strong> pour le support et la prise en compte des demandes d'évolution.</li>
       </ul>
-      ${alaCarte ? `<p>Les autres onglets${gratuits.length && autresPayants.length ? ` (${autresPayants.map((cle) => LIBELLES_ONGLETS[cle].toLowerCase()).join(', ')})` : ''} s'ouvrent à tout moment par la souscription d'un abonnement, au tarif fondateur de l'article 3.</p>` : ''}
+      ${gratuit ? `<p>Les autres onglets${gratuits.length && autresPayants.length ? ` (${autresPayants.map((cle) => LIBELLES_ONGLETS[cle].toLowerCase()).join(', ')})` : ''} s'ouvrent à tout moment par la souscription d'un abonnement, au tarif fondateur de l'article 3.</p>` : ''}
       <p>Ne sont pas inclus, et bénéficient de la réduction fondatrice de l'article 3 :</p>
       <ul>
         <li>les <strong>packs de sondages</strong> pour le Thermomètre du village, vendus à l'unité ;</li>
@@ -200,13 +230,14 @@ export function genererConventionHtml(
       </ul>
 
       <h2>Article 3 — Conditions financières</h2>
-      ${offerte ? `<p><strong>Période fondatrice (12 mois)</strong> — le Prestataire <strong>offre</strong> à la Commune 12 mois d'accès ${alaCarte ? `${pluriel ? 'aux onglets' : 'à l\'onglet'} ${nomsOfferts}, en plus de la version gratuite` : 'complet'}, sans aucune contrepartie financière. Cette période démarre à la date de mise en service ${alaCarte ? 'de l\'offre' : 'de l\'espace'}, confirmée par mail par le Prestataire${dateSouhaitee}. Elle remercie la Commune pour ses retours (article 4).</p>
-      <p><strong>Tarif fondateur, ensuite</strong> — ${alaCarte ? 'pendant ou à l\'issue des 12 mois, la Commune peut ouvrir tous les onglets en souscrivant' : 'à l\'issue des 12 mois, la Commune peut souscrire'} ${prixFondateur ? `au tarif fondateur de ${prixFondateur}` : 'l\x27offre de son choix avec <strong>35 % de réduction sur la grille publique</strong> de plateforme-agora.fr en vigueur'}. ${dureeAbonnement}</p>`
-        : `<p><strong>Tarif fondateur</strong> — dès la mise en service de l'espace, confirmée par mail par le Prestataire${dateSouhaitee}, la Commune souscrit ${prixFondateur ? `au tarif fondateur de ${prixFondateur}` : 'l\x27offre de son choix avec <strong>35 % de réduction sur la grille publique</strong> de plateforme-agora.fr en vigueur'}. ${dureeAbonnement}</p>`}
+      ${gratuit ? article3Gratuit : `
+      ${offerte ? `<p><strong>Période fondatrice (12 mois)</strong> — le Prestataire <strong>offre</strong> à la Commune 12 mois d'accès complet, sans aucune contrepartie financière. Cette période démarre à la date de mise en service de l'espace, confirmée par mail par le Prestataire${dateSouhaitee}. Elle remercie la Commune pour ses retours (article 4).</p>
+      <p><strong>Tarif fondateur, ensuite</strong> — à l'issue des 12 mois, la Commune peut souscrire ${souscrire}. ${dureeAbonnement}</p>`
+        : `<p><strong>Tarif fondateur</strong> — dès la mise en service de l'espace, confirmée par mail par le Prestataire${dateSouhaitee}, la Commune souscrit ${souscrire}. ${dureeAbonnement}</p>`}
       <p>Ce tarif est garanti sans limite de durée tant que l'abonnement se poursuit sans interruption. Une interruption de plus de 3 mois met fin au tarif fondateur. La réduction de 35 % s'applique aussi aux packs de contenus.</p>
       ${preavis}
       <p><strong>Paiement</strong> — l'abonnement est facturé annuellement, en début de période.</p>
-      ${offerte ? `<p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, ${alaCarte ? `${pluriel ? 'les onglets offerts se ferment' : 'l\'onglet offert se ferme'} au terme des 12 mois et l'espace reste en version gratuite` : 'l\'espace bascule sur la version gratuite'} (${texteGratuit}) : rien n'est supprimé et les habitants gardent leur compte. Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.</p>`
+      ${offerte ? `<p><strong>Pas de passage automatique au payant</strong> — la souscription de l'abonnement payant nécessite une décision expresse de la Commune (bon de commande ou délibération). Sans décision, l'espace bascule sur la version gratuite (${texteGratuit}) : rien n'est supprimé et les habitants gardent leur compte. Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.</p>`
         : `<p><strong>Fin de l'abonnement</strong> — si l'abonnement n'est pas reconduit, l'espace bascule sur la version gratuite (${texteGratuit}) : rien n'est supprimé et les habitants gardent leur compte. Passé un délai de 3 mois sans abonnement, la Commune perd le statut de Commune fondatrice et le tarif fondateur.</p>`}
       ${offerte ? `
       <table>
@@ -214,8 +245,8 @@ export function genererConventionHtml(
         <tbody>
           <tr><td>Prix</td><td>Offert</td><td>${prixTableau}</td></tr>
           <tr><td>Durée</td><td>12 mois à compter de la mise en service</td><td>${dureeTableau}</td></tr>
-          <tr><td>Onglets</td><td>${alaCarte ? `Version gratuite, plus ${pluriel ? 'les onglets' : 'l\'onglet'} ${nomsOfferts} offert${pluriel ? 's' : ''}` : ligneOnglets(ongletsActifs)}</td><td>Selon l'offre choisie</td></tr>
-          <tr><td>Si aucune décision</td><td>${alaCarte ? `Rien à décider : ${pluriel ? 'les onglets offerts restent ouverts' : 'l\'onglet offert reste ouvert'} jusqu'au terme des 12 mois` : 'Rien à décider : l\'accès complet court jusqu\'au terme des 12 mois'}</td><td>${alaCarte ? `Version gratuite, ${pluriel ? 'onglets offerts fermés' : 'onglet offert fermé'}, données conservées` : 'Version gratuite, données conservées'}</td></tr>
+          <tr><td>Onglets</td><td>${ligneOnglets(ongletsActifs)}</td><td>Selon l'offre choisie</td></tr>
+          <tr><td>Si aucune décision</td><td>Rien à décider : l'accès complet court jusqu'au terme des 12 mois</td><td>Version gratuite, données conservées</td></tr>
         </tbody>
       </table>
       ` : `
@@ -228,7 +259,7 @@ export function genererConventionHtml(
           <tr><td>Fin d'abonnement</td><td>Version gratuite, données conservées</td></tr>
         </tbody>
       </table>`}
-      <p><strong>Facturation</strong> — ${offerte ? 'aucune facture pendant la période fondatrice ; ensuite une facture annuelle' : 'une facture annuelle'}, déposée sur Chorus Pro${conv.code_service_chorus ? ` (code service : ${echapper(conv.code_service_chorus)})` : ''}, avec la mention « ${ou(entreprise.entreprise_mention_tva)} ». Contact facturation de la Commune : ${contactFacturation}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>
+      <p><strong>Facturation</strong> — ${offerte ? 'aucune facture pendant la période fondatrice ; ensuite une facture annuelle' : 'une facture annuelle'}, ${chorus}. Contact facturation de la Commune : ${contactFacturation}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>`}
 
       <h2>Article 4 — Engagements réciproques</h2>
       <p><strong>La Commune s'engage à :</strong></p>
@@ -248,10 +279,11 @@ export function genererConventionHtml(
       <p><strong>Données personnelles</strong> — la Commune est responsable du traitement des données de ses habitants ; le Prestataire agit comme sous-traitant (article 28 du RGPD). Les données sont hébergées dans l'Union européenne et ne sont ni vendues ni utilisées à des fins publicitaires. L'accord de sous-traitance (DPA) est joint en annexe.</p>
 
       <h2>Article 5 — Durée, résiliation et données</h2>
+      ${gratuit ? article5Gratuit : `
       ${offerte ? `<p><strong>Durée</strong> — la période fondatrice court 12 mois à compter de la mise en service. Le statut de Commune fondatrice et la réduction de 35 % restent acquis au-delà, dans les conditions de l'article 3.</p>`
         : '<p><strong>Durée</strong> — la convention court pour la durée de l\'abonnement. Le statut de Commune fondatrice et la réduction de 35 % restent acquis tant que l\'abonnement se poursuit sans interruption.</p>'}
       ${offerte ? `<p><strong>Résiliation</strong> — la Commune peut mettre fin à la convention à tout moment, par simple mail, sans pénalité. Le Prestataire ne peut résilier qu'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>`
-        : '<p><strong>Résiliation</strong> — la Commune peut mettre fin à l\'abonnement à sa date anniversaire, dans les conditions de l\'article 3 ; l\'année en cours reste due. Le Prestataire ne peut résilier qu\'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>'}
+        : '<p><strong>Résiliation</strong> — la Commune peut mettre fin à l\'abonnement à sa date anniversaire, dans les conditions de l\'article 3 ; l\'année en cours reste due. Le Prestataire ne peut résilier qu\'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>'}`}
       <p><strong>Fin de la convention</strong> — la Commune reçoit sur demande un export de ses contenus. Les données sont supprimées dans les 3 mois, sauf obligation légale de conservation.</p>
       <p><strong>Droit applicable</strong> — droit français. En cas de désaccord, les parties cherchent d'abord une solution amiable ; à défaut, le tribunal administratif d'Amiens est compétent.</p>
       <p><strong>Annexes</strong> — 1. Accord de sous-traitance des données (DPA) ; 2. Grille tarifaire en vigueur à la signature (plateforme-agora.fr).</p>

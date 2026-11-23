@@ -16,11 +16,11 @@ import { TOUS_LES_ONGLETS, chargerOngletsGratuits, appliquerOngletsSurCommune } 
 
 const COLONNES = 'id,commune_id,statut,numero_fondatrice,signataire_nom,signataire_qualite,deliberation_reference,'
   + 'deliberation_date,option_reconduction,siret_commune,code_service_chorus,facturation_nom,facturation_email,'
-  + 'date_debut_souhaitee,citation_autorisee,premiere_annee_offerte,prix_annuel_fondateur,conditions_particulieres,onglets_offerts,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at,'
+  + 'date_debut_souhaitee,citation_autorisee,premiere_annee_offerte,prix_annuel_fondateur,conditions_particulieres,onglets_offerts,formule,offre_reconductions,offre_non_reconduite,jeton_formulaire,formulaire_rempli_le,envoyee_le,signee_le,created_at,updated_at,'
   + 'signature_prestataire_le,signature_prestataire_empreinte,texte_personnalise,texte_personnalise_le';
 // Une fois signée par le Prestataire, la convention est figée : seuls ces champs restent modifiables
-// (suivi de la signature côté mairie). Tout le reste changerait le texte signé.
-const CHAMPS_MODIFIABLES_APRES_SIGNATURE = ['statut', 'signee_le'];
+// (suivi de la signature côté mairie, refus de reconduire l'offre). Tout le reste changerait le texte signé.
+const CHAMPS_MODIFIABLES_APRES_SIGNATURE = ['statut', 'signee_le', 'offre_non_reconduite'];
 const CHAMPS_COMMUNE = ['signataire_nom', 'signataire_qualite', 'deliberation_reference', 'deliberation_date', 'option_reconduction',
   'siret_commune', 'code_service_chorus', 'facturation_nom', 'facturation_email', 'date_debut_souhaitee', 'citation_autorisee'] as const;
 
@@ -47,8 +47,10 @@ const staffSchema = champsCommuneSchema.extend({
   premiere_annee_offerte: z.boolean().optional(),
   prix_annuel_fondateur: z.number().min(0).max(100000).multipleOf(0.01).nullable().optional(),
   conditions_particulieres: z.string().trim().max(4000).nullable().optional(),
-  // Offre à la carte (migration 119) : onglets offerts 12 mois en plus de la version gratuite.
-  // Vide = accès complet offert (enregistré null).
+  // Formule (migration 120) et, en formule gratuite, onglets offerts 12 mois reconduits tacitement
+  // (migration 119 ; vide = aucun, enregistré null). offre_non_reconduite : refus de reconduction notifié.
+  formule: z.enum(['gratuit', 'autonomie', 'accompagne']).nullable().optional(),
+  offre_non_reconduite: z.boolean().optional(),
   onglets_offerts: z.array(z.enum(TOUS_LES_ONGLETS)).max(TOUS_LES_ONGLETS.length)
     .transform((l) => (l.length ? [...new Set(l)] : null)).nullable().optional(),
   signee_le: date.nullable().optional(),
@@ -208,37 +210,59 @@ export function finOffre12Mois(debut: string): string {
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
 }
+// Reconduction tacite des onglets offerts (formule gratuite) : période suivante de 12 mois, 3 fois au plus.
+export const RECONDUCTIONS_MAX = 3;
+export function prolongerDouzeMois(fin: string): string {
+  const d = new Date(fin + 'T12:00:00Z');
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  return d.toISOString().slice(0, 10);
+}
+// Offre reconduite tacitement à sa date de fin ? Formule gratuite, convention non annulée, aucun
+// refus notifié (« Ne pas reconduire ») et moins de 3 reconductions déjà faites (4 ans au maximum).
+export function peutReconduireOffre(conv: any): boolean {
+  return !!conv && conv.formule === 'gratuit' && conv.statut !== 'annulee' && !conv.offre_non_reconduite
+    && (conv.offre_reconductions ?? 0) < RECONDUCTIONS_MAX;
+}
 
-// POST /:id/mettre-en-service — applique sur la commune l'offre de la convention « première année
-// offerte » (2026-11-23) : version gratuite + onglets offerts (à la carte), ou tous les onglets
-// (accès complet), chaque onglet offert portant sa date de fin. Le cron ferme ces onglets le
-// lendemain (cron.ts, fermerOngletsOfferts) ; rappel 30 jours avant dans les anomalies. Forfait
-// « Fondateur », sans prix ni échéance, comme le préréglage « Fondateur, accès offert ».
+// POST /:id/mettre-en-service — applique l'offre de la convention sur la commune (2026-11-23) :
+// - formule gratuite : version gratuite + onglets offerts, datés (fin de la 1re période de 12 mois) ;
+// - formule payante avec « première année offerte » : tous les onglets, datés de la même façon.
+// Le cron de 4 h reconduit (gratuite) ou ferme ces onglets le lendemain de la date (cron.ts,
+// fermerOngletsOfferts). Forfait « Fondateur » sans prix ni échéance, formule de la convention
+// recopiée sur la commune (bilan mensuel et modération photo en dépendent). Compteur de
+// reconductions remis à zéro : une remise en service démarre une nouvelle offre.
 const miseEnServiceSchema = z.object({ debut: date.optional() }).strict();
 routesStaff.post('/:id/mettre-en-service', exigerAdmin, async (c) => {
   const body = miseEnServiceSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!body.success) return c.json({ erreur: premiereErreur(body.error) }, 400);
   const [conv] = await supabaseSelect(c.env, 'conventions', {
-    select: 'id,commune_id,statut,premiere_annee_offerte,onglets_offerts', id: `eq.${c.req.param('id')}`,
+    select: 'id,commune_id,statut,formule,premiere_annee_offerte,onglets_offerts', id: `eq.${c.req.param('id')}`,
   });
   if (!conv) return c.json({ erreur: 'Convention introuvable' }, 404);
   if (conv.statut === 'annulee') return c.json({ erreur: 'Convention annulée.' }, 400);
-  if (!conv.premiere_annee_offerte) return c.json({ erreur: 'Cette convention n\'offre pas de première année : rien à mettre en service ici.' }, 400);
+  const gratuit = conv.formule === 'gratuit';
+  if (!gratuit && !conv.premiere_annee_offerte) {
+    return c.json({ erreur: 'Convention payante sans première année offerte : l\'activation passe par « 💶 Abonnement ».' }, 400);
+  }
 
   const gratuits = await chargerOngletsGratuits(c.env);
   const payants = TOUS_LES_ONGLETS.filter((cle) => !gratuits.includes(cle));
-  const choisis = (conv.onglets_offerts ?? []).filter((cle: string) => payants.includes(cle as any));
-  const offerts = choisis.length ? choisis : payants;
+  const offerts: string[] = gratuit ? (conv.onglets_offerts ?? []).filter((cle: string) => payants.includes(cle as any)) : payants;
   const debut = body.data.debut ?? new Date().toISOString().slice(0, 10);
   const fin = finOffre12Mois(debut);
 
   // Remet toutes les dates à zéro (appliquerOngletsSurCommune), puis date les seuls onglets offerts.
   await appliquerOngletsSurCommune(c.env, conv.commune_id, [...gratuits, ...offerts]);
-  await supabaseUpdate(c.env, 'onglets_config', { offert_jusqu_au: fin }, { commune_id: `eq.${conv.commune_id}`, cle: `in.(${offerts.join(',')})` });
-  await supabaseUpdate(c.env, 'communes', { forfait: 'Fondateur', prix_annuel_ttc: null, prochaine_echeance: null }, { id: `eq.${conv.commune_id}` });
+  if (offerts.length) {
+    await supabaseUpdate(c.env, 'onglets_config', { offert_jusqu_au: fin }, { commune_id: `eq.${conv.commune_id}`, cle: `in.(${offerts.join(',')})` });
+  }
+  await supabaseUpdate(c.env, 'communes', {
+    forfait: 'Fondateur', formule: conv.formule ?? 'autonomie', prix_annuel_ttc: null, prochaine_echeance: null,
+  }, { id: `eq.${conv.commune_id}` });
+  await supabaseUpdate(c.env, 'conventions', { offre_reconductions: 0, offre_non_reconduite: false, updated_at: new Date().toISOString() }, { id: `eq.${conv.id}` });
   await journaliser(c.env, c.get('staff_id'), 'offre_fondatrice_mise_en_service',
-    `${conv.commune_id} — ${choisis.length ? offerts.join(', ') : 'accès complet'} offert du ${debut} au ${fin}`);
-  return c.json({ ok: true, onglets_offerts: offerts, offert_jusqu_au: fin });
+    `${conv.commune_id} — ${gratuit ? `gratuit${offerts.length ? ' + ' + offerts.join(', ') : ''}` : 'accès complet'} offert du ${debut} au ${fin}`);
+  return c.json({ ok: true, onglets_offerts: offerts, offert_jusqu_au: offerts.length ? fin : null });
 });
 
 // POST /:id/signer — signature électronique simple du Prestataire (eIDAS, art. 1367 du Code civil) :
@@ -290,6 +314,7 @@ routesFormulaire.get('/:jeton', async (c) => {
     commune_nom: commune?.nom ?? '',
     numero_fondatrice: conv.numero_fondatrice,
     premiere_annee_offerte: !!conv.premiere_annee_offerte,
+    formule: conv.formule ?? 'autonomie',
     champs: Object.fromEntries(CHAMPS_COMMUNE.map((k) => [k, conv[k] ?? null])),
   });
 });

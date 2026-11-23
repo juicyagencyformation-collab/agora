@@ -29,6 +29,8 @@ export type FormuleActuelle = 'gratuite' | 'autonomie' | 'accompagne' | 'premium
 // palier : fondateur, tout ouvert (version complète) ou gratuit (au moins un onglet verrouillé).
 export function formuleActuelle(commune: { formule?: string | null; forfait?: string | null }, nbOngletsVerrouilles: number): FormuleActuelle {
   if (commune.formule === 'autonomie' || commune.formule === 'accompagne' || commune.formule === 'premium') return commune.formule;
+  // Fondatrice en formule gratuite (convention, migration 120) : peut demander à passer au payant.
+  if (commune.formule === 'gratuit') return 'gratuite';
   if (commune.forfait === 'Fondateur') return 'fondateur';
   return nbOngletsVerrouilles > 0 ? 'gratuite' : 'complete';
 }
