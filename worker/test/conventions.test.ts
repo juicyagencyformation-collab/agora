@@ -199,6 +199,11 @@ describe('document', () => {
     const un = genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: ['mur', 'agenda'] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise, undefined, gratuits);
     expect(un).toContain("plus l'onglet <strong>Mur des voisins</strong> offert par périodes de 12 mois reconductibles");
     expect(un).toContain("l'onglet offert se ferme et l'espace reste en version gratuite");
+    // Tous les onglets payants offerts : pas de phrase sur « les autres onglets ».
+    const payants = Object.keys(LIBELLES_ONGLETS).filter((cle) => !gratuits.includes(cle));
+    const tous = genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: payants }, { nom: 'Tourly', slug: 'tourly' }, '60', entreprise, undefined, gratuits);
+    expect(tous).not.toContain('Les autres onglets');
+    expect(tous).toContain('Mémoire du village</strong>, <strong>offerts par périodes de 12 mois');
     // Sans onglet offert : la version gratuite seule.
     const seul = genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: [] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise, undefined, gratuits);
     expect(seul).toContain('fondatrice de Plateforme-Agora : version gratuite, et 35 % de réduction garantis si elle s');

@@ -228,7 +228,7 @@ export function genererConventionHtml(
         <li><strong>Un espace dédié</strong> à l'adresse plateforme-agora.fr/${echapper(commune.slug)}, administré par la mairie.</li>
         <li><strong>Un accès prioritaire au Prestataire</strong> pour le support et la prise en compte des demandes d'évolution.</li>
       </ul>
-      ${gratuit ? `<p>Les autres onglets${gratuits.length && autresPayants.length ? ` (${autresPayants.map((cle) => LIBELLES_ONGLETS[cle].toLowerCase()).join(', ')})` : ''} s'ouvrent à tout moment par la souscription d'un abonnement, au tarif fondateur de l'article 3.</p>` : ''}
+      ${gratuit && (!gratuits.length || autresPayants.length) ? `<p>Les autres onglets${gratuits.length && autresPayants.length ? ` (${autresPayants.map((cle) => LIBELLES_ONGLETS[cle].toLowerCase()).join(', ')})` : ''} s'ouvrent à tout moment par la souscription d'un abonnement, au tarif fondateur de l'article 3.</p>` : ''}
       <p>Ne sont pas inclus, et bénéficient de la réduction fondatrice de l'article 3 :</p>
       <ul>
         <li>les <strong>packs de sondages</strong> pour le Thermomètre du village, vendus à l'unité ;</li>
