@@ -67,7 +67,7 @@
       corps.classList.add('en-edition');
       corps.focus();
       modifier.replaceWith(annuler, valider);
-      majInfo('Cliquez dans le texte pour le modifier (Ctrl+B : gras, Ctrl+I : italique). Les signatures et le DPA restent générés automatiquement.');
+      majInfo('Cliquez dans le texte pour le modifier (Ctrl+B : gras, Ctrl+I : italique). Les signatures restent générées automatiquement ; le DPA (annexe 1) se modifie depuis sa propre page : fiche commune → « 📄 Générer le contrat DPA ».');
     });
     const annuler = bouton('Annuler', true, () => location.reload());
     const valider = bouton('Enregistrer le texte', false, () => enregistrer(corps.innerHTML));
@@ -429,7 +429,67 @@
       feuille.innerHTML = d.html;
       manquants = d.manquants;
       dessiner(d.champs);
+      majEditionDpa(d);
     };
+
+    // Texte du DPA réécrit à la main pour cette commune (2026-11-23, PUT /contrat-dpa/:communeId/texte) :
+    // deux parties modifiables sur place (contrat, annexes) ; le bloc des signatures reste généré.
+    // Seule une partie réellement modifiée est envoyée : l'autre garde son texte (automatique ou non).
+    function majEditionDpa(d) {
+      const barre = document.querySelector('.barre-actions');
+      if (!barre) return;
+      barre.querySelector('.edition-dpa')?.remove();
+      document.querySelector('.info-edition.dpa')?.remove();
+      const info = document.createElement('div');
+      info.className = 'info-edition dpa';
+      const majInfo = (texte, erreur) => { info.textContent = texte; info.classList.toggle('erreur', !!erreur); };
+      barre.after(info);
+      if (!d.modifiable) {
+        majInfo('Convention de la commune signée : ce DPA y est figé. Pour le modifier, annulez d\'abord votre signature de la convention.');
+        return;
+      }
+      if (d.texte_personnalise_le) {
+        majInfo('Texte personnalisé le ' + new Date(d.texte_personnalise_le).toLocaleString('fr-FR')
+          + ' : le panneau ne modifie plus les parties réécrites (remplissez-le avant de réécrire le texte).');
+      }
+      const groupe = document.createElement('span');
+      groupe.className = 'edition-dpa';
+      groupe.style.display = 'contents';
+      const bouton = (texte, sec, action) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn' + (sec ? ' btn--sec' : ''); b.textContent = texte;
+        b.addEventListener('click', action);
+        return b;
+      };
+      const envoyer = async (corps) => {
+        try {
+          await boFetch('/administration/contrat-dpa/' + communeId + '/texte', { method: 'PUT', body: JSON.stringify(corps) });
+          location.reload();
+        } catch (e) { majInfo('Échec : ' + (e.message || 'erreur inconnue'), true); }
+      };
+      const zones = [...feuille.querySelectorAll('[data-corps-dpa]')];
+      const initial = {};
+      const modifier = bouton('✏️ Modifier le texte', true, () => {
+        zones.forEach((z) => { initial[z.dataset.corpsDpa] = z.innerHTML; z.contentEditable = 'true'; z.classList.add('en-edition'); });
+        if (zones[0]) zones[0].focus();
+        modifier.replaceWith(annuler, valider);
+        majInfo('Cliquez dans le texte pour le modifier (Ctrl+B : gras, Ctrl+I : italique). Le bloc des signatures reste généré automatiquement.');
+      });
+      const annuler = bouton('Annuler', true, () => location.reload());
+      const valider = bouton('Enregistrer le texte', false, () => {
+        const corps = {};
+        zones.forEach((z) => { if (z.innerHTML !== initial[z.dataset.corpsDpa]) corps[z.dataset.corpsDpa] = z.innerHTML; });
+        if (!Object.keys(corps).length) { majInfo('Aucune modification.'); return; }
+        envoyer(corps);
+      });
+      groupe.append(modifier);
+      if (d.texte_personnalise_le) {
+        groupe.prepend(bouton('Revenir au texte automatique', true, () => {
+          if (confirm('Revenir au texte automatique du DPA ? Vos modifications du texte seront perdues.')) envoyer({ contrat: null, annexes: null });
+        }));
+      }
+      barre.prepend(groupe);
+    }
 
     async function enregistrer() {
       const message = panneau.querySelector('.panneau__message');

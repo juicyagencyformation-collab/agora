@@ -53,7 +53,7 @@ const BALISES_CONVENTION = ['h1', 'h2', 'h3', 'p', 'strong', 'b', 'em', 'i', 'u'
   'table', 'thead', 'tbody', 'tr', 'th', 'td', 'br', 'div', 'span'];
 const CLASSES_CONVENTION = ['a-completer', 'chapeau', 'sous-titre'];
 
-function reconstruireBaliseConvention(balise: string): string {
+function reconstruireBalise(balise: string, classes: string[]): string {
   const m = balise.match(/^<(\/?)([a-z][a-z0-9]*)([^>]*)>$/i);
   if (!m) return '';
   const [, fermante, nomBrut, attrs] = m;
@@ -62,14 +62,20 @@ function reconstruireBaliseConvention(balise: string): string {
   if (nom === 'br') return fermante ? '' : '<br>';
   if (fermante) return `</${nom}>`;
   const classe = attrs.match(/class\s*=\s*["']([^"']*)["']/i)?.[1]?.trim();
-  return classe && CLASSES_CONVENTION.includes(classe) ? `<${nom} class="${classe}">` : `<${nom}>`;
+  return classe && classes.includes(classe) ? `<${nom} class="${classe}">` : `<${nom}>`;
 }
 
-export function nettoyerTexteConvention(html: string): string {
+// Texte de document réécrit à la main (convention, contrat DPA) : seules les balises de
+// BALISES_CONVENTION et les classes de mise en page données survivent, sans aucun autre attribut.
+export function nettoyerHtmlDocument(html: string, classes: string[]): string {
   return html
     .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/<[^>]*>|</g, (balise) => (balise === '<' ? '&lt;' : reconstruireBaliseConvention(balise)));
+    .replace(/<[^>]*>|</g, (balise) => (balise === '<' ? '&lt;' : reconstruireBalise(balise, classes)));
+}
+
+export function nettoyerTexteConvention(html: string): string {
+  return nettoyerHtmlDocument(html, CLASSES_CONVENTION);
 }
 
 // Libellés des onglets pour la ligne « Onglets » du tableau de l'article 3, dans l'ordre de

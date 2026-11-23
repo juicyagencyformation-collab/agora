@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { supabaseSelect, supabaseInsert, supabaseUpdate, supabaseUpsert, journaliser } from '../db';
 import { backofficeMiddleware, exigerAdmin, roleStaff } from '../middleware/backoffice';
 import { versCsv } from '../lib/csv';
-import { genererContratDpaHtml, CHAMPS_DPA, type CleDpa, type InfosDpa } from './contrat-dpa';
+import { genererContratDpaHtml, nettoyerTexteDpa, CHAMPS_DPA, type CleDpa, type InfosDpa } from './contrat-dpa';
 import { TOUS_LES_ONGLETS, appliquerOngletsSurCommune, clorerDemandesFormule } from './administration';
 import { avecAvoirs, COLONNES_AVOIR, arrondi } from './avoirs';
 
@@ -106,7 +106,7 @@ export async function infosContratDpa(env: any, communeId: string) {
   if (!commune) return null;
   const [lignesParam, [saisie], [maireCompte], [prospect], [convention]] = await Promise.all([
     supabaseSelect(env, 'parametres_facturation', { select: 'cle,valeur', cle: `in.(${[...new Set([...CLES_ENTREPRISE, ...CLES_PRESTATAIRE_DPA])].join(',')})` }),
-    supabaseSelect(env, 'dpa_communes', { select: CLES_COMMUNE_DPA.join(','), commune_id: `eq.${communeId}` }),
+    supabaseSelect(env, 'dpa_communes', { select: [...CLES_COMMUNE_DPA, 'texte_contrat', 'texte_annexes', 'texte_personnalise_le'].join(','), commune_id: `eq.${communeId}` }),
     supabaseSelect(env, 'users', { select: 'prenom,nom', commune_id: `eq.${communeId}`, role: 'eq.maire', compte_supprime_le: 'is.null', limit: '1' }),
     supabaseSelect(env, 'prospects', { select: 'nom_maire,maire_civilite,adresse,contact_telephone', commune_id: `eq.${communeId}`, limit: '1' }),
     supabaseSelect(env, 'conventions', {
@@ -139,15 +139,28 @@ export async function infosContratDpa(env: any, communeId: string) {
     maire_civilite: prospect?.nom_maire && champs.find((ch) => ch.cle === 'signataire_nom')!.valeur === prospect.nom_maire
       ? prospect.maire_civilite : undefined,
   };
-  return { commune, champs, infos };
+  // Texte réécrit à la main pour cette commune (migration 121) : null = texte automatique.
+  const textes = { contrat: saisie?.texte_contrat ?? null, annexes: saisie?.texte_annexes ?? null, le: saisie?.texte_personnalise_le ?? null };
+  return { commune, champs, infos, textes };
+}
+
+// Le DPA d'une commune dont la convention est signée par le Prestataire est figé dans cette
+// convention : son texte ne se modifie plus (comme la convention elle-même).
+async function dpaFigeParConvention(env: any, communeId: string | undefined): Promise<boolean> {
+  const signees = await supabaseSelect(env, 'conventions', {
+    select: 'id', commune_id: `eq.${communeId}`, statut: 'neq.annulee', signature_prestataire_le: 'not.is.null', limit: '1',
+  });
+  return signees.length > 0;
 }
 
 app.get('/contrat-dpa/:communeId', async (c) => {
   const donnees = await infosContratDpa(c.env, c.req.param('communeId'));
   if (!donnees) return c.json({ erreur: 'Commune introuvable' }, 404);
   return c.json({
-    html: genererContratDpaHtml(donnees.commune, donnees.infos),
+    html: genererContratDpaHtml(donnees.commune, donnees.infos, donnees.textes),
     commune_nom: donnees.commune.nom,
+    texte_personnalise_le: donnees.textes.le,
+    modifiable: !(await dpaFigeParConvention(c.env, c.req.param('communeId'))),
     champs: donnees.champs,
     manquants: donnees.champs.filter((ch) => !ch.valeur).length,
   });
@@ -195,6 +208,45 @@ app.put('/contrat-dpa/:communeId', async (c) => {
   }
   await journaliser(c.env, c.get('staff_id'), 'contrat_dpa_infos', commune.nom);
   return c.json({ ok: true });
+});
+
+// PUT /contrat-dpa/:communeId/texte — texte du DPA réécrit à la main pour CETTE commune (2026-11-23,
+// migration 121), comme la convention (conventions.ts, PUT /:id/texte). Chaque partie envoyée est
+// remplacée (null = retour au texte automatique) ; une partie absente ne bouge pas. Réservé à
+// l'administrateur, refusé une fois la convention de la commune signée par le Prestataire.
+const texteDpaSchema = z.object({
+  contrat: z.string().max(300000).nullable().optional(),
+  annexes: z.string().max(300000).nullable().optional(),
+}).strict();
+
+app.put('/contrat-dpa/:communeId/texte', exigerAdmin, async (c) => {
+  const communeId = c.req.param('communeId');
+  const body = texteDpaSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: 'Données invalides.' }, 400);
+  const [[commune], [actuel]] = await Promise.all([
+    supabaseSelect(c.env, 'communes', { select: 'id,nom', id: `eq.${communeId}` }),
+    supabaseSelect(c.env, 'dpa_communes', { select: 'texte_contrat,texte_annexes', commune_id: `eq.${communeId}` }),
+  ]);
+  if (!commune) return c.json({ erreur: 'Commune introuvable' }, 404);
+  if (await dpaFigeParConvention(c.env, communeId)) {
+    return c.json({ erreur: 'DPA figé par votre signature de la convention : annulez-la d\'abord pour modifier son texte.' }, 409);
+  }
+  const nettoyer = (v: string | null | undefined, avant: string | null) => {
+    if (v === undefined) return avant;
+    if (v === null) return null;
+    const t = nettoyerTexteDpa(v).trim();
+    return t.replace(/<[^>]*>/g, '').trim() ? t : undefined;
+  };
+  const contrat = nettoyer(body.data.contrat, actuel?.texte_contrat ?? null);
+  const annexes = nettoyer(body.data.annexes, actuel?.texte_annexes ?? null);
+  if (contrat === undefined || annexes === undefined) return c.json({ erreur: 'Le texte du DPA est vide.' }, 400);
+  const maintenant = new Date().toISOString();
+  const le = contrat || annexes ? maintenant : null;
+  await supabaseUpsert(c.env, 'dpa_communes', [{
+    commune_id: communeId, texte_contrat: contrat, texte_annexes: annexes, texte_personnalise_le: le, updated_at: maintenant,
+  }], 'commune_id');
+  await journaliser(c.env, c.get('staff_id'), le ? 'contrat_dpa_texte_personnalise' : 'contrat_dpa_texte_automatique', commune.nom);
+  return c.json({ ok: true, texte_personnalise_le: le });
 });
 
 // Numéro séquentiel SANS TROU par table et par année (ex. F-2026-0001) — obligation légale pour

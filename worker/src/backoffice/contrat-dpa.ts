@@ -6,6 +6,8 @@
 // Léandre relit et complète les [●] restants avant tout envoi à une vraie commune — depuis le
 // panneau « Informations à compléter » du document (frontend/backoffice/js/document.js), qui
 // enregistre via PUT /administration/contrat-dpa/:communeId (facturation.ts).
+import { nettoyerHtmlDocument } from './convention-document';
+
 function echapper(s: string | null | undefined): string {
   return String(s ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]!));
 }
@@ -39,7 +41,16 @@ function manque(cle: CleDpa): string {
   return `<span class="a-completer" data-champ="${cle}" title="À compléter">[● ${echapper(libelle)}]</span>`;
 }
 
-export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string {
+// Texte réécrit à la main pour une commune (2026-11-23, migration 121) : deux parties, séparées par
+// le bloc des signatures, qui reste toujours généré (la signature électronique s'y place).
+export type TextesDpa = { contrat?: string | null; annexes?: string | null };
+// Classes de mise en page du DPA gardées par le nettoyage (aucun autre attribut ne survit).
+const CLASSES_DPA = ['entete', 'marque', 'ref', 'sous-titre', 'version', 'partie', 'et', 'grille', 'fiche', 'a-completer'];
+export function nettoyerTexteDpa(html: string): string {
+  return nettoyerHtmlDocument(html, CLASSES_DPA);
+}
+
+export function genererContratDpaHtml(commune: Commune, infos: InfosDpa, textes?: TextesDpa): string {
   const val = (cle: CleDpa) => (infos[cle] ? echapper(infos[cle]) : manque(cle));
   const nomCommune = echapper(commune.nom);
   const formeJuridique = infos.entreprise_forme_juridique ? echapper(infos.entreprise_forme_juridique) : 'entrepreneur individuel (EI)';
@@ -108,6 +119,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
     </style>
 
     <div class="contrat">
+      <div data-corps-dpa="contrat">${textes?.contrat?.trim() ? nettoyerTexteDpa(textes.contrat) : `
       <div class="entete">
         <div class="marque">Plateforme-Agora</div>
         <div class="ref">Accord de sous-traitance RGPD — article 28<br>Commune de ${nomCommune}</div>
@@ -363,12 +375,14 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
       la plus diligente. Elles peuvent recourir à une médiation.</p>
       <p>20.3. À défaut d'accord amiable, le différend est porté devant la juridiction administrative
       territorialement compétente.</p>
+      `}</div>
 
       <div class="signatures">
         <div><b>Pour la commune de ${nomCommune}</b>${signataire}, ${qualite}<div class="fait">Fait à …………………, le ……………</div>Signature et cachet</div>
         <div><b>Pour le Sous-traitant</b>Léandre SALLE<div class="fait">Fait à …………………, le ……………</div>Signature</div>
       </div>
 
+      <div data-corps-dpa="annexes">${textes?.annexes?.trim() ? nettoyerTexteDpa(textes.annexes) : `
       <h2>Annexe 1 — Description détaillée des traitements</h2>
       <p>Les bases légales indiquées sont des propositions : leur détermination relève de la Commune. Les durées de
       conservation sont celles appliquées par défaut par la Plateforme ; la Commune peut demander à les adapter.</p>
@@ -432,6 +446,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa): string
       transmise. La vigilance météo n'est pas interrogée par le navigateur de l'habitant : elle est synchronisée
       automatiquement côté serveur depuis un jeu de données publiques en lecture anonyme — ce flux n'implique donc
       aucun sous-traitant au sens du RGPD.</p>
+      `}</div>
     </div>
   `;
 }

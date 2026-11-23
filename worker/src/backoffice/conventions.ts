@@ -158,7 +158,7 @@ async function documentComplet(env: any, conv: any): Promise<{ html: string; com
   const desactives = onglets.filter((o: any) => o.actif === false).map((o: any) => o.cle);
   const ongletsActifs = Object.keys(LIBELLES_ONGLETS).filter((cle) => !desactives.includes(cle));
   const convention = genererConventionHtml(conv, commune, departement, entreprise, ongletsActifs, ongletsGratuits);
-  const html = dpa ? assemblerConventionEtDpa(convention, genererContratDpaHtml(dpa.commune, dpa.infos)) : convention;
+  const html = dpa ? assemblerConventionEtDpa(convention, genererContratDpaHtml(dpa.commune, dpa.infos, dpa.textes)) : convention;
   return { html, commune_nom: commune?.nom };
 }
 

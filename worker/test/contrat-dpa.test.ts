@@ -14,6 +14,7 @@ const correspond = (l: Ligne, k: string, v: string) => {
   if (v.startsWith('eq.')) return String(l[k]) === v.slice(3);
   if (v.startsWith('neq.')) return String(l[k]) !== v.slice(4);
   if (v === 'is.null') return l[k] == null;
+  if (v === 'not.is.null') return l[k] != null;
   if (v.startsWith('in.(')) return v.slice(4, -1).split(',').includes(String(l[k]));
   return true;
 };
@@ -101,5 +102,46 @@ describe('Contrat DPA — informations à compléter', () => {
 
   it('refuse sans session staff', async () => {
     expect((await facturation.request('/contrat-dpa/fay', {}, ENV)).status).toBe(401);
+  });
+});
+
+describe('Contrat DPA — texte modifiable par commune', () => {
+  const texte = async (corps: object) => facturation.request('/contrat-dpa/fay/texte', {
+    method: 'PUT', headers: { ...(await session()), 'Content-Type': 'application/json' }, body: JSON.stringify(corps),
+  }, ENV);
+
+  it('remplace la partie modifiée (nettoyée), garde l\'autre automatique et le bloc des signatures', async () => {
+    const res = await texte({ contrat: '<h1 onclick="x()">Accord adapté</h1><p class="partie" style="color:red">Clause <b>propre</b> à Fay.</p><script>alert(1)</script><!--SIGNATURE_PRESTATAIRE-->' });
+    expect(res.status).toBe(200);
+    const d = await lire();
+    expect(d.texte_personnalise_le).toBeTruthy();
+    expect(d.html).toContain('<h1>Accord adapté</h1><p class="partie">Clause <b>propre</b> à Fay.</p>');
+    expect(d.html).not.toContain('Article 1 — Définitions');
+    expect(d.html).not.toMatch(/onclick|<script|style="color|SIGNATURE_PRESTATAIRE/);
+    expect(d.html).toContain('Annexe 1 — Description détaillée des traitements'); // annexes : texte automatique
+    expect(d.html).toContain('<div class="signatures">');
+    expect(d.modifiable).toBe(true);
+  });
+
+  it('modifie les annexes sans toucher au contrat déjà réécrit, puis revient au texte automatique', async () => {
+    await texte({ contrat: '<p>Contrat retouché</p>' });
+    await texte({ annexes: '<h2>Annexe 1 — Traitements de Fay</h2>' });
+    expect(db.dpa_communes[0]).toMatchObject({ texte_contrat: '<p>Contrat retouché</p>', texte_annexes: '<h2>Annexe 1 — Traitements de Fay</h2>' });
+    await texte({ contrat: null, annexes: null });
+    const d = await lire();
+    expect(d.texte_personnalise_le).toBeNull();
+    expect(d.html).toContain('Article 1 — Définitions');
+  });
+
+  it('refuse un texte vide, un champ inconnu, un assistant, et un DPA figé par la convention signée', async () => {
+    expect((await texte({ contrat: '<p> </p>' })).status).toBe(400);
+    expect((await texte({ autre: 'x' })).status).toBe(400);
+    db.conventions[0].signature_prestataire_le = '2026-11-23T10:00:00Z';
+    expect((await texte({ contrat: '<p>X</p>' })).status).toBe(409);
+    expect((await lire()).modifiable).toBe(false);
+    db.conventions[0].signature_prestataire_le = null;
+    db.staff_backoffice = [{ id: 's1', role: 'assistant' }];
+    expect((await texte({ contrat: '<p>X</p>' })).status).toBe(403);
+    expect(db.dpa_communes).toHaveLength(0);
   });
 });

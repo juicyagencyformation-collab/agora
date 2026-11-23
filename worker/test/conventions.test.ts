@@ -256,6 +256,14 @@ describe('signature électronique du Prestataire', () => {
     expect(html).toContain(' contrat');
   });
 
+  it('reprend en annexe 1 le DPA réécrit pour la commune', async () => {
+    db.dpa_communes = [{ commune_id: 'fay', texte_annexes: '<p class="partie">Annexes propres à Fay</p>' }];
+    const { html } = await (await routesStaff.request('/c1/document', { headers: await sessionStaff() }, ENV)).json() as any;
+    expect(html).toContain('Annexes propres à Fay');
+    expect(html).not.toContain('Annexe 3 — Sous-traitants ultérieurs autorisés');
+    expect(html.split('<!--SIGNATURE_PRESTATAIRE-->')).toHaveLength(1); // marqueurs vides : document non signé
+  });
+
   it('fige le document signé, avec empreinte, et le sert tel quel', async () => {
     const res = await routesStaff.request('/c1/signer', { method: 'POST', headers: await sessionStaff() }, ENV);
     expect(res.status).toBe(200);
