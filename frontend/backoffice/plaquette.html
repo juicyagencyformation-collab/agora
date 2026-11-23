@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<!-- frontend/backoffice/plaquette.html — plaquette de présentation personnalisée (4 pages A4) pour UNE
+     commune, à enregistrer en PDF avant un envoi de mail (2026-11-23, demandé par Léandre) :
+     1. couverture à son nom et à ses couleurs ; 2. personnalisation + écrans réels ; 3. fonctionnalités
+     (gratuit / Autonomie, d'après les réglages) ; 4. ses tarifs, offre fondatrice en avant.
+     Paramètres : ?prospect=<uuid> (onglet Échanges d'une fiche prospect) ou ?commune=<uuid>.
+     Données : GET /api/backoffice/plaquette (worker/src/backoffice/plaquette.ts), session staff.
+     Rendu : backoffice/js/plaquette.js. Écrans : backoffice/plaquette-ecrans/*.jpg (démo Bonvivre). -->
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Plateforme-Agora — Plaquette</title>
+  <link rel="icon" href="/backoffice/logo.png?v=20260818-3" />
+  <style>
+    :root {
+      --teal: #2c5f6e;
+      --teal-clair: #eaf4f7;
+      --or: #e2c97e;
+      --or-fond: #f6ecd0;
+      --or-fonce: #6b5214;
+      --vert: #3f5a34;
+      --vert-fond: #e6efe1;
+      --creme: #faf8f3;
+      --encre: #2b2622;
+      --gris: #5c544b;
+      --bord: #d9e4e8;
+      --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      /* Couleurs de la commune : remplacées par plaquette.js */
+      --c-theme: #2c5f6e;
+      --c-encre: #ffffff;
+      --c-accent: #e2c97e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--sans); color: var(--encre); background: #e6e9ec; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    h1, h2, h3 { font-family: var(--serif); font-weight: 700; line-height: 1.15; }
+
+    .barre-actions { max-width: 210mm; margin: 16px auto; display: flex; gap: 12px; align-items: center; justify-content: flex-end; padding: 0 12px; }
+    .barre-actions .etat { margin-right: auto; font-size: 13px; color: var(--gris); }
+    .btn { border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer; background: var(--teal); color: #fff; }
+    .chargement { max-width: 210mm; margin: 40px auto; text-align: center; color: var(--gris); }
+
+    .feuille { width: 210mm; height: 297mm; margin: 0 auto 24px; background: var(--creme); box-shadow: 0 10px 34px rgba(15, 30, 45, .14);
+      position: relative; overflow: hidden; display: flex; flex-direction: column; padding: 14mm 15mm 10mm; }
+    .pied { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--bord); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--gris); }
+    .pied b { color: var(--teal); }
+    .sur { font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--or-fonce); }
+    .titre-page { font-size: 27px; color: var(--teal); margin: 4px 0 6px; }
+    .chapo { font-size: 14px; color: var(--gris); margin-bottom: 12px; }
+    .pastille { display: inline-block; font-family: var(--sans); font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 100px; vertical-align: 2px; white-space: nowrap; }
+    .p-gratuit { background: var(--vert-fond); color: var(--vert); }
+    .p-payant { background: var(--teal-clair); color: var(--teal); }
+    .p-marque { background: var(--or-fond); color: var(--or-fonce); }
+
+    /* — Page 1 : couverture — */
+    .couverture { padding: 0; }
+    .couv-bandeau { background: var(--c-theme); color: var(--c-encre); padding: 13mm 15mm 12mm; display: flex; flex-direction: column; gap: 12px; }
+    .couv-marques { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .couv-marques .agora { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-weight: 700; font-size: 19px; }
+    .couv-marques .agora img { width: 40px; height: 40px; object-fit: contain; background: #fff; border-radius: 50%; padding: 3px; }
+    .couv-marques .commune-logo { width: 58px; height: 58px; object-fit: contain; background: #fff; border-radius: 12px; padding: 4px; }
+    .couv-sur { font-size: 12.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .85; }
+    .couv-bandeau h1 { font-size: 46px; line-height: 1.05; }
+    .couv-bandeau h1 em { font-style: italic; color: var(--c-accent); }
+    .couv-bandeau p { font-size: 16px; line-height: 1.5; max-width: 150mm; opacity: .95; }
+    .couv-corps { padding: 9mm 15mm 0; display: grid; grid-template-columns: 62mm 1fr; gap: 9mm; align-items: start; }
+    .couv-droite { display: flex; flex-direction: column; gap: 10px; }
+    .promesse { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 11px 14px; }
+    .promesse h3 { font-size: 18px; color: var(--teal); margin-bottom: 3px; }
+    .promesse p { font-size: 13px; color: var(--gris); }
+    .puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+    .puces span { background: var(--teal-clair); color: var(--teal); font-weight: 600; font-size: 12px; padding: 4px 10px; border-radius: 100px; }
+    .legende-tel { font-size: 11px; color: var(--gris); text-align: center; margin-top: 6px; }
+    .couverture .pied { margin: auto 15mm 10mm; }
+
+    /* Téléphone (capture réelle + en-tête aux couleurs de la commune) */
+    .tel { position: relative; border: 3.2mm solid #1d1d1f; border-radius: 9mm; overflow: hidden; background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+    .tel img.ecran { width: 100%; display: block; }
+    .tel .tel-entete { position: absolute; left: 0; right: 0; top: 0; height: 7.4%; background: var(--c-theme); color: var(--c-encre);
+      display: flex; align-items: center; gap: 2.2mm; padding: 0 3mm; font-family: var(--serif); font-weight: 700; font-size: 12px; }
+    .tel .tel-entete img { width: 6.2mm; height: 6.2mm; object-fit: contain; background: #fff; border-radius: 50%; }
+    .tel .tel-entete .initiale { width: 6.2mm; height: 6.2mm; border-radius: 50%; background: var(--c-accent); color: var(--teal); display: flex; align-items: center; justify-content: center; font-size: 11px; }
+
+    /* — Page 2 : personnalisation + écrans — */
+    .perso { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+    .perso-carte { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 12px 13px; display: flex; flex-direction: column; gap: 6px; }
+    .perso-carte h3 { font-size: 16px; color: var(--teal); }
+    .perso-carte p { font-size: 12.5px; color: var(--gris); }
+    .nuancier { display: flex; gap: 8px; align-items: center; }
+    .nuancier span { width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); }
+    .nuancier small { font-size: 11px; color: var(--gris); }
+    .adresse { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; background: var(--teal-clair); color: var(--teal); padding: 5px 8px; border-radius: 6px; word-break: break-all; }
+    .icone-accueil { display: flex; align-items: center; gap: 10px; }
+    .icone-accueil .icone { width: 40px; height: 40px; border-radius: 10px; background: var(--c-theme); display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--c-encre); font-family: var(--serif); font-weight: 700; font-size: 18px; }
+    .icone-accueil .icone img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+    .icone-accueil small { font-size: 11px; color: var(--gris); }
+    .ecrans { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 9px; }
+    .ecran-bloc { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+    .ecran-bloc .tel { border-width: 1.8mm; border-radius: 5mm; width: 100%; height: 76mm; }
+    .ecran-bloc .tel img { height: 100%; object-fit: cover; object-position: top; }
+    .ecran-bloc strong { font-size: 12px; text-align: center; line-height: 1.3; }
+    .note { font-size: 11px; color: var(--gris); margin-top: 8px; }
+
+    /* — Page 3 : fonctionnalités — */
+    .colonnes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .colonne { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 12px 14px; }
+    .colonne h2 { font-size: 18px; color: var(--teal); padding-bottom: 6px; margin-bottom: 8px; border-bottom: 2px solid var(--teal); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .colonne.payante { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .colonne.payante h2 { color: #fff; border-color: rgba(255,255,255,.4); }
+    .module { display: flex; flex-direction: column; margin-bottom: 7px; }
+    .module b { font-size: 13.5px; }
+    .module span { font-size: 12px; color: var(--gris); line-height: 1.35; }
+    .colonne.payante .module span { color: #dcebef; }
+    .toujours { background: var(--or-fond); border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+    .toujours h3 { font-size: 15px; color: var(--encre); margin-bottom: 5px; }
+    .toujours ul { list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+    .atouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    .atout { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 9px 12px; font-size: 12px; line-height: 1.4; }
+    .atout b { display: block; font-family: var(--serif); font-size: 14.5px; color: var(--teal); margin-bottom: 3px; }
+    .atout span { color: var(--gris); }
+
+    /* — Page 4 : tarifs — */
+    .fondateur { background: var(--or-fond); border: 1.5px solid #d9bd6a; border-radius: 16px; padding: 12px 16px; margin-bottom: 14px; }
+    .fondateur .haut { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 9px; }
+    .fondateur h2 { font-size: 20px; color: var(--encre); }
+    .fondateur .moins { flex-shrink: 0; background: var(--teal); color: #fff; font-weight: 800; font-size: 19px; padding: 5px 14px; border-radius: 100px; }
+    .fondateur .places { font-size: 12.5px; font-weight: 700; color: var(--or-fonce); margin-top: 3px; }
+    .fondateur .prix2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .prix-f { background: #fff; border-radius: 12px; padding: 10px 14px; }
+    .prix-f .nom { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--teal); }
+    .prix-f .montant { font-family: var(--serif); font-weight: 800; font-size: 30px; line-height: 1.1; }
+    .prix-f .montant small { font-family: var(--sans); font-weight: 500; font-size: 13px; }
+    .prix-f .detail { font-size: 12.5px; color: var(--gris); }
+    .prix-f .eco { font-size: 12.5px; font-weight: 700; color: var(--vert); }
+    .fondateur .bas { font-size: 12px; margin-top: 8px; color: var(--encre); }
+    .offres { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; align-items: stretch; }
+    .offre { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 11px 13px; display: flex; flex-direction: column; gap: 4px; position: relative; }
+    .offre.vedette { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .offre .badge { position: absolute; top: -10px; right: 12px; background: var(--or); color: var(--encre); font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 100px; }
+    .offre .nom { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--vert); }
+    .offre.payante .nom { color: var(--teal); }
+    .offre.vedette .nom { color: var(--or); }
+    .offre h3 { font-size: 15px; color: var(--teal); }
+    .offre.vedette h3 { color: #fff; }
+    .offre .montant { font-family: var(--serif); font-weight: 800; font-size: 25px; line-height: 1.1; margin-top: 2px; }
+    .offre .montant small { font-family: var(--sans); font-weight: 500; font-size: 12.5px; }
+    .offre .detail { font-size: 11.5px; color: var(--gris); }
+    .offre.vedette .detail { color: #dcebef; }
+    .offre ul { list-style: none; font-size: 11.5px; line-height: 1.35; border-top: 1px solid var(--bord); padding-top: 7px; margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+    .offre.vedette ul { border-color: rgba(255,255,255,.3); }
+    .offre .modules { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+    .offre .modules span { background: var(--teal-clair); color: var(--teal); font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 5px; }
+    .infos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .info { background: #fff; border: 1px solid var(--bord); border-radius: 12px; padding: 10px 13px; font-size: 12px; color: var(--gris); }
+    .info b { display: block; font-family: var(--serif); font-size: 14.5px; color: var(--teal); margin-bottom: 3px; }
+    .etapes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .etape { display: flex; gap: 8px; align-items: flex-start; background: var(--teal-clair); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
+    .etape i { flex-shrink: 0; font-style: normal; width: 22px; height: 22px; border-radius: 50%; background: var(--teal); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .etape b { display: block; font-size: 12.5px; }
+    .contact { background: var(--teal); color: #fff; border-radius: 14px; padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .contact h3 { font-size: 19px; }
+    .contact p { font-size: 12.5px; color: #dcebef; }
+    .contact .coord { text-align: right; font-size: 12.5px; line-height: 1.5; white-space: nowrap; }
+    .contact .coord b { color: var(--or); }
+    .contact .qr { flex-shrink: 0; background: #fff; border-radius: 8px; padding: 4px; width: 25mm; height: 25mm; }
+    .contact .qr svg { width: 100%; height: 100%; display: block; }
+    .contact .qr-legende { font-size: 10.5px; color: var(--or); text-align: center; margin-top: 3px; font-weight: 700; }
+
+    @media print {
+      @page { size: A4; margin: 0; }
+      body { background: #fff; }
+      .barre-actions, .chargement { display: none; }
+      .feuille { margin: 0; box-shadow: none; break-after: page; page-break-after: always; }
+      .feuille:last-child { break-after: auto; page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="barre-actions">
+    <span class="etat" id="etat"></span>
+    <button class="btn" type="button" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
+  </div>
+  <div class="chargement" id="chargement">Préparation de la plaquette…</div>
+  <main id="plaquette"></main>
+
+  <script src="/backoffice/vendor/qrcode.min.js?v=20260818-3"></script>
+  <script src="/backoffice/js/api.js?v=20261120-1"></script>
+  <script src="/backoffice/js/plaquette.js?v=20261123-1"></script>
+</body>
+</html>
