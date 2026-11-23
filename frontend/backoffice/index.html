@@ -3699,7 +3699,7 @@
           <div class="bo-section-titre" style="margin-top:0">💶 Abonnement</div>
           <div class="bo-carte bo-abo">
             <div class="bo-abo__etat" x-text="resumeAbonnement()"></div>
-            <ol class="bo-abo__etapes">
+            <ol class="bo-abo__etapes" x-show="!(gratuiteParConvention() &amp;&amp; etapeAbonnement() === 0)">
               <template x-for="(e, i) in ['Devis', 'Bon de commande', 'Activation et facture', 'Chorus Pro puis payée']" :key="i">
                 <li :class="{ 'bo-abo__etape--faite': etapeAbonnement() > i, 'bo-abo__etape--active': etapeAbonnement() === i }" x-text="e"></li>
               </template>
@@ -3708,6 +3708,12 @@
             <!-- 1. Devis -->
             <template x-if="etapeAbonnement() === 0">
               <div>
+                <!-- Fondatrice en formule gratuite (convention, migration 120) : rien à facturer ; le devis
+                     reste accessible, replié, si la mairie décide de s'abonner. -->
+                <div class="bo-info" style="margin-bottom:8px" x-show="gratuiteParConvention()">
+                  🎁 Formule gratuite (convention fondatrice) : rien à facturer. Les onglets offerts se gèrent dans la convention, plus bas.</div>
+                <details :open="!gratuiteParConvention()">
+                <summary x-show="gratuiteParConvention()" style="cursor:pointer; font-weight:600; margin-bottom:8px">Passer au payant (créer un devis)</summary>
                 <div class="bo-abo__ligne">
                   <div class="bo-champ-inline">
                     <label style="margin-top:0">Formule</label>
@@ -3725,7 +3731,7 @@
                     <input type="number" min="0" step="0.01" x-model="abo.montant" style="width:120px" />
                   </div>
                   <button class="bo-btn bo-btn--compact" @click="creerDevisAbonnement()" :disabled="abo.enCours"
-                          x-text="estPayante() ? 'Créer le devis de renouvellement' : 'Créer le devis'"></button>
+                          x-text="fiche.commune.prix_annuel_ttc ? 'Créer le devis de renouvellement' : 'Créer le devis'"></button>
                 </div>
                 <div class="bo-info" x-show="abo.fondatrice &amp;&amp; prixConvention(abo.formule) !== null">
                   Prix inscrit dans la convention de la commune, modifiable.</div>
@@ -3737,6 +3743,7 @@
                   Moins de <span x-text="baremeTarifaire.seuil_gratuite"></span> habitants : Autonomie gratuite à vie. Pas de devis ni de facture : passer la commune en version complète (onglet Configuration) et enregistrer la formule Autonomie.</div>
                 <div class="bo-info" style="color:#b54708" x-show="abo.fondatrice &amp;&amp; convention?.statut !== 'signee'">
                   ⚠️ Commune fondatrice : la convention (plus bas) doit être signée avant d'activer.</div>
+                </details>
               </div>
             </template>
 
@@ -4885,7 +4892,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261123-2"></script>
+  <script src="/backoffice/js/app.js?v=20261123-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

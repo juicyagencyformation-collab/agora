@@ -3245,8 +3245,18 @@ function backoffice() {
       const f = this.fiche?.commune?.forfait;
       return !!f && f !== 'Gratuit';
     },
+    // Fondatrice en formule gratuite (convention non annulée, migration 120) qui ne paie rien : le bloc
+    // Abonnement n'a rien à facturer et replie le formulaire de devis.
+    gratuiteParConvention() {
+      const cv = this.convention;
+      return !!cv && cv.statut !== 'annulee' && cv.formule === 'gratuit' && !this.fiche?.commune?.prix_annuel_ttc;
+    },
     resumeAbonnement() {
       const c = this.fiche?.commune;
+      if (this.gratuiteParConvention()) {
+        return 'Commune fondatrice · Gratuit + onglets offerts (convention)'
+          + (c.formule && c.formule !== 'gratuit' ? ` · fiche encore en ${this.libelleFormule(c.formule)} : « 🎁 Mettre en service » dans la convention` : '');
+      }
       if (!this.estPayante()) return 'Gratuit';
       return [c.forfait === 'Fondateur' ? (c.prix_annuel_ttc ? 'Commune fondatrice' : 'Commune fondatrice, accès offert') : c.forfait,
         c.formule ? this.libelleFormule(c.formule) : '⚠️ formule non enregistrée',
