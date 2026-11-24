@@ -42,6 +42,10 @@ const registerSchema = z.object({
   nom: z.string().min(1).max(100),
   prenom: z.string().min(1).max(100),
   consentement_rgpd: z.literal(true),
+  // Déclaration « au moins 15 ans » (contrat DPA, article 13.1 ; RGPD art. 8 et loi Informatique et
+  // libertés art. 45 : 15 ans en France). Vérifiée ici pour TOUTES les inscriptions (habitants,
+  // Explorateurs), pas seulement dans le navigateur — ajoutée le 2026-11-25.
+  age_minimum: z.boolean().nullable().optional(),
   site_web: z.string().optional(), // piège à robots (honeypot) — doit toujours rester vide
 });
 
@@ -55,6 +59,9 @@ app.post('/register', async (c) => {
   // rempli, c'est un robot. On répond succès factice pour ne pas l'alerter, sans rien créer.
   // Même réponse pour un formulaire rempli en un éclair (voir lib/anti-robots.ts).
   if (data.site_web || saisieTropRapide(brut?.duree_saisie_ms)) return c.json({ ok: true }, 201);
+  if (data.age_minimum !== true) {
+    return c.json({ erreur: 'Il faut avoir au moins 15 ans pour créer un compte. En dessous, demandez à un parent de le créer pour vous.' }, 400);
+  }
 
   const commune_id = c.get('commune_id_resolue');
   // Commune de démonstration (acces_libre, ex. Bonvivre) : jamais de vrai compte. Des visiteurs

@@ -63,6 +63,10 @@
       <input type="email" name="email" placeholder="Email" required>
       <input type="password" name="password" placeholder="Mot de passe (6 caractères min.)" minlength="6" required>
       <label class="case-rgpd">
+        <input type="checkbox" name="age_minimum" required>
+        J'ai au moins 15 ans (en dessous, demandez à un parent de créer le compte pour vous).
+      </label>
+      <label class="case-rgpd">
         <input type="checkbox" name="consentement_rgpd" required>
         J'ai lu et j'accepte la <a href="confidentialite.html" target="_blank">politique de confidentialité</a> de cette application.
       </label>
@@ -242,6 +246,7 @@
       e.preventDefault();
       const donnees = { ...Object.fromEntries(new FormData(e.target)), ...(await protectionInscription.champs()) };
       donnees.consentement_rgpd = e.target.consentement_rgpd.checked;
+      donnees.age_minimum = e.target.age_minimum.checked;
       const zoneErreur = document.getElementById('erreur-inscription');
       zoneErreur.textContent = '';
 

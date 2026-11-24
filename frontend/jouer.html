@@ -202,7 +202,7 @@
       const erreur = document.getElementById('erreur-inscription');
       envoyer(e.target, 'register', {
         prenom: f.get('prenom').trim(), nom: f.get('nom').trim(), email: f.get('email').trim(),
-        password: f.get('password'), consentement_rgpd: true, site_web: f.get('site_web') || undefined,
+        password: f.get('password'), consentement_rgpd: true, age_minimum: f.get('age') === 'on', site_web: f.get('site_web') || undefined,
         ...(await protectionInscription.champs()),
       }, erreur, protectionInscription);
     });

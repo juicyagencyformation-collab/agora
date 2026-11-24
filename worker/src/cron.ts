@@ -449,6 +449,16 @@ export async function purgerTentativesConnexion(env: any) {
   await supabaseDelete(env, 'tentatives_connexion', { created_at: `lt.${new Date(Date.now() - 24 * 3600 * 1000).toISOString()}` });
 }
 
+// Journal des actions de l'éditeur (journal_activite, migration 043 : qui a fait quoi dans le
+// backoffice, alertes d'inscription, bascules automatiques) : conservé 12 mois, durée annoncée dans
+// la politique de confidentialité et le registre (2026-11-25). Les preuves qui doivent durer plus
+// longtemps ont leur propre table : acceptations des CGU (5 ans après la fin du service), signatures
+// de conventions, factures (10 ans).
+export const DUREE_CONSERVATION_JOURNAL_MS = 365 * 24 * 3600 * 1000;
+export async function purgerJournalActivite(env: any) {
+  await supabaseDelete(env, 'journal_activite', { created_at: `lt.${new Date(Date.now() - DUREE_CONSERVATION_JOURNAL_MS).toISOString()}` });
+}
+
 // Échanges de prospection avec les mairies : conservés 3 ans (recommandation CNIL pour la
 // prospection entre professionnels), durée annoncée dans la politique de confidentialité
 // (section « Demandes envoyées depuis le site », 2026-11-06). Réponses reçues (emails_recus) et

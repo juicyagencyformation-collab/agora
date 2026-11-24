@@ -18,10 +18,10 @@ app.route('/:slug/auth', auth);
 
 const ENV: any = { SUPABASE_URL: 'https://fake.supabase.test', SUPABASE_SERVICE_ROLE_KEY: 'fake-key', JWT_SECRET: 'secret' };
 const ctx: any = { waitUntil: () => {}, passThroughOnException: () => {} };
-const inscrire = () => app.request('/bonvivre/auth/register', {
+const inscrire = (age_minimum: boolean | null = true) => app.request('/bonvivre/auth/register', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email: 'habitant@exemple.fr', password: 'motdepasse', nom: 'Martin', prenom: 'Paul', consentement_rgpd: true, duree_saisie_ms: 60_000 }),
+  body: JSON.stringify({ email: 'habitant@exemple.fr', password: 'motdepasse', nom: 'Martin', prenom: 'Paul', consentement_rgpd: true, age_minimum, duree_saisie_ms: 60_000 }),
 }, ENV, ctx);
 
 beforeEach(() => {
@@ -53,5 +53,17 @@ describe('inscription sur une commune de démonstration', () => {
     const res = await inscrire();
     expect(res.status).toBe(400);
     expect((await res.json() as any).erreur).toBe('Un compte existe déjà avec cet email');
+  });
+});
+
+describe('déclaration « au moins 15 ans » (contrat DPA, article 13.1)', () => {
+  it('refuse une inscription sans la case cochée, avec un message clair, sans rien lire ni créer', async () => {
+    for (const age of [null, false]) { // null : case absente du formulaire ; false : décochée
+      requetes = [];
+      const res = await inscrire(age);
+      expect(res.status).toBe(400);
+      expect((await res.json() as any).erreur).toContain('au moins 15 ans');
+      expect(requetes).toHaveLength(0);
+    }
   });
 });
