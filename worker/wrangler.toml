@@ -9,6 +9,8 @@ R2_PUBLIC_BASE = "https://cdn.plateforme-agora.fr"
 FRONTEND_URL = "https://plateforme-agora.fr"
 EMAIL_FROM = "Plateforme-Agora <contact@plateforme-agora.fr>"
 EMAIL_REPLY_TO_PROSPECTION = "prospection@replies.plateforme-agora.fr"
+# Copie cachée des emails envoyés à la main depuis le backoffice (lib/email.ts, copieEnvois) ; vide = aucune copie.
+EMAIL_COPIE_ENVOIS = "contact@plateforme-agora.fr"
 # Sites autorisés pour Turnstile (lib/anti-robots.ts) ; le secret TURNSTILE_SECRET se pose dans le tableau de bord Cloudflare.
 TURNSTILE_HOSTNAMES = "plateforme-agora.fr,newappcitoyenne.pages.dev"
 

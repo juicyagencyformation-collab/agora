@@ -14,7 +14,7 @@ import { destinataireCommune } from './onboarding-drip';
 import { synchroniserEmailsRecus } from './emails-recus';
 import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
-import { envoyerEmail } from '../lib/email';
+import { envoyerEmail, copieEnvois } from '../lib/email';
 import { envoyerEmailSuivi, adresseDesinscrite } from '../lib/desinscription';
 import { distanceMetres } from '../lib/geo';
 import { chargerBareme, calculerPrixAutonomie, calculerPrixAccompagne, calculerPrixFondateur, estSurDevis } from './tarification';
@@ -447,7 +447,7 @@ app.post('/emails-recus/:id/repondre', async (c) => {
     : undefined;
 
   const resendEmailId = await envoyerEmail(
-    c.env, email.expediteur, objet, corps, undefined, c.env.EMAIL_REPLY_TO_PROSPECTION, enTetes,
+    c.env, email.expediteur, objet, corps, undefined, c.env.EMAIL_REPLY_TO_PROSPECTION, enTetes, copieEnvois(c.env),
   );
   if (!resendEmailId) return c.json({ erreur: 'Échec de l\'envoi (voir logs Worker)' }, 502);
 
@@ -1696,13 +1696,13 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
   }
   const resendEmailId = await envoyerEmailSuivi(
     c.env, prospect.contact_email, body.data.objet, construireEmailLibre(body.data.message, carteVisiteHtml),
-    undefined, c.env.EMAIL_REPLY_TO_PROSPECTION,
+    undefined, c.env.EMAIL_REPLY_TO_PROSPECTION, undefined, copieEnvois(c.env),
   );
   if (!resendEmailId) return c.json({ erreur: 'Échec de l\'envoi (Resend indisponible).' }, 502);
 
   await supabaseInsert(c.env, 'prospect_interactions', {
     prospect_id: id, staff_id: c.get('staff_id'),
-    type: 'email', contenu: `Email libre envoyé à ${prospect.contact_email} — objet : ${body.data.objet}`,
+    type: 'email', contenu: `Email libre envoyé à ${prospect.contact_email} — objet : ${body.data.objet}\n\n${body.data.message}`,
   });
   await supabaseUpdate(c.env, 'prospects', { updated_at: new Date().toISOString() }, { id: `eq.${id}` });
   return c.json({ ok: true });

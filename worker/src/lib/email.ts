@@ -10,9 +10,15 @@ import { supabaseUpsert } from '../db';
 // dans le HTML via src="cid:<content_id>".
 // Renvoie l'id Resend de l'email envoyé (null en cas d'échec) — sert à corréler précisément les
 // webhooks d'ouverture/clic à cet envoi précis (voir envois_prospection, migration 040).
+// Copie cachée des emails envoyés À LA MAIN depuis le backoffice (email libre, présentation,
+// réponse aux « Réponses reçues ») : Léandre en garde une trace dans sa propre boîte mail, les envois
+// Resend ne passant par aucune messagerie (2026-11-25). Adresse : variable EMAIL_COPIE_ENVOIS de
+// wrangler.toml ; vide = pas de copie. Jamais pour les envois automatiques (bilans, notifications).
+export const copieEnvois = (env: any): string | undefined => (env.EMAIL_COPIE_ENVOIS || '').trim() || undefined;
+
 export async function envoyerEmail(
   env: any, to: string, subject: string, html: string, attachments?: any[], replyTo?: string,
-  headersPersonnalises?: Record<string, string>,
+  headersPersonnalises?: Record<string, string>, bcc?: string,
 ): Promise<string | null> {
   if (!env.RESEND_API_KEY) {
     console.error('RESEND_API_KEY manquant — email non envoyé.');
@@ -28,6 +34,7 @@ export async function envoyerEmail(
       body: JSON.stringify({
         from: env.EMAIL_FROM || 'Plateforme-Agora <onboarding@resend.dev>',
         to, subject, html,
+        ...(bcc && bcc.toLowerCase() !== to.toLowerCase() ? { bcc } : {}),
         ...(replyTo ? { reply_to: replyTo } : {}),
         ...(attachments && attachments.length ? { attachments } : {}),
         // In-Reply-To/References (voir POST /prospection/emails-recus/:id/repondre) : threade la

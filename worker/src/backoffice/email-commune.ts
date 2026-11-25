@@ -2,7 +2,7 @@
 // Email de bienvenue envoyé au maire d'une commune fraîchement onboardée : pitch + accès à son
 // application déjà prête + identifiants provisoires. Utilisé par onboarding (à la création) et
 // par administration (bouton « Renvoyer les accès », qui régénère un mot de passe temporaire).
-import { envoyerEmail } from '../lib/email';
+import { envoyerEmail, copieEnvois } from '../lib/email';
 import { envoyerEmailSuivi } from '../lib/desinscription';
 import { supabaseSelect, supabaseInsert } from '../db';
 import { hasherSha256Hex } from '../lib/hash';
@@ -755,7 +755,7 @@ export async function envoyerPresentation(
   // capter et de l'afficher dans Réponses reçues (worker/src/backoffice/emails-recus.ts).
   const resendEmailId = await envoyerEmailSuivi(
     env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps,
-    undefined, env.EMAIL_REPLY_TO_PROSPECTION,
+    undefined, env.EMAIL_REPLY_TO_PROSPECTION, undefined, copieEnvois(env),
   );
   return { variante: modele.nom || null, resendEmailId };
 }

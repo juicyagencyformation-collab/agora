@@ -71,7 +71,7 @@ function piedDesinscription(lien: string): string {
 // null, comme un échec), ajoute le lien en bas et les en-têtes de désinscription des messageries.
 export async function envoyerEmailSuivi(
   env: any, to: string, subject: string, html: string, attachments?: any[], replyTo?: string,
-  headersPersonnalises?: Record<string, string>,
+  headersPersonnalises?: Record<string, string>, bcc?: string,
 ): Promise<string | null> {
   if (await adresseDesinscrite(env, to)) {
     console.log(`Email de suivi non envoyé : ${normaliserEmail(to)} est désinscrite.`);
@@ -84,5 +84,5 @@ export async function envoyerEmailSuivi(
     ...(headersPersonnalises || {}),
     'List-Unsubscribe': `<${lien}>`,
     'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-  });
+  }, bcc);
 }
