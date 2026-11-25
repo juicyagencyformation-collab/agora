@@ -96,8 +96,8 @@
       const TRANSFERTS = 'Données hébergées dans l\'UE. Transferts ponctuels possibles vers les États-Unis (Cloudflare, Resend), encadrés par le '
         + 'cadre de protection des données UE–États-Unis et/ou les clauses contractuelles types.';
       const SECURITE = 'Cloisonnement des données par commune contrôlé par le serveur ; mots de passe hachés et salés (PBKDF2) ; limitation '
-        + 'des tentatives de connexion ; double authentification des comptes de la mairie (code par email sur tout nouvel appareil) ; HTTPS ; accès au backoffice réservé à l\'éditeur et à son assistant, tenus à la confidentialité, '
-        + 'avec double authentification quotidienne (code par email) et journal des actions ; fichiers et documents signés dans des espaces de stockage UE, les documents signés sans adresse publique.';
+        + 'des tentatives de connexion ; double authentification des comptes de la mairie (code par email sur tout nouvel appareil) ; HTTPS ; accès au backoffice réservé à l\'éditeur (toute personne qui l\'assisterait serait tenue par écrit à la confidentialité), '
+        + 'avec double authentification quotidienne (code par email) et journal des actions conservé 12 mois ; fichiers et documents signés dans des espaces de stockage UE, les documents signés sans adresse publique.';
       feuille.innerHTML = `
         <header>
           <div>
@@ -143,7 +143,7 @@
           ['Personnes', 'Maires, élus et agents de mairie ; personnes ayant rempli le formulaire du site'],
           ['Données', 'Nom, civilité et fonction, email et téléphone professionnels de la mairie, notes d\'échange, '
             + 'ouvertures et clics des emails de prospection. Source : annuaires publics (dont service-public.fr) et formulaire du site'],
-          ['Destinataires', 'Éditeur et son assistant ; sous-traitants : Supabase, Resend, Cloudflare'],
+          ['Destinataires', 'Éditeur ; sous-traitants : Supabase, Resend, Cloudflare'],
           ['Durées', '3 ans après le dernier échange si la commune ne devient pas cliente ; désinscription des emails respectée immédiatement'],
           ['Transferts', TRANSFERTS], ['Sécurité', SECURITE],
         ])}

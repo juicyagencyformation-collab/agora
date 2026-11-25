@@ -3798,8 +3798,8 @@
                     x-text="(fiche.acceptation_cgu.derniere.version === fiche.acceptation_cgu.version_en_vigueur ? '✅ ' : '🕓 ') + 'Accepté le ' + new Date(fiche.acceptation_cgu.derniere.created_at).toLocaleString('fr-FR', { dateStyle: 'long', timeStyle: 'short' })"></div>
                   <div class="bo-info" x-text="'Par ' + (fiche.acceptation_cgu.derniere.nom_affiche || 'compte anonymisé') + ' (' + fiche.acceptation_cgu.derniere.role + ') — CGU du ' + new Date(fiche.acceptation_cgu.derniere.version + 'T12:00:00').toLocaleDateString('fr-FR', { dateStyle: 'long' })
                     + (fiche.acceptation_cgu.derniere.version === fiche.acceptation_cgu.version_en_vigueur ? '' : ' : la version en vigueur sera demandée à la prochaine ouverture de l’app')"></div>
-                  <div class="bo-info" style="color:#b54708" x-show="!fiche.acceptation_cgu.par_elu">
-                    ⚠️ Pas encore accepté par le maire ou un élu : un agent ou un compte partagé n'engage pas forcément la commune.</div>
+                  <div class="bo-info" style="color:#b54708" x-show="!fiche.acceptation_cgu.par_maire">
+                    ⚠️ Pas encore accepté par le maire lui-même : seul le maire (ou un élu qu'il a délégué) engage la commune. Demandez-lui son accord.</div>
                 </div>
               </template>
               <template x-if="fiche && !fiche.acceptation_cgu?.derniere">
@@ -3809,13 +3809,13 @@
                 </div>
               </template>
               <!-- Lien d'accord du maire (routes/accord-maire.ts) : un clic pour lui, sans compte. -->
-              <template x-if="fiche?.acceptation_cgu?.derniere_demande_maire && !fiche.acceptation_cgu.par_elu">
+              <template x-if="fiche?.acceptation_cgu?.derniere_demande_maire && !fiche.acceptation_cgu.par_maire">
                 <div class="bo-info" x-text="'✉️ Lien d’accord envoyé au maire le ' + new Date(fiche.acceptation_cgu.derniere_demande_maire.created_at).toLocaleDateString('fr-FR', { dateStyle: 'long' }) + ' à ' + fiche.acceptation_cgu.derniere_demande_maire.envoye_a + ' — pas encore cliqué'"></div>
               </template>
               <div class="bo-info" x-show="accordMaireMsg" x-text="accordMaireMsg"></div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap">
-              <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="fiche && !fiche.acceptation_cgu?.par_elu" @click="demanderAccordMaire()" :disabled="accordMaireEnCours"
+              <button class="bo-btn bo-btn--sec bo-btn--compact" x-show="fiche && !fiche.acceptation_cgu?.par_maire" @click="demanderAccordMaire()" :disabled="accordMaireEnCours"
                 title="Envoie au maire, à l'adresse de la mairie, un lien pour donner l'accord de la commune en un clic, sans compte">✉️ Demander l'accord du maire</button>
               <a class="bo-btn bo-btn--compact" :href="'/backoffice/document?type=preuve-cgu&id=' + fiche?.commune.id" target="_blank" rel="noopener" style="text-decoration:none">📄 Attestation (PDF)</a>
             </div>
@@ -4897,7 +4897,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261123-5"></script>
+  <script src="/backoffice/js/app.js?v=20261125-1"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

@@ -25,6 +25,20 @@ app.get('/', async (c) => {
   return c.json({ commune: { ...publique, marque: marqueCommune(commune) } });
 });
 
+// GET /rgpd — coordonnées de la mairie pour la politique de confidentialité de son espace
+// (2026-11-25) : adresse et délégué à la protection des données (DPO), tels que renseignés dans le
+// contrat DPA (table dpa_communes). Public : le RGPD impose de publier les coordonnées du DPO
+// (art. 37.7). Seulement pour un espace géré par la mairie ; sinon l'éditeur est responsable.
+app.get('/rgpd', async (c) => {
+  const commune_id = c.get('commune_id_resolue') ?? c.get('commune_id');
+  const [[commune], [dpa]] = await Promise.all([
+    supabaseSelect(c.env, 'communes', { select: 'espace_officiel', id: `eq.${commune_id}` }),
+    supabaseSelect(c.env, 'dpa_communes', { select: 'adresse_mairie,dpo', commune_id: `eq.${commune_id}` }),
+  ]);
+  if (!commune || commune.espace_officiel === false) return c.json({ adresse_mairie: null, dpo: null });
+  return c.json({ adresse_mairie: dpa?.adresse_mairie || null, dpo: dpa?.dpo || null });
+});
+
 // GET /qr — QR code de l'URL publique de la commune, pour qu'un citoyen le montre à un voisin
 // (bouton dans Profil). Public comme GET / : ce n'est que l'URL publique de la commune.
 app.get('/qr', async (c) => {

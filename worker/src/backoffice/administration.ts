@@ -227,6 +227,10 @@ app.get('/communes/:id', async (c) => {
       derniere: acceptationsCgu[0] ?? null,
       version_en_vigueur: VERSION_CGU,
       par_elu: acceptationsCgu.some((a: any) => a.version === VERSION_CGU && ['maire', 'elu'].includes(a.role)),
+      // par_maire (2026-11-25) : seul le maire représente la commune. Un élu peut avoir accepté
+      // (ex. Léandre, élu d'Eaucourt, éditeur du service : conflit d'intérêts) — le lien d'accord du
+      // maire reste alors proposé tant que le maire lui-même n'a pas accepté.
+      par_maire: acceptationsCgu.some((a: any) => a.version === VERSION_CGU && a.role === 'maire'),
       derniere_demande_maire: demandesAccordMaire[0] ?? null,
     },
     // Adresses de la mairie désinscrites des emails de suivi (lib/desinscription.ts) : affiché sur
