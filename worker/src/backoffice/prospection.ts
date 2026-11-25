@@ -1617,7 +1617,7 @@ function construireCarteVisite(nomCommune: string, slug: string, frontendUrl: st
           <table role="presentation" cellpadding="0" cellspacing="0"><tr>
             <td valign="middle" style="padding-right:12px">
               <div style="width:40px;height:40px;border-radius:50%;background:#1c3b57;text-align:center;line-height:40px">
-                <img src="${urlLogo}" width="26" height="26" alt="Agora" style="display:inline-block;vertical-align:middle;width:26px;height:26px" />
+                <img src="${urlLogo}" width="26" height="26" alt="Plateforme-Agora" style="display:inline-block;vertical-align:middle;width:26px;height:26px" />
               </div>
             </td>
             <td valign="middle">
@@ -1656,7 +1656,7 @@ function construireEmailLibre(message: string, carteVisiteHtml?: string): string
   const corps = echapper(message).replace(/\n/g, '<br>');
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
     <div style="font-size:15px;color:#3a4a3b;line-height:1.6">${corps}</div>
     ${carteVisiteHtml || ''}

@@ -56,7 +56,7 @@ export function bilanMensuelHtml(nomCommune: string, periode: Date, b: BilanMens
 
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">Bilan mensuel de ${nom}</div>
 
     <h1 style="font-size:20px;line-height:1.3">Votre commune en ${nomMois(periode)}</h1>

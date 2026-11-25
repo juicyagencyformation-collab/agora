@@ -111,7 +111,7 @@ export function emailBienvenueHtml(d: DonneesBienvenue): string {
   const nom = echapper(d.nomCommune);
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
 
     <h1 style="font-size:22px;line-height:1.3">L'application de <span style="color:#2c5f2d">${nom}</span> est prête 🎉</h1>
@@ -173,7 +173,7 @@ export function emailConfirmationActivationHtml(nomCommune: string, lienConfirma
   const nom = echapper(nomCommune);
   return `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
 
     <h1 style="font-size:22px;line-height:1.3">Plus qu'une étape pour rejoindre <span style="color:#2c5f2d">${nom}</span></h1>
@@ -428,7 +428,7 @@ export const MODELE_BIENVENUE_INSCRIPTION_DEFAUT = {
   objet: 'Merci de tester Agora à {{commune}} !',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
@@ -475,7 +475,7 @@ export const MODELE_RELANCE_INACTIVITE_DEFAUT = {
   objet: 'Toujours partant pour Agora à {{commune}} ?',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
@@ -511,7 +511,7 @@ export const MODELE_ONBOARDING_RELANCE_J3_DEFAUT = {
   objet: '{{commune}} : 2 minutes pour débloquer le plus utile',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
@@ -549,7 +549,7 @@ export const MODELE_ONBOARDING_CHECKIN_J7_DEFAUT = {
   objet: '{{commune}}, un frein en particulier ?',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
@@ -578,7 +578,7 @@ export const MODELE_ONBOARDING_ENCOURAGEMENT_J7_DEFAUT = {
   objet: '{{commune}} a bien démarré 👍',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
@@ -615,7 +615,7 @@ export const MODELE_ONBOARDING_UPSELL_DEFAUT = {
   objet: '{{commune}} : ce que la version complète changerait concrètement',
   corps_html: `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de {{commune}}</div>
 
     <p style="font-size:15px;color:#3a4a3b;line-height:1.6">
@@ -700,8 +700,8 @@ export async function envoyerModeleGenerique(
 
 // Repli texte du logo (titre « Agora. ») quand aucun logo n'est configuré.
 function baliseLogo(url: string | null | undefined): string {
-  if (!url) return `<div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>`;
-  return `<img src="${url}" alt="Agora" style="max-width:200px;height:auto;display:block;margin-bottom:4px" />`;
+  if (!url) return `<div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>`;
+  return `<img src="${url}" alt="Plateforme-Agora" style="max-width:200px;height:auto;display:block;margin-bottom:4px" />`;
 }
 
 // Balise <img> de signature à partir de l'URL stockée (vide si aucune photo). Images chargées
@@ -771,7 +771,7 @@ export async function envoyerEmailEcheance(env: any, d: {
   const montantAffiche = d.montant != null ? `${d.montant.toLocaleString('fr-FR')} € TTC` : 'à confirmer';
   const html = `
   <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1b2a1c;max-width:560px;margin:0 auto">
-    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:26px;font-weight:800;color:#2c5f2d">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     <div style="color:#5b6b5c;font-size:14px;margin-bottom:20px">La plateforme citoyenne de votre commune</div>
 
     <h1 style="font-size:20px;line-height:1.3">Renouvellement de votre abonnement Agora</h1>

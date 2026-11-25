@@ -26,7 +26,7 @@ export async function envoyerEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: env.EMAIL_FROM || 'Agora <onboarding@resend.dev>',
+        from: env.EMAIL_FROM || 'Plateforme-Agora <onboarding@resend.dev>',
         to, subject, html,
         ...(replyTo ? { reply_to: replyTo } : {}),
         ...(attachments && attachments.length ? { attachments } : {}),

@@ -415,7 +415,7 @@ app.post('/email-test', async (c) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${c.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: c.env.EMAIL_FROM || 'Agora <onboarding@resend.dev>',
+      from: c.env.EMAIL_FROM || 'Plateforme-Agora <onboarding@resend.dev>',
       to: destinataire,
       subject: 'Test d\'envoi — Backoffice Agora',
       html: '<p>Cet email confirme que l\'envoi d\'emails via Resend fonctionne. 🎉</p><p>— Backoffice Agora</p>',

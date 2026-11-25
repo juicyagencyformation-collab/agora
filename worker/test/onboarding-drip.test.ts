@@ -97,7 +97,7 @@ const ENV: any = {
   SUPABASE_URL: 'https://fake.supabase.test',
   SUPABASE_SERVICE_ROLE_KEY: 'fake-key',
   RESEND_API_KEY: 'fake-resend-key',
-  EMAIL_FROM: 'Agora <test@plateforme-agora.fr>',
+  EMAIL_FROM: 'Plateforme-Agora <test@plateforme-agora.fr>',
   FRONTEND_URL: 'https://plateforme-agora.fr',
 };
 

@@ -313,7 +313,7 @@ function pageLienConnexion(corps: string, titre: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>${titre} — Agora</title></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f8f4;margin:0;padding:48px 20px;text-align:center;color:#1b2a1c">
   <div style="max-width:400px;margin:0 auto;background:#fff;border-radius:12px;padding:32px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)">
-    <div style="font-size:24px;font-weight:800;color:#2c5f2d;margin-bottom:18px">Agora<span style="color:#4a8c4a">.</span></div>
+    <div style="font-size:24px;font-weight:800;color:#2c5f2d;margin-bottom:18px">Plateforme<span style="color:#4a8c4a">-</span>Agora</div>
     ${corps}
   </div>
 </body></html>`;
