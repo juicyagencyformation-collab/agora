@@ -165,7 +165,6 @@ describe('document', () => {
     expect(standard).toContain('<strong>Tarif fondateur</strong> — dès la mise en service');
     expect(standard).toContain('<th>Abonnement fondateur</th>');
     expect(standard).toContain('une facture annuelle');
-    expect(standard).toContain("l'année en cours reste due");
     expect(standard).toContain('modules ajoutés par la suite');
     const offerte = genererConventionHtml({ ...base, option_reconduction: 'tacite', premiere_annee_offerte: true }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);
     expect(offerte).toContain('offert pendant 12 mois');
@@ -209,6 +208,24 @@ describe('document', () => {
     expect(seul).toContain('fondatrice de Plateforme-Agora : version gratuite, et 35 % de réduction garantis si elle s');
     expect(seul).toContain('la version gratuite ne donne lieu à aucun paiement');
     expect(seul).not.toContain('Onglets offerts');
+  });
+  it('article 5 identique pour toutes les formules : résiliation, données sous 30 jours, réserve du DPA', () => {
+    const versions = [
+      genererConventionHtml({ ...base, formule: 'gratuit', onglets_offerts: ['mur'] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise),
+      genererConventionHtml({ ...base, formule: 'autonomie', premiere_annee_offerte: true }, { nom: 'Fay', slug: 'fay' }, '60', entreprise),
+      genererConventionHtml({ ...base, formule: 'accompagne', option_reconduction: 'tacite' }, { nom: 'Fay', slug: 'fay' }, '60', entreprise),
+    ];
+    for (const html of versions) {
+      expect(html).toContain('La Commune peut résilier la présente convention à tout moment, par courriel ou courrier, sans préavis ni pénalité.');
+      expect(html).toContain('moyennant un préavis de trois mois notifié par courrier ou courriel au Maire');
+      expect(html).toContain('motif d&#39;intérêt général'.replace('&#39;', "'"));
+      expect(html).toContain('mise en demeure restée sans effet pendant 30 jours');
+      expect(html).toContain('puis les supprime de ses serveurs dans un délai de 30 jours, sauf obligation légale de conservation');
+      expect(html).toContain('sous réserve du remboursement prévu par l\'accord de sous-traitance des données (annexe 1, article 7.2)');
+      expect(html).not.toContain("l'année en cours reste due");
+      expect(html).not.toContain('supprimées dans les 3 mois');
+      expect(html.match(/<strong>Résiliation<\/strong>/g)).toHaveLength(1);
+    }
   });
   it('formules payantes : onglets offerts ignorés, services et prix Accompagné', () => {
     const autonomie = genererConventionHtml({ ...base, formule: 'autonomie', premiere_annee_offerte: true, onglets_offerts: ['mur'] }, { nom: 'Fay', slug: 'fay' }, '60', entreprise);

@@ -185,8 +185,16 @@ export function genererConventionHtml(
         </tbody>
       </table>
       <p><strong>Facturation</strong> — aucune facture tant que la Commune n'a pas souscrit d'abonnement. En cas d'abonnement : une facture annuelle ${chorus}. Le montant permet un achat sans publicité ni mise en concurrence (art. R2122-8 du Code de la commande publique).</p>`;
+  // Article 5 — résiliation et données : texte de Léandre (2026-11-25), identique pour toutes les
+  // formules. Ajouts : réserve du remboursement prévu par le DPA (art. 7.2) et des durées légales de
+  // conservation (factures 10 ans, preuve d'acceptation des CGU 5 ans).
+  const resiliation = `<p><strong>Résiliation</strong> — La Commune peut résilier la présente convention à tout moment, par courriel ou courrier, sans préavis ni pénalité.</p>
+      <p>Le Prestataire peut résilier la présente convention à tout moment, sans avoir à motiver sa décision, moyennant un préavis de trois mois notifié par courrier ou courriel au Maire. Pendant ce délai, la Commune peut faire valoir un motif d'intérêt général justifiant le maintien temporaire du service, le temps de mettre en place une solution alternative.</p>
+      <p>En cas de manquement grave de la Commune, le Prestataire peut résilier après une mise en demeure restée sans effet pendant 30 jours.</p>
+      <p><strong>Données</strong> — Quelle que soit la cause de la résiliation, le Prestataire met à disposition de la Commune, avant l'arrêt du service, un export de ses données (contenus, actualités, liste des abonnés dans le respect du RGPD), puis les supprime de ses serveurs dans un délai de 30 jours, sauf obligation légale de conservation.</p>
+      <p>La résiliation n'ouvre droit à aucune indemnité pour l'une ou l'autre des parties, sous réserve du remboursement prévu par l'accord de sous-traitance des données (annexe 1, article 7.2).</p>`;
   const article5Gratuit = `<p><strong>Durée</strong> — la convention prend effet à la mise en service${aOffre ? ' de l\'offre' : ''} et court sans limite de durée${aOffre ? ' ; les onglets offerts suivent la durée de l\'article 3' : ''}. Le statut de Commune fondatrice et le tarif fondateur restent acquis tant qu'elle court.</p>
-      <p><strong>Résiliation</strong> — la Commune peut mettre fin à la convention à tout moment, par simple mail, sans pénalité. Le Prestataire ne peut résilier qu'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>`;
+      ${resiliation}`;
 
 
   return `
@@ -288,9 +296,7 @@ export function genererConventionHtml(
       ${gratuit ? article5Gratuit : `
       ${offerte ? `<p><strong>Durée</strong> — la période fondatrice court 12 mois à compter de la mise en service. Le statut de Commune fondatrice et la réduction de 35 % restent acquis au-delà, dans les conditions de l'article 3.</p>`
         : '<p><strong>Durée</strong> — la convention court pour la durée de l\'abonnement. Le statut de Commune fondatrice et la réduction de 35 % restent acquis tant que l\'abonnement se poursuit sans interruption.</p>'}
-      ${offerte ? `<p><strong>Résiliation</strong> — la Commune peut mettre fin à la convention à tout moment, par simple mail, sans pénalité. Le Prestataire ne peut résilier qu'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>`
-        : '<p><strong>Résiliation</strong> — la Commune peut mettre fin à l\'abonnement à sa date anniversaire, dans les conditions de l\'article 3 ; l\'année en cours reste due. Le Prestataire ne peut résilier qu\'en cas de manquement grave, après une mise en demeure restée sans effet 30 jours.</p>'}`}
-      <p><strong>Fin de la convention</strong> — la Commune reçoit sur demande un export de ses contenus. Les données sont supprimées dans les 3 mois, sauf obligation légale de conservation.</p>
+      ${resiliation}`}
       <p><strong>Droit applicable</strong> — droit français. En cas de désaccord, les parties cherchent d'abord une solution amiable ; à défaut, le tribunal administratif d'Amiens est compétent.</p>
       <p><strong>Annexes</strong> — 1. Accord de sous-traitance des données (DPA) ; 2. Grille tarifaire en vigueur à la signature (plateforme-agora.fr).</p>
 

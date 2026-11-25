@@ -320,7 +320,7 @@ export function genererContratDpaHtml(commune: Commune, infos: InfosDpa, textes?
       <p>15.2. À l'issue de ce délai, ou plus tôt sur instruction écrite de la Commune, le Sous-traitant supprime
       de manière définitive l'ensemble des données de la Commune de ses systèmes et de ceux de ses sous-traitants
       ultérieurs. Les copies présentes dans les sauvegardes techniques sont supprimées au fil de leur cycle de
-      rotation, dans un délai maximal de [trente (30)] jours supplémentaires ; elles ne sont ni consultées ni
+      rotation, dans un délai maximal de trente (30) jours supplémentaires ; elles ne sont ni consultées ni
       restaurées entre-temps, sauf demande de la Commune.</p>
       <p>15.3. Le Sous-traitant peut conserver des données agrégées et anonymes, ainsi que les données dont la
       conservation est imposée par une obligation légale (notamment données de facturation), pour la durée de
