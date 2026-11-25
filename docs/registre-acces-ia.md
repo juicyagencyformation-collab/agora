@@ -14,14 +14,19 @@ sens de l'article 28 du RGPD. Ce registre trace chacun de ces accès.
 
 ## Règles appliquées depuis le 25 novembre 2026
 
-1. **Prévenir avant d'agir.** Avant toute lecture ou écriture de données d'habitants, Claude Code
-   annonce ce qu'il va lire ou modifier et pourquoi, et attend l'accord de Léandre.
-2. **Préférer les données sans habitants.** Réglages, barème, textes, communes, prospects
+1. **Plus aucun accès de l'IA aux données d'habitants** (décision de Léandre le 25 novembre 2026).
+   Claude Code ne lit ni ne modifie plus ces données en production ; les diagnostics se font sur le
+   code, les tests et la commune de démonstration Bonvivre (habitants fictifs). Anthropic n'est
+   donc pas déclaré comme sous-traitant pour ces données.
+2. **Pour les données sans habitants**, l'accès reste possible, toujours annoncé avant d'agir.
+   Préférer ces données : Réglages, barème, textes, communes, prospects
    (coordonnées professionnelles des mairies) plutôt que comptes d'habitants ou contenus publiés.
 3. **Lire le minimum.** Seules les colonnes utiles, sur le nombre de lignes utile ; jamais d'export
    complet d'une table d'habitants.
 4. **Ne rien garder.** Aucune donnée d'habitant copiée dans un fichier du projet ou dans un document.
-5. **Inscrire chaque accès ici**, le jour même : date, opération, données, finalité.
+5. **Inscrire ici tout accès exceptionnel** qui toucherait malgré tout des données d'habitants
+   (par exemple une urgence de sécurité), avec l'accord écrit de Léandre : date, opération, données,
+   finalité.
 
 « Données d'habitants » : tables `users`, `refresh_tokens`, `push_subscriptions`, contenus publiés
 (`articles`, `posts`, `alertes`, `coups_de_main`, `photos_du_jour`, `souvenirs`, `comments`,

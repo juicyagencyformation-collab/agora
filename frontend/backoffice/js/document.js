@@ -141,8 +141,8 @@
           ['Finalité', 'Présenter le service aux communes, suivre les échanges (appels, emails, demandes du site)'],
           ['Base légale', 'Intérêt légitime à la prospection auprès de collectivités (6.1.f)'],
           ['Personnes', 'Maires, élus et agents de mairie ; personnes ayant rempli le formulaire du site'],
-          ['Données', 'Nom, civilité et fonction, email et téléphone professionnels de la mairie, notes d\'échange, '
-            + 'ouvertures et clics des emails de prospection. Source : annuaires publics (dont service-public.fr) et formulaire du site'],
+          ['Données', 'Nom, civilité et fonction, email et téléphone professionnels de la mairie, notes d\'échange '
+            + '(ouvertures et clics des emails non suivis). Source : annuaires publics (dont service-public.fr) et formulaire du site'],
           ['Destinataires', 'Éditeur ; sous-traitants : Supabase, Resend, Cloudflare'],
           ['Durées', '3 ans après le dernier échange si la commune ne devient pas cliente ; désinscription des emails respectée immédiatement'],
           ['Transferts', TRANSFERTS], ['Sécurité', SECURITE],
