@@ -8,14 +8,16 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { supabaseSelect, supabaseSelectTout, supabaseInsert, supabaseUpdate, supabaseUpsert, supabaseCount } from '../db';
 import { backofficeMiddleware } from '../middleware/backoffice';
-import { envoyerPresentation, contextePresentation, genererMotDePasseTemporaire, envoyerModeleGenerique, MODELE_ONBOARDING_RELANCE_J3_DEFAUT } from './email-commune';
+import { envoyerPresentation, construirePresentation, contextePresentation, genererMotDePasseTemporaire, envoyerModeleGenerique, MODELE_ONBOARDING_RELANCE_J3_DEFAUT } from './email-commune';
 import { chargerOngletsGratuits, appliquerOngletsSurCommune } from './administration';
 import { destinataireCommune } from './onboarding-drip';
 import { synchroniserEmailsRecus } from './emails-recus';
 import { hasherMotDePasse } from '../lib/password';
 import { versCsv } from '../lib/csv';
 import { envoyerEmail, copieEnvois } from '../lib/email';
-import { envoyerEmailSuivi, adresseDesinscrite } from '../lib/desinscription';
+import { envoyerEmailSuivi, adresseDesinscrite, avecPiedDesinscription } from '../lib/desinscription';
+import { construireEml } from '../lib/eml';
+import { fabriquerPdfDocuments, documentDisponible, DOCUMENTS_PDF, ErreurPdf } from './documents-pdf';
 import { distanceMetres } from '../lib/geo';
 import { chargerBareme, calculerPrixAutonomie, calculerPrixAccompagne, calculerPrixFondateur, estSurDevis } from './tarification';
 import {
@@ -1009,7 +1011,13 @@ export async function activerCommuneGratuite(env: any, prospect: any): Promise<{
 //   l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
 // Traite un prospect : enrichit si besoin, envoie l'email, journalise, met à jour statut/relance.
 // Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
-async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{ resultat: 'envoye' | 'sans_email' | 'saute'; email?: string }> {
+// Préparation commune à l'envoi direct (Resend) et au brouillon Outlook : adresse utilisable,
+// activation de l'espace gratuit et identifiants du maire, contexte de l'email, carte de visite.
+type PresentationPrete = {
+  resultat: 'pret'; email: string; nouvelleActivation: boolean; activation: Awaited<ReturnType<typeof activerCommuneGratuite>>;
+  ctx: ReturnType<typeof contextePresentation>; carteVisiteHtml: string;
+};
+async function preparerPresentation(env: any, prospect: any): Promise<PresentationPrete | { resultat: 'sans_email' | 'saute' }> {
   if (prospect.statut === 'gagne' || prospect.statut === 'perdu' || prospect.statut === 'ne_plus_contacter') return { resultat: 'saute' };
 
   let email = prospect.contact_email;
@@ -1036,35 +1044,48 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   // devoir repasser par « Email libre » à part.
   const codeCourt = await codeCourtCommune(env, activation.communeId);
   const carteVisiteHtml = construireCarteVisite(prospect.nom, activation.slug, env.FRONTEND_URL, codeCourt);
+  return { resultat: 'pret', email, nouvelleActivation, activation, ctx, carteVisiteHtml };
+}
 
-  const { variante, resendEmailId } = await envoyerPresentation(env, email, ctx, {
-    maireEmail: activation.maireEmail, motDePasse: activation.motDePasse,
-    slug: activation.slug, communeId: activation.communeId, userId: activation.maireId,
-  }, undefined, carteVisiteHtml);
+const identifiantsPresentation = (p: PresentationPrete) => ({
+  maireEmail: p.activation.maireEmail, motDePasse: p.activation.motDePasse,
+  slug: p.activation.slug, communeId: p.activation.communeId, userId: p.activation.maireId,
+});
 
-  // Ligne dédiée au suivi structuré (ouverture/clic/rejet via webhook Resend, voir index.ts et
-  // migration 040) — resend_email_id permet une corrélation précise, contrairement à un simple
-  // match par adresse email qui serait ambigu en cas d'envois successifs au même contact.
-  if (resendEmailId) {
-    await supabaseInsert(env, 'envois_prospection', {
-      prospect_id: prospect.id, resend_email_id: resendEmailId, email, variante,
-    });
-  }
-
+// Après une présentation (envoyée ou préparée dans Outlook) : statut « contacté », relance à
+// +7 jours, et ligne dans l'historique lisible du prospect.
+async function noterPresentation(env: any, staffId: string, prospect: any, texte: string) {
   const relance = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), prochaine_relance_le: relance, prochaine_relance_heure: null };
   if (prospect.statut === 'a_contacter') patch.statut = 'contacte';
   await supabaseUpdate(env, 'prospects', patch, { id: `eq.${prospect.id}` });
+  await supabaseInsert(env, 'prospect_interactions', { prospect_id: prospect.id, staff_id: staffId, type: 'email', contenu: texte });
+}
 
+// — Prospecter en un clic : enrichit si besoin, active une commune gratuite pour le prospect
+//   (s'il n'en a pas déjà une), envoie l'email de présentation avec ses identifiants, journalise
+//   l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
+// Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
+async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{ resultat: 'envoye' | 'sans_email' | 'saute'; email?: string }> {
+  const prep = await preparerPresentation(env, prospect);
+  if (prep.resultat !== 'pret') return { resultat: prep.resultat };
+
+  const { variante, resendEmailId } = await envoyerPresentation(env, prep.email, prep.ctx, identifiantsPresentation(prep), undefined, prep.carteVisiteHtml);
+
+  // Ligne dédiée au suivi structuré (rejet via webhook Resend, voir index.ts et migration 040) —
+  // resend_email_id permet une corrélation précise, contrairement à un simple match par adresse
+  // email qui serait ambigu en cas d'envois successifs au même contact.
+  if (resendEmailId) {
+    await supabaseInsert(env, 'envois_prospection', {
+      prospect_id: prospect.id, resend_email_id: resendEmailId, email: prep.email, variante,
+    });
+  }
   // Trace la variante utilisée (A/B testing) et l'activation éventuelle dans l'historique lisible
   // du prospect (distinct du suivi structuré ci-dessus, qui alimente les stats agrégées).
-  await supabaseInsert(env, 'prospect_interactions', {
-    prospect_id: prospect.id, staff_id: staffId,
-    type: 'email',
-    contenu: `Email de présentation envoyé à ${email}${variante ? ` (variante : ${variante})` : ''}`
-      + (nouvelleActivation ? ` — commune activée gratuitement (${activation.slug})` : ''),
-  });
-  return { resultat: 'envoye', email };
+  await noterPresentation(env, staffId, prospect,
+    `Email de présentation envoyé à ${prep.email}${variante ? ` (variante : ${variante})` : ''}`
+    + (prep.nouvelleActivation ? ` — commune activée gratuitement (${prep.activation.slug})` : ''));
+  return { resultat: 'envoye', email: prep.email };
 }
 
 app.post('/prospects/:id/prospecter', async (c) => {
@@ -1706,6 +1727,98 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
   });
   await supabaseUpdate(c.env, 'prospects', { updated_at: new Date().toISOString() }, { id: `eq.${id}` });
   return c.json({ ok: true });
+});
+
+// — Brouillon Outlook (2026-11-25, demandé par Léandre) : au lieu d'envoyer depuis le backoffice,
+// fabrique un fichier .eml qu'Outlook ouvre en mode rédaction (lib/eml.ts) — même mise en forme que
+// l'envoi Resend, pièces jointes en PDF au choix (documents-pdf.ts). Léandre relit et envoie depuis
+// son propre compte. Mêmes garde-fous que l'envoi : adresse désinscrite refusée, lien de
+// désinscription en bas, réponses vers « Réponses reçues », trace dans l'historique Échanges.
+// Présentation : l'espace est activé et le mot de passe du maire renouvelé dès la préparation
+// (comme à l'envoi), puisque les identifiants figurent dans l'email.
+const brouillonSchema = z.object({
+  modele: z.enum(['presentation', 'libre']),
+  objet: z.string().trim().min(1).max(200).optional(),
+  message: z.string().trim().min(1).max(5000).optional(),
+  inclure_carte: z.boolean().optional(),
+  documents: z.array(z.enum(DOCUMENTS_PDF)).max(DOCUMENTS_PDF.length).default([]),
+}).strict().refine((b) => b.modele === 'presentation' || (!!b.objet && !!b.message), 'Objet et message requis pour un email libre.');
+
+app.post('/prospects/:id/brouillon-outlook', async (c) => {
+  const id = c.req.param('id');
+  const body = brouillonSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ erreur: body.error.issues[0]?.message ?? 'Données invalides' }, 400);
+  const [prospect] = await supabaseSelect(c.env, 'prospects', {
+    select: 'id,nom,code_insee,contact_email,email_invalide,statut,population,lat,lng,departement,commune_id,nom_maire,prenom_maire,maire_civilite',
+    id: `eq.${id}`,
+  });
+  if (!prospect) return c.json({ erreur: 'Prospect introuvable' }, 404);
+  const documents = [...new Set(body.data.documents)];
+
+  let destinataire: string;
+  let objet: string;
+  let html: string;
+  let slug: string | null = null;
+  let presentation: PresentationPrete | null = null;
+  let historique: string;
+  if (body.data.modele === 'presentation') {
+    const prep = await preparerPresentation(c.env, prospect);
+    if (prep.resultat !== 'pret') {
+      return prep.resultat === 'saute'
+        ? c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400)
+        : c.json({ erreur: 'Aucun email utilisable pour cette commune (adresse manquante, signalée en échec, ou désinscrite).' }, 422);
+    }
+    const p = await construirePresentation(c.env, prep.ctx, identifiantsPresentation(prep), undefined, prep.carteVisiteHtml);
+    presentation = prep;
+    destinataire = prep.email; objet = p.objet; html = p.html; slug = prep.activation.slug;
+    historique = `Brouillon Outlook de présentation préparé pour ${prep.email}${p.variante ? ` (variante : ${p.variante})` : ''}`
+      + (prep.nouvelleActivation ? ` — commune activée gratuitement (${prep.activation.slug})` : '');
+  } else {
+    if (!prospect.contact_email) return c.json({ erreur: 'Aucun email de contact pour ce prospect.' }, 422);
+    if (await adresseDesinscrite(c.env, prospect.contact_email)) {
+      return c.json({ erreur: 'Cette adresse a demandé à ne plus recevoir nos emails (désinscription). Ne pas la relancer.' }, 409);
+    }
+    if (prospect.commune_id) {
+      const [commune] = await supabaseSelect(c.env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
+      slug = commune?.slug ?? null;
+    }
+    const carte = body.data.inclure_carte && slug
+      ? construireCarteVisite(prospect.nom, slug, c.env.FRONTEND_URL, await codeCourtCommune(c.env, prospect.commune_id))
+      : undefined;
+    destinataire = prospect.contact_email; objet = body.data.objet!; html = construireEmailLibre(body.data.message!, carte);
+    historique = `Brouillon Outlook (email libre) préparé pour ${destinataire} — objet : ${objet}\n\n${body.data.message}`;
+  }
+
+  const indisponibles = documents.filter((d) => !documentDisponible(d, slug));
+  if (indisponibles.length) return c.json({ erreur: 'Ces documents demandent l\'espace de la commune, pas encore créé : envoyez d\'abord la présentation.' }, 400);
+  let pieces: Awaited<ReturnType<typeof fabriquerPdfDocuments>>;
+  try {
+    pieces = await fabriquerPdfDocuments(c.env, c.get('staff_id'), { slug, nom: prospect.nom, prospectId: id }, documents);
+  } catch (e) {
+    if (e instanceof ErreurPdf) return c.json({ erreur: e.message }, 502);
+    throw e;
+  }
+
+  const { corps } = await avecPiedDesinscription(c.env, destinataire, html);
+  const eml = construireEml({
+    de: c.env.EMAIL_FROM || 'Plateforme-Agora <contact@plateforme-agora.fr>', a: destinataire,
+    repondreA: c.env.EMAIL_REPLY_TO_PROSPECTION, objet, html: corps, pieces,
+  });
+  historique += pieces.length ? `\nPièces jointes : ${pieces.map((p) => p.nom).join(', ')}` : '';
+  if (presentation) {
+    await noterPresentation(c.env, c.get('staff_id'), prospect, historique);
+  } else {
+    await supabaseInsert(c.env, 'prospect_interactions', { prospect_id: id, staff_id: c.get('staff_id'), type: 'email', contenu: historique });
+    await supabaseUpdate(c.env, 'prospects', { updated_at: new Date().toISOString() }, { id: `eq.${id}` });
+  }
+  const nomFichier = `Email - ${prospect.nom}.eml`;
+  return new Response(eml, {
+    headers: {
+      'Content-Type': 'message/rfc822',
+      'Content-Disposition': `attachment; filename="${nomFichier.normalize('NFD').replace(/[^\x20-\x7e]/g, '').replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(nomFichier)}`,
+      'Cache-Control': 'no-store',
+    },
+  });
 });
 
 // GET /prospects/:id/carte-visite — aperçu de la carte de visite (voir construireCarteVisite

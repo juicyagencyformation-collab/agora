@@ -379,6 +379,11 @@ function backoffice() {
     nouvInteraction: { type: 'note', contenu: '' },
     fermeture: { ouvert: false, dateRetour: '', enCours: false },
     emailLibre: { ouvert: false, objet: '', message: '', inclureFiche: true, enCours: false, msg: '' },
+    // Brouillon Outlook (.eml) — voir preparerBrouillonOutlook()
+    outlook: { ouvert: false, modele: 'presentation', modeleLibre: '', objet: '', message: '', inclureCarte: true,
+      docs: { fiche: false, affiche: false, explorez: false, stickers: false, dossier: false, plaquette: true }, enCours: false, msg: '' },
+    DOCUMENTS_OUTLOOK: [['plaquette', '📘 Plaquette'], ['dossier', '📜 Dossier conseil'], ['fiche', '🖨 Fiche + QR'],
+      ['affiche', '🪧 Affiche habitants'], ['explorez', '🗺️ Affiche « Explorez le village »'], ['stickers', '🏷 Stickers']],
     // Résultat d'un appel téléphonique — voir POST /prospects/:id/resultat-appel.
     appel: { resultat: '', date: '', heure: '', note: '', enCours: false, msg: '' },
     carteVisiteHtml: null,
@@ -1923,6 +1928,46 @@ function backoffice() {
 
     // Email libre : pas de modèle A/B, un mot personnalisé — la carte de visite (bouton app +
     // fiche à imprimer) est composée côté serveur, qui connaît le slug le plus à jour.
+    // La plaquette se fabrique toujours ; les autres documents demandent l'espace de la commune, que
+    // la présentation crée au passage s'il n'existe pas.
+    documentOutlookDisponible(cle) {
+      return cle === 'plaquette' || !!this.prospect?.commune_slug || this.outlook.modele === 'presentation';
+    },
+    // Télécharge le brouillon .eml (worker : POST /prospection/prospects/:id/brouillon-outlook). Réponse
+    // en fichier, pas en JSON : appel direct (avec un rafraîchissement de session si besoin).
+    async preparerBrouillonOutlook() {
+      const o = this.outlook;
+      if (o.modele === 'presentation' && !confirm('Préparer la présentation dans Outlook ? Si la commune n\'a pas encore d\'espace, il est créé maintenant, et le compte de la mairie reçoit un nouveau mot de passe (écrit dans l\'email).')) return;
+      const documents = Object.keys(o.docs).filter((k) => o.docs[k] && this.documentOutlookDisponible(k));
+      const corps = { modele: o.modele, documents, ...(o.modele === 'libre'
+        ? { objet: o.objet.trim(), message: o.message.trim(), inclure_carte: o.inclureCarte && !!this.prospect.commune_slug } : {}) };
+      o.enCours = true;
+      o.msg = '';
+      try {
+        const appel = () => fetch(BO_API + '/prospection/prospects/' + this.prospect.id + '/brouillon-outlook', {
+          method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps),
+        });
+        let res = await appel();
+        if (res.status === 401 && await lancerRafraichissement() === 'ok') res = await appel();
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).erreur || 'Préparation impossible');
+        const disposition = res.headers.get('Content-Disposition') || '';
+        const nom = decodeURIComponent((disposition.match(/filename\*=UTF-8''([^;]+)/) || [])[1] || 'Email.eml');
+        const lien = document.createElement('a');
+        lien.href = URL.createObjectURL(await res.blob());
+        lien.download = nom;
+        document.body.appendChild(lien); lien.click(); lien.remove();
+        setTimeout(() => URL.revokeObjectURL(lien.href), 10000);
+        o.msg = '✅ Brouillon téléchargé : ouvrez « ' + nom + ' », Outlook l\'affiche prêt à envoyer.';
+        const d = await boFetch('/prospection/prospects/' + this.prospect.id);
+        this.prospect = d.prospect;
+        this.interactions = d.interactions;
+      } catch (e) {
+        o.msg = e.message || 'Préparation impossible';
+      } finally {
+        o.enCours = false;
+      }
+    },
+
     async envoyerEmailLibre() {
       if (!this.emailLibre.objet.trim() || !this.emailLibre.message.trim()) return;
       this.emailLibre.enCours = true;

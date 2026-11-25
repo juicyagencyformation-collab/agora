@@ -67,6 +67,14 @@ function piedDesinscription(lien: string): string {
     + `<a href="${lien}" style="color:#8a8f98;text-decoration:underline">Ne plus recevoir ces emails</a></p>`;
 }
 
+// Ajoute le lien « Ne plus recevoir ces emails » en bas d'un email de suivi. Partagé par l'envoi
+// Resend (envoyerEmailSuivi) et les brouillons Outlook (.eml) préparés dans le backoffice.
+export async function avecPiedDesinscription(env: any, to: string, html: string): Promise<{ corps: string; lien: string }> {
+  const lien = await lienDesinscription(env, to);
+  const pied = piedDesinscription(lien);
+  return { corps: /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${pied}</body>`) : html + pied, lien };
+}
+
 // Remplace envoyerEmail pour tout email de suivi : ne part pas vers une adresse désinscrite (renvoie
 // null, comme un échec), ajoute le lien en bas et les en-têtes de désinscription des messageries.
 export async function envoyerEmailSuivi(
@@ -77,9 +85,7 @@ export async function envoyerEmailSuivi(
     console.log(`Email de suivi non envoyé : ${normaliserEmail(to)} est désinscrite.`);
     return null;
   }
-  const lien = await lienDesinscription(env, to);
-  const pied = piedDesinscription(lien);
-  const corps = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${pied}</body>`) : html + pied;
+  const { corps, lien } = await avecPiedDesinscription(env, to, html);
   return envoyerEmail(env, to, subject, corps, attachments, replyTo, {
     ...(headersPersonnalises || {}),
     'List-Unsubscribe': `<${lien}>`,

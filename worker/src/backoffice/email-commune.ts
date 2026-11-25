@@ -731,6 +731,26 @@ export async function envoyerPresentation(
   varianteId?: string,
   carteVisiteHtml?: string,
 ): Promise<{ variante: string | null; resendEmailId: string | null }> {
+  const { objet, html, variante } = await construirePresentation(env, ctx, identifiants, varianteId, carteVisiteHtml);
+  // reply_to distinct de EMAIL_FROM : une réponse à un email de prospection part vers un
+  // sous-domaine dédié à la réception (voir CLAUDE.md/Resend) plutôt que vers la boîte mail
+  // habituelle de contact@plateforme-agora.fr — c'est ce qui permet au webhook Resend de la
+  // capter et de l'afficher dans Réponses reçues (worker/src/backoffice/emails-recus.ts).
+  const resendEmailId = await envoyerEmailSuivi(
+    env, contactEmail, objet, html,
+    undefined, env.EMAIL_REPLY_TO_PROSPECTION, undefined, copieEnvois(env),
+  );
+  return { variante, resendEmailId };
+}
+
+// Objet et corps HTML de l'email de présentation, sans l'envoyer (2026-11-25) : partagé par l'envoi
+// Resend ci-dessus et le brouillon Outlook (.eml) préparé depuis l'onglet Échanges.
+export async function construirePresentation(
+  env: any, ctx: ContextePresentation,
+  identifiants?: { maireEmail: string; motDePasse: string; slug?: string; communeId?: string; userId?: string },
+  varianteId?: string,
+  carteVisiteHtml?: string,
+): Promise<{ objet: string; html: string; variante: string | null }> {
   const modele = varianteId ? await chargerVarianteParId(env, varianteId) : await chargerModelePresentation(env);
   // Le bouton {{url}} pointe vers un lien de connexion directe quand un vrai compte vient
   // d'être (re)crédité (slug+communeId+userId fournis) — sinon (test, relance sans nouveaux
@@ -749,15 +769,7 @@ export async function envoyerPresentation(
   if (identifiants) corps += blocIdentifiants(ctx.url, identifiants.maireEmail, identifiants.motDePasse) + blocPsModules();
   if (carteVisiteHtml) corps += carteVisiteHtml;
   corps = injecterPreviewText(corps, modele.preview_text);
-  // reply_to distinct de EMAIL_FROM : une réponse à un email de prospection part vers un
-  // sous-domaine dédié à la réception (voir CLAUDE.md/Resend) plutôt que vers la boîte mail
-  // habituelle de contact@plateforme-agora.fr — c'est ce qui permet au webhook Resend de la
-  // capter et de l'afficher dans Réponses reçues (worker/src/backoffice/emails-recus.ts).
-  const resendEmailId = await envoyerEmailSuivi(
-    env, contactEmail, rendrePresentation(modele.objet, ctxComplet), corps,
-    undefined, env.EMAIL_REPLY_TO_PROSPECTION, undefined, copieEnvois(env),
-  );
-  return { variante: modele.nom || null, resendEmailId };
+  return { objet: rendrePresentation(modele.objet, ctxComplet), html: corps, variante: modele.nom || null };
 }
 
 // — Email de rappel d'échéance d'abonnement (envoyé ~60 jours avant, voir cron.ts). Simple et

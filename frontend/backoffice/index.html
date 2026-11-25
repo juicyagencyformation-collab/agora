@@ -2853,7 +2853,10 @@
                   </div>
                 </div>
                 <div style="text-align:right">
-                  <button class="bo-btn bo-btn--compact" @click="prospecter()" :disabled="prospEnCours"
+                  <!-- Brouillon Outlook (2026-11-25) : l'email s'ouvre dans Outlook, prêt à envoyer, pièces jointes au choix -->
+                  <button class="bo-btn bo-btn--compact" @click="outlook.ouvert = !outlook.ouvert; outlook.msg = ''">📝 Préparer dans Outlook</button>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" @click="prospecter()" :disabled="prospEnCours" style="margin-left:8px"
+                          title="Envoi direct depuis le backoffice (sans passer par Outlook)"
                           x-text="prospEnCours ? 'Envoi…' : '✉ Envoyer la présentation'"></button>
                   <button class="bo-btn bo-btn--sec bo-btn--compact" @click="emailLibre.ouvert = !emailLibre.ouvert" style="margin-left:8px">✍️ Email libre</button>
                   <a class="bo-btn bo-btn--sec bo-btn--compact" x-show="prospect.commune_slug"
@@ -2873,6 +2876,51 @@
                      :href="'/backoffice/plaquette?prospect=' + encodeURIComponent(prospect.id || '')" target="_blank" rel="noopener" style="margin-left:8px; text-decoration:none; display:inline-block">📘 Plaquette</a>
                   <div class="bo-info" style="margin-top:6px" x-text="prospMsg"></div>
                   <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug">Fiche personnalisée disponible après l'envoi de la présentation (commune activée à ce moment-là).</div>
+                </div>
+              </div>
+
+              <!-- Brouillon Outlook : POST /prospection/prospects/:id/brouillon-outlook renvoie un fichier .eml
+                   qu'Outlook ouvre en rédaction (mise en forme exacte, pièces jointes PDF cochées ci-dessous). -->
+              <div class="bo-carte" style="padding:14px 18px; margin-bottom:18px" x-show="outlook.ouvert">
+                <div style="font-weight:600">📝 Préparer l'email dans Outlook</div>
+                <div class="bo-info" style="margin:4px 0 10px">Le backoffice prépare un brouillon : ouvrez le fichier téléchargé, Outlook l'affiche prêt à partir de votre compte, mise en forme et pièces jointes comprises. Relisez, puis Envoyer.</div>
+                <label style="margin-top:0">Email</label>
+                <select x-model="outlook.modele">
+                  <option value="presentation">Présentation de Plateforme-Agora (avec les accès de la mairie)</option>
+                  <option value="libre">Email libre</option>
+                </select>
+                <div class="bo-info" style="margin-top:6px" x-show="outlook.modele === 'presentation'">
+                  Comme pour l'envoi direct : l'espace de la commune est créé s'il n'existe pas encore, et le compte de la mairie reçoit un nouveau mot de passe (écrit dans l'email). Statut « contacté » et relance à 7 jours.</div>
+                <div x-show="outlook.modele === 'libre'">
+                  <label>Modèle (remplace l'objet et le message, à relire)</label>
+                  <select x-model="outlook.modeleLibre" @change="outlook.modeleLibre && Object.assign(outlook, modeleEmailAppel(outlook.modeleLibre))">
+                    <option value="">— Message libre —</option>
+                    <template x-for="m in MODELES_EMAIL_APPEL" :key="m[0]"><option :value="m[0]" x-text="m[1]"></option></template>
+                  </select>
+                  <label>Objet</label>
+                  <input type="text" x-model="outlook.objet" placeholder="Objet de l'email" maxlength="200" />
+                  <label>Message</label>
+                  <textarea x-model="outlook.message" placeholder="Votre message…" rows="6"></textarea>
+                  <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin-top:8px" x-show="prospect.commune_slug">
+                    <input type="checkbox" x-model="outlook.inclureCarte" style="width:auto" />
+                    Ajouter la carte de visite de la commune (bouton vers l'app + fiche à imprimer avec QR)
+                  </label>
+                </div>
+                <label>Pièces jointes (PDF)</label>
+                <div style="display:flex; flex-direction:column; gap:4px">
+                  <template x-for="d in DOCUMENTS_OUTLOOK" :key="d[0]">
+                    <label style="display:flex; align-items:center; gap:6px; font-weight:400; margin:0" :style="documentOutlookDisponible(d[0]) ? '' : 'opacity:.5'">
+                      <input type="checkbox" x-model="outlook.docs[d[0]]" :disabled="!documentOutlookDisponible(d[0])" style="width:auto; margin:0" />
+                      <span x-text="d[1]"></span>
+                    </label>
+                  </template>
+                </div>
+                <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug && outlook.modele === 'libre'">Fiche, affiches, stickers et dossier demandent l'espace de la commune : ils seront disponibles après la présentation.</div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap">
+                  <button class="bo-btn bo-btn--compact" @click="preparerBrouillonOutlook()" :disabled="outlook.enCours || (outlook.modele === 'libre' && (!outlook.objet.trim() || !outlook.message.trim()))"
+                          x-text="outlook.enCours ? 'Préparation… (environ 5 s par pièce jointe)' : '📥 Télécharger le brouillon Outlook'"></button>
+                  <button class="bo-btn bo-btn--sec bo-btn--compact" @click="outlook.ouvert = false" :disabled="outlook.enCours">Fermer</button>
+                  <span class="bo-info" x-text="outlook.msg"></span>
                 </div>
               </div>
 
@@ -4897,7 +4945,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261125-1"></script>
+  <script src="/backoffice/js/app.js?v=20261125-2"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>
