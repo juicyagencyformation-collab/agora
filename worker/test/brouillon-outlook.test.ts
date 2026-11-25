@@ -91,6 +91,18 @@ describe('route du brouillon Outlook', () => {
     expect(db.prospect_interactions).toHaveLength(0);
   });
 
+  it('présentation : ni espace créé, ni compte, ni mot de passe ; lien vers la démo quand la commune n\'a pas d\'espace', async () => {
+    const res = await preparer({ modele: 'presentation' });
+    expect(res.status).toBe(200);
+    const html = decoderPartie(await res.text(), 'text/html');
+    expect(html).toContain('https://plateforme-agora.fr/bonvivre/');
+    expect(html).not.toMatch(/identifiants provisoires|Mot de passe/i);
+    expect(db.communes).toHaveLength(0);
+    expect(db.users ?? []).toHaveLength(0);
+    expect(db.prospect_interactions[0].contenu).toContain('Brouillon Outlook de présentation préparé pour mairie@fay.fr');
+    expect(db.prospect_interactions[0].contenu).not.toContain('activée');
+  });
+
   it('plaquette demandée sans navigateur Cloudflare : message clair, rien de noté', async () => {
     const res = await preparer({ modele: 'libre', objet: 'x', message: 'y', documents: ['plaquette'] });
     expect(res.status).toBe(502);

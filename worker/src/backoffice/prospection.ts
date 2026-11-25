@@ -953,6 +953,8 @@ export async function genererSlugUnique(env: any, nom: string): Promise<string> 
 // rôle/nom de maire était trompeur. 'maire' reste réservé à un vrai maire désigné manuellement
 // via la conversion (voir onboarding.ts). role: 'in.(admin,maire)' ci-dessous pour retrouver
 // sans doublon les comptes déjà créés sous l'ancien comportement (role='maire').
+// N'EST PLUS APPELÉE par la présentation depuis le 2026-11-25 (décision de Léandre : plus d'espace
+// ni de mot de passe générés automatiquement). Gardée, avec ses tests, pour mémoire.
 export async function activerCommuneGratuite(env: any, prospect: any): Promise<{ slug: string; communeId: string; maireId: string; maireEmail: string; motDePasse: string }> {
   let communeId: string = prospect.commune_id || '';
 
@@ -1006,16 +1008,14 @@ export async function activerCommuneGratuite(env: any, prospect: any): Promise<{
   return { slug: communeActuelle.slug, communeId, maireId, maireEmail, motDePasse };
 }
 
-// — Prospecter en un clic : enrichit si besoin, active une commune gratuite pour le prospect
-//   (s'il n'en a pas déjà une), envoie l'email de présentation avec ses identifiants, journalise
-//   l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
-// Traite un prospect : enrichit si besoin, envoie l'email, journalise, met à jour statut/relance.
-// Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
-// Préparation commune à l'envoi direct (Resend) et au brouillon Outlook : adresse utilisable,
-// activation de l'espace gratuit et identifiants du maire, contexte de l'email, carte de visite.
+// Préparation commune à l'envoi direct (Resend), à l'envoi groupé, à la relance et au brouillon
+// Outlook : adresse utilisable, contexte de l'email, carte de visite.
+// Depuis le 2026-11-25 (décision de Léandre) : PLUS d'espace créé ni de mot de passe généré à
+// l'envoi d'une présentation. Le bouton de l'email mène à l'espace de la commune s'il existe déjà,
+// sinon à la démo Bonvivre ; la mairie ouvre ou adopte son espace elle-même.
 type PresentationPrete = {
-  resultat: 'pret'; email: string; nouvelleActivation: boolean; activation: Awaited<ReturnType<typeof activerCommuneGratuite>>;
-  ctx: ReturnType<typeof contextePresentation>; carteVisiteHtml: string;
+  resultat: 'pret'; email: string; slug: string | null;
+  ctx: ReturnType<typeof contextePresentation>; carteVisiteHtml?: string;
 };
 async function preparerPresentation(env: any, prospect: any): Promise<PresentationPrete | { resultat: 'sans_email' | 'saute' }> {
   if (prospect.statut === 'gagne' || prospect.statut === 'perdu' || prospect.statut === 'ne_plus_contacter') return { resultat: 'saute' };
@@ -1033,24 +1033,20 @@ async function preparerPresentation(env: any, prospect: any): Promise<Presentati
   // Adresse désinscrite (lien en bas des emails, voir lib/desinscription.ts) : jamais de présentation.
   if (await adresseDesinscrite(env, email)) return { resultat: 'sans_email' };
 
-  const nouvelleActivation = !prospect.commune_id;
-  const activation = await activerCommuneGratuite(env, { ...prospect, contact_email: email });
-  const ctx = contextePresentation(env.FRONTEND_URL, prospect.nom, activation.slug);
+  let slug: string | null = null;
+  if (prospect.commune_id) {
+    const [commune] = await supabaseSelect(env, 'communes', { select: 'slug', id: `eq.${prospect.commune_id}` });
+    slug = commune?.slug ?? null;
+  }
+  const ctx = contextePresentation(env.FRONTEND_URL, prospect.nom, slug ?? 'bonvivre');
   if (prospect.nom_maire) { ctx.nomMaire = prospect.nom_maire; ctx.civiliteMaire = prospect.maire_civilite || undefined; }
 
-  // Carte de visite jointe systématiquement (voir construireCarteVisite) : la commune vient
-  // d'être activée juste au-dessus, donc communeId est toujours disponible ici — un seul clic
-  // suffit à la mairie pour recevoir à la fois ses accès ET de quoi imprimer/distribuer, sans
-  // devoir repasser par « Email libre » à part.
-  const codeCourt = await codeCourtCommune(env, activation.communeId);
-  const carteVisiteHtml = construireCarteVisite(prospect.nom, activation.slug, env.FRONTEND_URL, codeCourt);
-  return { resultat: 'pret', email, nouvelleActivation, activation, ctx, carteVisiteHtml };
+  // Carte de visite (voir construireCarteVisite) : seulement si l'espace de la commune existe déjà.
+  const carteVisiteHtml = slug
+    ? construireCarteVisite(prospect.nom, slug, env.FRONTEND_URL, await codeCourtCommune(env, prospect.commune_id))
+    : undefined;
+  return { resultat: 'pret', email, slug, ctx, carteVisiteHtml };
 }
-
-const identifiantsPresentation = (p: PresentationPrete) => ({
-  maireEmail: p.activation.maireEmail, motDePasse: p.activation.motDePasse,
-  slug: p.activation.slug, communeId: p.activation.communeId, userId: p.activation.maireId,
-});
 
 // Après une présentation (envoyée ou préparée dans Outlook) : statut « contacté », relance à
 // +7 jours, et ligne dans l'historique lisible du prospect.
@@ -1062,15 +1058,15 @@ async function noterPresentation(env: any, staffId: string, prospect: any, texte
   await supabaseInsert(env, 'prospect_interactions', { prospect_id: prospect.id, staff_id: staffId, type: 'email', contenu: texte });
 }
 
-// — Prospecter en un clic : enrichit si besoin, active une commune gratuite pour le prospect
-//   (s'il n'en a pas déjà une), envoie l'email de présentation avec ses identifiants, journalise
-//   l'échange, passe le statut à « contacté » et pose une relance à +7 jours. —
+// — Prospecter en un clic : enrichit si besoin, envoie l'email de présentation (sans création
+//   d'espace ni identifiants depuis le 2026-11-25), journalise l'échange, passe le statut à
+//   « contacté » et pose une relance à +7 jours. —
 // Partagé par l'envoi unitaire et l'envoi groupé. Ne jette jamais : renvoie l'issue.
 async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{ resultat: 'envoye' | 'sans_email' | 'saute'; email?: string }> {
   const prep = await preparerPresentation(env, prospect);
   if (prep.resultat !== 'pret') return { resultat: prep.resultat };
 
-  const { variante, resendEmailId } = await envoyerPresentation(env, prep.email, prep.ctx, identifiantsPresentation(prep), undefined, prep.carteVisiteHtml);
+  const { variante, resendEmailId } = await envoyerPresentation(env, prep.email, prep.ctx, undefined, undefined, prep.carteVisiteHtml);
 
   // Ligne dédiée au suivi structuré (rejet via webhook Resend, voir index.ts et migration 040) —
   // resend_email_id permet une corrélation précise, contrairement à un simple match par adresse
@@ -1083,8 +1079,7 @@ async function prospecterUn(env: any, staffId: string, prospect: any): Promise<{
   // Trace la variante utilisée (A/B testing) et l'activation éventuelle dans l'historique lisible
   // du prospect (distinct du suivi structuré ci-dessus, qui alimente les stats agrégées).
   await noterPresentation(env, staffId, prospect,
-    `Email de présentation envoyé à ${prep.email}${variante ? ` (variante : ${variante})` : ''}`
-    + (prep.nouvelleActivation ? ` — commune activée gratuitement (${prep.activation.slug})` : ''));
+    `Email de présentation envoyé à ${prep.email}${variante ? ` (variante : ${variante})` : ''}`);
   return { resultat: 'envoye', email: prep.email };
 }
 
@@ -1734,8 +1729,7 @@ app.post('/prospects/:id/envoyer-email-libre', async (c) => {
 // l'envoi Resend, pièces jointes en PDF au choix (documents-pdf.ts). Léandre relit et envoie depuis
 // son propre compte. Mêmes garde-fous que l'envoi : adresse désinscrite refusée, lien de
 // désinscription en bas, réponses vers « Réponses reçues », trace dans l'historique Échanges.
-// Présentation : l'espace est activé et le mot de passe du maire renouvelé dès la préparation
-// (comme à l'envoi), puisque les identifiants figurent dans l'email.
+// Présentation : ni création d'espace ni mot de passe (2026-11-25), comme l'envoi direct.
 const brouillonSchema = z.object({
   modele: z.enum(['presentation', 'libre']),
   objet: z.string().trim().min(1).max(200).optional(),
@@ -1768,11 +1762,10 @@ app.post('/prospects/:id/brouillon-outlook', async (c) => {
         ? c.json({ erreur: 'Ce prospect est déjà gagné ou perdu.' }, 400)
         : c.json({ erreur: 'Aucun email utilisable pour cette commune (adresse manquante, signalée en échec, ou désinscrite).' }, 422);
     }
-    const p = await construirePresentation(c.env, prep.ctx, identifiantsPresentation(prep), undefined, prep.carteVisiteHtml);
+    const p = await construirePresentation(c.env, prep.ctx, undefined, undefined, prep.carteVisiteHtml);
     presentation = prep;
-    destinataire = prep.email; objet = p.objet; html = p.html; slug = prep.activation.slug;
-    historique = `Brouillon Outlook de présentation préparé pour ${prep.email}${p.variante ? ` (variante : ${p.variante})` : ''}`
-      + (prep.nouvelleActivation ? ` — commune activée gratuitement (${prep.activation.slug})` : '');
+    destinataire = prep.email; objet = p.objet; html = p.html; slug = prep.slug;
+    historique = `Brouillon Outlook de présentation préparé pour ${prep.email}${p.variante ? ` (variante : ${p.variante})` : ''}`;
   } else {
     if (!prospect.contact_email) return c.json({ erreur: 'Aucun email de contact pour ce prospect.' }, 422);
     if (await adresseDesinscrite(c.env, prospect.contact_email)) {
@@ -1790,7 +1783,7 @@ app.post('/prospects/:id/brouillon-outlook', async (c) => {
   }
 
   const indisponibles = documents.filter((d) => !documentDisponible(d, slug));
-  if (indisponibles.length) return c.json({ erreur: 'Ces documents demandent l\'espace de la commune, pas encore créé : envoyez d\'abord la présentation.' }, 400);
+  if (indisponibles.length) return c.json({ erreur: 'Ces documents demandent l\'espace de la commune, qui n\'existe pas encore : seule la plaquette peut être jointe.' }, 400);
   let pieces: Awaited<ReturnType<typeof fabriquerPdfDocuments>>;
   try {
     pieces = await fabriquerPdfDocuments(c.env, c.get('staff_id'), { slug, nom: prospect.nom, prospectId: id }, documents);

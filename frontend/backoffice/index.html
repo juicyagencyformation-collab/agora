@@ -2875,7 +2875,7 @@
                   <a class="bo-btn bo-btn--sec bo-btn--compact" x-show="prospect.id"
                      :href="'/backoffice/plaquette?prospect=' + encodeURIComponent(prospect.id || '')" target="_blank" rel="noopener" style="margin-left:8px; text-decoration:none; display:inline-block">📘 Plaquette</a>
                   <div class="bo-info" style="margin-top:6px" x-text="prospMsg"></div>
-                  <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug">Fiche personnalisée disponible après l'envoi de la présentation (commune activée à ce moment-là).</div>
+                  <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug">Fiche, affiches et stickers personnalisés : disponibles quand la commune a son espace (ouvert par la mairie ou par des habitants).</div>
                 </div>
               </div>
 
@@ -2890,7 +2890,7 @@
                   <option value="libre">Email libre</option>
                 </select>
                 <div class="bo-info" style="margin-top:6px" x-show="outlook.modele === 'presentation'">
-                  Comme pour l'envoi direct : l'espace de la commune est créé s'il n'existe pas encore, et le compte de la mairie reçoit un nouveau mot de passe (écrit dans l'email). Statut « contacté » et relance à 7 jours.</div>
+                  Sans création d'espace ni mot de passe : le bouton de l'email mène à l'espace de la commune s'il existe, sinon à la démo Bonvivre. Statut « contacté » et relance à 7 jours.</div>
                 <div x-show="outlook.modele === 'libre'">
                   <label>Modèle (remplace l'objet et le message, à relire)</label>
                   <select x-model="outlook.modeleLibre" @change="outlook.modeleLibre && Object.assign(outlook, modeleEmailAppel(outlook.modeleLibre))">
@@ -2915,7 +2915,7 @@
                     </label>
                   </template>
                 </div>
-                <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug && outlook.modele === 'libre'">Fiche, affiches, stickers et dossier demandent l'espace de la commune : ils seront disponibles après la présentation.</div>
+                <div class="bo-info" style="margin-top:4px" x-show="!prospect.commune_slug">Fiche, affiches, stickers et dossier demandent l'espace de la commune, qui n'existe pas encore : seule la plaquette peut être jointe.</div>
                 <div style="display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap">
                   <button class="bo-btn bo-btn--compact" @click="preparerBrouillonOutlook()" :disabled="outlook.enCours || (outlook.modele === 'libre' && (!outlook.objet.trim() || !outlook.message.trim()))"
                           x-text="outlook.enCours ? 'Préparation… (environ 5 s par pièce jointe)' : '📥 Télécharger le brouillon Outlook'"></button>
@@ -4945,7 +4945,7 @@
   <script src="/backoffice/vendor/leaflet.js?v=20260818-1"></script>
   <script src="/backoffice/vendor/qrcode.min.js?v=20260818-1"></script>
   <script src="/backoffice/js/api.js?v=20261120-1"></script>
-  <script src="/backoffice/js/app.js?v=20261125-2"></script>
+  <script src="/backoffice/js/app.js?v=20261125-3"></script>
   <script src="/backoffice/vendor/alpine.min.js?v=20261016-1" defer></script>
 </body>
 </html>

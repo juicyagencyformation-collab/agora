@@ -1749,7 +1749,7 @@ function backoffice() {
         return;
       }
       const avertissement = dejaContactes.length ? `\n\n⚠ ${dejaContactes.length} déjà contacté(s) dans la sélection : ignoré(s), pas de renvoi automatique.` : '';
-      if (!confirm(`Envoyer la présentation à ${aEnvoyer.length} commune(s) ? Celles qui n'ont pas encore d'espace seront créées à l'instant en version gratuite, avec un compte maire chacune. Traité un par un : ça peut prendre un moment pour une grande liste.${avertissement}`)) return;
+      if (!confirm(`Envoyer la présentation à ${aEnvoyer.length} commune(s) ? Aucun espace ni mot de passe n'est créé : le lien de l'email mène à l'espace de la commune s'il existe, sinon à la démo. Traité un par un : ça peut prendre un moment pour une grande liste.${avertissement}`)) return;
       await this.envoyerLotParIds(aEnvoyer);
     },
     async relancerEchecsLot() {
@@ -1884,7 +1884,7 @@ function backoffice() {
     },
 
     async prospecter() {
-      if (!confirm('Envoyer la présentation à la mairie ? Si cette commune n\'a pas encore d\'espace, il sera créé à l\'instant en version gratuite, avec un compte maire (identifiants envoyés dans l\'email).')) return;
+      if (!confirm('Envoyer la présentation à la mairie ? Aucun espace ni mot de passe n\'est créé : le lien de l\'email mène à l\'espace de la commune s\'il existe, sinon à la démo.')) return;
       this.prospEnCours = true;
       this.prospMsg = '';
       try {
@@ -1909,7 +1909,7 @@ function backoffice() {
       const activee = !!this.prospect.commune_id;
       const message = activee
         ? 'Envoyer l\'email de relance à la mairie (compte déjà activé) ? Remet la prochaine relance à +7 jours.'
-        : 'Envoyer la présentation à la mairie ? Si cette commune n\'a pas encore d\'espace, il sera créé à l\'instant en version gratuite, avec un compte maire (identifiants envoyés dans l\'email).';
+        : 'Envoyer la présentation à la mairie ? Aucun espace ni mot de passe n\'est créé : le lien de l\'email mène à l\'espace de la commune s\'il existe, sinon à la démo.';
       if (!confirm(message)) return;
       this.prospEnCours = true;
       this.prospMsg = '';
@@ -1928,16 +1928,15 @@ function backoffice() {
 
     // Email libre : pas de modèle A/B, un mot personnalisé — la carte de visite (bouton app +
     // fiche à imprimer) est composée côté serveur, qui connaît le slug le plus à jour.
-    // La plaquette se fabrique toujours ; les autres documents demandent l'espace de la commune, que
-    // la présentation crée au passage s'il n'existe pas.
+    // La plaquette se fabrique toujours ; les autres documents demandent l'espace de la commune
+    // (plus jamais créé automatiquement depuis le 2026-11-25).
     documentOutlookDisponible(cle) {
-      return cle === 'plaquette' || !!this.prospect?.commune_slug || this.outlook.modele === 'presentation';
+      return cle === 'plaquette' || !!this.prospect?.commune_slug;
     },
     // Télécharge le brouillon .eml (worker : POST /prospection/prospects/:id/brouillon-outlook). Réponse
     // en fichier, pas en JSON : appel direct (avec un rafraîchissement de session si besoin).
     async preparerBrouillonOutlook() {
       const o = this.outlook;
-      if (o.modele === 'presentation' && !confirm('Préparer la présentation dans Outlook ? Si la commune n\'a pas encore d\'espace, il est créé maintenant, et le compte de la mairie reçoit un nouveau mot de passe (écrit dans l\'email).')) return;
       const documents = Object.keys(o.docs).filter((k) => o.docs[k] && this.documentOutlookDisponible(k));
       const corps = { modele: o.modele, documents, ...(o.modele === 'libre'
         ? { objet: o.objet.trim(), message: o.message.trim(), inclure_carte: o.inclureCarte && !!this.prospect.commune_slug } : {}) };
