@@ -710,7 +710,9 @@ function initFormulaireAgenda() {
 }
 
 // options.ficheId : ouverte depuis la vitrine d'une association (annuaire.js), présélectionnée.
-function ouvrirModaleCreationAgenda(options = {}) {
+async function ouvrirModaleCreationAgenda(options = {}) {
+  // Responsable d'une fiche : charte de publication lue avant la première publication (migration 123).
+  if (!(await exigerCharteAvantPublication(() => ouvrirModaleCreationAgenda(options)))) return;
   const estGestionnaireAgenda = ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE);
   const peutPublierPourAsso = (window.ASSOS_PUBLICATION || []).length > 0;
   const html = `

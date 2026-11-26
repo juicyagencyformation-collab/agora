@@ -2065,3 +2065,9 @@ button.lien-qr-civique:disabled, .lien-qr-texte:disabled { opacity: .6; }
   background: none; border: none; padding: 0; color: var(--eau); font: inherit; font-size: 13px;
   text-decoration: underline; cursor: pointer;
 }
+
+/* ─── Charte de publication dans l'appli (migration 123) ─── */
+.lien-charte-annuaire { display: inline-block; margin-top: 6px; font-size: 13px; color: inherit; text-decoration: underline; }
+.contenu-charte h2 { font-size: 15px; color: var(--eau); margin: 18px 0 6px; }
+.contenu-charte p, .contenu-charte li { font-size: 13.5px; line-height: 1.55; color: var(--boue); }
+.bouton-charte-lue { width: 100%; margin-top: 16px; }

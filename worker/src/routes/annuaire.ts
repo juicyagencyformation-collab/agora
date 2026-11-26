@@ -6,7 +6,7 @@ import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
 import { statutResponsable, fichesPublicationPossible, estFichePubliante, suspensionEnCours } from '../lib/associations';
-import { suspendreFiche, leverSuspension, CLES_MOTIFS, DUREES_SUSPENSION } from '../lib/moderation-publications';
+import { suspendreFiche, leverSuspension, CLES_MOTIFS, DUREES_SUSPENSION, charteALire, noterCharteLue, VERSION_CHARTE } from '../lib/moderation-publications';
 import { envoyerNotificationAUtilisateurs } from '../lib/push';
 
 const app = new Hono();
@@ -146,6 +146,27 @@ app.get('/', async (c) => {
   return c.json({ fiches: result, demandes_en_attente });
 });
 
+// Garde-fou (validé par Léandre le 2026-11-26) : un habitant n'a de fiche que dans UN village. Même
+// email = même personne, même si les comptes sont distincts d'une commune à l'autre. Seule lecture
+// entre communes autorisée ici, et minimale : le nom du village où il a déjà une fiche, rien d'autre.
+// Pour changer de village, il supprime lui-même sa fiche là-bas puis la recrée ici.
+async function villageAvecFicheAilleurs(env: any, commune_id: string, user_id: string): Promise<string | null> {
+  const [moi] = await supabaseSelect(env, 'users', { select: 'email', id: `eq.${user_id}`, commune_id: `eq.${commune_id}` });
+  if (!moi?.email) return null;
+  // ilike pour ignorer la casse, jokers % et _ neutralisés (comme la désignation de responsable).
+  const motif = String(moi.email).trim().replace(/[\\%_]/g, (m) => `\\${m}`);
+  const comptes = await supabaseSelect(env, 'users', {
+    select: 'id', email: `ilike.${motif}`, commune_id: `neq.${commune_id}`, compte_supprime_le: 'is.null',
+  });
+  if (!comptes.length) return null;
+  const [fiche] = await supabaseSelect(env, 'annuaire', {
+    select: 'commune_id', user_id: `in.(${comptes.map((x: any) => x.id).join(',')})`, limit: '1',
+  });
+  if (!fiche) return null;
+  const [commune] = await supabaseSelect(env, 'communes', { select: 'nom', id: `eq.${fiche.commune_id}` });
+  return commune?.nom ?? 'un autre village';
+}
+
 // POST / — un citoyen crée SA fiche (liée à son compte, une seule autorisée) ;
 // un gestionnaire peut créer une fiche libre (commerce/association sans compte).
 app.post('/', async (c) => {
@@ -163,6 +184,10 @@ app.post('/', async (c) => {
       select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`,
     });
     if (existante) return c.json({ erreur: 'Vous avez déjà une fiche dans l\'annuaire (modifiez-la plutôt)' }, 400);
+    const ailleurs = await villageAvecFicheAilleurs(c.env, commune_id, user_id);
+    if (ailleurs) {
+      return c.json({ erreur: `Vous avez déjà une fiche dans l'annuaire de ${ailleurs}. Une personne n'a de fiche que dans un seul village : pour changer de village, supprimez d'abord votre fiche dans l'application de ${ailleurs}, puis recréez-la ici.` }, 409);
+    }
 
     const [fiche] = await supabaseInsert(c.env, 'annuaire', {
       commune_id, user_id, ...champsFiche(c.env, data),
@@ -303,6 +328,19 @@ app.delete('/:id/documents/:doc_id', async (c) => {
 // demandes, désigne directement un habitant déjà inscrit (par son email, sans exposer la liste
 // des habitants), et retire un responsable ; un responsable peut aussi se retirer lui-même.
 
+// GET /charte — faut-il ouvrir d'office la charte de publication à cette personne ? (responsable
+// actif ou mairie, pas encore lue dans sa version en cours — migration 123)
+app.get('/charte', async (c) => {
+  const a_lire = await charteALire(c.env, c.get('commune_id'), c.get('user_id'), estGestionnaire(c.get('role')));
+  return c.json({ version: VERSION_CHARTE, a_lire });
+});
+
+// POST /charte/lue — « J'ai lu la charte » : preuve de lecture (qui, quand, quelle version).
+app.post('/charte/lue', async (c) => {
+  await noterCharteLue(c.env, c.get('commune_id'), c.get('user_id'));
+  return c.json({ ok: true, version: VERSION_CHARTE });
+});
+
 // GET /publier-pour — associations au nom desquelles l'appelant peut publier (menu « Publier
 // pour » des formulaires Actualités / Agenda) : toutes pour la mairie, ses fiches gérées sinon.
 app.get('/publier-pour', async (c) => {
@@ -386,13 +424,16 @@ app.get('/:id/responsables', async (c) => {
     select: 'id,user_id,statut,created_at', commune_id: `eq.${commune_id}`, fiche_id: `eq.${fiche.id}`,
     order: 'created_at.asc',
   });
-  const personnes = lignes.length ? await supabaseSelect(c.env, 'users', {
-    select: 'id,prenom,nom', commune_id: `eq.${commune_id}`,
-    id: `in.(${lignes.map((l: any) => l.user_id).join(',')})`,
-  }) : [];
+  const idsPersonnes = lignes.map((l: any) => l.user_id).join(',');
+  const [personnes, lectures] = lignes.length ? await Promise.all([
+    supabaseSelect(c.env, 'users', { select: 'id,prenom,nom', commune_id: `eq.${commune_id}`, id: `in.(${idsPersonnes})` }),
+    // Preuve de lecture de la charte de publication, version en cours (migration 123).
+    supabaseSelect(c.env, 'chartes_lues', { select: 'user_id,created_at', commune_id: `eq.${commune_id}`, version: `eq.${VERSION_CHARTE}`, user_id: `in.(${idsPersonnes})` }),
+  ]) : [[], []];
   const responsables = lignes.map((l: any) => {
     const u = personnes.find((p: any) => p.id === l.user_id);
-    return { id: l.id, statut: l.statut, prenom: u?.prenom ?? '?', nom: u?.nom ?? '', created_at: l.created_at };
+    const charte = lectures.find((x: any) => x.user_id === l.user_id);
+    return { id: l.id, statut: l.statut, prenom: u?.prenom ?? '?', nom: u?.nom ?? '', created_at: l.created_at, charte_lue_le: charte?.created_at ?? null };
   });
   return c.json({ responsables });
 });

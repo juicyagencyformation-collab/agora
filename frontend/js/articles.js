@@ -326,7 +326,9 @@ function htmlFormulaireArticle(ficheIdPreselection = '') {
 }
 
 // options.ficheId : ouverte depuis la vitrine d'une association (annuaire.js), présélectionnée.
-function ouvrirModaleCreationArticle(options = {}) {
+async function ouvrirModaleCreationArticle(options = {}) {
+  // Responsable d'une fiche : charte de publication lue avant la première publication (migration 123).
+  if (!(await exigerCharteAvantPublication(() => ouvrirModaleCreationArticle(options)))) return;
   const overlay = ouvrirModaleFormulaire('Publier un article', htmlFormulaireArticle(options.ficheId || ''));
   const corps = overlay.querySelector('.corps-modale-formulaire');
   editeurArticleActuel = creerEditeurRiche('editeur-article-modale');

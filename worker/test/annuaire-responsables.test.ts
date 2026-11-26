@@ -86,6 +86,31 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+describe('Une fiche dans un seul village (même email)', () => {
+  const FICHE = { nom: 'Plomberie Martin', categorie: 'artisan' };
+  it('refuse une 2e fiche dans un autre village, l\'accepte une fois l\'ancienne supprimée', async () => {
+    db.users.push({ id: 'u-pres-c2', commune_id: 'c2', prenom: 'Paul', nom: 'Martin', email: 'Paul.Martin@exemple.fr', role: 'citoyen', compte_supprime_le: null });
+    db.annuaire.push({ id: 'f-paul-c2', commune_id: 'c2', user_id: 'u-pres-c2', nom: 'Plomberie Martin', categorie: 'artisan' });
+    db.communes = [{ id: 'c2', nom: 'Pont-Remy' }];
+    const refus = await appel('/', 'POST', 'u-pres', 'citoyen', FICHE);
+    expect(refus.status).toBe(409);
+    expect(((await refus.json()) as any).erreur).toContain('Pont-Remy');
+
+    expect((await appel('/f-paul-c2', 'DELETE', 'u-pres-c2', 'citoyen', undefined, 'c2')).status).toBe(200);
+    expect((await appel('/', 'POST', 'u-pres', 'citoyen', FICHE)).status).toBe(201);
+  });
+  it('un email qui ne diffère que par un joker (« _ ») ne bloque personne d\'autre', async () => {
+    db.users.push({ id: 'u-x', commune_id: 'c2', prenom: 'X', nom: 'Y', email: 'anneXp@exemple.fr', role: 'citoyen', compte_supprime_le: null });
+    db.annuaire.push({ id: 'f-x', commune_id: 'c2', user_id: 'u-x', nom: 'X', categorie: 'commerce' });
+    expect((await appel('/', 'POST', 'u-autre', 'citoyen', FICHE)).status).toBe(201);
+  });
+  it('la mairie crée librement des fiches (pas de contrôle par email)', async () => {
+    db.users.push({ id: 'u-maire-c2', commune_id: 'c2', prenom: 'M', nom: 'D', email: 'maire@exemple.fr', role: 'citoyen', compte_supprime_le: null });
+    db.annuaire.push({ id: 'f-m', commune_id: 'c2', user_id: 'u-maire-c2', nom: 'M', categorie: 'commerce' });
+    expect((await appel('/', 'POST', 'u-maire', 'maire', FICHE)).status).toBe(201);
+  });
+});
+
 describe('Demande « Je fais partie du bureau »', () => {
   it('crée une demande en attente, sans droit de modification avant validation', async () => {
     expect((await appel('/f-asso/responsables/demande', 'POST', 'u-pres', 'citoyen')).status).toBe(201);

@@ -78,6 +78,10 @@ commune (`partages_masques`, aucune écriture chez l'autre). Décisions tracées
    actifs, écriture limitée à valider/signaler, XP sur le compte du joueur. Ne jamais élargir
    cette exception à un autre module, ni la copier ailleurs, sans nouvelle validation explicite ;
    les tests `worker/test/jeux-ailleurs.test.ts` doivent rester verts.
+   **Une fiche d'annuaire dans un seul village (validé par Léandre le 2026-11-26) :** à la création
+   d'une fiche par un habitant, `villageAvecFicheAilleurs` (`worker/src/routes/annuaire.ts`) cherche
+   par email s'il a déjà une fiche dans une autre commune — lecture seule, ne renvoie que le nom du
+   village. Pour changer de village, il supprime lui-même l'ancienne. Ne pas étendre ailleurs.
    **Espace Explorateurs (validé par Léandre le 2026-11-05, migration 098) :** les gens de passage
    (touristes, camping-caristes) s'inscrivent dans la commune spéciale `explorateurs`
    (niveau_national=true, aucun contenu de village) puis jouent partout via cette même exception.

@@ -95,7 +95,7 @@ beforeEach(() => {
     onglets_config: [],
     articles: [], article_images: [], article_sondages: [], article_sondage_choix: [], article_sondage_votes: [],
     articles_lus_par_utilisateur: [], events: [], event_attendees: [], participations_citoyennes: [],
-    publications_signalements: [], activation_events: [], moderation_decisions: [], partages_masques: [],
+    publications_signalements: [], activation_events: [], moderation_decisions: [], partages_masques: [], chartes_lues: [],
     users: [
       { id: 'u-boulanger', commune_id: 'c1', prenom: 'Jean', nom: 'Martin', email: 'jean@boulangerie.test', xp: 0 },
       { id: 'u-habitant', commune_id: 'c1', prenom: 'Lucie', nom: 'D', email: 'lucie@test.fr', xp: 0 },
@@ -243,5 +243,23 @@ describe('Actualités partagées « Autour de moi »', () => {
     expect((await appel(moderation, '/publications/partages-masques', 'POST', 'u-maire', 'maire', { event_id: E_VOISIN })).status).toBe(200);
     const apres: any = await (await decouverte.request('/evenements?lat=50.06&lng=1.88&exclure=eaucourt-test', {}, ENV, FAUX_EXECUTION_CTX)).json();
     expect(apres.evenements).toHaveLength(0);
+  });
+});
+
+describe('Charte de publication lue (migration 123)', () => {
+  it('à lire pour un responsable et la mairie, jamais pour un simple habitant ; « J\'ai lu » fait preuve', async () => {
+    const etat = async (u: string, role: string) => ((await (await appel(annuaire, '/charte', 'GET', u, role)).json()) as any).a_lire;
+    expect(await etat('u-boulanger', 'citoyen')).toBe(true);
+    expect(await etat('u-habitant', 'citoyen')).toBe(false);
+    expect(await etat('u-maire', 'maire')).toBe(true);
+
+    expect((await appel(annuaire, '/charte/lue', 'POST', 'u-boulanger', 'citoyen')).status).toBe(200);
+    expect((await appel(annuaire, '/charte/lue', 'POST', 'u-boulanger', 'citoyen')).status).toBe(200);
+    expect(db.chartes_lues).toHaveLength(1); // une seule preuve par version
+    expect(db.chartes_lues[0]).toMatchObject({ commune_id: 'c1', user_id: 'u-boulanger', version: '2026-11-26' });
+    expect(await etat('u-boulanger', 'citoyen')).toBe(false);
+
+    const liste: any = await (await appel(annuaire, `/${COMMERCE}/responsables`, 'GET', 'u-maire', 'maire')).json();
+    expect(liste.responsables[0].charte_lue_le).toBeTruthy();
   });
 });

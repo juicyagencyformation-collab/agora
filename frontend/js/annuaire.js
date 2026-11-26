@@ -47,7 +47,15 @@ function lireChampPublierPour(corps, prefixe) {
   return corps.querySelector(`#publier-pour-${prefixe}`)?.value || undefined;
 }
 
+// Lien « 📜 Charte de publication » sous le titre de l'onglet (index.html).
+document.getElementById('lien-charte-annuaire')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  ouvrirCharte(await charteALireMaintenant());
+});
+
 async function chargerAnnuaire(filtreCategorie = null) {
+  // Mairie et responsables : la charte s'ouvre d'office tant qu'elle n'a pas été lue.
+  proposerCharteSiNecessaire();
   const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/annuaire`, window.location.origin);
   if (filtreCategorie) url.searchParams.set('categorie', filtreCategorie);
 
@@ -121,7 +129,8 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
         : '');
     bar.querySelector('[data-action="modifier"]').addEventListener('click', () => ouvrirModaleAnnuaire(fiche));
     bar.querySelector('[data-action="supprimer"]')?.addEventListener('click', async () => {
-      if (!confirm('Supprimer cette fiche ?')) return;
+      // Garde-fou contre les fausses manipulations : ce qui disparaît avec la fiche est écrit en toutes lettres.
+      if (!confirm(`Supprimer définitivement la fiche « ${fiche.nom} » ?\n\nSon logo, ses documents, et les actualités et événements publiés en son nom seront aussi supprimés. Impossible de revenir en arrière.`)) return;
       const res = await appelApi(`/${window.COMMUNE_SLUG}/annuaire/${fiche.id}`, { method: 'DELETE' });
       if (!res.ok) { afficherToastMessage((await res.json()).erreur || 'Suppression impossible.', 'erreur'); return; }
       chargerAnnuaire();
@@ -290,7 +299,8 @@ async function ouvrirModaleResponsables(fiche) {
       <p class="texte-aide-responsables">Les responsables tiennent la fiche à jour et publient en son nom (actualités, événements). Vous gardez la main : catégorie, suppression, et liste des responsables.</p>
       ${responsables.length ? responsables.map((r) => `
         <div class="ligne-responsable-association">
-          <span><strong>${escapeAttr(`${r.prenom} ${r.nom}`.trim())}</strong>${r.statut === 'demande' ? ' — <em>demande en attente</em>' : ''}</span>
+          <span><strong>${escapeAttr(`${r.prenom} ${r.nom}`.trim())}</strong>${r.statut === 'demande' ? ' — <em>demande en attente</em>' : ''}
+            ${r.statut === 'actif' ? `<br><small>${r.charte_lue_le ? `📜 Charte lue le ${new Date(r.charte_lue_le).toLocaleDateString('fr-FR')}` : '⚠️ Charte pas encore lue'}</small>` : ''}</span>
           <span class="actions-ligne-responsable">
             ${r.statut === 'demande' ? `<button type="button" data-valider="${r.id}">Valider</button>` : ''}
             <button type="button" data-retirer="${r.id}">${r.statut === 'demande' ? 'Refuser' : 'Retirer'}</button>
@@ -443,7 +453,8 @@ function ouvrirModaleAnnuaire(fiche = maFicheAnnuaireActuelle) {
       chargerAnnuaire();
     } else {
       const data = await res.json();
-      alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur');
+      // Message du serveur en clair (ex. « Vous avez déjà une fiche dans l'annuaire de … »), pas en JSON.
+      alert(typeof data.erreur === 'string' ? data.erreur : (data.erreur ? JSON.stringify(data.erreur) : 'Erreur'));
     }
   });
 }

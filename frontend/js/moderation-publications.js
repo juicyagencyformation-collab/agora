@@ -173,3 +173,58 @@ function boutonHistoriqueModeration() {
   btn.addEventListener('click', ouvrirHistoriqueModeration);
   return btn;
 }
+
+// ── Charte de publication (migration 123) ──
+// Lien « 📜 Charte de publication » sous le titre de l'Annuaire ; ouverture d'office pour la mairie
+// et les responsables tant qu'ils n'ont pas cliqué « J'ai lu la charte » (preuve en base : qui,
+// quand, quelle version). Le texte vient de /charte-publication.html : une seule source.
+let charteDejaProposee = false;
+
+async function ouvrirCharte(avecBoutonLu, apresLecture) {
+  const overlay = ouvrirModaleFormulaire('Charte de publication', '<p>Chargement…</p>');
+  const corps = overlay.querySelector('.corps-modale-formulaire');
+  try {
+    const page = new DOMParser().parseFromString(await (await fetch('/charte-publication.html')).text(), 'text/html');
+    page.querySelectorAll('script, .retour, #nom-commune-charte, h1').forEach((el) => el.remove());
+    corps.innerHTML = `<div class="contenu-charte">${page.body.innerHTML}</div>`;
+  } catch {
+    corps.innerHTML = '<p>Impossible de charger la charte. <a href="/charte-publication.html" target="_blank" rel="noopener">L\'ouvrir dans une page</a>.</p>';
+  }
+  if (!avecBoutonLu) return;
+  const bouton = document.createElement('button');
+  bouton.type = 'button';
+  bouton.className = 'bouton-ouvrir-modale bouton-charte-lue';
+  bouton.textContent = '✅ J\'ai lu la charte';
+  bouton.addEventListener('click', async () => {
+    bouton.disabled = true;
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/annuaire/charte/lue`, { method: 'POST' });
+    if (!res.ok) { bouton.disabled = false; afficherToastMessage('Enregistrement impossible, réessayez.', 'erreur'); return; }
+    fermerModaleFormulaire(overlay);
+    afficherToastMessage('Merci, c\'est noté.', 'succes');
+    apresLecture?.();
+  });
+  corps.appendChild(bouton);
+}
+
+async function charteALireMaintenant() {
+  try {
+    const res = await appelApi(`/${window.COMMUNE_SLUG}/annuaire/charte`);
+    return res.ok ? !!(await res.json()).a_lire : false;
+  } catch { return false; }
+}
+
+// À l'ouverture de l'Annuaire : une fois par visite (sinon chaque rechargement de la liste la rouvrirait).
+async function proposerCharteSiNecessaire() {
+  if (charteDejaProposee) return;
+  charteDejaProposee = true;
+  if (await charteALireMaintenant()) ouvrirCharte(true);
+}
+
+// Avant qu'un responsable publie au nom de sa fiche : charte lue obligatoire, puis le formulaire
+// s'ouvre. Renvoie true si on peut ouvrir le formulaire tout de suite.
+async function exigerCharteAvantPublication(ouvrirFormulaire) {
+  if (estGestionnaireModeration() || !(window.ASSOS_PUBLICATION || []).length) return true;
+  if (!(await charteALireMaintenant())) return true;
+  ouvrirCharte(true, ouvrirFormulaire);
+  return false;
+}

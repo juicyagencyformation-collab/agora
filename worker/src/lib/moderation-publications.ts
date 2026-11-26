@@ -23,6 +23,31 @@ export type MotifModeration = keyof typeof MOTIFS_MODERATION;
 export const CLES_MOTIFS = Object.keys(MOTIFS_MODERATION) as [MotifModeration, ...MotifModeration[]];
 export const DUREES_SUSPENSION = [7, 30, 90] as const;
 
+// Version de la charte de publication (= « Version du … » de frontend/charte-publication.html).
+// À changer à chaque modification de fond de la charte : elle sera redemandée à tous (migration 123).
+export const VERSION_CHARTE = '2026-11-26';
+
+// La charte s'ouvre d'office pour qui publie au nom d'une fiche (responsable actif) ou modère
+// (mairie), tant qu'il n'a pas cliqué « J'ai lu la charte » pour la version en cours.
+export async function charteALire(env: any, commune_id: string, user_id: string, gestionnaire: boolean): Promise<boolean> {
+  const [lue] = await supabaseSelect(env, 'chartes_lues', {
+    select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`, version: `eq.${VERSION_CHARTE}`,
+  });
+  if (lue) return false;
+  if (gestionnaire) return true;
+  const [responsable] = await supabaseSelect(env, 'annuaire_responsables', {
+    select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`, statut: 'eq.actif', limit: '1',
+  });
+  return !!responsable;
+}
+
+export async function noterCharteLue(env: any, commune_id: string, user_id: string) {
+  const [deja] = await supabaseSelect(env, 'chartes_lues', {
+    select: 'id', commune_id: `eq.${commune_id}`, user_id: `eq.${user_id}`, version: `eq.${VERSION_CHARTE}`,
+  });
+  if (!deja) await supabaseInsert(env, 'chartes_lues', { commune_id, user_id, version: VERSION_CHARTE });
+}
+
 type Cible = { article_id?: string; event_id?: string };
 
 const echapper = (s: string) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[ch] as string));
