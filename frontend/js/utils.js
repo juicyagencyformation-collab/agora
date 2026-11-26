@@ -484,6 +484,12 @@ async function demarrerScannerJsQr(zoneElementId, onCodeDetecte) {
 // qu'on déclenche nous-mêmes (fermeture via ✕/clic à côté/succès) ne redéclenche à tort la
 // redirection vers l'onglet Accueil dans le popstate ci-dessous.
 let pileModalesHistorique = [];
+
+// Tant qu'une fenêtre est ouverte, la page derrière ne défile plus (2026-11-26) : quand le
+// formulaire tient dans l'écran, le geste du doigt était transmis à la page du dessous.
+function majVerrouDefilementModale() {
+  document.documentElement.classList.toggle('modale-ouverte', pileModalesHistorique.length > 0);
+}
 let fermetureModaleProgrammatique = false;
 
 // Petits textes citoyen éditables depuis le backoffice sans déploiement (popup module verrouillé
@@ -519,6 +525,7 @@ function ouvrirModaleFormulaire(titre, contenuHtml) {
   requestAnimationFrame(() => overlay.classList.add('visible'));
   history.pushState({ agoraModale: true }, '');
   pileModalesHistorique.push(overlay);
+  majVerrouDefilementModale();
 
   // Seule la croix ✕ ferme la fenêtre (demande de Léandre, 2026-11-05) : un clic sur le fond ne
   // fait rien. Avant, il demandait « Abandonner les informations saisies ? », y compris quand on
@@ -551,6 +558,7 @@ function fermerModaleFormulaire(overlay) {
   const i = pileModalesHistorique.indexOf(overlay);
   if (i !== -1) {
     pileModalesHistorique.splice(i, 1);
+    majVerrouDefilementModale();
     // Fermeture "depuis l'app" (✕ ou succès du formulaire) : on consomme
     // nous-mêmes l'entrée d'historique posée à l'ouverture (sauf si popstate l'a déjà fait).
     if (history.state?.agoraModale) {
@@ -576,6 +584,7 @@ window.addEventListener('popstate', () => {
       return;
     }
     pileModalesHistorique.pop();
+    majVerrouDefilementModale();
     overlay.classList.remove('visible');
     setTimeout(() => overlay.remove(), 250);
     return;
