@@ -5,6 +5,35 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-26 — Backoffice : le code de double authentification arrive deux fois
+
+**Gravité :** faible (deux emails au lieu d'un ; le premier code devenait invalide)
+**Fichiers :** `frontend/backoffice/connexion.html`, `frontend/backoffice/index.html`
+
+### Symptôme
+En se reconnectant au backoffice le matin (session encore valide, code du jour expiré),
+Léandre recevait deux emails de code.
+
+### Cause
+Les deux pages déclaraient `x-data="…()" x-init="init()"` alors que l'objet a déjà une méthode
+`init()`. Alpine 3 appelle **automatiquement** la méthode `init()` : avec `x-init="init()"` en
+plus, elle tournait deux fois. Sur la page de connexion ouverte avec `?code=1`, chaque passage
+appelle `/auth/demander-code` → deux codes envoyés. Sur la page principale, toutes les données
+étaient chargées deux fois à chaque ouverture (plus lent, sans erreur visible).
+
+### Correction
+`x-init="init()"` retiré des deux pages : Alpine appelle `init()` une seule fois.
+
+### Vérification
+Page de connexion ouverte dans Chrome (local, API simulée) avec `?code=1` : 2 demandes de code
+avant le correctif, 1 après.
+
+### À retenir
+Avec Alpine 3, une méthode nommée `init()` dans `x-data` se lance seule : ne jamais ajouter
+`x-init="init()"` en plus.
+
+---
+
 ## 2026-11-22 — QR des présences citoyennes : « Non authentifié » puis s'affiche finalement
 
 **Gravité :** moyenne (organisateur bloqué sur place au moment de faire scanner)
