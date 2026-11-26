@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseInsert, supabaseUpdate, supabaseDelete, supabaseSelect } from '../db';
 import { uploaderFichier, deleteObject } from '../storage';
-import { statutResponsable, fichesPublicationPossible } from '../lib/associations';
+import { statutResponsable, fichesPublicationPossible, estFichePubliante, suspensionEnCours } from '../lib/associations';
+import { suspendreFiche, leverSuspension, CLES_MOTIFS, DUREES_SUSPENSION } from '../lib/moderation-publications';
 import { envoyerNotificationAUtilisateurs } from '../lib/push';
 
 const app = new Hono();
@@ -30,7 +31,7 @@ function notifierDemandeResponsable(c: any, commune_id: string, nomFiche: string
     });
     await envoyerNotificationAUtilisateurs(
       c.env, commune_id, gestionnaires.map((g: any) => g.id),
-      '🤝 Demande d\'association', `Un habitant demande à gérer la fiche « ${nomFiche} »`, '/index.html?onglet=annuaire',
+      '🤝 Demande de responsable', `Un habitant demande à gérer la fiche « ${nomFiche} »`, '/index.html?onglet=annuaire',
     );
   })().catch(() => {}));
 }
@@ -85,7 +86,7 @@ app.get('/', async (c) => {
   const categorie = c.req.query('categorie');
 
   const filtres: Record<string, string> = {
-    select: 'id,user_id,nom,categorie,description,telephone,email,site_web,logo_url',
+    select: 'id,user_id,nom,categorie,description,telephone,email,site_web,logo_url,publications_suspendues_jusqu',
     commune_id: `eq.${commune_id}`,
     order: 'nom.asc',
   };
@@ -110,14 +111,19 @@ app.get('/', async (c) => {
     fiche_id: `in.(${ids.join(',')})`,
   }) : [];
 
-  const result = fiches.map((f: any) => {
+  const result = fiches.map(({ publications_suspendues_jusqu, ...f }: any) => {
     const lignes = responsables.filter((r: any) => r.fiche_id === f.id);
     const mienne = lignes.find((r: any) => r.user_id === user_id);
+    const suspendue = suspensionEnCours({ publications_suspendues_jusqu });
     return {
       ...f,
       documents: documents.filter((d: any) => d.fiche_id === f.id),
       tenue_par_association: lignes.some((r: any) => r.statut === 'actif'),
       mon_statut_responsable: mienne?.statut ?? null,
+      // Association, commerce, artisan : un responsable validé peut publier en son nom.
+      publiante: estFichePubliante(f.categorie),
+      // Suspension : connue de la mairie et des responsables de la fiche seulement.
+      suspendue_jusqu: suspendue && (gestionnaire || mienne?.statut === 'actif') ? publications_suspendues_jusqu : null,
     };
   });
 
@@ -162,9 +168,9 @@ app.post('/', async (c) => {
       commune_id, user_id, ...champsFiche(c.env, data),
     });
     await ajouterDocuments(c.env, commune_id, fiche.id, data.documents);
-    // Association créée par un habitant : il la gère déjà en tant que créateur, mais ne devient
-    // responsable reconnu (publications au nom de l'association, lot 2) qu'après validation.
-    if (data.categorie === 'association') {
+    // Association / commerce / artisan créé par un habitant : il gère déjà la fiche en tant que
+    // créateur, mais ne devient responsable reconnu (publications en son nom) qu'après validation.
+    if (estFichePubliante(data.categorie)) {
       await supabaseInsert(c.env, 'annuaire_responsables', { commune_id, fiche_id: fiche.id, user_id, statut: 'demande' });
       notifierDemandeResponsable(c, commune_id, data.nom);
     }
@@ -308,18 +314,53 @@ async function chargerFicheAssociation(env: any, commune_id: string, fiche_id: s
   const [fiche] = await supabaseSelect(env, 'annuaire', {
     select: 'id,nom,categorie', commune_id: `eq.${commune_id}`, id: `eq.${fiche_id}`,
   });
-  return fiche?.categorie === 'association' ? fiche : null;
+  return estFichePubliante(fiche?.categorie) ? fiche : null;
 }
+
+// POST /:id/suspendre — la mairie suspend les publications d'une fiche 7, 30 ou 90 jours (spam,
+// récidive), motif obligatoire envoyé par email aux responsables (DSA art. 17). La fiche reste visible.
+const suspensionSchema = z.object({
+  jours: z.number().int().refine((j) => (DUREES_SUSPENSION as readonly number[]).includes(j), 'Durée : 7, 30 ou 90 jours'),
+  motif: z.enum(CLES_MOTIFS),
+  precision: z.string().trim().max(500).optional(),
+}).refine((d) => d.motif !== 'autre' || !!d.precision, { message: 'Précisez le motif', path: ['precision'] });
+
+app.post('/:id/suspendre', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
+  const commune_id = c.get('commune_id');
+  const fiche = await chargerFicheAssociation(c.env, commune_id, c.req.param('id'));
+  if (!fiche) return c.json({ erreur: 'Fiche introuvable' }, 404);
+  const body = suspensionSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  try {
+    const r = await suspendreFiche(c.env, commune_id, c.get('user_id'), fiche.id, body.data.jours, body.data.motif, body.data.precision || null);
+    if ('erreur' in r) return c.json({ erreur: r.erreur }, r.statut);
+    return c.json(r);
+  } catch (e) {
+    console.error('[annuaire/suspendre]', e);
+    return c.json({ erreur: 'Suspension impossible pour le moment' }, 500);
+  }
+});
+
+// DELETE /:id/suspendre — la mairie lève la suspension avant son terme.
+app.delete('/:id/suspendre', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
+  const commune_id = c.get('commune_id');
+  const fiche = await chargerFicheAssociation(c.env, commune_id, c.req.param('id'));
+  if (!fiche) return c.json({ erreur: 'Fiche introuvable' }, 404);
+  await leverSuspension(c.env, commune_id, c.get('user_id'), fiche.id);
+  return c.json({ ok: true });
+});
 
 // POST /:id/responsables/demande — « Je fais partie du bureau »
 app.post('/:id/responsables/demande', async (c) => {
   const commune_id = c.get('commune_id');
   const user_id = c.get('user_id');
   const fiche = await chargerFicheAssociation(c.env, commune_id, c.req.param('id'));
-  if (!fiche) return c.json({ erreur: 'Association introuvable' }, 404);
+  if (!fiche) return c.json({ erreur: 'Fiche introuvable' }, 404);
 
   const existante = await statutResponsable(c.env, commune_id, fiche.id, user_id);
-  if (existante === 'actif') return c.json({ erreur: 'Vous gérez déjà cette association.' }, 409);
+  if (existante === 'actif') return c.json({ erreur: 'Vous gérez déjà cette fiche.' }, 409);
   if (existante === 'demande') return c.json({ erreur: 'Votre demande est déjà en attente auprès de la mairie.' }, 409);
 
   const enAttente = await supabaseSelect(c.env, 'annuaire_responsables', {
@@ -339,7 +380,7 @@ app.get('/:id/responsables', async (c) => {
   if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
   const commune_id = c.get('commune_id');
   const fiche = await chargerFicheAssociation(c.env, commune_id, c.req.param('id'));
-  if (!fiche) return c.json({ erreur: 'Association introuvable' }, 404);
+  if (!fiche) return c.json({ erreur: 'Fiche introuvable' }, 404);
 
   const lignes = await supabaseSelect(c.env, 'annuaire_responsables', {
     select: 'id,user_id,statut,created_at', commune_id: `eq.${commune_id}`, fiche_id: `eq.${fiche.id}`,
@@ -363,7 +404,7 @@ app.post('/:id/responsables', async (c) => {
   if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
   const commune_id = c.get('commune_id');
   const fiche = await chargerFicheAssociation(c.env, commune_id, c.req.param('id'));
-  if (!fiche) return c.json({ erreur: 'Association introuvable' }, 404);
+  if (!fiche) return c.json({ erreur: 'Fiche introuvable' }, 404);
 
   const body = designationSchema.safeParse(await c.req.json());
   if (!body.success) return c.json({ erreur: 'Adresse email invalide' }, 400);
@@ -379,7 +420,7 @@ app.post('/:id/responsables', async (c) => {
   }
 
   const statut = await statutResponsable(c.env, commune_id, fiche.id, habitant.id);
-  if (statut === 'actif') return c.json({ erreur: 'Cette personne gère déjà cette association.' }, 409);
+  if (statut === 'actif') return c.json({ erreur: 'Cette personne gère déjà cette fiche.' }, 409);
   const validation = { statut: 'actif', valide_par: c.get('user_id'), valide_le: new Date().toISOString() };
   if (statut === 'demande') {
     await supabaseUpdate(c.env, 'annuaire_responsables', validation, {

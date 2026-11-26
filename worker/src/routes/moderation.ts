@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { jwtMiddleware } from '../middleware/jwt';
 import { supabaseSelect, supabaseUpdate, supabaseInsert, supabaseDelete, enregistrerEvenementActivation } from '../db';
 import { uploaderFichier } from '../storage';
+import { MOTIFS_MODERATION, DUREES_SUSPENSION, historiqueDecisions, masquerPartage, demasquerPartage } from '../lib/moderation-publications';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -385,6 +386,44 @@ app.get('/stats-connexions', async (c) => {
     actifs_mois: actifsDepuis(il30),
     serie,
   });
+});
+
+// ── Modération des publications (2026-11-26, migration 122) ─────────────────────────────────
+// Motifs de retrait (menu des formulaires « Retirer… » / « Suspendre… ») : liste fermée, chaque
+// motif renvoie à un article de la charte de publication (frontend/charte-publication.html).
+app.get('/publications/motifs', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
+  return c.json({
+    motifs: Object.entries(MOTIFS_MODERATION).map(([cle, m]) => ({ cle, libelle: m.libelle, article: m.article })),
+    durees_suspension: DUREES_SUSPENSION,
+  });
+});
+
+// Historique des 50 dernières décisions de la mairie (preuve en cas de contestation).
+app.get('/publications/decisions', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
+  return c.json({ decisions: await historiqueDecisions(c.env, c.get('commune_id')) });
+});
+
+// « Masquer chez nous » : publication d'une AUTRE commune retirée de « Autour de moi » ici.
+const partageSchema = z.object({ article_id: z.string().uuid().optional(), event_id: z.string().uuid().optional() })
+  .refine((d) => !!d.article_id !== !!d.event_id, 'Une actualité OU un événement');
+
+app.post('/publications/partages-masques', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
+  const body = partageSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  const r = await masquerPartage(c.env, c.get('commune_id'), c.get('user_id'), body.data);
+  if ('erreur' in r) return c.json({ erreur: r.erreur }, r.statut);
+  return c.json(r);
+});
+
+app.delete('/publications/partages-masques', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé à la mairie' }, 403);
+  const body = partageSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  await demasquerPartage(c.env, c.get('commune_id'), c.get('user_id'), body.data);
+  return c.json({ ok: true });
 });
 
 export default app;

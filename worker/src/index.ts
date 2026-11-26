@@ -6,7 +6,7 @@ import { tenantMiddleware } from './middleware/tenant';
 import { jwtMiddleware } from './middleware/jwt';
 import { requireOngletActif } from './middleware/onglet';
 import { gardeEspaceExplorateurs } from './middleware/explorateurs';
-import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs, purgerEchangesProspection, fermerOngletsOfferts, purgerJournalActivite } from './cron';
+import { nettoyerCoupsDeMainExpires, purgerPhotosDuJour, purgerEnigmes, purgerMur, cloturerActionsCiviques, purgerOrphelinsMemoire, relancerEcheancesFacturation, corrigerEmailsProspectsInvalides, verifierVariantesProspection, verifierRelancesInactiviteProspection, verifierSequenceOnboardingCommunes, synchroniserEmailsRecusProspection, rafraichirContenuDemoBonvivre, envoyerBilansMensuelsCommunes, purgerTentativesConnexion, purgerExplorateursInactifs, purgerEchangesProspection, fermerOngletsOfferts, purgerJournalActivite, purgerDecisionsModeration } from './cron';
 import { synchroniserVigilanceMeteoFrance } from './lib/vigilance-meteofrance';
 import { envoyerResumeMeteoMatinal } from './lib/notification-meteo';
 import { purgerHabitantsInactifs } from './lib/comptes-inactifs';
@@ -219,7 +219,7 @@ export default {
       // qu'à 4 h, créneau déjà chargé : petits lots, une quinzaine de requêtes chacune au plus.
       await executerIsolement(env, [synchroniserVigilanceMeteoFrance, purgerExplorateursInactifs, purgerHabitantsInactifs]);
     } else if (event.cron === '0 3 1 * *') {
-      await executerIsolement(env, [purgerEchangesProspection, nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
+      await executerIsolement(env, [purgerEchangesProspection, purgerDecisionsModeration, nettoyerCoupsDeMainExpires, envoyerBilansMensuelsCommunes]);
     } else {
       await nettoyerCoupsDeMainExpires(env);
     }

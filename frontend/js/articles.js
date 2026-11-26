@@ -14,6 +14,7 @@ const LABELS_CATEGORIE_ARTICLE = {
 };
 
 async function chargerArticles(section = 'actualites', curseur = null) {
+  if (filtreSourceActu === 'autour') return chargerActusAutour();
   const url = new URL(`${window.API_BASE}/${window.COMMUNE_SLUG}/actus`, window.location.origin);
   url.searchParams.set('section', section);
   if (filtreCategorieActuel) url.searchParams.set('categorie', filtreCategorieActuel);
@@ -28,6 +29,7 @@ async function chargerArticles(section = 'actualites', curseur = null) {
   if (selectSource) selectSource.hidden = typeof ongletsVerrouilles !== 'undefined' && ongletsVerrouilles.has('annuaire');
   const conteneur = document.getElementById('liste-articles');
   conteneur.innerHTML = '';
+  ajouterBoutonHistoriqueActus();
   if (!articles.length) {
     conteneur.innerHTML = modeArchivesActu
       ? `<p class="dechets-vide">Aucune actualité archivée.</p>`
@@ -79,7 +81,8 @@ function initFiltresCategorieArticle() {
   selectSource.className = 'filtre-source-articles';
   selectSource.innerHTML = `<option value="">Toutes les publications</option>
     <option value="mairie">🏛️ La mairie</option>
-    <option value="associations">🤝 Les associations</option>`;
+    <option value="associations">🤝 Associations et commerces</option>
+    <option value="autour">🗺️ Autour de nous (communes voisines)</option>`;
   selectSource.addEventListener('change', () => { filtreSourceActu = selectSource.value; chargerArticles(); });
   zone.before(selectSource);
 }
@@ -94,9 +97,12 @@ function renderArticle(article) {
   const dateAffichee = new Date(article.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 
   const libelleCategorie = LABELS_CATEGORIE_ARTICLE[article.categorie] ?? article.categorie;
-  // Publié au nom d'une association : son nom remplace la catégorie (jamais le nom de la personne).
-  const libelleBadge = article.association ? `🤝 ${escapeAttr(article.association.nom)}` : libelleCategorie;
-  const badgeMasque = article.statut === 'masquee' ? '<span class="badge-categorie-article badge-masque">⚠️ Masqué (signalé)</span>' : '';
+  // Publié au nom d'une association / d'un commerce : son nom remplace la catégorie (jamais le nom de la personne).
+  const libelleBadge = article.association ? `${iconeFiche(article.association.categorie)} ${escapeAttr(article.association.nom)}` : libelleCategorie;
+  const badgeMasque = article.statut !== 'masquee' ? ''
+    : article.motif_retrait
+      ? `<span class="badge-categorie-article badge-retire">🚫 Retiré : ${escapeAttr(article.motif_retrait)}</span>`
+      : '<span class="badge-categorie-article badge-masque">⚠️ Masqué (signalé)</span>';
 
   el.innerHTML = miniature ? `
     <button type="button" class="entete-article-compact entete-article-banniere">
@@ -203,15 +209,26 @@ function remplirContenuDeplie(zone, article) {
     zone.appendChild(btnSignaler);
   }
 
+  // Revue de la mairie (règle n°4) : rétablir, ou confirmer le retrait d'un contenu signalé en
+  // donnant le motif (envoyé à l'auteur). Une publication visible se retire aussi en 2 clics.
   if (article.statut === 'masquee' && estGestionnaireActu) {
     const barRevue = document.createElement('div');
     barRevue.className = 'actions-admin';
-    barRevue.innerHTML = '<button data-action="retablir">✓ Rétablir (signalement non fondé)</button>';
+    barRevue.innerHTML = `<button data-action="retablir">✓ Rétablir${article.motif_retrait ? '' : ' (signalement non fondé)'}</button>
+      ${article.motif_retrait ? '' : '<button data-action="retirer">🚫 Confirmer le retrait…</button>'}`;
     barRevue.querySelector('[data-action="retablir"]').addEventListener('click', async () => {
       await appelApi(`/${window.COMMUNE_SLUG}/actus/${article.id}/restaurer`, { method: 'PATCH' });
       chargerArticles();
     });
+    barRevue.querySelector('[data-action="retirer"]')?.addEventListener('click', () => ouvrirModaleRetrait('actus', article, chargerArticles));
     zone.appendChild(barRevue);
+  } else if (article.signalable && estGestionnaireActu) {
+    const btnRetirer = document.createElement('button');
+    btnRetirer.type = 'button';
+    btnRetirer.className = 'lien-discret';
+    btnRetirer.textContent = '🚫 Retirer cette publication…';
+    btnRetirer.addEventListener('click', () => ouvrirModaleRetrait('actus', article, chargerArticles));
+    zone.appendChild(btnRetirer);
   }
 
   if (estGestionnaireActu || article.peut_gerer) {
@@ -301,7 +318,9 @@ function htmlFormulaireArticle(ficheIdPreselection = '') {
       <input type="file" id="pdf-article-modale" accept="application/pdf">
       <p id="nom-pdf-article-modale" style="font-size:12.5px;color:var(--roseau);margin:4px 0 0;"></p>
       ${htmlBlocSondageArticle()}
+      ${htmlChampPartageActu('article-modale', false)}
       <button type="submit" style="margin-top:12px;">Publier</button>
+      ${htmlLienCharte()}
     </form>
   `;
 }
@@ -487,6 +506,7 @@ async function soumettreArticleModale(corps, overlay) {
       section: 'actualites', categorie, titre, contenu_html: contenuHtml, image_r2_keys: imageR2Keys, sondage,
       fichier_pv_url: fichierPv?.url, fichier_pv_type: fichierPv?.type,
       fiche_id: lireChampPublierPour(corps, 'article-modale'),
+      partage_autour: !!corps.querySelector('#partage-actu-article-modale')?.checked,
     }),
   });
   boutonSubmit.disabled = false;
@@ -523,6 +543,7 @@ function ouvrirModaleEditionArticle(article) {
       <input type="file" id="pdf-edition-article-modale" accept="application/pdf">
       <p id="nom-pdf-edition-modale" style="font-size:12.5px;color:var(--roseau);margin:4px 0 0;"></p>
       ${htmlBlocSondageArticle()}
+      ${htmlChampPartageActu('edition-article', article.partage_autour)}
       <button type="submit" style="margin-top:12px;">Enregistrer</button>
     </form>
   `;
@@ -634,6 +655,7 @@ function ouvrirModaleEditionArticle(article) {
         image_r2_keys: imageR2Keys,
         image_ids_supprimees: [...idsSupprimees],
         sondage: lireSondageDuFormulaire(corps),
+        partage_autour: !!corps.querySelector('#partage-actu-edition-article')?.checked,
         ...fichierPvPatch,
       }),
     });
@@ -646,4 +668,72 @@ function ouvrirModaleEditionArticle(article) {
       alert(data.erreur ? JSON.stringify(data.erreur) : 'Erreur de modification');
     }
   });
+}
+
+// ── Partage avec les communes voisines (migration 122) ──
+// Case décochée par défaut : une actualité reste dans la commune sauf choix explicite.
+function htmlChampPartageActu(prefixe, valeurActuelle) {
+  return `
+    <label class="bloc-partage-autour">
+      <input type="checkbox" id="partage-actu-${prefixe}" ${valeurActuelle ? 'checked' : ''}>
+      <span>
+        <strong>🗺️ Partager avec les communes voisines</strong>
+        <small>Visible dans « Autour de nous » des communes partenaires proches. Leur mairie peut la masquer chez elle.</small>
+      </span>
+    </label>`;
+}
+
+// « Autour de nous » : actualités partagées par les communes voisines (menu « Toutes les publications »).
+async function chargerActusAutour() {
+  const conteneur = document.getElementById('liste-articles');
+  ajouterBoutonHistoriqueActus();
+  if (window.COMMUNE_COORDS_MANQUANTES || !window.COMMUNE_LAT) {
+    conteneur.innerHTML = '<p class="dechets-vide">La position de votre commune n\'est pas encore renseignée : impossible de chercher autour.</p>';
+    return;
+  }
+  conteneur.innerHTML = '<p class="dechets-vide">Recherche en cours…</p>';
+  try {
+    const res = await fetch(`${window.API_BASE}/decouverte/actualites?lat=${window.COMMUNE_LAT}&lng=${window.COMMUNE_LNG}&rayon=20&exclure=${window.COMMUNE_SLUG}`);
+    const data = await res.json();
+    if (!res.ok) { conteneur.innerHTML = `<p class="dechets-vide">${escapeAttr(data.erreur || 'Erreur lors de la recherche.')}</p>`; return; }
+    conteneur.innerHTML = '';
+    if (!data.actualites.length) {
+      conteneur.innerHTML = `<p class="dechets-vide">${data.communes_participantes
+        ? 'Aucune actualité partagée par les communes voisines ce mois-ci.'
+        : 'Aucune commune partenaire à moins de 20 km pour l\'instant.'}</p>`;
+      return;
+    }
+    data.actualites.forEach((a) => conteneur.appendChild(renderActuAutour(a)));
+  } catch {
+    conteneur.innerHTML = '<p class="dechets-vide">Erreur lors de la recherche.</p>';
+  }
+}
+
+function renderActuAutour(a) {
+  const el = document.createElement('article');
+  el.className = 'carte-article-compacte';
+  const origine = (a.association_nom ? `${iconeFiche(a.association_categorie)} ${escapeAttr(a.association_nom)} · ` : '🏛️ Mairie · ')
+    + `📍 ${escapeAttr(a.commune_nom)} · ${a.commune_distance_km} km`;
+  el.innerHTML = `
+    <div class="carte-actu-autour">
+      <span class="badge-categorie-article">${origine}</span>
+      <h3 class="titre-article-compact">${escapeAttr(a.titre)}</h3>
+      <span class="date-article-compact">${new Date(a.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+      ${a.extrait ? `<p class="extrait-article-compact">${escapeAttr(a.extrait)}</p>` : ''}
+      ${a.image_url ? `<img src="${escapeAttr(a.image_url)}" loading="lazy" alt="">` : ''}
+      <div class="actions-moderation"></div>
+    </div>`;
+  if (estGestionnaireModeration()) {
+    el.querySelector('.actions-moderation').appendChild(boutonMasquerChezNous({ article_id: a.id }, chargerArticles));
+  }
+  return el;
+}
+
+// « 🛡️ Décisions de modération » sous les actualités, pour la mairie seulement (une seule fois).
+function ajouterBoutonHistoriqueActus() {
+  if (!estGestionnaireModeration() || document.getElementById('btn-historique-moderation-actus')) return;
+  const btn = boutonHistoriqueModeration();
+  btn.id = 'btn-historique-moderation-actus';
+  btn.style.margin = '0 0 10px 12px';
+  document.getElementById('btn-toggle-archives-actu')?.after(btn);
 }

@@ -97,8 +97,11 @@ describe('Demande « Je fais partie du bureau »', () => {
     expect((await appel('/f-asso/responsables/demande', 'POST', 'u-pres', 'citoyen')).status).toBe(409);
     expect(db.annuaire_responsables).toHaveLength(1);
   });
-  it('refuse une fiche qui n\'est pas une association', async () => {
-    expect((await appel('/f-commerce/responsables/demande', 'POST', 'u-pres', 'citoyen')).status).toBe(404);
+  // Depuis le 2026-11-26 (migration 122) : associations, commerces et artisans ont des responsables.
+  it('accepte un commerce, refuse une fiche qui ne publie pas (service public)', async () => {
+    expect((await appel('/f-commerce/responsables/demande', 'POST', 'u-pres', 'citoyen')).status).toBe(201);
+    db.annuaire.push({ id: 'f-service', commune_id: 'c1', user_id: null, nom: 'La Poste', categorie: 'service_public' });
+    expect((await appel('/f-service/responsables/demande', 'POST', 'u-pres', 'citoyen')).status).toBe(404);
   });
   it('refuse une association d\'une autre commune (cloisonnement)', async () => {
     expect((await appel('/f-autre-commune/responsables/demande', 'POST', 'u-pres', 'citoyen')).status).toBe(404);

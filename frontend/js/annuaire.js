@@ -6,6 +6,16 @@ const LABELS_CATEGORIE_ANNUAIRE = {
 
 let maFicheAnnuaireActuelle = null;
 
+// Fiches qui publient par leurs responsables validés (associations, puis commerces et artisans
+// depuis la migration 122). Textes adaptés à chaque type.
+const TEXTES_FICHE_PUBLIANTE = {
+  association: { tenue: '✔ Tenue par l\'association', demander: '🙋 Je fais partie du bureau', gere: 'cette association' },
+  commerce: { tenue: '✔ Tenue par le commerce', demander: '🙋 Je gère ce commerce', gere: 'ce commerce' },
+  artisan: { tenue: '✔ Tenue par l\'artisan', demander: '🙋 C\'est mon entreprise', gere: 'cette entreprise' },
+};
+const textesFiche = (fiche) => TEXTES_FICHE_PUBLIANTE[fiche.categorie] || TEXTES_FICHE_PUBLIANTE.association;
+const dateCourteFr = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+
 // ── Publier au nom d'une association (lot 2, migration 102) ──
 // Associations au nom desquelles l'utilisateur peut publier : toutes pour la mairie, ses fiches
 // gérées pour un responsable, aucune si l'annuaire n'est pas actif (offre payante). Chargé une
@@ -30,7 +40,7 @@ function htmlChampPublierPour(prefixe, libelleSansAsso, ficheIdPreselection = ''
     <label class="label-champ-edition">Publier pour</label>
     <select id="publier-pour-${prefixe}">
       ${libelleSansAsso ? `<option value="">${libelleSansAsso}</option>` : ''}
-      ${assos.map((a) => `<option value="${a.id}" ${a.id === ficheIdPreselection ? 'selected' : ''}>🤝 ${escapeAttr(a.nom)}</option>`).join('')}
+      ${assos.map((a) => `<option value="${a.id}" ${a.id === ficheIdPreselection ? 'selected' : ''}>${iconeFiche(a.categorie)} ${escapeAttr(a.nom)}</option>`).join('')}
     </select>`;
 }
 function lireChampPublierPour(corps, prefixe) {
@@ -65,7 +75,7 @@ function renderFicheAnnuaire(fiche) {
       ${fiche.logo_url ? `<img src="${fiche.logo_url}" class="miniature-liste-article">` : '<div class="miniature-liste-article miniature-vide">📇</div>'}
       <div class="texte-entete-article">
         <span class="badge-categorie-article">${LABELS_CATEGORIE_ANNUAIRE[fiche.categorie] ?? fiche.categorie}</span>
-        ${fiche.tenue_par_association ? '<span class="badge-categorie-article badge-tenue-association">✔ Tenue par l\'association</span>' : ''}
+        ${fiche.tenue_par_association ? `<span class="badge-categorie-article badge-tenue-association">${textesFiche(fiche).tenue}</span>` : ''}
         <h3 class="titre-article-compact">${escapeAttr(fiche.nom)}</h3>
         ${extrait ? `<p class="extrait-article-compact">${escapeAttr(extrait)}${fiche.description.length > 90 ? '…' : ''}</p>` : ''}
       </div>
@@ -105,7 +115,10 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
     bar.className = 'actions-admin';
     bar.innerHTML = `<button data-action="modifier">Modifier</button>`
       + (estProprietaire || estGestionnaireAnnuaire ? `<button data-action="supprimer">Supprimer</button>` : '')
-      + (estGestionnaireAnnuaire && fiche.categorie === 'association' ? `<button data-action="responsables">👥 Responsables</button>` : '');
+      + (estGestionnaireAnnuaire && fiche.publiante ? `<button data-action="responsables">👥 Responsables</button>` : '')
+      + (estGestionnaireAnnuaire && fiche.publiante
+        ? (fiche.suspendue_jusqu ? '<button data-action="lever">▶️ Lever la suspension</button>' : '<button data-action="suspendre">⏸️ Suspendre…</button>')
+        : '');
     bar.querySelector('[data-action="modifier"]').addEventListener('click', () => ouvrirModaleAnnuaire(fiche));
     bar.querySelector('[data-action="supprimer"]')?.addEventListener('click', async () => {
       if (!confirm('Supprimer cette fiche ?')) return;
@@ -114,10 +127,18 @@ function remplirContenuFicheAnnuaire(zone, fiche) {
       chargerAnnuaire();
     });
     bar.querySelector('[data-action="responsables"]')?.addEventListener('click', () => ouvrirModaleResponsables(fiche));
+    bar.querySelector('[data-action="suspendre"]')?.addEventListener('click', () => ouvrirModaleSuspension(fiche, chargerAnnuaire));
+    bar.querySelector('[data-action="lever"]')?.addEventListener('click', () => leverSuspensionFiche(fiche, chargerAnnuaire));
     zone.appendChild(bar);
   }
 
-  if (fiche.categorie === 'association') {
+  // Suspension en cours : connue de la mairie et des responsables seulement (le serveur ne
+  // l'envoie qu'à eux).
+  if (fiche.suspendue_jusqu) {
+    zone.insertAdjacentHTML('beforeend', `<p class="bloc-suspension-fiche">⏸️ Publications suspendues par la mairie jusqu'au ${dateCourteFr(fiche.suspendue_jusqu)} inclus.</p>`);
+  }
+
+  if (fiche.publiante) {
     zone.appendChild(renderVitrineAssociation(fiche));
     if (!estGestionnaireAnnuaire) zone.appendChild(renderBlocBureauAssociation(fiche));
   }
@@ -196,23 +217,25 @@ function renderBlocBureauAssociation(fiche) {
   const bloc = document.createElement('div');
   bloc.className = 'bloc-bureau-association';
   const statut = fiche.mon_statut_responsable;
+  const textes = textesFiche(fiche);
   if (statut === 'actif') {
-    bloc.innerHTML = `<p>✔ Vous gérez cette association : vous pouvez tenir sa fiche à jour.</p>
-      <button type="button" class="lien-discret">Ne plus gérer cette association</button>`;
+    bloc.innerHTML = `<p>✔ Vous gérez ${textes.gere} : vous pouvez tenir sa fiche à jour et publier en son nom
+      (<a href="/charte-publication.html" target="_blank" rel="noopener">charte de publication</a>).</p>
+      <button type="button" class="lien-discret">Ne plus gérer ${textes.gere}</button>`;
   } else if (statut === 'demande') {
     bloc.innerHTML = `<p>⏳ Votre demande est en attente de validation par la mairie.</p>
       <button type="button" class="lien-discret">Annuler ma demande</button>`;
   } else {
-    bloc.innerHTML = `<button type="button" class="bouton-bureau-association">🙋 Je fais partie du bureau</button>`;
+    bloc.innerHTML = `<button type="button" class="bouton-bureau-association">${textes.demander}</button>`;
   }
 
   bloc.querySelector('button').addEventListener('click', async () => {
     if (statut) {
-      const question = statut === 'actif' ? 'Ne plus gérer cette association ?' : 'Annuler votre demande ?';
+      const question = statut === 'actif' ? `Ne plus gérer ${textes.gere} ?` : 'Annuler votre demande ?';
       if (!confirm(question)) return;
       await appelApi(`/${window.COMMUNE_SLUG}/annuaire/${fiche.id}/responsables/quitter`, { method: 'POST' });
     } else {
-      if (!confirm(`Demander à gérer la fiche « ${fiche.nom} » ?\n\nLa mairie validera votre demande. Vous pourrez ensuite tenir la fiche à jour au nom de l'association.`)) return;
+      if (!confirm(`Demander à gérer la fiche « ${fiche.nom} » ?\n\nLa mairie validera votre demande. Vous pourrez ensuite tenir la fiche à jour et publier en son nom, dans le respect de la charte de publication.`)) return;
       const res = await appelApi(`/${window.COMMUNE_SLUG}/annuaire/${fiche.id}/responsables/demande`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { afficherToastMessage(data.erreur || 'Demande impossible pour le moment.', 'erreur'); return; }
@@ -228,7 +251,7 @@ function renderDemandesAssociations(demandes) {
   const bloc = document.createElement('details');
   bloc.className = 'demandes-associations';
   bloc.open = true;
-  bloc.innerHTML = `<summary>🤝 ${demandes.length} demande${demandes.length > 1 ? 's' : ''} d'association à valider</summary>`
+  bloc.innerHTML = `<summary>🤝 ${demandes.length} demande${demandes.length > 1 ? 's' : ''} de responsable à valider</summary>`
     + demandes.map((d) => `
       <div class="ligne-responsable-association">
         <span><strong>${escapeAttr(`${d.prenom} ${d.nom}`.trim())}</strong> souhaite gérer « ${escapeAttr(d.fiche_nom || '')} »</span>
@@ -264,7 +287,7 @@ async function ouvrirModaleResponsables(fiche) {
     if (!res.ok) { zone.textContent = 'Impossible de charger les responsables.'; return; }
     const { responsables } = await res.json();
     zone.innerHTML = `
-      <p class="texte-aide-responsables">Les responsables tiennent la fiche à jour au nom de l'association. Vous gardez la main : catégorie, suppression, et liste des responsables.</p>
+      <p class="texte-aide-responsables">Les responsables tiennent la fiche à jour et publient en son nom (actualités, événements). Vous gardez la main : catégorie, suppression, et liste des responsables.</p>
       ${responsables.length ? responsables.map((r) => `
         <div class="ligne-responsable-association">
           <span><strong>${escapeAttr(`${r.prenom} ${r.nom}`.trim())}</strong>${r.statut === 'demande' ? ' — <em>demande en attente</em>' : ''}</span>

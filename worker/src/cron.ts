@@ -474,6 +474,13 @@ export async function purgerEchangesProspection(env: any) {
   await supabaseDelete(env, 'envois_prospection', { envoye_le: `lt.${limite}` });
 }
 
+// Décisions de modération des mairies (migration 122) : gardées 3 ans pour justifier un retrait ou
+// une suspension contestés, durée annoncée dans la charte de publication et la politique de
+// confidentialité. Même tâche mensuelle que la prospection.
+export async function purgerDecisionsModeration(env: any) {
+  await supabaseDelete(env, 'moderation_decisions', { created_at: `lt.${new Date(Date.now() - DUREE_CONSERVATION_PROSPECTION_MS).toISOString()}` });
+}
+
 // Espace Explorateurs (migration 098) : un compte de passage n'a pas vocation à durer. Anonymisé
 // après 12 mois sans connexion — durée annoncée dans la politique de confidentialité (Léandre Sallé,
 // entrepreneur individuel, en est responsable de traitement, pas une mairie). Même effacement que « Supprimer

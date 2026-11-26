@@ -1148,6 +1148,20 @@ body.peut-publier-asso #onglet-actualites .form-admin-only {
 .actions-vitrine-association { display: flex; flex-wrap: wrap; gap: 8px; }
 .actions-vitrine-association button { padding: 7px 12px; font-size: 12.5px; }
 .liste-vitrine { font-size: 13px; color: var(--roseau); }
+
+/* ─── Commerces, partage et modération motivée (migration 122) ─── */
+.badge-retire { margin-left: 4px; color: #fff; background: var(--rouge); }
+.badge-partage { margin-left: 4px; color: var(--eau); background: var(--eauXL); }
+.bouton-danger { background: var(--rouge); color: #fff; border: none; margin-top: 12px; }
+.lien-charte-publication, .aide-moderation { font-size: 12px; color: var(--roseau); margin: 8px 0 0; }
+.liste-decisions-moderation { list-style: none; padding: 0; margin: 10px 0 0; font-size: 13px; }
+.liste-decisions-moderation li { padding: 8px 0; border-bottom: 1px solid var(--eauXL); }
+.liste-decisions-moderation small { color: var(--roseau); }
+.bloc-suspension-fiche { font-size: 12.5px; color: var(--rouge); margin: 6px 0; }
+.carte-actu-autour { padding: 12px; }
+.carte-actu-autour img { width: 100%; max-height: 180px; object-fit: cover; border-radius: 10px; margin-top: 8px; }
+.carte-actu-autour .extrait-article-compact { white-space: pre-line; }
+.actions-moderation { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
 .ligne-vitrine {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%;
   background: var(--calc); border: none; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px;

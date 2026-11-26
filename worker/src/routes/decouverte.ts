@@ -21,6 +21,8 @@ import { chargerOngletsGratuits, appliquerOngletsSurCommune } from '../backoffic
 import { emailConfirmationActivationHtml } from '../backoffice/email-commune';
 import { envoyerEmail } from '../lib/email';
 import { sanitizeHtml } from '../lib/sanitize';
+import { idsPartagesMasques } from '../lib/moderation-publications';
+import { texteDepuisHtml } from '../lib/eml';
 import { jetonTurnstileValide, saisieTropRapide, plafondDemandesRejoindreAtteint } from '../lib/anti-robots';
 
 const DUREE_TOKEN_ACTIVATION_MS = 48 * 3600 * 1000;
@@ -79,6 +81,84 @@ app.get('/chiffres', async (c) => {
   }
 });
 
+// Communes participantes autour d'un point : nationales (toujours) + locales dans le rayon, hors
+// commune appelante. Partagé par /evenements et /actualites.
+async function communesAutour(env: any, lat: number, lng: number, rayonKm: number, exclureSlug: string | undefined, avecNationales: boolean) {
+  const toutesCommunes = await supabaseSelect(env, 'communes', {
+    select: 'id,nom,slug,lat,lng,niveau_national', partage_regional: 'eq.true',
+  });
+  const communes = exclureSlug ? toutesCommunes.filter((commune: any) => commune.slug !== exclureSlug) : toutesCommunes;
+  const nationales = avecNationales
+    ? communes.filter((commune: any) => commune.niveau_national).map((commune: any) => ({ ...commune, distance_km: null }))
+    : [];
+  // Number(...) en défense : PostgREST peut renvoyer un numeric sous forme de chaîne.
+  const locales = communes
+    .filter((commune: any) => !commune.niveau_national && commune.lat != null && commune.lng != null)
+    .map((commune: any) => ({
+      ...commune,
+      distance_km: Math.round(distanceMetres(lat, lng, Number(commune.lat), Number(commune.lng)) / 1000),
+    }))
+    .filter((commune: any) => !isNaN(commune.distance_km) && commune.distance_km <= rayonKm);
+  return [...nationales, ...locales];
+}
+
+// Publications masquées « chez nous » par la commune appelante (migration 122).
+async function masquesPour(env: any, slug: string | undefined) {
+  if (!slug) return idsPartagesMasques(env, null);
+  const [commune] = await supabaseSelect(env, 'communes', { select: 'id', slug: `eq.${slug}` });
+  return idsPartagesMasques(env, commune?.id ?? null);
+}
+
+// GET /actualites — actualités que les communes voisines ont choisi de partager (case « Partager
+// avec les communes voisines », migration 122) : mairie, associations, commerces. Jamais une
+// commune nationale (les articles de la commune éditoriale ne vont jamais dans le fil des communes),
+// jamais une actualité masquée ou archivée, 30 derniers jours seulement.
+app.get('/actualites', async (c) => {
+  const lat = parseFloat(c.req.query('lat') || '');
+  const lng = parseFloat(c.req.query('lng') || '');
+  const rayonKm = Math.min(parseFloat(c.req.query('rayon') || '20') || 20, 100);
+  const exclureSlug = c.req.query('exclure');
+  if (isNaN(lat) || isNaN(lng)) return c.json({ erreur: 'Position (lat, lng) requise' }, 400);
+  try {
+    const communesProches = await communesAutour(c.env, lat, lng, rayonKm, exclureSlug, false);
+    if (!communesProches.length) return c.json({ actualites: [], communes_participantes: 0 });
+    const [articles, masques] = await Promise.all([
+      supabaseSelect(c.env, 'articles', {
+        select: 'id,commune_id,titre,contenu_html,created_at,fiche_id',
+        commune_id: `in.(${communesProches.map((x: any) => x.id).join(',')})`,
+        section: 'eq.actualites', statut: 'eq.visible', archive: 'eq.false', partage_autour: 'eq.true',
+        created_at: `gte.${new Date(Date.now() - 30 * 86400000).toISOString()}`,
+        order: 'created_at.desc', limit: '40',
+      }),
+      masquesPour(c.env, exclureSlug),
+    ]);
+    const visibles = articles.filter((a: any) => !masques.articles.has(a.id));
+    const ids = visibles.map((a: any) => a.id);
+    const idsFiches = [...new Set(visibles.map((a: any) => a.fiche_id).filter(Boolean))];
+    const [images, fiches] = await Promise.all([
+      ids.length ? supabaseSelect(c.env, 'article_images', { select: 'article_id,url,ordre', article_id: `in.(${ids.join(',')})`, order: 'ordre.asc' }) : [],
+      idsFiches.length ? supabaseSelect(c.env, 'annuaire', { select: 'id,nom,categorie', id: `in.(${idsFiches.join(',')})` }) : [],
+    ]);
+    const actualites = visibles.map(({ contenu_html, fiche_id, ...a }: any) => {
+      const commune = communesProches.find((x: any) => x.id === a.commune_id);
+      const fiche = fiche_id ? fiches.find((f: any) => f.id === fiche_id) : null;
+      const texte = texteDepuisHtml(sanitizeHtml(contenu_html ?? '')).replace(/\s+/g, ' ').trim();
+      return {
+        ...a,
+        extrait: texte.length > 400 ? `${texte.slice(0, 397)}…` : texte,
+        image_url: images.find((i: any) => i.article_id === a.id)?.url ?? null,
+        association_nom: fiche?.nom ?? null,
+        association_categorie: fiche?.categorie ?? null,
+        commune_nom: commune?.nom, commune_slug: commune?.slug, commune_distance_km: commune?.distance_km,
+      };
+    });
+    return c.json({ actualites, communes_participantes: communesProches.length });
+  } catch (err) {
+    console.error('Erreur /decouverte/actualites :', err);
+    return c.json({ erreur: 'Impossible de charger les actualités pour le moment.' }, 500);
+  }
+});
+
 app.get('/evenements', async (c) => {
   const lat = parseFloat(c.req.query('lat') || '');
   const lng = parseFloat(c.req.query('lng') || '');
@@ -91,33 +171,13 @@ app.get('/evenements', async (c) => {
   if (isNaN(lat) || isNaN(lng)) return c.json({ erreur: 'Position (lat, lng) requise' }, 400);
 
   try {
-    const toutesCommunes = await supabaseSelect(c.env, 'communes', {
-      select: 'id,nom,slug,lat,lng,niveau_national', partage_regional: 'eq.true',
-    });
-    const communes = exclureSlug ? toutesCommunes.filter((commune: any) => commune.slug !== exclureSlug) : toutesCommunes;
-
-    // Deux catégories bien distinctes : les communes "nationales" apparaissent toujours,
-    // peu importe la distance (pas de coordonnées nécessaires) ; les communes locales sont
-    // filtrées par rayon comme d'habitude. Number(...) en défense : PostgREST peut renvoyer
-    // un type numeric en JSON sous forme de chaîne selon la colonne, et une valeur non
-    // convertible (chaîne vide, texte...) donnerait NaN plutôt qu'une exception.
-    const communesNationales = communes
-      .filter((commune: any) => commune.niveau_national)
-      .map((commune: any) => ({ ...commune, distance_km: null }));
-
-    const communesLocales = communes
-      .filter((commune: any) => !commune.niveau_national && commune.lat != null && commune.lng != null)
-      .map((commune: any) => ({
-        ...commune,
-        distance_km: Math.round(distanceMetres(lat, lng, Number(commune.lat), Number(commune.lng)) / 1000),
-      }))
-      .filter((commune: any) => !isNaN(commune.distance_km) && commune.distance_km <= rayonKm);
-
-    const communesProches = [...communesNationales, ...communesLocales];
+    // Communes "nationales" toujours (sans distance), communes locales dans le rayon — voir communesAutour.
+    const communesProches = await communesAutour(c.env, lat, lng, rayonKm, exclureSlug, true);
     if (!communesProches.length) return c.json({ evenements: [], communes_participantes: 0 });
 
     const idsCommunes = communesProches.map((commune: any) => commune.id);
-    const evenements = await supabaseSelect(c.env, 'events', {
+    const masques = await masquesPour(c.env, exclureSlug);
+    const evenementsBruts = await supabaseSelect(c.env, 'events', {
       select: 'id,commune_id,titre,description,lieu,lat,lng,photo_url,date_debut,date_fin,fiche_id',
       commune_id: `in.(${idsCommunes.join(',')})`,
       or: '(officiel.eq.true,fiche_id.not.is.null)',
@@ -126,11 +186,13 @@ app.get('/evenements', async (c) => {
       date_fin: `gte.${new Date().toISOString()}`,
       order: 'date_debut.asc',
     });
+    // « Masquer chez nous » (migration 122) : la commune appelante ne voit plus ces événements.
+    const evenements = evenementsBruts.filter((e: any) => !masques.events.has(e.id));
 
     // Nom de l'association organisatrice (« Comité des fêtes · Eaucourt ») — une seule requête.
     const idsFiches = [...new Set(evenements.map((e: any) => e.fiche_id).filter(Boolean))];
     const fiches = idsFiches.length ? await supabaseSelect(c.env, 'annuaire', {
-      select: 'id,nom', id: `in.(${idsFiches.join(',')})`,
+      select: 'id,nom,categorie', id: `in.(${idsFiches.join(',')})`,
     }) : [];
 
     const result = evenements.map(({ fiche_id, ...e }: any) => {
@@ -138,6 +200,7 @@ app.get('/evenements', async (c) => {
       return {
         ...e,
         association_nom: fiche_id ? (fiches.find((f: any) => f.id === fiche_id)?.nom ?? null) : null,
+        association_categorie: fiche_id ? (fiches.find((f: any) => f.id === fiche_id)?.categorie ?? null) : null,
         commune_nom: commune?.nom,
         commune_slug: commune?.slug,
         commune_distance_km: commune?.distance_km,

@@ -17,9 +17,10 @@ import {
 } from '../lib/points-citoyens';
 import { photoSuspecte } from '../lib/moderation-image';
 import {
-  peutPublierPourFiche, plafondPublicationsAssoAtteint, idsFichesGerees, fichesAffichage,
-  signalerPublication, MAX_PUBLICATIONS_ASSO_24H,
+  peutPublierPourFiche, plafondPublicationsAtteint, idsFichesGerees, fichesAffichage,
+  signalerPublication,
 } from '../lib/associations';
+import { retirerPublication, noterRestauration, motifsRetrait, CLES_MOTIFS } from '../lib/moderation-publications';
 
 // Gérer un événement (modifier, supprimer) : son auteur, la mairie, ou — pour un événement
 // publié au nom d'une association (migration 102) — un responsable actif de cette association.
@@ -136,6 +137,10 @@ app.get('/', async (c) => {
   const [fiches, mesFiches] = idsFiches.length
     ? await Promise.all([fichesAffichage(c.env, commune_id, idsFiches), gestionnaire ? [] : idsFichesGerees(c.env, commune_id, user_id)])
     : [new Map(), []];
+  // Motif d'un retrait par la mairie, affiché à la mairie seule à côté du badge « masqué ».
+  const motifs = gestionnaire
+    ? await motifsRetrait(c.env, commune_id, 'event_id', events.filter((e: any) => e.statut === 'masquee').map((e: any) => e.id))
+    : new Map();
 
   const result = events.map((e: any) => {
     const auteur = auteurs.find((a: any) => a.id === e.user_id);
@@ -147,6 +152,7 @@ app.get('/', async (c) => {
       peut_gerer: e.user_id === user_id || gestionnaire || (!!e.fiche_id && (mesFiches as string[]).includes(e.fiche_id)),
       // Règle n°4 : tout événement qui n'est pas une communication de la mairie se signale.
       signalable: !e.officiel,
+      motif_retrait: motifs.get(e.id) ?? null,
       est_moi: e.user_id === user_id,
       total_participants: participantsEvent.length,
       je_participe: participantsEvent.some((p: any) => p.user_id === user_id),
@@ -198,11 +204,10 @@ app.post('/', async (c) => {
 
   if (data.fiche_id) {
     if (!(await peutPublierPourFiche(c.env, commune_id, data.fiche_id, user_id, c.get('role')))) {
-      return c.json({ erreur: 'Vous ne pouvez pas publier au nom de cette association' }, 403);
+      return c.json({ erreur: 'Vous ne pouvez pas publier au nom de cette fiche (ou ses publications sont suspendues par la mairie)' }, 403);
     }
-    if (!estGestionnaire(c.get('role')) && await plafondPublicationsAssoAtteint(c.env, commune_id, data.fiche_id)) {
-      return c.json({ erreur: `Limite atteinte : ${MAX_PUBLICATIONS_ASSO_24H} publications par association sur 24 heures.` }, 429);
-    }
+    const plafond = estGestionnaire(c.get('role')) ? null : await plafondPublicationsAtteint(c.env, commune_id, data.fiche_id);
+    if (plafond) return c.json({ erreur: plafond }, 429);
   }
 
   // Un événement "action civique" (points de participation, QR + validation) ne peut être
@@ -804,10 +809,31 @@ app.post('/:id/signaler', async (c) => {
 app.patch('/:id/restaurer', async (c) => {
   if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   const commune_id = c.get('commune_id');
+  const id = { data: c.req.param('id') };
   await supabaseUpdate(c.env, 'events', { statut: 'visible' }, {
-    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+    id: `eq.${id.data}`, commune_id: `eq.${commune_id}`,
   });
+  await noterRestauration(c.env, commune_id, c.get('user_id'), { event_id: id.data });
   return c.json({ ok: true });
+});
+
+// POST /:id/retirer — retrait MOTIVÉ par la mairie (DSA art. 17), même logique que les actualités.
+const retraitSchema = z.object({ motif: z.enum(CLES_MOTIFS), precision: z.string().trim().max(500).optional() })
+  .refine((d) => d.motif !== 'autre' || !!d.precision, { message: 'Précisez le motif', path: ['precision'] });
+
+app.post('/:id/retirer', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const id = { data: c.req.param('id') };
+  const body = retraitSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  try {
+    const r = await retirerPublication(c.env, c.get('commune_id'), c.get('user_id'), { event_id: id.data }, body.data.motif, body.data.precision || null);
+    if ('erreur' in r) return c.json({ erreur: r.erreur }, r.statut);
+    return c.json(r);
+  } catch (e) {
+    console.error('[agenda/retirer]', e);
+    return c.json({ erreur: 'Retrait impossible pour le moment' }, 500);
+  }
 });
 
 export default app;

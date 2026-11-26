@@ -11,9 +11,10 @@ import { envoyerNotificationAUtilisateurs, utilisateursAbonnesA } from '../lib/p
 import { photoSuspecte } from '../lib/moderation-image';
 import { CLES_THEMES_ACTUS } from '../lib/themes-actus';
 import {
-  peutPublierPourFiche, plafondPublicationsAssoAtteint, fichesPublicationPossible,
-  idsFichesGerees, fichesAffichage, signalerPublication, MAX_PUBLICATIONS_ASSO_24H,
+  peutPublierPourFiche, plafondPublicationsAtteint, fichesPublicationPossible,
+  idsFichesGerees, fichesAffichage, signalerPublication,
 } from '../lib/associations';
+import { retirerPublication, noterRestauration, motifsRetrait, CLES_MOTIFS } from '../lib/moderation-publications';
 
 const app = new Hono();
 app.use('*', jwtMiddleware);
@@ -66,8 +67,10 @@ const articleSchema = z.object({
   // l'édition (PATCH envoie alors null), sans quoi il n'y aurait aucun moyen de l'enlever.
   fichier_pv_url: z.string().url().nullable().optional(),
   fichier_pv_type: z.enum(['pdf', 'image']).nullable().optional(),
-  // Publier au nom d'une association (création uniquement, jamais modifiable ensuite).
+  // Publier au nom d'une association / d'un commerce (création uniquement, jamais modifiable ensuite).
   fiche_id: z.string().uuid().optional(),
+  // Partagée avec les communes voisines (« Autour de moi », migration 122) — non par défaut.
+  partage_autour: z.boolean().optional(),
 });
 
 app.get('/', async (c) => {
@@ -81,7 +84,7 @@ app.get('/', async (c) => {
 
   const gestionnaire = estGestionnaire(c.get('role'));
   const filtres: Record<string, string> = {
-    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type,archive,fiche_id,statut',
+    select: 'id,titre,contenu_html,categorie,auteur_id,created_at,updated_at,fichier_pv_url,fichier_pv_type,archive,fiche_id,statut,partage_autour',
     commune_id: `eq.${commune_id}`,
     section: `eq.${section}`,
     order: 'created_at.desc',
@@ -159,6 +162,10 @@ app.get('/', async (c) => {
   const [fiches, mesFiches] = idsFiches.length
     ? await Promise.all([fichesAffichage(c.env, commune_id, idsFiches), gestionnaire ? [] : idsFichesGerees(c.env, commune_id, user_id_lecteur)])
     : [new Map(), []];
+  // Motif d'un retrait par la mairie, affiché à la mairie seule à côté du badge « masqué ».
+  const motifs = gestionnaire
+    ? await motifsRetrait(c.env, commune_id, 'article_id', articles.filter((a: any) => a.statut === 'masquee').map((a: any) => a.id))
+    : new Map();
 
   const result = articles.map((a: any) => ({
     ...a,
@@ -170,6 +177,7 @@ app.get('/', async (c) => {
     association: a.fiche_id ? (fiches.get(a.fiche_id) ?? null) : null,
     peut_gerer: gestionnaire || (!!a.fiche_id && (mesFiches as string[]).includes(a.fiche_id)),
     signalable: !!a.fiche_id,
+    motif_retrait: motifs.get(a.id) ?? null,
   }));
 
   return c.json({ articles: result, commune_id });
@@ -187,13 +195,12 @@ app.post('/', async (c) => {
   // Sans association : réservé à la mairie (comme avant). Au nom d'une association : la mairie
   // ou un responsable actif, uniquement dans Actualités (jamais dans Conseil), plafonné.
   if (data.fiche_id) {
-    if (data.section !== 'actualites') return c.json({ erreur: 'Une association ne publie que dans les actualités' }, 400);
+    if (data.section !== 'actualites') return c.json({ erreur: 'Une association ou un commerce ne publie que dans les actualités' }, 400);
     if (!(await peutPublierPourFiche(c.env, commune_id, data.fiche_id, user_id, role))) {
-      return c.json({ erreur: 'Vous ne pouvez pas publier au nom de cette association' }, 403);
+      return c.json({ erreur: 'Vous ne pouvez pas publier au nom de cette fiche (ou ses publications sont suspendues par la mairie)' }, 403);
     }
-    if (!estGestionnaire(role) && await plafondPublicationsAssoAtteint(c.env, commune_id, data.fiche_id)) {
-      return c.json({ erreur: `Limite atteinte : ${MAX_PUBLICATIONS_ASSO_24H} publications par association sur 24 heures.` }, 429);
-    }
+    const plafond = estGestionnaire(role) ? null : await plafondPublicationsAtteint(c.env, commune_id, data.fiche_id);
+    if (plafond) return c.json({ erreur: plafond }, 429);
   } else if (!estGestionnaire(role)) {
     return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   }
@@ -210,6 +217,7 @@ app.post('/', async (c) => {
     fichier_pv_url: data.fichier_pv_url ?? null,
     fichier_pv_type: data.fichier_pv_type ?? null,
     fiche_id: data.fiche_id ?? null,
+    partage_autour: data.section === 'actualites' && !!data.partage_autour,
   });
   // Indicateur d'activation de la mairie (backoffice) : seulement ses propres publications.
   if (!data.fiche_id) await enregistrerEvenementActivation(c.env, commune_id, 'article_publie');
@@ -271,6 +279,7 @@ app.patch('/:id', async (c) => {
   if (body.data.archive !== undefined) patch.archive = body.data.archive;
   if (body.data.fichier_pv_url !== undefined) patch.fichier_pv_url = body.data.fichier_pv_url;
   if (body.data.fichier_pv_type !== undefined) patch.fichier_pv_type = body.data.fichier_pv_type;
+  if (body.data.partage_autour !== undefined) patch.partage_autour = body.data.partage_autour;
   patch.updated_at = new Date().toISOString();
 
   await supabaseUpdate(c.env, 'articles', patch, {
@@ -530,10 +539,32 @@ app.post('/:id/signaler', async (c) => {
 app.patch('/:id/restaurer', async (c) => {
   if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
   const commune_id = c.get('commune_id');
+  const id = { data: c.req.param('id') };
   await supabaseUpdate(c.env, 'articles', { statut: 'visible' }, {
-    id: `eq.${c.req.param('id')}`, commune_id: `eq.${commune_id}`,
+    id: `eq.${id.data}`, commune_id: `eq.${commune_id}`,
   });
+  await noterRestauration(c.env, commune_id, c.get('user_id'), { article_id: id.data });
   return c.json({ ok: true });
+});
+
+// POST /:id/retirer — retrait MOTIVÉ par la mairie (DSA art. 17) : masquage, email du motif à
+// l'auteur et aux responsables de la fiche, trace dans moderation_decisions.
+const retraitSchema = z.object({ motif: z.enum(CLES_MOTIFS), precision: z.string().trim().max(500).optional() })
+  .refine((d) => d.motif !== 'autre' || !!d.precision, { message: 'Précisez le motif', path: ['precision'] });
+
+app.post('/:id/retirer', async (c) => {
+  if (!estGestionnaire(c.get('role'))) return c.json({ erreur: 'Réservé aux administrateurs' }, 403);
+  const id = { data: c.req.param('id') };
+  const body = retraitSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!body.success) return c.json({ erreur: body.error.flatten() }, 400);
+  try {
+    const r = await retirerPublication(c.env, c.get('commune_id'), c.get('user_id'), { article_id: id.data }, body.data.motif, body.data.precision || null);
+    if ('erreur' in r) return c.json({ erreur: r.erreur }, r.statut);
+    return c.json(r);
+  } catch (e) {
+    console.error('[actus/retirer]', e);
+    return c.json({ erreur: 'Retrait impossible pour le moment' }, 500);
+  }
 });
 
 export default app;

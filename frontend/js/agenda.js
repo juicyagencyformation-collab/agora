@@ -138,7 +138,7 @@ function renderCarteEvenementAutour(e) {
   const el = document.createElement('article');
   el.className = 'carte-article-compacte';
   const dateAffichee = new Date(e.date_debut).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  const badgeOrigine = (e.association_nom ? `🤝 ${escapeAttr(e.association_nom)} · ` : '') + (e.commune_nationale
+  const badgeOrigine = (e.association_nom ? `${iconeFiche(e.association_categorie)} ${escapeAttr(e.association_nom)} · ` : '') + (e.commune_nationale
     ? `🇫🇷 ${escapeAttr(e.commune_nom)} · National`
     : `📍 ${escapeAttr(e.commune_nom)} · ${e.commune_distance_km} km`);
   el.innerHTML = `
@@ -147,8 +147,13 @@ function renderCarteEvenementAutour(e) {
       <h3 class="titre-article-compact">${escapeAttr(e.titre)}</h3>
       <p class="extrait-article-compact">${dateAffichee}${e.lieu ? ' · ' + escapeAttr(e.lieu) : ''}</p>
       ${e.description ? `<p style="font-size:13px;color:var(--boue);margin-top:6px;">${texteAvecLiensCliquables(e.description)}</p>` : ''}
+      <div class="actions-moderation"></div>
     </div>
   `;
+  // La mairie peut masquer chez elle un événement partagé par une autre commune (migration 122).
+  if (estGestionnaireModeration()) {
+    el.querySelector('.actions-moderation').appendChild(boutonMasquerChezNous({ event_id: e.id }, chargerAutourDeMoi));
+  }
   return el;
 }
 
@@ -271,7 +276,7 @@ function renderEvent(event) {
   // peut_gerer (serveur) inclut les responsables de l'association organisatrice (migration 102).
   const peutModifier = event.peut_gerer ?? (event.est_moi || estGestionnaireEvent);
   const badgeOrigine = event.association
-    ? `<span class="badge-categorie-article badge-association">🤝 ${escapeAttr(event.association.nom)}</span>`
+    ? `<span class="badge-categorie-article badge-association">${iconeFiche(event.association.categorie)} ${escapeAttr(event.association.nom)}</span>`
     : `<span class="badge-categorie-article ${event.officiel ? 'badge-officiel-event' : ''}">${event.officiel ? '🏛️ Officiel' : '👤 Citoyen'}</span>`;
   const dateAffichee = formatDateAffichageEvent(event);
   const badgeQuand = !modeHistoriqueAgenda ? badgeQuandEvenement(event.date_debut) : null;
@@ -291,7 +296,10 @@ function renderEvent(event) {
         <div class="badges-event-compact">
           ${badgeOrigine}
           ${badgeQuand ? `<span class="badge-categorie-article ${badgeQuand.classe}">${badgeQuand.texte}</span>` : ''}
-          ${event.statut === 'masquee' ? '<span class="badge-categorie-article badge-masque">⚠️ Masqué (signalé)</span>' : ''}
+          ${event.statut !== 'masquee' ? ''
+            : event.motif_retrait
+              ? `<span class="badge-categorie-article badge-retire">🚫 Retiré : ${escapeAttr(event.motif_retrait)}</span>`
+              : '<span class="badge-categorie-article badge-masque">⚠️ Masqué (signalé)</span>'}
         </div>
         <h3 class="titre-article-compact">${escapeAttr(event.titre)}</h3>
         <p class="extrait-article-compact">${dateAffichee}${event.lieu ? ' · ' + escapeAttr(event.lieu) : ''}</p>
@@ -353,8 +361,10 @@ function remplirContenuEvenement(zone, event, peutModifier) {
 
     <div class="actions-admin" style="margin-top:8px;">
       ${peutModifier ? '<button class="btn-modifier-event">Modifier</button><button class="btn-supprimer-event">Supprimer</button><button class="btn-voir-contacts-event">Voir les coordonnées</button>' : ''}
-      ${event.statut === 'masquee' && ['admin', 'elu', 'maire', 'superadmin'].includes(window.ROLE) ? '<button class="btn-retablir-event">✓ Rétablir (signalement non fondé)</button>' : ''}
+      ${event.statut === 'masquee' && estGestionnaireModeration() ? `<button class="btn-retablir-event">✓ Rétablir${event.motif_retrait ? '' : ' (signalement non fondé)'}</button>` : ''}
+      ${event.statut === 'masquee' && estGestionnaireModeration() && !event.motif_retrait ? '<button class="btn-retirer-event">🚫 Confirmer le retrait…</button>' : ''}
     </div>
+    ${event.signalable && event.statut !== 'masquee' && estGestionnaireModeration() ? '<button type="button" class="lien-discret btn-retirer-event">🚫 Retirer cet événement…</button>' : ''}
     ${event.signalable && !peutModifier && event.statut !== 'masquee' ? '<button type="button" class="lien-discret btn-signaler-event">🚩 Signaler cet événement</button>' : ''}
     <div class="zone-contacts-event" hidden></div>
   `;
@@ -369,6 +379,8 @@ function remplirContenuEvenement(zone, event, peutModifier) {
     await appelApi(`/${window.COMMUNE_SLUG}/agenda/${event.id}/restaurer`, { method: 'PATCH' });
     chargerAgenda();
   });
+  // Retrait motivé (migration 122) : le motif part par email à l'organisateur.
+  zone.querySelector('.btn-retirer-event')?.addEventListener('click', () => ouvrirModaleRetrait('agenda', event, chargerAgenda));
 
   if (event.necessite_validation_presence && !event.est_moi) {
     initZoneScanCivique(zone.querySelector('.carte-scan-civique'), event.id);
@@ -480,7 +492,7 @@ function htmlChampPartageAutour(prefixe, valeurActuelle) {
       <input type="checkbox" id="partage-autour-${prefixe}" ${coche ? 'checked' : ''}>
       <span>
         <strong>🗺️ Afficher dans « Autour de moi »</strong>
-        <small>Cet événement (de la mairie ou d'une association) sera visible par les communes voisines partenaires. Décoche pour le garder uniquement dans ta commune.</small>
+        <small>Cet événement (de la mairie, d'une association ou d'un commerce) sera visible par les communes voisines partenaires, dont la mairie peut le masquer chez elle. Décochez pour le garder uniquement dans votre commune.</small>
       </span>
     </label>
   `;

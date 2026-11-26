@@ -33,6 +33,15 @@ la mairie) peut tenir la fiche à jour (sauf catégorie et suppression) et publi
 publications / 24 h, signalables (règle 4), partagés dans « Autour de moi ». Offre payante :
 exige l'onglet annuaire actif. Logique centralisée dans `worker/src/lib/associations.ts` ;
 tests `worker/test/annuaire-responsables.test.ts` et `publications-associations.test.ts`.
+**Commerces, artisans et modération motivée (validé par Léandre le 2026-11-26, migration 122) :**
+mêmes droits pour un responsable de fiche commerce/artisan, mais 2 publications / 7 jours.
+Actualités partageables avec les communes voisines (`/decouverte/actualites`, case décochée par
+défaut, jamais une commune nationale). La mairie retire avec un MOTIF obligatoire (liste fermée
+`MOTIFS_MODERATION`, chaque motif = un article de `frontend/charte-publication.html`, email à
+l'auteur : DSA art. 17), suspend une fiche 7/30/90 j, masque « chez nous » un partage d'une autre
+commune (`partages_masques`, aucune écriture chez l'autre). Décisions tracées 3 ans
+(`moderation_decisions`). Logique : `worker/src/lib/moderation-publications.ts` ; tests
+`worker/test/publications-commerces-moderation.test.ts`.
 
 ## Format des réponses code
 - Toujours indiquer le chemin du fichier en commentaire en haut du bloc de code

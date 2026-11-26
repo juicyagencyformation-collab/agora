@@ -8,9 +8,21 @@ import { estGestionnaire } from './permissions';
 
 export type StatutResponsable = 'actif' | 'demande' | null;
 
-// Lot 2 (migration 102) : au plus 3 publications (actualités + événements) par association sur
-// 24 h glissantes, pour un responsable. La mairie publiant pour une association n'est pas limitée.
+// Fiches de l'annuaire qui peuvent publier (actualités, événements) par leurs responsables validés :
+// associations (migration 102) puis commerces et artisans (2026-11-26, migration 122).
+export const CATEGORIES_PUBLIANTES = ['association', 'commerce', 'artisan'] as const;
+export const estFichePubliante = (categorie: string | null | undefined) => (CATEGORIES_PUBLIANTES as readonly string[]).includes(categorie ?? '');
+
+// Quotas par fiche, pour un responsable (la mairie n'est pas limitée) :
+// - association : 3 publications sur 24 h glissantes (lot 2, migration 102) ;
+// - commerce, artisan : 2 publications sur 7 jours glissants (décision de Léandre, 2026-11-26),
+//   contre la publicité en rafale.
 export const MAX_PUBLICATIONS_ASSO_24H = 3;
+export const QUOTAS_PUBLICATION: Record<string, { max: number; jours: number; libelle: string }> = {
+  association: { max: 3, jours: 1, libelle: '3 publications par association sur 24 heures' },
+  commerce: { max: 2, jours: 7, libelle: '2 publications par commerce sur 7 jours' },
+  artisan: { max: 2, jours: 7, libelle: '2 publications par artisan sur 7 jours' },
+};
 
 // Même règle que requireOngletActif : pas de ligne = actif. L'annuaire est dans l'offre payante
 // (décision de Léandre du 2026-11-10) : sans lui, aucune publication au nom d'une association,
@@ -24,24 +36,37 @@ async function annuaireActif(env: any, commune_id: string): Promise<boolean> {
 
 // Publier (ou gérer une publication) au nom d'une fiche : association de la commune, annuaire
 // actif, et mairie ou responsable actif de cette fiche.
+// Suspension décidée par la mairie (migration 122) : en cours jusqu'à la date incluse.
+export const suspensionEnCours = (fiche: { publications_suspendues_jusqu?: string | null }) =>
+  !!fiche?.publications_suspendues_jusqu && fiche.publications_suspendues_jusqu >= new Date().toISOString().slice(0, 10);
+
 export async function peutPublierPourFiche(env: any, commune_id: string, fiche_id: string, user_id: string, role: string): Promise<boolean> {
   const [fiche] = await supabaseSelect(env, 'annuaire', {
-    select: 'id,categorie', commune_id: `eq.${commune_id}`, id: `eq.${fiche_id}`,
+    select: 'id,categorie,publications_suspendues_jusqu', commune_id: `eq.${commune_id}`, id: `eq.${fiche_id}`,
   });
-  if (fiche?.categorie !== 'association') return false;
+  if (!fiche || !estFichePubliante(fiche.categorie)) return false;
   if (!(await annuaireActif(env, commune_id))) return false;
   if (estGestionnaire(role)) return true;
+  if (suspensionEnCours(fiche)) return false;
   return (await statutResponsable(env, commune_id, fiche_id, user_id)) === 'actif';
 }
 
-export async function plafondPublicationsAssoAtteint(env: any, commune_id: string, fiche_id: string): Promise<boolean> {
-  const depuis = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+// Message d'erreur si le quota de la fiche est atteint, sinon null.
+export async function plafondPublicationsAtteint(env: any, commune_id: string, fiche_id: string): Promise<string | null> {
+  const [fiche] = await supabaseSelect(env, 'annuaire', { select: 'categorie', commune_id: `eq.${commune_id}`, id: `eq.${fiche_id}` });
+  const quota = QUOTAS_PUBLICATION[fiche?.categorie] ?? QUOTAS_PUBLICATION.association;
+  const depuis = new Date(Date.now() - quota.jours * 24 * 3600 * 1000).toISOString();
   const filtres = { select: 'id', commune_id: `eq.${commune_id}`, fiche_id: `eq.${fiche_id}`, created_at: `gte.${depuis}` };
   const [articles, events] = await Promise.all([
     supabaseSelect(env, 'articles', filtres),
     supabaseSelect(env, 'events', filtres),
   ]);
-  return articles.length + events.length >= MAX_PUBLICATIONS_ASSO_24H;
+  return articles.length + events.length >= quota.max ? `Limite atteinte : ${quota.libelle}.` : null;
+}
+
+// Ancien nom (associations seules), gardé pour les appels existants.
+export async function plafondPublicationsAssoAtteint(env: any, commune_id: string, fiche_id: string): Promise<boolean> {
+  return (await plafondPublicationsAtteint(env, commune_id, fiche_id)) !== null;
 }
 
 // Associations au nom desquelles l'utilisateur peut publier (menu « Publier pour » des
@@ -49,14 +74,17 @@ export async function plafondPublicationsAssoAtteint(env: any, commune_id: strin
 export async function fichesPublicationPossible(env: any, commune_id: string, user_id: string, role: string) {
   if (!(await annuaireActif(env, commune_id))) return [];
   const filtres: Record<string, string> = {
-    select: 'id,nom,logo_url', commune_id: `eq.${commune_id}`, categorie: 'eq.association', order: 'nom.asc',
+    select: 'id,nom,logo_url,categorie,publications_suspendues_jusqu', commune_id: `eq.${commune_id}`,
+    categorie: `in.(${CATEGORIES_PUBLIANTES.join(',')})`, order: 'nom.asc',
   };
   if (!estGestionnaire(role)) {
     const ids = await idsFichesGerees(env, commune_id, user_id);
     if (!ids.length) return [];
     filtres.id = `in.(${ids.join(',')})`;
   }
-  return supabaseSelect(env, 'annuaire', filtres);
+  const fiches = await supabaseSelect(env, 'annuaire', filtres);
+  // Une fiche suspendue par la mairie ne propose plus la publication à ses responsables.
+  return estGestionnaire(role) ? fiches : fiches.filter((f: any) => !suspensionEnCours(f));
 }
 
 export async function idsFichesGerees(env: any, commune_id: string, user_id: string): Promise<string[]> {
@@ -71,7 +99,7 @@ export async function fichesAffichage(env: any, commune_id: string, ids: string[
   const uniques = [...new Set(ids.filter(Boolean))];
   if (!uniques.length) return new Map();
   const fiches = await supabaseSelect(env, 'annuaire', {
-    select: 'id,nom,logo_url', commune_id: `eq.${commune_id}`, id: `in.(${uniques.join(',')})`,
+    select: 'id,nom,logo_url,categorie', commune_id: `eq.${commune_id}`, id: `in.(${uniques.join(',')})`,
   });
   return new Map(fiches.map((f: any) => [f.id, f]));
 }
@@ -106,7 +134,7 @@ export async function detacherFichesAssociations(env: any, commune_id: string, u
   await supabaseDelete(env, 'annuaire_responsables', { user_id: ids, commune_id: `eq.${commune_id}` });
 
   const fiches = await supabaseSelect(env, 'annuaire', {
-    select: 'id', user_id: ids, commune_id: `eq.${commune_id}`, categorie: 'eq.association',
+    select: 'id', user_id: ids, commune_id: `eq.${commune_id}`, categorie: `in.(${CATEGORIES_PUBLIANTES.join(',')})`,
   });
   if (!fiches.length) return;
   const reprises = await supabaseSelect(env, 'annuaire_responsables', {
