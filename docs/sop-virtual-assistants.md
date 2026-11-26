@@ -1,6 +1,6 @@
 # Mode d'emploi du backoffice Agora — SOP Virtual Assistants
 
-> Document vivant : à mettre à jour à chaque nouveauté livrée sur le backoffice. Dernière mise à jour : **2026-09-23**.
+> Document vivant : à mettre à jour à chaque nouveauté livrée sur le backoffice. Dernière mise à jour : **2026-11-26**.
 > Destiné aux Virtual Assistants (VA) de Juicy Solutions qui opèrent le backoffice au quotidien (prospection, onboarding, facturation, support). Version "grand public" (mairies) : voir `guide-communes.md`.
 
 ## ⚠️ Règle d'or à lire avant tout
@@ -84,7 +84,7 @@ L'heure de rappel peut aussi se régler à la main à côté de la date de proch
 - **Qualification** (sous le bloc « Appel ») : 5 menus déroulants à remplir pendant ou juste après l'appel : interlocuteur, outil actuel, ce qui lui pèse, qui décide, nombre de communes gérées. Chaque choix s'enregistre tout seul. Choisir l'outil actuel ne garde que le bon rebond dans le mémo.
 - **Modèles de mail** (menu « Modèle » en haut de « ✍️ Email libre ») : « Suite à l'appel », « Confirmation de démo », « Pour convaincre le maire » (démo, espace de la commune, trois arguments et le prix fondateur de la commune). Choisir un modèle remplace l'objet et le message. **Rien ne part sans clic sur « Envoyer »** : un envoi individuel, jamais en lot.
 - **📝 Préparer dans Outlook** (onglet Échanges, recommandé à la place de l'envoi direct) : choisir « Présentation » ou « Email libre », cocher les pièces jointes (plaquette, dossier conseil, fiche + QR, affiches, stickers, en PDF), puis « 📥 Télécharger le brouillon Outlook ». Ouvrir le fichier téléchargé : Outlook l'affiche prêt à envoyer depuis le compte contact@plateforme-agora.fr. Relire, puis Envoyer. La préparation est notée dans l'historique. Depuis le 25 novembre 2026, la présentation (directe ou dans Outlook) ne crée plus d'espace ni de mot de passe : le lien mène à l'espace de la commune s'il existe, sinon à la démo Bonvivre. Environ 5 s par pièce jointe ; quota du navigateur Cloudflare : 10 min par jour.
-- **📘 Plaquette** (à côté de « 📜 Dossier conseil », et sur la fiche commune) : plaquette de 4 pages au nom de la commune, à ses couleurs et avec son logo, prix calculés pour SA population et offre fondatrice en avant (places restantes à jour). « 🖨 Imprimer / Enregistrer en PDF », puis joindre le PDF au mail. Les prix et les textes des offres suivent les Réglages (Tarification) : ne jamais retoucher un prix à la main dans le PDF.
+- **📘 Plaquette** (à côté de « 📜 Dossier conseil », et sur la fiche commune) : plaquette de 4 pages au nom de la commune, à ses couleurs et avec son logo, prix calculés pour SA population et offre fondatrice en avant (places restantes à jour). « 🖨 Imprimer / Enregistrer en PDF », puis joindre le PDF au mail. Les prix et les textes des offres suivent les Réglages (Tarification) : ne jamais retoucher un prix à la main dans le PDF. ⚠️ Avant le 26 novembre 2026 (après-midi), ce bouton et la plaquette jointe aux brouillons Outlook ouvraient par erreur l'accueil du backoffice : un brouillon préparé avant cette date avec la plaquette jointe est à refaire.
 
 ### 2.5 Cycle de vie d'un prospect
 
@@ -313,6 +313,18 @@ Entrée « 📣 Annonces » du menu : un bandeau en haut de l'accueil de l'app p
 4. « Enregistrer » : le compteur passe à « ✓ Contrat complet ». Puis « Imprimer / PDF ».
 
 ⚠️ La section « Vous (Prestataire) » (plafond de responsabilité, assurance, SIRET, adresse) vaut pour TOUTES les communes : ne jamais la modifier sans l'accord de Léandre.
+
+### 6.13 Support : publications des associations et commerces, modération (depuis le 2026-11-26)
+
+À connaître pour répondre au téléphone. **Rien de tout ça ne se fait depuis le backoffice** : c'est la mairie qui décide, dans l'application.
+
+- **Qui publie** : avec l'annuaire actif (offre payante), une association, un commerce ou un artisan publie par un **responsable** que la mairie a validé (« 🙋 Je gère ce commerce » sur sa fiche, puis « Valider » côté mairie). Associations : 3 publications / 24 h ; commerces et artisans : **2 / 7 jours**, sans notification.
+- **Charte de publication** : https://plateforme-agora.fr/charte-publication.html. Chaque responsable et la mairie confirment l'avoir lue avant de publier (« ✅ J'ai lu la charte ») ; la mairie voit qui l'a lue dans « 👥 Responsables ».
+- **« On m'a retiré ma publication »** : c'est la mairie qui l'a fait, pas Plateforme-Agora. L'auteur a reçu un email avec le motif et l'article de la charte : lui dire de **répondre à cet email** (la réponse arrive à la mairie) ou d'appeler sa mairie. Ne jamais rétablir quoi que ce soit soi-même.
+- **« Je ne peux plus publier »** : soit le quota est atteint (le message le dit), soit la mairie a **suspendu** la fiche 7, 30 ou 90 jours (email reçu avec le motif). Renvoyer vers la mairie.
+- **« Je ne peux pas créer ma fiche, on me dit que j'en ai une ailleurs »** : une personne (même email) n'a de fiche que dans un seul village. Elle supprime sa fiche dans l'autre village (bouton « Supprimer » de sa fiche), puis la recrée.
+- **Une mairie demande comment modérer** : renvoyer au guide, section B.8 (https://plateforme-agora.fr/guide-communes#b8) : « 🚫 Retirer… », « ⏸️ Suspendre… », « 🙈 Masquer chez nous », « 🛡️ Décisions de modération ».
+- **Actualités des villages voisins** : case « 🗺️ Partager avec les communes voisines » à la publication, menu « Autour de nous » des Actualités pour les lire.
 
 ## 7. Suivi commercial (lecture seule pour un VA sauf instruction contraire)
 

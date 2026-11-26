@@ -22,7 +22,7 @@
   // Modules de l'application (clés de TOUS_LES_ONGLETS, worker/src/backoffice/administration.ts).
   const MODULES = {
     actualites: ['Actualités', 'Publier une fois, être lu par tous, photos comprises ; une aide à la rédaction prépare le texte.'],
-    agenda: ['Agenda', 'Événements de la mairie et des associations, inscription en un clic, ajout au calendrier du téléphone.'],
+    agenda: ['Agenda', 'Événements de la mairie, des associations et des commerces, inscription en un clic, ajout au calendrier du téléphone.'],
     alertes: ['Alertes et signalements', "La mairie prévient tout le village par notification ; l'habitant signale un problème avec photo et position."],
     chasse_tresor: ['Chasse au trésor et balades', 'Découvrir le patrimoine du village en jouant, pour les habitants comme pour les visiteurs.'],
     enigmes: ['Énigme photo', '« Où a été prise cette photo ? » Un jeu en famille, ici ou dans les villages voisins.'],
@@ -30,7 +30,7 @@
     thermometre: ['Thermomètre du village', 'Un sondage rapide avant une décision ; les réponses se comptent toutes seules.'],
     mur: ['Mur des voisins', 'Des messages courts entre habitants, effacés au bout de 24 ou 48 heures.'],
     coups_de_main: ['Coups de main', "L'entraide entre voisins : des courses, un trajet, un outil à prêter."],
-    annuaire: ['Annuaire et associations', 'Commerces, services, associations ; les associations publient elles-mêmes leurs actualités.'],
+    annuaire: ['Annuaire, associations et commerces', 'Associations et commerces publient eux-mêmes leurs actualités ; la mairie garde la main (retrait motivé en deux clics, charte de publication).'],
     bulletin: ['Bulletin municipal', 'Un espace pour préparer le bulletin à plusieurs, avec validation par les élus.'],
     photo_du_jour: ['Photo du jour', 'Chaque jour, un cliché de la commune pris par un habitant.'],
     memoire: ['Mémoire du village', "Souvenirs, récits et photos d'autrefois, transmis aux plus jeunes."],
