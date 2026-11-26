@@ -5,6 +5,34 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-26 — Appli : la page du dessous défile quand on glisse le doigt sur une fenêtre
+
+**Gravité :** faible (gêne visuelle, aucune donnée perdue)
+**Fichiers :** `frontend/js/utils.js`, `frontend/css/dashboard.css`
+
+### Symptôme
+Sur Android, dans Annuaire → « Créer ma fiche », glisser le doigt sur la fenêtre faisait défiler
+la page de l'annuaire derrière elle.
+
+### Cause
+Quand le formulaire tient entièrement dans l'écran, la fenêtre n'a rien à faire défiler : le
+navigateur transmet alors le geste à la page du dessous (« scroll chaining »).
+
+### Correction
+Tant qu'une fenêtre est ouverte, `html.modale-ouverte` bloque le défilement de la page
+(`majVerrouDefilementModale()`, appelée à l'ouverture, à la fermeture et au bouton retour), et
+`overscroll-behavior: contain` sur la fenêtre. Vaut pour toutes les fenêtres de l'appli.
+
+### Vérification
+Chrome headless en mode mobile, page de 5 000 px : fenêtre ouverte, défilement de la page = 0 ;
+fenêtre fermée, la page défile de nouveau.
+
+### À retenir
+Toute nouvelle fenêtre doit passer par `ouvrirModaleFormulaire()` / `fermerModaleFormulaire()`,
+sinon le verrou n'est ni posé ni levé.
+
+---
+
 ## 2026-11-26 — Backoffice : le code de double authentification arrive deux fois
 
 **Gravité :** faible (deux emails au lieu d'un ; le premier code devenait invalide)
