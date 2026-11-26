@@ -5,6 +5,34 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-26 — Backoffice : « 📘 Plaquette » ouvre l'accueil du backoffice au lieu de la plaquette
+
+**Gravité :** moyenne (la plaquette jointe en PDF aux brouillons Outlook était aussi un écran du backoffice)
+**Fichiers :** `frontend/functions/[[path]].js`
+
+### Symptôme
+Le bouton « 📘 Plaquette » (fiche d'une commune, onglet Échanges) ouvrait un écran du backoffice,
+pas la plaquette personnalisée de la commune.
+
+### Cause
+La Pages Function ne sert que les pages du backoffice d'une liste fermée ; `plaquette` n'y avait
+jamais été ajoutée lors de la création de `frontend/backoffice/plaquette.html` (2026-11-23).
+`/backoffice/plaquette?…` retombait donc sur `index.html`. Le navigateur Cloudflare qui fabrique
+le PDF joint (`worker/src/backoffice/documents-pdf.ts`) utilisant la même adresse, le PDF était
+faux lui aussi.
+
+### Correction
+`plaquette` ajoutée à la liste, avec un commentaire qui rappelle d'y inscrire toute nouvelle page.
+
+### Vérification
+Après déploiement : ouvrir « 📘 Plaquette » depuis la fiche d'une commune, et préparer un brouillon
+Outlook avec la plaquette jointe.
+
+### À retenir
+Nouvelle page `frontend/backoffice/<nom>.html` = l'ajouter à la liste de `frontend/functions/[[path]].js`.
+
+---
+
 ## 2026-11-26 — Appli : la page du dessous défile quand on glisse le doigt sur une fenêtre
 
 **Gravité :** faible (gêne visuelle, aucune donnée perdue)
