@@ -5,6 +5,38 @@ vérification, et ce qu'il faut retenir pour ne pas le reproduire.
 
 ---
 
+## 2026-11-27 — Mur des voisins : la réponse en cours se ferme toute seule
+
+**Gravité :** moyenne (texte perdu en écrivant un commentaire)
+**Fichiers :** `frontend/js/mur.js`
+
+### Symptôme
+En écrivant un commentaire sous un message du mur, la zone de réponse se refermait au bout de
+quelques mots et le texte tapé disparaissait.
+
+### Cause
+Le mur se recharge tout seul toutes les 30 secondes (`setInterval(chargerMur, 30_000)`) pour
+afficher les nouveaux messages. `chargerMur()` vidait la liste et la redessinait entièrement :
+zones de commentaires refermées, champs recréés vides. Même effet juste après l'envoi d'un
+commentaire (la discussion se refermait).
+
+### Correction
+- Le rechargement automatique est sauté quand un champ de commentaire a le curseur ou contient
+  du texte, et quand l'appli est en arrière-plan.
+- Tout rechargement remet ce que l'habitant avait sous les yeux : discussions ouvertes,
+  brouillons, curseur dans le champ (`lireEtatMur` / `restaurerEtatMur`).
+
+### Vérification
+Chrome headless, fausse API : rechargement automatique pendant l'écriture → aucune requête, zone
+ouverte, texte intact ; rechargement forcé → zone ouverte, texte et curseur conservés ;
+rechargement sans écriture en cours → discussion toujours ouverte.
+
+### À retenir
+Toute liste rechargée périodiquement qui contient un champ de saisie doit soit sauter le
+rechargement pendant la saisie, soit restaurer l'état (ouvert, brouillon, curseur).
+
+---
+
 ## 2026-11-26 — Backoffice : « 📘 Plaquette » ouvre l'accueil du backoffice au lieu de la plaquette
 
 **Gravité :** moyenne (la plaquette jointe en PDF aux brouillons Outlook était aussi un écran du backoffice)
